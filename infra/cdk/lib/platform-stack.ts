@@ -14,15 +14,13 @@
  */
 import * as cdk from 'aws-cdk-lib';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as codedeploy from 'aws-cdk-lib/aws-codedeploy';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as events from 'aws-cdk-lib/aws-events';
-import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as kms from 'aws-cdk-lib/aws-kms';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -33,9 +31,16 @@ import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as sfn_tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import * as s3assets from 'aws-cdk-lib/aws-s3-assets';
+import { Template } from 'aws-cdk-lib/assertions';
 import { Construct } from 'constructs';
+import * as fs from 'fs';
 import * as path from 'path';
+import { createPlatformCompute } from './platform-compute';
 import { resolveEntraConfiguration } from './entra-config';
+import { createPlatformStorage } from './platform-storage';
+import { TenantStack } from './tenant-stack';
+
+const TENANT_AUTHORIZED_RUNTIME_REGIONS = ['eu-west-1', 'eu-central-1'] as const;
 
 type PythonLambdaProps = {
   assetPath: string;
@@ -59,8 +64,44 @@ type GatewayPolicyConfiguration = {
 
 export interface PlatformStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
-  readonly tenantDataKey: kms.IKey;
-  readonly platformConfigKey: kms.IKey;
+}
+
+function ensureTenantStubTemplate(
+  env: string,
+  stackEnv: cdk.Environment,
+  authorizedRuntimeRegions: readonly string[],
+): string {
+  const generatedDir = path.join(__dirname, '../generated');
+  const stackId = `platform-tenant-stub-${env}`;
+  const templatePath = path.join(generatedDir, `${stackId}.template.json`);
+
+  if (fs.existsSync(templatePath)) {
+    return templatePath;
+  }
+
+  fs.mkdirSync(generatedDir, { recursive: true });
+
+  const tempApp = new cdk.App({
+    outdir: generatedDir,
+    context: {
+      env,
+    },
+  });
+
+  const tenantStubStack = new TenantStack(tempApp, stackId, {
+    env: stackEnv,
+    description: `Platform per-tenant resources stub — ${env}`,
+    authorizedRuntimeRegions,
+  });
+
+  const tenantTemplate = Template.fromStack(tenantStubStack).toJSON();
+  fs.writeFileSync(templatePath, JSON.stringify(tenantTemplate, null, 2));
+
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Failed to synthesize tenant stub template at ${templatePath}`);
+  }
+
+  return templatePath;
 }
 
 export class PlatformStack extends cdk.Stack {
@@ -78,7 +119,10 @@ export class PlatformStack extends cdk.Stack {
   public readonly bridgeFn: lambda.Function;
   public readonly bffFn: lambda.Function;
   public readonly authoriserFn: lambda.Function;
-  public readonly tenantApiFn: lambda.Function;
+  public readonly tenantMgmtFn: lambda.Function;
+  public readonly webhookRegistryFn: lambda.Function;
+  public readonly agentRegistryFn: lambda.Function;
+  public readonly adminOpsFn: lambda.Function;
   public readonly webhookDeliveryFn: lambda.Function;
   public readonly requestInterceptorFn: lambda.Function;
   public readonly responseInterceptorFn: lambda.Function;
@@ -98,6 +142,16 @@ export class PlatformStack extends cdk.Stack {
     const gatewayPolicyConfiguration = this.resolveGatewayPolicyConfiguration(env);
     const entra = resolveEntraConfiguration(this);
 
+    // --- Custom domain configuration (issue #164) ---
+    // When spaDomainName + spaCertificateArn are set in CDK context, the CloudFront
+    // distribution uses a custom domain with an ACM certificate provisioned in
+    // us-east-1 (CloudFront requirement). When absent, the distribution uses the
+    // default *.cloudfront.net certificate — suitable for dev/test only.
+    const spaDomainName = this.node.tryGetContext('spaDomainName') as string | undefined;
+    const spaCertificateArn = this.node.tryGetContext('spaCertificateArn') as string | undefined;
+    const apiDomainName = this.node.tryGetContext('apiDomainName') as string | undefined;
+    const apiCertificateArn = this.node.tryGetContext('apiCertificateArn') as string | undefined;
+
     // --- Secrets ---
 
     const scopedTokenSigningKeySecret = new secretsmanager.Secret(this, 'ScopedTokenSigningKeySecret', {
@@ -109,542 +163,47 @@ export class PlatformStack extends cdk.Stack {
       },
     });
 
-    // --- DynamoDB Tables (ADR-012) ---
-
-    this.tenantsTable = new dynamodb.Table(this, 'TenantsTable', {
-      tableName: 'platform-tenants',
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PROVISIONED,
-      readCapacity: 5,
-      writeCapacity: 5,
-      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
-      encryptionKey: props.platformConfigKey,
-      pointInTimeRecovery: true,
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    this.agentsTable = new dynamodb.Table(this, 'AgentsTable', {
-      tableName: 'platform-agents',
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PROVISIONED,
-      readCapacity: 5,
-      writeCapacity: 5,
-      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
-      encryptionKey: props.platformConfigKey,
-      pointInTimeRecovery: true,
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    this.toolsTable = new dynamodb.Table(this, 'ToolsTable', {
-      tableName: 'platform-tools',
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PROVISIONED,
-      readCapacity: 5,
-      writeCapacity: 5,
-      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
-      encryptionKey: props.platformConfigKey,
-      pointInTimeRecovery: true,
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    this.opsLocksTable = new dynamodb.Table(this, 'OpsLocksTable', {
-      tableName: 'platform-ops-locks',
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PROVISIONED,
-      readCapacity: 1,
-      writeCapacity: 1,
-      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
-      encryptionKey: props.platformConfigKey,
-      timeToLiveAttribute: 'ttl',
-      pointInTimeRecovery: true,
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    this.gatewayIdempotencyTable = new dynamodb.Table(this, 'GatewayIdempotencyTable', {
-      tableName: 'platform-gateway-idempotency',
-      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
-      encryptionKey: props.platformConfigKey,
-      timeToLiveAttribute: 'expiration',
-      pointInTimeRecovery: true,
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    this.invocationsTable = new dynamodb.Table(this, 'InvocationsTable', {
-      tableName: 'platform-invocations',
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
-      encryptionKey: props.tenantDataKey,
-      timeToLiveAttribute: 'ttl',
-      pointInTimeRecovery: true,
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    this.jobsTable = new dynamodb.Table(this, 'JobsTable', {
-      tableName: 'platform-jobs',
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
-      encryptionKey: props.tenantDataKey,
-      timeToLiveAttribute: 'ttl',
-      stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-      pointInTimeRecovery: true,
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    this.sessionsTable = new dynamodb.Table(this, 'SessionsTable', {
-      tableName: 'platform-sessions',
-      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
-      encryptionKey: props.tenantDataKey,
-      timeToLiveAttribute: 'ttl',
-      pointInTimeRecovery: true,
-      deletionProtection: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    // --- Lambdas ---
-
-    this.tenantApiFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../src/tenant_api'),
-      handler: 'handler.lambda_handler',
-      functionNameSuffix: 'tenant-api',
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'tenant-api',
-        TENANTS_TABLE_NAME: this.tenantsTable.tableName,
-        EVENT_BUS_NAME: 'default',
-        TENANT_API_KEY_SECRET_PREFIX: 'platform/tenants', // pragma: allowlist secret
-      },
-    });
-
-    this.tenantsTable.grantReadWriteData(this.tenantApiFn);
-    this.tenantApiFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: [
-          'secretsmanager:CreateSecret',
-          'secretsmanager:TagResource',
-          'secretsmanager:PutSecretValue',
-        ],
-        resources: [
-          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:platform/tenants/*`,
-        ],
-      }),
-    );
-    this.tenantApiFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['events:PutEvents'],
-        resources: [`arn:aws:events:${this.region}:${this.account}:event-bus/default`],
-      }),
-    );
-
-    this.tenantApiFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: [
-          'lambda:ListVersionsByFunction',
-          'lambda:UpdateAlias',
-          'lambda:GetAlias',
-          'lambda:GetFunctionConfiguration',
-        ],
-        resources: [
-          `arn:aws:lambda:${this.region}:${this.account}:function:platform-*-${env}`,
-          `arn:aws:lambda:${this.region}:${this.account}:function:platform-*-${env}:*`,
-        ],
-      }),
-    );
-
-    this.bridgeFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../src/bridge'),
-      handler: 'handler.handler',
-      functionNameSuffix: 'bridge',
-      timeout: cdk.Duration.minutes(15),
-      memorySize: 1024,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'bridge',
-        AGENTS_TABLE: this.agentsTable.tableName,
-        INVOCATIONS_TABLE: this.invocationsTable.tableName,
-        JOBS_TABLE: this.jobsTable.tableName,
-        TENANTS_TABLE: this.tenantsTable.tableName,
-      },
-    });
-
-    this.tenantsTable.grantReadData(this.bridgeFn);
-    this.agentsTable.grantReadData(this.bridgeFn);
-    this.invocationsTable.grantReadWriteData(this.bridgeFn);
-    this.jobsTable.grantReadWriteData(this.bridgeFn);
-
-    const webhookDeliveryRetryDlq = new sqs.Queue(this, 'webhookDeliveryRetryDlq', {
-      encryption: sqs.QueueEncryption.SQS_MANAGED,
-      retentionPeriod: cdk.Duration.days(14),
-    });
-    this.dlqs['webhook-delivery-retry'] = webhookDeliveryRetryDlq;
-
-    const webhookDeliveryRetryQueue = new sqs.Queue(this, 'webhookDeliveryRetryQueue', {
-      encryption: sqs.QueueEncryption.SQS_MANAGED,
-      retentionPeriod: cdk.Duration.days(14),
-      visibilityTimeout: cdk.Duration.seconds(60),
-      deadLetterQueue: {
-        maxReceiveCount: 1,
-        queue: webhookDeliveryRetryDlq,
-      },
-    });
-
-    this.webhookDeliveryFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../src/webhook_delivery'),
-      handler: 'handler.handler',
-      functionNameSuffix: 'webhook-delivery',
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'webhook-delivery',
-        JOBS_TABLE: this.jobsTable.tableName,
-        WEBHOOK_RETRY_QUEUE_URL: webhookDeliveryRetryQueue.queueUrl,
-        WEBHOOK_DLQ_URL: webhookDeliveryRetryDlq.queueUrl,
-        WEBHOOK_MAX_RETRY_ATTEMPTS: '3',
-        WEBHOOK_HTTP_TIMEOUT_SECONDS: '10',
-      },
-    });
-
-    this.bffFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../src/bff'),
-      handler: 'handler.handler',
-      functionNameSuffix: 'bff',
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'bff',
-        ENTRA_TENANT_ID: entra.tenantId,
-        ENTRA_AUDIENCE: entra.audience,
-        ENTRA_TOKEN_ENDPOINT: entra.tokenEndpoint,
-        ENTRA_CLIENT_ID_SECRET_ARN: `arn:aws:secretsmanager:${this.region}:${this.account}:secret:platform/${env}/entra/client-id`,
-        ENTRA_CLIENT_SECRET_SECRET_ARN: `arn:aws:secretsmanager:${this.region}:${this.account}:secret:platform/${env}/entra/client-secret`, // pragma: allowlist secret
-      },
-    });
-
-    const entraClientIdSecret = secretsmanager.Secret.fromSecretNameV2(this, 'EntraClientIdSecret', `platform/${env}/entra/client-id`);
-    const entraClientSecretSecret = secretsmanager.Secret.fromSecretNameV2(this, 'EntraClientSecretSecret', `platform/${env}/entra/client-secret`);
-    entraClientIdSecret.grantRead(this.bffFn);
-    entraClientSecretSecret.grantRead(this.bffFn);
-
-    new lambda.EventSourceMapping(this, 'webhookDeliveryJobsStreamMapping', {
-      target: this.webhookDeliveryFn,
-      eventSourceArn: this.jobsTable.tableStreamArn,
-      startingPosition: lambda.StartingPosition.LATEST,
-      batchSize: 10,
-      bisectBatchOnError: true,
-      retryAttempts: 3,
-    });
-    new lambda.EventSourceMapping(this, 'webhookDeliveryRetryQueueMapping', {
-      target: this.webhookDeliveryFn,
-      eventSourceArn: webhookDeliveryRetryQueue.queueArn,
-      batchSize: 10,
-    });
-
-    this.authoriserFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../src/authoriser'),
-      handler: 'handler.handler',
-      functionNameSuffix: 'authoriser',
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'authoriser',
-        ENTRA_JWKS_URL: entra.jwksUrl,
-        ENTRA_AUDIENCE: entra.audience,
-        ENTRA_ISSUER: entra.issuer,
-        TENANTS_TABLE: this.tenantsTable.tableName,
-      },
-    });
-
-    this.tenantsTable.grantReadData(this.authoriserFn);
-    this.jobsTable.grantReadWriteData(this.webhookDeliveryFn);
-    this.webhookDeliveryFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: [
-          'dynamodb:DescribeStream',
-          'dynamodb:GetRecords',
-          'dynamodb:GetShardIterator',
-          'dynamodb:ListStreams',
-        ],
-        resources: [`${this.jobsTable.tableArn}/stream/*`],
-      }),
-    );
-    webhookDeliveryRetryQueue.grantConsumeMessages(this.webhookDeliveryFn);
-    webhookDeliveryRetryQueue.grantSendMessages(this.webhookDeliveryFn);
-    webhookDeliveryRetryDlq.grantSendMessages(this.webhookDeliveryFn);
-
-    this.requestInterceptorFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../gateway/interceptors'),
-      handler: 'request_interceptor.handler',
-      functionNameSuffix: 'interceptor-request',
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'gateway-request-interceptor',
-        TOOLS_TABLE: this.toolsTable.tableName,
-        ENTRA_JWKS_URL: entra.jwksUrl,
-        ENTRA_AUDIENCE: entra.audience,
-        ENTRA_ISSUER: entra.issuer,
-        SCOPED_TOKEN_ISSUER: 'platform-gateway',
-        IDEMPOTENCY_TABLE: this.gatewayIdempotencyTable.tableName,
-        SCOPED_TOKEN_SIGNING_KEY_SECRET_ARN: scopedTokenSigningKeySecret.secretArn,
-        PLATFORM_ENV: env,
-      },
-    });
-
-    scopedTokenSigningKeySecret.grantRead(this.requestInterceptorFn);
-
-    this.responseInterceptorFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../gateway/interceptors'),
-      handler: 'response_interceptor.handler',
-      functionNameSuffix: 'interceptor-response',
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 512,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'gateway-response-interceptor',
-      },
-    });
-
-    this.billingFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../src/billing'),
-      handler: 'handler.lambda_handler',
-      functionNameSuffix: 'billing',
-      timeout: cdk.Duration.minutes(15),
-      memorySize: 512,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'billing',
-        TENANTS_TABLE_NAME: this.tenantsTable.tableName,
-        INVOCATIONS_TABLE_NAME: this.invocationsTable.tableName,
-        EVENT_BUS_NAME: 'default',
-      },
-    });
-
-    this.tenantsTable.grantReadWriteData(this.billingFn);
-    this.invocationsTable.grantReadData(this.billingFn);
-    this.billingFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['ssm:GetParameter'],
-        resources: [
-          `arn:aws:ssm:${this.region}:${this.account}:parameter/platform/billing/pricing/*`,
-        ],
-      }),
-    );
-    this.billingFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['cloudwatch:PutMetricData'],
-        resources: ['*'],
-      }),
-    );
-    this.billingFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ['events:PutEvents'],
-        resources: [`arn:aws:events:${this.region}:${this.account}:event-bus/default`],
-      }),
-    );
-
-    // Daily billing schedule (midnight UTC)
-    new events.Rule(this, 'DailyBillingRule', {
-      schedule: events.Schedule.cron({ hour: '0', minute: '0' }),
-      targets: [new targets.LambdaFunction(this.billingFn)],
-    });
-
-    // --- Tenant Provisioner (Issue #291) ---
+    const storage = createPlatformStorage(this, { envName: env });
+    this.tenantsTable = storage.tenantsTable;
+    this.agentsTable = storage.agentsTable;
+    this.toolsTable = storage.toolsTable;
+    this.opsLocksTable = storage.opsLocksTable;
+    this.gatewayIdempotencyTable = storage.gatewayIdempotencyTable;
+    this.invocationsTable = storage.invocationsTable;
+    this.jobsTable = storage.jobsTable;
+    this.sessionsTable = storage.sessionsTable;
 
     // The TenantStack template is synthesized during 'cdk synth' and needs to be
     // available to the provisioner Lambda via S3.
     // NOTE: This assumes 'cdk synth' has run and populated cdk.out.
+    const tenantStackTemplatePath = ensureTenantStubTemplate(
+      env,
+      this.env,
+      TENANT_AUTHORIZED_RUNTIME_REGIONS,
+    );
     const tenantStackTemplateAsset = new s3assets.Asset(this, 'TenantStackTemplateAsset', {
-      path: path.join(__dirname, `../cdk.out/platform-tenant-stub-${env}.template.json`),
+      path: tenantStackTemplatePath,
     });
-
-    const tenantProvisionerFn = this.createPythonLambda({
-      assetPath: path.join(__dirname, '../../../src/tenant_provisioner'),
-      handler: 'handler.lambda_handler',
-      functionNameSuffix: 'tenant-provisioner',
-      timeout: cdk.Duration.minutes(2), // Reduced since polling moved to Step Function
-      memorySize: 512,
-      environment: {
-        POWERTOOLS_SERVICE_NAME: 'tenant-provisioner',
-        PLATFORM_ENV: env,
-        TENANTS_TABLE_NAME: this.tenantsTable.tableName,
-        TENANT_STACK_TEMPLATE_URL: tenantStackTemplateAsset.bucket.s3UrlForObject(tenantStackTemplateAsset.s3ObjectKey),
-      },
+    const compute = createPlatformCompute(this, {
+      envName: env,
+      storage,
+      entra,
+      scopedTokenSigningKeySecret,
+      tenantStackTemplateAsset,
+      createPythonLambda: (lambdaProps) => this.createPythonLambda(lambdaProps),
     });
-
-    this.tenantsTable.grantReadWriteData(tenantProvisionerFn);
-    tenantStackTemplateAsset.grantRead(tenantProvisionerFn);
-
-    tenantProvisionerFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        sid: 'TenantStackCloudFormationAccess',
-        actions: [
-          'cloudformation:CreateStack',
-          'cloudformation:UpdateStack',
-          'cloudformation:DescribeStacks',
-          'cloudformation:GetTemplate',
-        ],
-        resources: [`arn:aws:cloudformation:${this.region}:${this.account}:stack/platform-tenant-*/*`],
-      }),
-    );
-
-    tenantProvisionerFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        sid: 'TenantStackIamAccess',
-        actions: [
-          'iam:CreateRole',
-          'iam:DeleteRole',
-          'iam:PutRolePolicy',
-          'iam:DeleteRolePolicy',
-          'iam:GetRole',
-          'iam:PassRole',
-          'iam:TagRole',
-        ],
-        resources: [`arn:aws:iam::${this.account}:role/platform-tenant-*`],
-      }),
-    );
-
-    tenantProvisionerFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        sid: 'TenantStackSsmAccess',
-        actions: [
-          'ssm:PutParameter',
-          'ssm:GetParameter',
-          'ssm:DeleteParameter',
-          'ssm:AddTagsToResource',
-        ],
-        resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/platform/tenants/*`],
-      }),
-    );
-
-    tenantProvisionerFn.addToRolePolicy(
-      new iam.PolicyStatement({
-        sid: 'TenantStackBedrockAccess',
-        actions: [
-          'bedrock-agentcore:CreateMemory',
-          'bedrock-agentcore:UpdateMemory',
-          'bedrock-agentcore:DeleteMemory',
-          'bedrock-agentcore:GetMemory',
-          'bedrock-agentcore:TagResource',
-        ],
-        resources: ['*'], // Resource-level permissions not fully supported for all AgentCore resources yet
-      }),
-    );
-
-    // --- Tenant Onboarding Workflow (Issue #311) ---
-
-    const startTask = new sfn_tasks.LambdaInvoke(this, 'StartProvisioning', {
-      lambdaFunction: tenantProvisionerFn,
-      payload: sfn.TaskInput.fromObject({
-        operation: 'START',
-        tenantId: sfn.JsonPath.stringAt('$.detail.tenantId'),
-        tier: sfn.JsonPath.stringAt('$.detail.tier'),
-        accountId: sfn.JsonPath.stringAt('$.detail.accountId'),
-      }),
-      outputPath: '$.Payload',
-    });
-
-    const waitTask = new sfn.Wait(this, 'WaitForStack', {
-      time: sfn.WaitTime.duration(cdk.Duration.seconds(30)),
-    });
-
-    const getStatusTask = new sfn_tasks.CallAwsService(this, 'GetStackStatus', {
-      service: 'cloudformation',
-      action: 'describeStacks',
-      parameters: {
-        StackName: sfn.JsonPath.stringAt('$.stackName'),
-      },
-      iamResources: [`arn:aws:cloudformation:${this.region}:${this.account}:stack/platform-tenant-*/*`],
-    });
-
-    const completeTask = new sfn_tasks.LambdaInvoke(this, 'CompleteProvisioning', {
-      lambdaFunction: tenantProvisionerFn,
-      payload: sfn.TaskInput.fromObject({
-        operation: 'COMPLETE',
-        tenantId: sfn.JsonPath.stringAt('$.tenantId'),
-        stackName: sfn.JsonPath.stringAt('$.stackName'),
-      }),
-      outputPath: '$.Payload',
-    });
-
-    const failTask = new sfn_tasks.LambdaInvoke(this, 'FailProvisioning', {
-      lambdaFunction: tenantProvisionerFn,
-      payload: sfn.TaskInput.fromObject({
-        operation: 'FAIL',
-        tenantId: sfn.JsonPath.stringAt('$.tenantId'),
-        reason: sfn.JsonPath.stringAt('$.error'),
-      }),
-    });
-
-    const definition = startTask.next(
-      new sfn.Choice(this, 'SkipWait?')
-        .when(sfn.Condition.booleanEquals('$.skipWait', true), completeTask)
-        .otherwise(
-          waitTask.next(
-            getStatusTask.next(
-              new sfn.Choice(this, 'IsStackComplete?')
-                .when(
-                  sfn.Condition.stringMatches('$.Stacks[0].StackStatus', '*_COMPLETE'),
-                  completeTask,
-                )
-                .when(
-                  sfn.Condition.stringMatches('$.Stacks[0].StackStatus', '*_FAILED'),
-                  new sfn.Pass(this, 'CaptureFailure', {
-                    parameters: {
-                      tenantId: sfn.JsonPath.stringAt('$.tenantId'),
-                      error: sfn.JsonPath.stringAt('$.Stacks[0].StackStatus'),
-                    },
-                  }).next(failTask),
-                )
-                .when(
-                  sfn.Condition.stringMatches('$.Stacks[0].StackStatus', 'ROLLBACK_*'),
-                  new sfn.Pass(this, 'CaptureRollback', {
-                    parameters: {
-                      tenantId: sfn.JsonPath.stringAt('$.tenantId'),
-                      error: sfn.JsonPath.stringAt('$.Stacks[0].StackStatus'),
-                    },
-                  }).next(failTask),
-                )
-                .otherwise(waitTask),
-            ),
-          ),
-        ),
-    );
-
-    const onboardingStateMachine = new sfn.StateMachine(this, 'TenantOnboardingWorkflow', {
-      stateMachineName: `platform-tenant-onboarding-${env}`,
-      definitionBody: sfn.DefinitionBody.fromChainable(definition),
-      timeout: cdk.Duration.minutes(20),
-    });
-
-    new events.Rule(this, 'TenantCreatedRule', {
-      ruleName: `platform-tenant-created-${env}`,
-      description: 'Trigger tenant provisioning workflow when a new tenant is created',
-      eventPattern: {
-        source: ['platform.tenant_api'],
-        detailType: ['tenant.created'],
-      },
-      targets: [new targets.SfnStateMachine(onboardingStateMachine)],
-    });
-
-    this.toolsTable.grantReadData(this.requestInterceptorFn);
-    this.gatewayIdempotencyTable.grantReadWriteData(this.requestInterceptorFn);
+    this.tenantMgmtFn = compute.tenantMgmtFn;
+    this.webhookRegistryFn = compute.webhookRegistryFn;
+    this.agentRegistryFn = compute.agentRegistryFn;
+    this.adminOpsFn = compute.adminOpsFn;
+    this.bridgeFn = compute.bridgeFn;
+    this.webhookDeliveryFn = compute.webhookDeliveryFn;
+    this.bffFn = compute.bffFn;
+    this.authoriserFn = compute.authoriserFn;
+    this.requestInterceptorFn = compute.requestInterceptorFn;
+    this.responseInterceptorFn = compute.responseInterceptorFn;
+    this.billingFn = compute.billingFn;
+    Object.assign(this.dlqs, compute.dlqs);
 
     const bridgeAlias = new lambda.Alias(this, 'BridgeLiveAlias', {
       aliasName: 'live',
@@ -837,9 +396,21 @@ export class PlatformStack extends cdk.Stack {
             restrictionType: 'none',
           },
         },
-        viewerCertificate: {
-          cloudFrontDefaultCertificate: true,
-        },
+        ...(spaDomainName && spaCertificateArn
+          ? {
+              aliases: [spaDomainName],
+              viewerCertificate: {
+                acmCertificateArn: spaCertificateArn,
+                minimumProtocolVersion: 'TLSv1.2_2021',
+                sslSupportMethod: 'sni-only',
+              },
+            }
+          : {
+              viewerCertificate: {
+                cloudFrontDefaultCertificate: true,
+                minimumProtocolVersion: 'TLSv1.2_2021',
+              },
+            }),
         // No WebACLId is wired here by design. A CloudFront-scope WAF must be managed
         // via a dedicated global/us-east-1 path, which this repository has not yet
         // approved under the current ADR-009 region topology.
@@ -890,7 +461,22 @@ export class PlatformStack extends cdk.Stack {
       description: 'CloudFront distribution ID for the platform SPA',
     });
 
-    const spaAllowedOrigin = cdk.Fn.join('', ['https://', this.spaDistribution.attrDomainName]);
+    if (spaDomainName) {
+      new ssm.StringParameter(this, 'SpaDomainNameParam', {
+        parameterName: `/platform/spa/${env}/domain-name`,
+        stringValue: spaDomainName,
+        description: 'Custom domain name for the platform SPA CloudFront distribution',
+      });
+
+      new cdk.CfnOutput(this, 'SpaDomainName', {
+        value: spaDomainName,
+        description: 'Custom domain name for the platform SPA',
+      });
+    }
+
+    const spaAllowedOrigin = spaDomainName
+      ? `https://${spaDomainName}`
+      : cdk.Fn.join('', ['https://', this.spaDistribution.attrDomainName]);
 
     // API Access Log Group (TASK-165)
     const apiAccessLogGroup = new logs.LogGroup(this, 'ApiAccessLogGroup', {
@@ -1103,40 +689,60 @@ export class PlatformStack extends cdk.Stack {
       apiKeyRequired: true,
     };
 
-    const tenantApiIntegration = new apigateway.LambdaIntegration(this.tenantApiFn, { proxy: true });
+    const tenantMgmtIntegration = new apigateway.LambdaIntegration(this.tenantMgmtFn, { proxy: true });
+    const webhookRegistryIntegration = new apigateway.LambdaIntegration(this.webhookRegistryFn, {
+      proxy: true,
+    });
+    const agentRegistryIntegration = new apigateway.LambdaIntegration(this.agentRegistryFn, {
+      proxy: true,
+    });
+    const adminOpsIntegration = new apigateway.LambdaIntegration(this.adminOpsFn, { proxy: true });
     const bridgeIntegration = new apigateway.LambdaIntegration(bridgeAlias, { proxy: true });
     const bridgeStreamingIntegration = new apigateway.LambdaIntegration(bridgeAlias, {
       proxy: true,
       responseTransferMode: apigateway.ResponseTransferMode.STREAM,
     });
 
-    health.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    sessions.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    tenants.addMethod('POST', tenantApiIntegration, securedMethodOptions);
-    tenants.addMethod('GET', tenantApiIntegration, securedMethodOptions);
+    health.addMethod('GET', tenantMgmtIntegration, securedMethodOptions);
+    sessions.addMethod('GET', tenantMgmtIntegration, securedMethodOptions);
+    tenants.addMethod('POST', tenantMgmtIntegration, securedMethodOptions);
+    tenants.addMethod('GET', tenantMgmtIntegration, securedMethodOptions);
 
-    tenantById.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    tenantById.addMethod('PATCH', tenantApiIntegration, securedMethodOptions);
-    tenantById.addMethod('DELETE', tenantApiIntegration, securedMethodOptions);
+    tenantById.addMethod('GET', tenantMgmtIntegration, securedMethodOptions);
+    tenantById.addMethod('PATCH', tenantMgmtIntegration, securedMethodOptions);
+    tenantById.addMethod('DELETE', tenantMgmtIntegration, securedMethodOptions);
 
-    auditExport.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    tenantApiKeyRotate.addMethod('POST', tenantApiIntegration, securedMethodOptions);
-    tenantUsersInvite.addMethod('POST', tenantApiIntegration, securedMethodOptions);
+    auditExport.addMethod('GET', tenantMgmtIntegration, securedMethodOptions);
+    tenantApiKeyRotate.addMethod('POST', tenantMgmtIntegration, securedMethodOptions);
+    tenantUsersInvite.addMethod('POST', tenantMgmtIntegration, securedMethodOptions);
 
-    failover.addMethod('POST', tenantApiIntegration, securedMethodOptions);
-    quota.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    splitAccounts.addMethod('POST', tenantApiIntegration, securedMethodOptions);
-    serviceHealth.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    billingStatus.addMethod('GET', tenantApiIntegration, securedMethodOptions);
+    failover.addMethod('POST', adminOpsIntegration, securedMethodOptions);
+    quota.addMethod('GET', adminOpsIntegration, securedMethodOptions);
+    splitAccounts.addMethod('POST', adminOpsIntegration, securedMethodOptions);
+    serviceHealth.addMethod('GET', adminOpsIntegration, securedMethodOptions);
+    billingStatus.addMethod('GET', adminOpsIntegration, securedMethodOptions);
 
     // Wire all ops routes
-    opsTopTenants.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    opsSecurityEvents.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    opsErrorRate.addMethod('GET', tenantApiIntegration, securedMethodOptions);
-    opsSecurityPage.addMethod('POST', tenantApiIntegration, securedMethodOptions);
-    opsDlqByName.addMethod('ANY', tenantApiIntegration, securedMethodOptions);
-    opsTenantById.addMethod('ANY', tenantApiIntegration, securedMethodOptions);
-    opsJobById.addMethod('ANY', tenantApiIntegration, securedMethodOptions);
+    opsTopTenants.addMethod('GET', adminOpsIntegration, securedMethodOptions);
+    opsSecurityEvents.addMethod('GET', adminOpsIntegration, securedMethodOptions);
+    opsErrorRate.addMethod('GET', adminOpsIntegration, securedMethodOptions);
+    opsSecurityPage.addMethod('POST', adminOpsIntegration, securedMethodOptions);
+    opsDlqByName.addMethod('ANY', adminOpsIntegration, securedMethodOptions);
+    opsTenantById.addMethod('ANY', adminOpsIntegration, securedMethodOptions);
+    opsJobById.addMethod('ANY', adminOpsIntegration, securedMethodOptions);
+
+    webhooks.addMethod('GET', webhookRegistryIntegration, securedMethodOptions);
+    webhooks.addMethod('POST', webhookRegistryIntegration, securedMethodOptions);
+    webhookById.addMethod('DELETE', webhookRegistryIntegration, securedMethodOptions);
+
+    const platformAgents = platform.addResource('agents');
+    const platformAgentByName = platformAgents.addResource('{agentName}');
+    const platformAgentVersions = platformAgentByName.addResource('versions');
+    const platformAgentVersion = platformAgentVersions.addResource('{version}');
+
+    platformAgents.addMethod('GET', agentRegistryIntegration, securedMethodOptions);
+    platformAgents.addMethod('POST', agentRegistryIntegration, securedMethodOptions);
+    platformAgentVersion.addMethod('PATCH', agentRegistryIntegration, securedMethodOptions);
 
     agents.addMethod('GET', bridgeIntegration, securedMethodOptions);
     agentByName.addMethod('GET', bridgeIntegration, securedMethodOptions);
@@ -1144,21 +750,6 @@ export class PlatformStack extends cdk.Stack {
     jobById.addMethod(
       'GET',
       bridgeIntegration,
-      securedMethodOptions,
-    );
-    webhooks.addMethod(
-      'GET',
-      tenantApiIntegration,
-      securedMethodOptions,
-    );
-    webhooks.addMethod(
-      'POST',
-      tenantApiIntegration,
-      securedMethodOptions,
-    );
-    webhookById.addMethod(
-      'DELETE',
-      tenantApiIntegration,
       securedMethodOptions,
     );
     tokenRefresh.addMethod(
@@ -1317,6 +908,48 @@ export class PlatformStack extends cdk.Stack {
       resourceArn: this.api.deploymentStage.stageArn,
       webAclArn: this.apiWebAcl.attrArn,
     });
+
+    // --- API Gateway custom domain (issue #164) ---
+    // When apiDomainName + apiCertificateArn are provided, a regional custom domain
+    // is added to the REST API. The ACM certificate must be in the same region
+    // (eu-west-2) for regional API Gateway endpoints. The caller is responsible for
+    // creating a CNAME or alias DNS record pointing apiDomainName to the regional
+    // domain name output.
+    if (apiDomainName && apiCertificateArn) {
+      const apiCustomDomain = new apigateway.DomainName(this, 'ApiCustomDomain', {
+        domainName: apiDomainName,
+        certificate: acm.Certificate.fromCertificateArn(this, 'ApiCertificate', apiCertificateArn),
+        endpointType: apigateway.EndpointType.REGIONAL,
+        securityPolicy: apigateway.SecurityPolicy.TLS_1_2,
+      });
+
+      new apigateway.BasePathMapping(this, 'ApiBasePathMapping', {
+        domainName: apiCustomDomain,
+        restApi: this.api,
+      });
+
+      new ssm.StringParameter(this, 'ApiDomainNameParam', {
+        parameterName: `/platform/core/${env}/api-domain-name`,
+        stringValue: apiDomainName,
+        description: 'Custom domain name for the platform REST API',
+      });
+
+      new ssm.StringParameter(this, 'ApiRegionalDomainNameParam', {
+        parameterName: `/platform/core/${env}/api-regional-domain-name`,
+        stringValue: apiCustomDomain.domainNameAliasDomainName,
+        description: 'Regional domain name for DNS CNAME/alias target',
+      });
+
+      new cdk.CfnOutput(this, 'ApiCustomDomainName', {
+        value: apiDomainName,
+        description: 'Custom domain name for the platform REST API',
+      });
+
+      new cdk.CfnOutput(this, 'ApiRegionalDomainName', {
+        value: apiCustomDomain.domainNameAliasDomainName,
+        description: 'Regional domain name — point DNS here',
+      });
+    }
 
     const agentCoreGatewayRole = new iam.Role(this, 'AgentCoreGatewayExecutionRole', {
       assumedBy: new iam.ServicePrincipal('bedrock-agentcore.amazonaws.com'),

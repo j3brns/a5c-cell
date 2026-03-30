@@ -30,7 +30,12 @@ from botocore.exceptions import (
     EndpointConnectionError,
     ReadTimeoutError,
 )
-from data_access import TenantScopedDynamoDB, TenantScopedS3
+from data_access import (
+    ControlPlaneDynamoDB,
+    TenantCapabilityClient,
+    TenantScopedDynamoDB,
+    TenantScopedS3,
+)
 from data_access.models import (
     AgentRecord,
     AgentStatus,
@@ -44,6 +49,23 @@ from data_access.models import (
     is_invokable_agent_status,
     normalize_agent_status,
 )
+
+from .config_provider import ConfigProvider
+from .discovery_service import (
+    _agent_record_sort_key,
+)
+from .discovery_service import (
+    get_agent_detail as discovery_get_agent_detail,
+)
+from .discovery_service import (
+    get_job_status as discovery_get_job_status,
+)
+from .discovery_service import (
+    list_agents as discovery_list_agents,
+)
+from .invocation_engine import handle_invoke_request
+from .runtime_invoker import RuntimeInvoker
+from .runtime_orchestrator import build_runtime_orchestrator
 
 logger = Logger(service="bridge")
 tracer = Tracer()
@@ -93,14 +115,24 @@ _ssm_client = None
 _sts_client = None
 _dynamodb_resource = None
 _cloudwatch_client = None
+_capability_client = None
+_http_session = None
 
 # Cache for SSM parameters (60s TTL as per ARCHITECTURE.md)
 _config_cache: dict[str, Any] = {}
 _config_cache_expiry: float = 0
+_config_provider: ConfigProvider | None = None
 
 
 def _aws_region() -> str:
     return os.environ["AWS_REGION"]
+
+
+def get_capability_client():
+    global _capability_client
+    if _capability_client is None:
+        _capability_client = TenantCapabilityClient()
+    return _capability_client
 
 
 def get_ssm():
@@ -131,6 +163,13 @@ def get_cloudwatch():
     return _cloudwatch_client
 
 
+def get_http_session():
+    global _http_session
+    if _http_session is None:
+        _http_session = requests.Session()
+    return _http_session
+
+
 def get_runtime_client(region: str, credentials: dict[str, Any] | None = None) -> Any:
     session_kwargs: dict[str, Any] = {"region_name": region}
     if credentials:
@@ -157,20 +196,10 @@ def get_runtime_client(region: str, credentials: dict[str, Any] | None = None) -
     return session.client(**client_kwargs)
 
 
-def get_config(force_refresh: bool = False) -> dict[str, Any]:
-    """Fetch and cache configuration from SSM.
-
-    Args:
-        force_refresh: If True, bypass cache and fetch fresh from SSM.
-    """
-    global _config_cache, _config_cache_expiry
-    now = time.time()
-    if not force_refresh and now < _config_cache_expiry:
-        return _config_cache
-
+def _fetch_ssm_config() -> dict[str, Any]:
+    """Fetch Bridge runtime configuration from SSM."""
     try:
         ssm = get_ssm()
-        # Fetch both runtime region and mock URL
         names = [RUNTIME_REGION_PARAM, MOCK_RUNTIME_URL_PARAM]
         response = ssm.get_parameters(Names=names)
 
@@ -184,14 +213,35 @@ def get_config(force_refresh: bool = False) -> dict[str, Any]:
             "runtime_region": params.get(RUNTIME_REGION_PARAM, "eu-west-1"),
             "mock_runtime_url": params.get(MOCK_RUNTIME_URL_PARAM),
         }
-        _config_cache_expiry = now + 60  # 60s cache TTL
         return _config_cache
     except Exception:
         logger.exception("Failed to fetch config from SSM")
-        # Return stale cache if available, else defaults
-        if _config_cache:
-            return _config_cache
-        return {"runtime_region": "eu-west-1", "mock_runtime_url": None}
+        raise
+
+
+def _config_defaults() -> dict[str, Any]:
+    return {"runtime_region": "eu-west-1", "mock_runtime_url": None}
+
+
+def _get_config_provider() -> ConfigProvider:
+    global _config_provider
+    if _config_provider is None:
+        _config_provider = ConfigProvider(
+            fetcher=_fetch_ssm_config,
+            fallback_factory=_config_defaults,
+            ttl_seconds=60,
+        )
+    return _config_provider
+
+
+def get_config(force_refresh: bool = False) -> dict[str, Any]:
+    """Fetch and cache configuration from SSM."""
+    global _config_cache, _config_cache_expiry
+    provider = _get_config_provider()
+    config = provider.get(force_refresh=force_refresh)
+    _config_cache = dict(config)
+    _config_cache_expiry = provider.expires_at
+    return config
 
 
 def acquire_lock(lock_name: str, identity: str, ttl_seconds: int = 300) -> str | None:
@@ -239,6 +289,10 @@ def release_lock(lock_name: str, lock_id: str) -> bool:
         )
         return True
     except Exception:
+        logger.warning(
+            "Failed to release ops lock; will expire via TTL",
+            extra={"lock_name": lock_name},
+        )
         return False
 
 
@@ -731,24 +785,38 @@ def _runtime_failure_response(
         status_code, code, message, invocation_status, headers = _map_runtime_exception(exc)
     else:
         headers = None
-        status_code = status_code or 500
-        code = code or "INTERNAL_ERROR"
-        message = message or "Agent runtime invocation failed"
-        invocation_status = invocation_status or InvocationStatus.ERROR
+
+    resolved_status_code = status_code or 500
+    resolved_code = code or "INTERNAL_ERROR"
+    resolved_message = message or "Agent runtime invocation failed"
+    resolved_invocation_status = invocation_status or InvocationStatus.ERROR
+
+    if resolved_invocation_status == InvocationStatus.THROTTLED:
+        emit_bedrock_throttle_metric(
+            tenant_context=tenant_context,
+            agent=agent,
+            runtime_region=runtime_region,
+        )
 
     latency_ms = int((time.time() - start_time) * 1000)
     log_invocation(
         tenant_context,
         agent,
         invocation_id,
-        invocation_status,
+        resolved_invocation_status,
         latency_ms,
         mode,
         session_id=session_id,
-        error_code=code,
+        error_code=resolved_code,
         runtime_region=runtime_region,
     )
-    return error_response(status_code, code, message, request_id, headers=headers)
+    return error_response(
+        resolved_status_code,
+        resolved_code,
+        resolved_message,
+        request_id,
+        headers=headers,
+    )
 
 
 def get_jitter() -> str:
@@ -799,58 +867,53 @@ def _handler_core(
     if method == "GET" and job_id:
         if path and not _is_jobs_contract_path(path, job_id):
             return error_response(404, "NOT_FOUND", "Route not found", request_id)
-        return get_job_status(tenant_context, path_params, request_id)
+        return discovery_get_job_status(
+            tenant_context,
+            path_params,
+            request_id,
+            jobs_table=JOBS_TABLE,
+            job_results_bucket=JOB_RESULTS_BUCKET,
+            job_result_url_expiry_seconds=JOB_RESULT_URL_EXPIRY_SECONDS,
+            error_response=error_response,
+            db_factory=TenantScopedDynamoDB,
+        )
     if method == "GET" and path.endswith("/v1/agents"):
-        return list_agents(tenant_context)
+        return discovery_list_agents(
+            tenant_context,
+            agents_table=AGENTS_TABLE,
+            db_factory=ControlPlaneDynamoDB,
+        )
     if (
         method == "GET"
         and _coerce_optional_string(path_params.get("agentName"))
         and not path.endswith("/invoke")
     ):
-        return get_agent_detail(path_params, request_id)
+        return discovery_get_agent_detail(
+            path_params,
+            request_id,
+            agents_table=AGENTS_TABLE,
+            get_dynamodb=get_dynamodb,
+            error_response=error_response,
+        )
 
     # 3. Contracted invoke route: POST /v1/agents/{agentName}/invoke.
     if method != "POST":
         return error_response(404, "NOT_FOUND", "Route not found", request_id)
 
-    agent_name = _coerce_optional_string(path_params.get("agentName"))
-    if path and not _is_invoke_contract_path(path, agent_name):
-        return error_response(404, "NOT_FOUND", "Route not found", request_id)
-    if not agent_name:
-        return error_response(400, "INVALID_REQUEST", "Missing agentName in path", request_id)
-
-    # 4. Parse Request Body
-    try:
-        body = _parse_body(event)
-    except ValueError:
-        return error_response(400, "INVALID_REQUEST", "Invalid JSON in request body", request_id)
-
-    prompt = _coerce_optional_string(body.get("input"))
-    if not prompt:
-        return error_response(400, "INVALID_REQUEST", "Missing 'input' in request body", request_id)
-
-    session_id = _coerce_optional_string(body.get("sessionId"))
-    webhook_id = _coerce_optional_string(body.get("webhookId"))
-
-    # 5. Lookup Agent
-    agent = get_agent_record(agent_name)
-    if not agent:
-        return error_response(404, "NOT_FOUND", f"Agent '{agent_name}' not found", request_id)
-
-    # 6. Validate Tier
-    tier_order = {TenantTier.BASIC: 0, TenantTier.STANDARD: 1, TenantTier.PREMIUM: 2}
-    if tier_order[tenant_tier] < tier_order[agent.tier_minimum]:
-        logger.warning(
-            "Tier insufficient",
-            extra={"tenant_tier": tenant_tier, "tier_minimum": agent.tier_minimum},
-        )
-        return error_response(
-            403, "FORBIDDEN", "Tenant tier insufficient for this agent", request_id
-        )
-
-    # 7. Invoke Agent (with failover/retry logic)
-    return invoke_agent(
-        agent, tenant_context, prompt, session_id, webhook_id, request_id, response_stream
+    return handle_invoke_request(
+        event=event,
+        request_id=request_id,
+        tenant_context=tenant_context,
+        path=path,
+        path_params=path_params,
+        response_stream=response_stream,
+        error_response=error_response,
+        parse_body=_parse_body,
+        coerce_optional_string=_coerce_optional_string,
+        is_invoke_contract_path=_is_invoke_contract_path,
+        get_agent_record=get_agent_record,
+        get_capability_client=get_capability_client,
+        invoke_agent=invoke_agent,
     )
 
 
@@ -949,192 +1012,8 @@ def _coerce_optional_string(value: Any) -> str | None:
     return text
 
 
-def _job_key(tenant_id: str, job_id: str) -> dict[str, str]:
-    return {"PK": f"TENANT#{tenant_id}", "SK": f"JOB#{job_id}"}
-
-
 def _webhook_key(tenant_id: str, webhook_id: str) -> dict[str, str]:
     return {"PK": f"TENANT#{tenant_id}", "SK": f"WEBHOOK#{webhook_id}"}
-
-
-def _agent_summary_from_item(item: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "agentName": str(item.get("agent_name", "")),
-        "latestVersion": str(item.get("version", "")),
-        "tierMinimum": str(item.get("tier_minimum", TenantTier.BASIC.value)),
-        "invocationMode": str(item.get("invocation_mode", InvocationMode.SYNC.value)),
-        "streamingEnabled": bool(item.get("streaming_enabled", False)),
-        "estimatedDurationSeconds": item.get("estimated_duration_seconds"),
-        "ownerTeam": str(item.get("owner_team", "")),
-    }
-
-
-def _is_newer_agent_record(candidate: dict[str, Any], current: dict[str, Any]) -> bool:
-    return _agent_record_sort_key(candidate) > _agent_record_sort_key(current)
-
-
-def _semver_sort_key(version: str) -> tuple[int, ...]:
-    parts = version.split(".")
-    key: list[int] = []
-    for part in parts:
-        digits = "".join(ch for ch in part if ch.isdigit())
-        key.append(int(digits) if digits else 0)
-    return tuple(key)
-
-
-def _agent_record_sort_key(item: dict[str, Any]) -> tuple[tuple[int, ...], str]:
-    return (
-        _semver_sort_key(str(item.get("version", ""))),
-        str(item.get("deployed_at", "")),
-    )
-
-
-def list_agents(tenant_context: TenantContext) -> dict[str, Any]:
-    db = TenantScopedDynamoDB(tenant_context)
-    items = db.scan_all(AGENTS_TABLE)
-
-    latest_by_name: dict[str, dict[str, Any]] = {}
-    for item in items:
-        # Filter: only promoted agents are visible/invokable.
-        if not is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
-            continue
-
-        agent_name = _coerce_optional_string(item.get("agent_name"))
-        if agent_name is None:
-            continue
-        existing = latest_by_name.get(agent_name)
-        if existing is None or _is_newer_agent_record(item, existing):
-            latest_by_name[agent_name] = item
-
-    tier_order = {TenantTier.BASIC: 0, TenantTier.STANDARD: 1, TenantTier.PREMIUM: 2}
-    caller_tier_rank = tier_order.get(tenant_context.tier, 0)
-
-    summaries: list[dict[str, Any]] = []
-    for item in latest_by_name.values():
-        tier_minimum_text = str(item.get("tier_minimum", TenantTier.BASIC.value)).lower()
-        try:
-            tier_minimum = TenantTier(tier_minimum_text)
-        except ValueError:
-            tier_minimum = TenantTier.BASIC
-        if caller_tier_rank < tier_order[tier_minimum]:
-            continue
-        summaries.append(_agent_summary_from_item(item))
-
-    summaries.sort(key=lambda summary: str(summary["agentName"]))
-    return {
-        "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({"items": summaries}),
-    }
-
-
-def get_agent_detail(path_params: dict[str, Any], request_id: str) -> dict[str, Any]:
-    agent_name = _coerce_optional_string(path_params.get("agentName"))
-    if not agent_name:
-        return error_response(400, "INVALID_REQUEST", "Missing agentName in path", request_id)
-
-    ddb = get_dynamodb()
-    table = ddb.Table(AGENTS_TABLE)
-    response = table.query(KeyConditionExpression=Key("PK").eq(f"AGENT#{agent_name}"))
-    items = response.get("Items", [])
-
-    # Filter: only promoted versions are visible to tenants.
-    promoted_items = [
-        i for i in items if is_invokable_agent_status(_coerce_optional_string(i.get("status")))
-    ]
-    if not promoted_items:
-        return error_response(404, "NOT_FOUND", f"Agent '{agent_name}' not found", request_id)
-
-    sorted_items = sorted(promoted_items, key=_agent_record_sort_key, reverse=True)
-    latest = sorted_items[0]
-    detail = _agent_summary_from_item(latest)
-    detail["versions"] = [
-        {
-            "version": str(item.get("version", "")),
-            "deployedAt": str(item.get("deployed_at", "")),
-            "invocationMode": str(item.get("invocation_mode", InvocationMode.SYNC.value)),
-            "streamingEnabled": bool(item.get("streaming_enabled", False)),
-        }
-        for item in sorted_items
-    ]
-
-    return {
-        "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(detail),
-    }
-
-
-def get_job_status(
-    tenant_context: TenantContext, path_params: dict[str, Any], request_id: str
-) -> dict[str, Any]:
-    job_id = _coerce_optional_string(path_params.get("jobId"))
-    if not job_id:
-        return error_response(400, "INVALID_REQUEST", "Missing jobId in path", request_id)
-
-    db = TenantScopedDynamoDB(tenant_context)
-    record = db.get_item(JOBS_TABLE, _job_key(tenant_context.tenant_id, job_id))
-
-    if record is None:
-        return error_response(404, "NOT_FOUND", f"Job '{job_id}' not found", request_id)
-
-    result_url: str | None = None
-    status = str(record.get("status", JobStatus.PENDING))
-    result_key = _coerce_optional_string(record.get("result_s3_key"))
-    if status == str(JobStatus.COMPLETED) and result_key:
-        try:
-            result_url = _presigned_result_url(tenant_context, result_key)
-        except ValueError as exc:
-            return error_response(500, "INTERNAL_ERROR", str(exc), request_id)
-        except Exception:
-            logger.exception(
-                "Failed to generate job result presigned URL",
-                extra={"job_id": job_id},
-            )
-            return error_response(
-                500, "INTERNAL_ERROR", "Failed to generate result URL", request_id
-            )
-
-    return {
-        "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(
-            {
-                "jobId": str(record.get("job_id", job_id)),
-                "tenantId": str(record.get("tenant_id", tenant_context.tenant_id)),
-                "agentName": str(record.get("agent_name", "")),
-                "status": status,
-                "createdAt": str(record.get("created_at", "")),
-                "startedAt": _coerce_optional_string(record.get("started_at")),
-                "completedAt": _coerce_optional_string(record.get("completed_at")),
-                "resultUrl": result_url,
-                "errorMessage": _coerce_optional_string(record.get("error_message")),
-                "webhookDelivered": bool(record.get("webhook_delivered", False)),
-                "webhookUrl": _coerce_optional_string(record.get("webhook_url")),
-                "webhookDeliveryStatus": _coerce_optional_string(
-                    record.get("webhook_delivery_status")
-                ),
-                "webhookDeliveryAttempts": int(record.get("webhook_delivery_attempts", 0)),
-                "webhookDeliveryError": _coerce_optional_string(
-                    record.get("webhook_delivery_error")
-                ),
-            }
-        ),
-    }
-
-
-def _presigned_result_url(tenant_context: TenantContext, result_s3_key: str) -> str:
-    bucket = _coerce_optional_string(JOB_RESULTS_BUCKET)
-    if bucket is None:
-        raise ValueError("JOB_RESULTS_BUCKET is not configured")
-
-    expires_in = max(1, JOB_RESULT_URL_EXPIRY_SECONDS)
-    tenant_s3 = TenantScopedS3(tenant_context)
-    return tenant_s3.generate_presigned_url(
-        bucket,
-        result_s3_key,
-        expires_in=expires_in,
-    )
 
 
 def get_webhook_registration(
@@ -1152,6 +1031,19 @@ def get_webhook_registration(
     return record
 
 
+def _runtime_invoker() -> RuntimeInvoker:
+    return build_runtime_orchestrator(
+        get_config=get_config,
+        invoke_mock_runtime=invoke_mock_runtime,
+        invoke_real_runtime=invoke_real_runtime,
+        is_runtime_unavailable_error=_is_runtime_unavailable_error,
+        trigger_failover=trigger_failover,
+        runtime_failure_response=_runtime_failure_response,
+        log_warning=logger.warning,
+        log_exception=logger.exception,
+    )
+
+
 def invoke_agent(
     agent: AgentRecord,
     tenant_context: TenantContext,
@@ -1161,99 +1053,16 @@ def invoke_agent(
     request_id: str,
     response_stream: Any,
 ) -> Any:
-    """Invoke the agent with failover and retry logic."""
-    config = get_config()
-    mock_url = config.get("mock_runtime_url")
-    invocation_id = str(uuid.uuid4())
-    start_time = time.time()
-
-    try:
-        if mock_url:
-            return invoke_mock_runtime(
-                mock_url,
-                agent,
-                tenant_context,
-                prompt,
-                session_id,
-                webhook_id,
-                request_id,
-                response_stream,
-                invocation_id,
-                start_time,
-            )
-        else:
-            return invoke_real_runtime(
-                config["runtime_region"],
-                agent,
-                tenant_context,
-                prompt,
-                session_id,
-                webhook_id,
-                request_id,
-                response_stream,
-                invocation_id,
-                start_time,
-            )
-    except Exception as e:
-        if _is_runtime_unavailable_error(e):
-            logger.warning("Runtime unavailable, attempting failover")
-            new_region = trigger_failover(config["runtime_region"])
-            # Update config for retry
-            config = get_config(force_refresh=True)
-            mock_url = config.get("mock_runtime_url")
-
-            try:
-                if mock_url:
-                    return invoke_mock_runtime(
-                        mock_url,
-                        agent,
-                        tenant_context,
-                        prompt,
-                        session_id,
-                        webhook_id,
-                        request_id,
-                        response_stream,
-                        invocation_id,
-                        start_time,
-                    )
-                return invoke_real_runtime(
-                    new_region,
-                    agent,
-                    tenant_context,
-                    prompt,
-                    session_id,
-                    webhook_id,
-                    request_id,
-                    response_stream,
-                    invocation_id,
-                    start_time,
-                )
-            except Exception as retry_exc:
-                logger.exception("Invocation failed after failover retry")
-                return _runtime_failure_response(
-                    tenant_context,
-                    agent,
-                    invocation_id,
-                    start_time,
-                    agent.invocation_mode,
-                    new_region,
-                    request_id,
-                    retry_exc,
-                    session_id=session_id,
-                )
-
-        logger.exception("Invocation failed")
-        return _runtime_failure_response(
-            tenant_context,
-            agent,
-            invocation_id,
-            start_time,
-            agent.invocation_mode,
-            config["runtime_region"],
-            request_id,
-            e,
-            session_id=session_id,
-        )
+    """Invoke the agent with runtime selection and failover policy."""
+    return _runtime_invoker().invoke(
+        agent=agent,
+        tenant_context=tenant_context,
+        prompt=prompt,
+        session_id=session_id,
+        webhook_id=webhook_id,
+        request_id=request_id,
+        response_stream=response_stream,
+    )
 
 
 def invoke_real_runtime(
@@ -1690,7 +1499,9 @@ def handle_sync_invocation(
     session_id: str | None = None,
 ) -> dict[str, Any]:
     """Handle synchronous invocation."""
-    response = requests.post(f"{url}/invocations", headers=headers, json=payload, timeout=900)
+    response = get_http_session().post(
+        f"{url}/invocations", headers=headers, json=payload, timeout=900
+    )
     response.raise_for_status()
 
     # Mock runtime returns SSE, collect into full text
@@ -1775,7 +1586,7 @@ def handle_streaming_invocation(
     }
     response_stream.write(json.dumps(preamble).encode("utf-8") + b"\0")
 
-    with requests.post(
+    with get_http_session().post(
         f"{url}/invocations", headers=headers, json=payload, stream=True, timeout=900
     ) as r:
         r.raise_for_status()
@@ -1844,7 +1655,9 @@ def handle_async_invocation(
 
     # 2. Trigger Runtime
     try:
-        response = requests.post(f"{url}/invocations", headers=headers, json=payload, timeout=2)
+        response = get_http_session().post(
+            f"{url}/invocations", headers=headers, json=payload, timeout=2
+        )
         response.raise_for_status()
     except requests.exceptions.ReadTimeout:
         # Expected for async trigger if it's fire-and-forget
@@ -2031,6 +1844,32 @@ def emit_invocation_metrics(
         cw.put_metric_data(Namespace="Platform/Bridge", MetricData=metric_data)
     except Exception as e:
         logger.warning(f"Failed to emit invocation metrics: {e}")
+
+
+def emit_bedrock_throttle_metric(
+    *,
+    tenant_context: TenantContext,
+    agent: AgentRecord,
+    runtime_region: str,
+) -> None:
+    try:
+        get_cloudwatch().put_metric_data(
+            Namespace="Platform/Bridge",
+            MetricData=[
+                {
+                    "MetricName": "Invocation.Throttled.Bedrock",
+                    "Value": 1.0,
+                    "Unit": "Count",
+                    "Dimensions": [
+                        {"Name": "TenantId", "Value": tenant_context.tenant_id},
+                        {"Name": "AgentName", "Value": agent.agent_name},
+                        {"Name": "RuntimeRegion", "Value": runtime_region},
+                    ],
+                }
+            ],
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to emit Bedrock throttle metric: {exc}")
 
 
 def log_job(tenant_context: TenantContext, record: JobRecord) -> None:

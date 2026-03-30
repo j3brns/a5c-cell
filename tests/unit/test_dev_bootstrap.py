@@ -95,7 +95,7 @@ def test_seed_tenants_creates_two_records() -> None:
     bootstrap.ensure_tables(ddb_client)  # type: ignore[attr-defined]
     bootstrap.seed_tenants(ddb_resource)  # type: ignore[attr-defined]
     items = _scan_table(ddb_resource, "platform-tenants")
-    assert len(items) == 2
+    assert len(items) == 3
 
 
 @mock_aws
@@ -106,6 +106,8 @@ def test_seed_tenants_correct_tiers() -> None:
     items = {item["tenant_id"]: item for item in _scan_table(ddb_resource, "platform-tenants")}
     assert items["t-test-001"]["tier"] == "basic"
     assert items["t-test-002"]["tier"] == "premium"
+    assert items["t-test-001"]["tenantId"] == "t-test-001"
+    assert items["t-test-002"]["executionRoleArn"].endswith("t-test-002-execution-role")
 
 
 @mock_aws
@@ -118,6 +120,17 @@ def test_seed_tenants_both_active() -> None:
 
 
 @mock_aws
+def test_seed_tenants_writes_canonical_aliases() -> None:
+    ddb_client, ddb_resource, _ = _make_aws_clients()
+    bootstrap.ensure_tables(ddb_client)  # type: ignore[attr-defined]
+    bootstrap.seed_tenants(ddb_resource)  # type: ignore[attr-defined]
+    items = _scan_table(ddb_resource, "platform-tenants")
+    assert all("tenantId" in item for item in items)
+    assert all("appId" in item for item in items)
+    assert all("createdAt" in item for item in items)
+
+
+@mock_aws
 def test_seed_tenants_idempotent_no_duplicates() -> None:
     """Running seed_tenants twice must not create duplicate records."""
     ddb_client, ddb_resource, _ = _make_aws_clients()
@@ -125,7 +138,7 @@ def test_seed_tenants_idempotent_no_duplicates() -> None:
     bootstrap.seed_tenants(ddb_resource)  # type: ignore[attr-defined]
     bootstrap.seed_tenants(ddb_resource)  # type: ignore[attr-defined]
     items = _scan_table(ddb_resource, "platform-tenants")
-    assert len(items) == 2
+    assert len(items) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -294,30 +307,24 @@ def test_write_env_test_with_tokens(tmp_path: Path) -> None:
     tokens = {"basic": "jwt-basic", "premium": "jwt-premium", "admin": "jwt-admin"}
     bootstrap.write_env_test(tokens, env_test_path)  # type: ignore[attr-defined]
     content = env_test_path.read_text()
-    assert (
-        "# Re-run `uv run python scripts/dev-bootstrap.py` (with dev services up) to refresh JWTs"
-        in content
-    )
     assert "BASIC_TENANT_ID=t-test-001" in content
-    assert "BASIC_TENANT_JWT=jwt-basic" in content
     assert "PREMIUM_TENANT_ID=t-test-002" in content
+    assert "BASIC_TENANT_JWT=jwt-basic" in content
     assert "PREMIUM_TENANT_JWT=jwt-premium" in content
-    assert "ADMIN_TENANT_ID=admin-001" in content
     assert "ADMIN_JWT=jwt-admin" in content
     assert "AWS_REGION=eu-west-2" in content
     assert "LOCALSTACK_ENDPOINT=http://localhost:4566" in content
+    assert (
+        "SCOPED_TOKEN_SIGNING_KEY=local-dev-scoped-token-signing-key-32-bytes-minimum" in content
+    )  # pragma: allowlist secret
 
 
 def test_write_env_test_without_tokens_writes_empty_values(tmp_path: Path) -> None:
     env_test_path = tmp_path / ".env.test"
     bootstrap.write_env_test({}, env_test_path)  # type: ignore[attr-defined]
     content = env_test_path.read_text()
-    assert "BASIC_TENANT_ID=t-test-001" in content
     assert "BASIC_TENANT_JWT=" in content
-    assert "PREMIUM_TENANT_ID=t-test-002" in content
     assert "PREMIUM_TENANT_JWT=" in content
-    assert "ADMIN_TENANT_ID=admin-001" in content
-    assert "ADMIN_JWT=" in content
     assert "mock-jwks service was not running" in content
 
 
@@ -325,11 +332,10 @@ def test_write_env_test_is_idempotent(tmp_path: Path) -> None:
     """Writing .env.test twice must produce stable output (no appending)."""
     env_test_path = tmp_path / ".env.test"
     tokens = {"basic": "jwt-b", "premium": "jwt-p", "admin": "jwt-a"}
-    with patch("secrets.token_hex", return_value="static-test-token"):
-        bootstrap.write_env_test(tokens, env_test_path)  # type: ignore[attr-defined]
-        first_content = env_test_path.read_text()
-        bootstrap.write_env_test(tokens, env_test_path)  # type: ignore[attr-defined]
-        second_content = env_test_path.read_text()
+    bootstrap.write_env_test(tokens, env_test_path)  # type: ignore[attr-defined]
+    first_content = env_test_path.read_text()
+    bootstrap.write_env_test(tokens, env_test_path)  # type: ignore[attr-defined]
+    second_content = env_test_path.read_text()
     assert first_content == second_content
 
 
@@ -359,7 +365,7 @@ def test_run_bootstrap_full_first_run(tmp_path: Path) -> None:
             env_test_path=env_test_path,
         )
 
-    assert len(_scan_table(ddb_resource, "platform-tenants")) == 2
+    assert len(_scan_table(ddb_resource, "platform-tenants")) == 3
     assert len(_scan_table(ddb_resource, "platform-agents")) == 1
     assert len(_scan_table(ddb_resource, "platform-tools")) == 1
     assert env_test_path.exists()
@@ -401,6 +407,6 @@ def test_run_bootstrap_twice_no_duplicate_records(tmp_path: Path) -> None:
         }
 
     assert counts_after_second == counts_after_first
-    assert counts_after_second["tenants"] == 2
+    assert counts_after_second["tenants"] == 3
     assert counts_after_second["agents"] == 1
     assert counts_after_second["tools"] == 1

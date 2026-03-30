@@ -23,15 +23,66 @@ from typing import Any
 
 import boto3
 from aws_lambda_powertools import Logger
+from aws_lambda_powertools.utilities.parameters import AppConfigProvider
 from boto3.dynamodb.conditions import ConditionBase, Key
 
+from data_access.domains.capability import (
+    CapabilityRollout,
+    TenantCapabilityPolicy,
+)
+from data_access.domains.tenant import PaginatedItems, TenantContext, TenantTier
 from data_access.exceptions import TenantAccessViolation
-from data_access.models import PaginatedItems, TenantContext
 
 logger = Logger(service="data-access-lib")
 
 _TENANT_PK_PREFIX = "TENANT#"
 _S3_TENANT_DIR = "tenants/"
+_dynamodb_resource = None
+_s3_client = None
+_cloudwatch_client = None
+_dynamodb_resource_cache_key: tuple[str, str | None, str | None, str | None] | None = None
+_s3_client_cache_key: tuple[str, str | None, str | None, str | None] | None = None
+_cloudwatch_client_cache_key: tuple[str, str | None, str | None, str | None] | None = None
+
+
+def _aws_region() -> str:
+    return os.environ["AWS_REGION"]
+
+
+def _aws_client_cache_key() -> tuple[str, str | None, str | None, str | None]:
+    return (
+        _aws_region(),
+        os.environ.get("AWS_ACCESS_KEY_ID"),
+        os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        os.environ.get("AWS_SESSION_TOKEN"),
+    )
+
+
+def _get_dynamodb_resource():
+    global _dynamodb_resource, _dynamodb_resource_cache_key
+    cache_key = _aws_client_cache_key()
+    if _dynamodb_resource is None or _dynamodb_resource_cache_key != cache_key:
+        _dynamodb_resource = boto3.resource("dynamodb", region_name=_aws_region())
+        _dynamodb_resource_cache_key = cache_key
+    return _dynamodb_resource
+
+
+def _get_s3_client():
+    global _s3_client, _s3_client_cache_key
+    cache_key = _aws_client_cache_key()
+    if _s3_client is None or _s3_client_cache_key != cache_key:
+        _s3_client = boto3.client("s3", region_name=_aws_region())
+        _s3_client_cache_key = cache_key
+    return _s3_client
+
+
+def _get_cloudwatch_client():
+    global _cloudwatch_client, _cloudwatch_client_cache_key
+    cache_key = _aws_client_cache_key()
+    if _cloudwatch_client is None or _cloudwatch_client_cache_key != cache_key:
+        _cloudwatch_client = boto3.client("cloudwatch", region_name=_aws_region())
+        _cloudwatch_client_cache_key = cache_key
+    return _cloudwatch_client
 
 
 # ---------------------------------------------------------------------------
@@ -103,9 +154,8 @@ class TenantScopedDynamoDB:
     ) -> None:
         self._tenant_id = context.tenant_id
         self._app_id = context.app_id
-        region = os.environ["AWS_REGION"]
-        self._dynamodb: Any = dynamodb_resource or boto3.resource("dynamodb", region_name=region)
-        self._cloudwatch: Any = cloudwatch_client or boto3.client("cloudwatch", region_name=region)
+        self._dynamodb: Any = dynamodb_resource or _get_dynamodb_resource()
+        self._cloudwatch: Any = cloudwatch_client or _get_cloudwatch_client()
 
     def _validate_pk(self, key: dict[str, Any]) -> None:
         """Raise TenantAccessViolation if a TENANT#-prefixed PK doesn't match caller.
@@ -290,18 +340,57 @@ class TenantScopedDynamoDB:
         expression_attribute_names: dict[str, str] | None = None,
         expression_attribute_values: dict[str, Any] | None = None,
     ) -> PaginatedItems:
-        """Scan a table.
+        """Scanning is intentionally unsupported on tenant-scoped clients."""
+        _ = (
+            table_name,
+            filter_expression,
+            limit,
+            exclusive_start_key,
+            expression_attribute_names,
+            expression_attribute_values,
+        )
+        raise RuntimeError(
+            "TenantScopedDynamoDB.scan is not permitted; use ControlPlaneDynamoDB "
+            "for explicit administrative scans."
+        )
 
-        SECURITY: Scanning is an administrative operation.  Isolation is
-        NOT enforced by this method — it will return items from all
-        tenants if they exist in the scanned table.
+    def scan_all(
+        self,
+        table_name: str,
+        *,
+        filter_expression: ConditionBase | str | None = None,
+        expression_attribute_names: dict[str, str] | None = None,
+        expression_attribute_values: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Scanning is intentionally unsupported on tenant-scoped clients."""
+        _ = (
+            table_name,
+            filter_expression,
+            expression_attribute_names,
+            expression_attribute_values,
+        )
+        raise RuntimeError(
+            "TenantScopedDynamoDB.scan_all is not permitted; use ControlPlaneDynamoDB "
+            "for explicit administrative scans."
+        )
 
-        Lambda handlers must perform their own authorization (e.g. roles claim
-        check) before calling this method.
 
-        Returns a PaginatedItems object. Pass result.last_evaluated_key
-        to exclusive_start_key for subsequent pages.
-        """
+class ControlPlaneDynamoDB(TenantScopedDynamoDB):
+    """Administrative DynamoDB client for explicit control-plane scans and writes."""
+
+    def _validate_pk(self, key: dict[str, Any]) -> None:
+        _ = key
+
+    def scan(
+        self,
+        table_name: str,
+        *,
+        filter_expression: ConditionBase | str | None = None,
+        limit: int | None = None,
+        exclusive_start_key: dict[str, Any] | None = None,
+        expression_attribute_names: dict[str, str] | None = None,
+        expression_attribute_values: dict[str, Any] | None = None,
+    ) -> PaginatedItems:
         table = self._dynamodb.Table(table_name)
         kwargs: dict[str, Any] = {}
         if filter_expression is not None:
@@ -329,13 +418,6 @@ class TenantScopedDynamoDB:
         expression_attribute_names: dict[str, str] | None = None,
         expression_attribute_values: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
-        """Scan all items in a table, handling pagination.
-
-        SECURITY: Scanning is an administrative operation. Isolation is
-        NOT enforced by this method.
-
-        Returns a flat list of all items.
-        """
         items: list[dict[str, Any]] = []
         exclusive_start_key = None
         while True:
@@ -384,9 +466,8 @@ class TenantScopedS3:
         self._tenant_id = context.tenant_id
         self._app_id = context.app_id
         self._prefix = f"{_S3_TENANT_DIR}{self._tenant_id}/"
-        region = os.environ["AWS_REGION"]
-        self._s3: Any = s3_client or boto3.client("s3", region_name=region)
-        self._cloudwatch: Any = cloudwatch_client or boto3.client("cloudwatch", region_name=region)
+        self._s3: Any = s3_client or _get_s3_client()
+        self._cloudwatch: Any = cloudwatch_client or _get_cloudwatch_client()
 
     def _validate_key(self, key: str) -> None:
         """Raise TenantAccessViolation if key is outside the tenant prefix."""
@@ -474,3 +555,97 @@ class TenantScopedS3:
             Params={"Bucket": bucket, "Key": key},
             ExpiresIn=expires_in,
         )
+
+
+# ---------------------------------------------------------------------------
+# TenantCapabilityClient (ADR-017)
+# ---------------------------------------------------------------------------
+
+
+class TenantCapabilityClient:
+    """
+    Client for fetching and evaluating tenant capability policy from AppConfig.
+
+    Implements ADR-017: AppConfig owns dynamic tenant capability policy only.
+    evaluates it with deny-by-default fallback semantics: use the last known
+    good cached document when available; otherwise fall back to empty policy.
+    """
+
+    def __init__(
+        self,
+        application: str | None = None,
+        environment: str | None = None,
+        profile: str | None = None,
+        *,
+        provider: AppConfigProvider | None = None,
+    ) -> None:
+        self._application = application or os.environ.get("APPCONFIG_APPLICATION_ID")
+        self._environment = environment or os.environ.get("APPCONFIG_ENVIRONMENT_ID")
+        self._profile = profile or os.environ.get("APPCONFIG_PROFILE_ID")
+
+        self._provider = provider or (
+            AppConfigProvider(application=self._application, environment=self._environment)
+            if self._application and self._environment
+            else None
+        )
+        self._last_known_good_policy = TenantCapabilityPolicy.safe_fallback()
+
+    def fetch_policy(self) -> TenantCapabilityPolicy:
+        """Fetch the active capability policy from AppConfig.
+
+        Returns the last known good policy on read failure when available.
+        Falls back to TenantCapabilityPolicy.safe_fallback() only when there is
+        no previously parsed policy to retain.
+        Policy is cached for 60 seconds (max_age) to minimize AppConfig calls.
+        """
+        if not self._provider or not self._profile:
+            logger.warning("AppConfig provider or profile not configured; using fallback policy")
+            return self._last_known_good_policy
+
+        try:
+            # get() returns a dict if the profile is JSON and parsed by AppConfig.
+            # Local caching and session state handled by Powertools AppConfigProvider.
+            raw_policy = self._provider.get(self._profile, max_age=60)
+            if not isinstance(raw_policy, dict):
+                logger.error(
+                    "AppConfig policy is not a JSON object",
+                    extra={"type": str(type(raw_policy)), "profile": self._profile},
+                )
+                return self._last_known_good_policy
+
+            # Map raw dict to TenantCapabilityPolicy dataclass
+            # NOTE: Any malformed field will result in fallback for that specific rollout.
+            capabilities = {}
+            for cap_name, rollout_dict in raw_policy.get("capabilities", {}).items():
+                if not isinstance(rollout_dict, dict):
+                    logger.error(
+                        "Capability rollout must be a JSON object; skipping",
+                        extra={"capability": cap_name, "type": str(type(rollout_dict))},
+                    )
+                    continue
+
+                try:
+                    capabilities[cap_name] = CapabilityRollout(
+                        enabled=rollout_dict.get("enabled", False),
+                        rollout_percentage=rollout_dict.get("rollout_percentage", 100),
+                        tier_allow_list=frozenset(
+                            TenantTier(t) for t in rollout_dict.get("tier_allow_list", [])
+                        ),
+                        tenant_allow_list=frozenset(rollout_dict.get("tenant_allow_list", [])),
+                    )
+                except (ValueError, TypeError):
+                    logger.error(
+                        "Malformed capability rollout in policy; skipping",
+                        extra={"capability": cap_name, "rollout_dict": rollout_dict},
+                    )
+
+            policy = TenantCapabilityPolicy(
+                schema_version=str(raw_policy.get("schema_version", "unknown")),
+                capabilities=capabilities,
+                killed_capabilities=frozenset(raw_policy.get("killed_capabilities", [])),
+            )
+            self._last_known_good_policy = policy
+            return policy
+        except Exception:
+            logger.exception("Failed to fetch AppConfig capability policy; using last known good")
+            return self._last_known_good_policy

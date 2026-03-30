@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -162,6 +163,7 @@ class FakeSecretsManager:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
         self.rotate_calls: list[dict[str, Any]] = []
+        self.policy_calls: list[dict[str, Any]] = []
 
     def create_secret(self, **kwargs: Any) -> dict[str, Any]:
         self.calls.append(kwargs)
@@ -170,6 +172,13 @@ class FakeSecretsManager:
     def put_secret_value(self, **kwargs: Any) -> dict[str, Any]:
         self.rotate_calls.append(kwargs)
         return {"ARN": str(kwargs.get("SecretId", "")), "VersionId": "ver-rotated-001"}
+
+    def put_resource_policy(self, **kwargs: Any) -> dict[str, Any]:
+        self.policy_calls.append(kwargs)
+        return {
+            "ARN": str(kwargs.get("SecretId", "")),
+            "Name": str(kwargs.get("SecretId", "")).split(":secret:", 1)[-1],
+        }
 
 
 class FakeEvents:
@@ -442,11 +451,16 @@ def fake_state(monkeypatch: pytest.MonkeyPatch, fixed_now: datetime) -> dict[str
     monkeypatch.setenv("AUDIT_EXPORT_BUCKET", "platform-audit-exports")
     monkeypatch.setenv("AUDIT_EXPORT_URL_EXPIRY_SECONDS", "1800")
     monkeypatch.setenv("TENANT_API_KEY_SECRET_PREFIX", "platform/tenants")
+    monkeypatch.setenv(
+        "TENANT_MGMT_ROLE_ARN",
+        "arn:aws:iam::111111111111:role/platform-tenant-mgmt-dev",
+    )
     monkeypatch.setenv("OPS_LOCKS_TABLE", "platform-ops-locks")
     monkeypatch.setenv("RUNTIME_REGION_PARAM", "/platform/config/runtime-region")
     monkeypatch.setenv("FALLBACK_REGION_PARAM", "/platform/config/fallback-region")
     monkeypatch.setattr(tenant_api_handler, "_dependencies", lambda: deps)
     monkeypatch.setattr(tenant_api_handler, "_db_for_tenant", lambda **_kwargs: db)
+    monkeypatch.setattr(tenant_api_handler, "_control_plane_db", lambda *_args, **_kwargs: db)
     monkeypatch.setattr(tenant_api_handler, "_now_utc", lambda: fixed_now)
     return {"db": db, "deps": deps}
 
@@ -571,19 +585,155 @@ def test_create_tenant_writes_record_provisions_memory_secret_and_emits_event(
     tenant = _body(response)["tenant"]
     assert tenant["tenantId"] == "t-001"
     assert tenant["tier"] == "standard"
-    assert tenant["status"] == "provisioning"
+    assert tenant["provisioningStatus"] == "pending"
     assert tenant["apiKeySecretArn"].startswith("arn:aws:secretsmanager:")
     assert tenant["memoryStoreArn"].endswith("/t-001")
     assert fake_state["deps"].memory_provisioner.calls == [
         {"tenant_id": "t-001", "app_id": "app-001"}
     ]
     assert len(fake_state["deps"].secretsmanager.calls) == 1
+    assert len(fake_state["deps"].secretsmanager.policy_calls) == 1
+    policy_call = fake_state["deps"].secretsmanager.policy_calls[0]
+    assert policy_call["SecretId"].endswith("platform/tenants/t-001/api-key")
+    policy = json.loads(policy_call["ResourcePolicy"])
+    statement = policy["Statement"][0]
+    assert statement["Effect"] == "Deny"
+    assert statement["Action"] == "secretsmanager:GetSecretValue"
+    assert (
+        statement["Principal"]["AWS"] == "arn:aws:iam::111111111111:role/platform-tenant-mgmt-dev"
+    )
     detail_type, detail = _last_event_detail(fake_state)
     assert detail_type == "tenant.created"
     assert detail["tenantId"] == "t-001"
     assert detail["appId"] == "app-001"
     assert detail["tier"] == "standard"
     assert detail["accountId"] == "123456789012"
+
+
+def test_tenant_provisioned_event_updates_tenant_record(fake_state: dict[str, Any]) -> None:
+    fake_state["db"].items[("TENANT#t-prov-001", "METADATA")] = {
+        "PK": "TENANT#t-prov-001",
+        "SK": "METADATA",
+        "tenantId": "t-prov-001",
+        "appId": "app-001",
+        "displayName": "Acme Ltd",
+        "tier": "standard",
+        "status": "active",
+        "provisioningStatus": "pending",
+        "createdAt": "2026-03-28T12:00:00Z",
+        "updatedAt": "2026-03-28T12:00:00Z",
+        "ownerEmail": "owner@example.com",
+        "ownerTeam": "team-acme",
+        "accountId": "123456789012",
+    }
+
+    context = MagicMock()
+    context.function_name = "tenant-api"
+    context.memory_limit_in_mb = 512
+    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
+    context.aws_request_id = "req-1"
+    response = tenant_api_handler.lambda_handler(
+        {
+            "source": "platform.tenant_provisioner",
+            "detail-type": "tenant.provisioned",
+            "detail": {
+                "tenantId": "t-prov-001",
+                "appId": "app-001",
+                "ExecutionRoleArn": "arn:role",
+                "MemoryStoreArn": "arn:mem",
+            },
+        },
+        context,
+    )
+
+    assert response["statusCode"] == 200
+    tenant = _body(response)["tenant"]
+    assert tenant["provisioningStatus"] == "ready"
+    assert tenant["executionRoleArn"] == "arn:role"
+    assert tenant["memoryStoreArn"] == "arn:mem"
+
+
+def test_tenant_provisioning_failed_event_updates_tenant_record(fake_state: dict[str, Any]) -> None:
+    fake_state["db"].items[("TENANT#t-prov-002", "METADATA")] = {
+        "PK": "TENANT#t-prov-002",
+        "SK": "METADATA",
+        "tenantId": "t-prov-002",
+        "appId": "app-002",
+        "displayName": "Beta Ltd",
+        "tier": "standard",
+        "status": "active",
+        "provisioningStatus": "pending",
+        "createdAt": "2026-03-28T12:00:00Z",
+        "updatedAt": "2026-03-28T12:00:00Z",
+        "ownerEmail": "owner@example.com",
+        "ownerTeam": "team-beta",
+        "accountId": "123456789012",
+    }
+
+    context = MagicMock()
+    context.function_name = "tenant-api"
+    context.memory_limit_in_mb = 512
+    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
+    context.aws_request_id = "req-2"
+    response = tenant_api_handler.lambda_handler(
+        {
+            "source": "platform.tenant_provisioner",
+            "detail-type": "tenant.provisioning_failed",
+            "detail": {
+                "tenantId": "t-prov-002",
+                "appId": "app-002",
+                "reason": "ROLLBACK_COMPLETE",
+            },
+        },
+        context,
+    )
+
+    assert response["statusCode"] == 200
+    tenant = _body(response)["tenant"]
+    assert tenant["provisioningStatus"] == "failed"
+    assert tenant["provisioningError"] == "ROLLBACK_COMPLETE"
+
+
+def test_reserved_platform_provisioning_event_is_accepted(fake_state: dict[str, Any]) -> None:
+    fake_state["db"].items[("TENANT#platform", "METADATA")] = {
+        "PK": "TENANT#platform",
+        "SK": "METADATA",
+        "tenantId": "platform",
+        "appId": "platform-internal",
+        "displayName": "Platform Internal",
+        "tier": "premium",
+        "status": "active",
+        "provisioningStatus": "pending",
+        "createdAt": "2026-03-28T12:00:00Z",
+        "updatedAt": "2026-03-28T12:00:00Z",
+        "ownerEmail": "platform@example.invalid",
+        "ownerTeam": "platform",
+        "accountId": "123456789012",
+    }
+
+    context = MagicMock()
+    context.function_name = "tenant-api"
+    context.memory_limit_in_mb = 512
+    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
+    context.aws_request_id = "req-platform"
+    response = tenant_api_handler.lambda_handler(
+        {
+            "source": "platform.tenant_provisioner",
+            "detail-type": "tenant.provisioned",
+            "detail": {
+                "tenantId": "platform",
+                "appId": "platform-internal",
+                "ExecutionRoleArn": "arn:platform-role",
+            },
+        },
+        context,
+    )
+
+    assert response["statusCode"] == 200
+    tenant = _body(response)["tenant"]
+    assert tenant["tenantId"] == "platform"
+    assert tenant["executionRoleArn"] == "arn:platform-role"
+    assert tenant["provisioningStatus"] == "ready"
 
 
 def test_create_tenant_normalizes_tenant_id_to_lowercase(fake_state: dict[str, Any]) -> None:
@@ -618,6 +768,7 @@ def test_create_tenant_normalizes_tenant_id_to_lowercase(fake_state: dict[str, A
         ("tenant--one", "tenantId must not contain consecutive hyphens"),
         ("tenant_one", "tenantId must match ^[a-z](?:[a-z0-9-]{1,30}[a-z0-9])$"),
         ("stub", "tenantId is reserved"),
+        ("platform", "tenantId is reserved"),
     ],
 )
 def test_create_tenant_rejects_invalid_tenant_id_values(
@@ -642,6 +793,25 @@ def test_create_tenant_rejects_invalid_tenant_id_values(
     error = _body(response)["error"]
     assert error["code"] == "BAD_REQUEST"
     assert error["message"] == expected_error
+
+
+def test_admin_can_read_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+    fake_state["db"].items[("TENANT#platform", "METADATA")] = {
+        "PK": "TENANT#platform",
+        "SK": "METADATA",
+        "tenant_id": "platform",
+        "tenantId": "platform",
+        "app_id": "platform-internal",
+        "appId": "platform-internal",
+        "tier": "premium",
+        "status": "active",
+    }
+
+    response = _invoke(_event(method="GET", tenant_id="platform"))
+
+    assert response["statusCode"] == 200
+    tenant = _body(response)["tenant"]
+    assert tenant["tenantId"] == "platform"
 
 
 def test_create_tenant_detects_collision_after_tenant_id_normalization(
@@ -2105,6 +2275,7 @@ def test_platform_promote_agent_updates_metadata_and_emits_event(
     event = _event(
         method="PATCH",
         body={"status": "promoted", "releaseNotes": "approved release evidence recorded"},
+        caller_tenant_id="platform",
         roles=["Platform.Admin"],
     )
     event["path"] = "/v1/platform/agents/echo-agent/versions/1.2.0"
@@ -2119,8 +2290,22 @@ def test_platform_promote_agent_updates_metadata_and_emits_event(
     assert item["release_notes"] == "approved release evidence recorded"
     detail_type, detail = _last_event_detail(fake_state)
     assert detail_type == "platform.agent_version.promoted"
+    assert detail["schemaVersion"] == 1
+    assert detail["operation"] == "promotion"
+    assert detail["occurredAt"] == "2026-02-25T12:00:00Z"
+    assert detail["actorTenantId"] == "platform"
+    assert detail["actorAppId"] == "app-admin"
+    assert detail["actorSub"] == "user-123"
+    assert detail["releaseId"] == "echo-agent:1.2.0"
+    assert detail["agentRecordPk"] == "AGENT#echo-agent"
+    assert detail["agentRecordSk"] == "VERSION#1.2.0"
+    assert detail["agentName"] == "echo-agent"
+    assert detail["version"] == "1.2.0"
     assert detail["previousStatus"] == "approved"
     assert detail["status"] == "promoted"
+    assert detail["approvedBy"] == "user-123"
+    assert detail["approvedAt"] == "2026-02-25T12:00:00Z"
+    assert detail["releaseNotes"] == "approved release evidence recorded"
 
 
 def test_platform_rejects_invalid_agent_status_transition(fake_state: dict[str, Any]) -> None:
@@ -2233,9 +2418,14 @@ def test_platform_rollback_with_metadata(fake_state: dict[str, Any]) -> None:
 
 def test_platform_rollback_agent_emits_event(fake_state: dict[str, Any]) -> None:
     _seed_agent_version(fake_state, agent_name="echo-agent", version="1.2.0", status="promoted")
+    fake_state["db"].items[("AGENT#echo-agent", "VERSION#1.2.0")]["approved_by"] = "release-admin"
+    fake_state["db"].items[("AGENT#echo-agent", "VERSION#1.2.0")]["approved_at"] = (
+        "2026-02-24T18:30:00Z"
+    )
     event = _event(
         method="PATCH",
         body={"status": "rolled_back", "releaseNotes": "error rate spike"},
+        caller_tenant_id="platform",
         roles=["Platform.Admin"],
     )
     event["path"] = "/v1/platform/agents/echo-agent/versions/1.2.0"
@@ -2247,5 +2437,19 @@ def test_platform_rollback_agent_emits_event(fake_state: dict[str, Any]) -> None
     assert item["status"] == "rolled_back"
     detail_type, detail = _last_event_detail(fake_state)
     assert detail_type == "platform.agent_version.rolled_back"
+    assert detail["schemaVersion"] == 1
+    assert detail["operation"] == "rollback"
+    assert detail["occurredAt"] == "2026-02-25T12:00:00Z"
+    assert detail["actorTenantId"] == "platform"
+    assert detail["actorAppId"] == "app-admin"
+    assert detail["actorSub"] == "user-123"
+    assert detail["releaseId"] == "echo-agent:1.2.0"
+    assert detail["agentRecordPk"] == "AGENT#echo-agent"
+    assert detail["agentRecordSk"] == "VERSION#1.2.0"
+    assert detail["agentName"] == "echo-agent"
+    assert detail["version"] == "1.2.0"
     assert detail["previousStatus"] == "promoted"
     assert detail["status"] == "rolled_back"
+    assert detail["approvedBy"] == "release-admin"
+    assert detail["approvedAt"] == "2026-02-24T18:30:00Z"
+    assert detail["releaseNotes"] == "error rate spike"

@@ -4,7 +4,7 @@
 
 ## System Context
 
-The platform exposes a REST API over which B2B tenants invoke AI agents. Each tenant
+The platform exposes a REST API over which B2E users and E2B integrations invoke AI agents. Each tenant
 is a business customer with their own isolated data, memory, and tool access. Internally,
 agent developer teams push specialised agents to the platform independently of platform
 infrastructure releases. Platform operators monitor, scale, and respond to incidents.
@@ -35,10 +35,13 @@ eu-west-2 London (HOME — owns everything)
 ├── SQS (webhook delivery retry queue only, not async invocation routing)
 ├── Bridge Lambda
 ├── Authoriser Lambda
-├── Tenant API Lambda
+├── Tenant management service Lambda
+├── Webhook registry service Lambda
+├── Agent registry service Lambda
+├── Admin ops service Lambda
 ├── BFF Lambda
 ├── CloudWatch (aggregated)
-└── KMS keys
+└── Platform identity and shared config
 
 eu-west-1 Dublin (COMPUTE — current primary runtime region by platform policy)
 ├── AgentCore Runtime (arm64 Firecracker microVM)
@@ -49,7 +52,8 @@ eu-west-1 Dublin (COMPUTE — current primary runtime region by platform policy)
 eu-central-1 Frankfurt (EVALUATION + failover)
 ├── AgentCore Evaluations
 ├── AgentCore Policy (Cedar) for Gateway authorization decisions
-└── Runtime failover target
+├── Runtime failover target
+└── Shadow NetworkStack for failover parity work
 ```
 
 All data remains in the EU. The current approved zigzag to Dublin adds ~12ms RTT.
@@ -73,6 +77,9 @@ platform. Additional policy tuning remains an ongoing platform task.
 Failover: Dublin → Frankfurt on `ServiceUnavailableException`
 ([RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md)).
 Failover controlled by SSM `/platform/config/runtime-region` with DynamoDB distributed lock.
+The current infrastructure baseline now also deploys a shadow `NetworkStack` in
+Frankfurt so failover network dependencies can be tested and hardened without
+pretending eu-central-1 is only a paper target.
 
 Dynamic tenant capability policy uses AppConfig in the home region. AppConfig is
 reserved for rollout-sensitive capability policy only; runtime parameters remain
@@ -114,6 +121,12 @@ Client
   → Response stream back through bridge → API Gateway → client
 ```
 
+Implementation note: the Bridge still deploys as one Lambda, but the package is
+now split internally into `config_provider`, `discovery_service`,
+`invocation_engine`, `runtime_orchestrator`, and `runtime_invoker` so routing,
+discovery, and failover logic can evolve independently without changing the
+public invoke contract.
+
 Current SPA edge exception: the public SPA distribution does not yet have its own
 CloudFront-scope WebACL. That is intentional for now, not an undocumented omission.
 The current approved region topology in [ADR-009](decisions/ADR-009-region-zigzag.md)
@@ -124,6 +137,48 @@ CloudFront provides TLS termination, OAC-backed S3 origin protection, and SPA se
 headers, while the WAF-enforced northbound boundary starts at REST API Gateway.
 Any future move to attach a CloudFront WebACL must be an explicit architecture change,
 not silent drift in stack code.
+
+### Public Ingress Domain and TLS Posture
+
+The platform exposes two public endpoints to tenants and end users:
+
+| Endpoint | Service | Custom Domain Context | Certificate Region |
+|----------|---------|----------------------|-------------------|
+| SPA (frontend) | CloudFront | `spaDomainName` + `spaCertificateArn` | us-east-1 (CloudFront requirement) |
+| REST API (northbound) | API Gateway (regional) | `apiDomainName` + `apiCertificateArn` | eu-west-2 (same as endpoint) |
+
+**TLS posture:**
+- CloudFront: `TLSv1.2_2021` minimum protocol version, SNI-only when using a custom
+  certificate. This is enforced in CDK and tested regardless of whether a custom domain
+  is configured.
+- API Gateway: `TLS_1_2` security policy when a custom domain is wired.
+- Both endpoints redirect HTTP to HTTPS.
+
+**Domain configuration:**
+- Custom domains are opt-in via CDK context. When absent, CloudFront uses the default
+  `*.cloudfront.net` domain and the API uses the default execute-api endpoint. This is
+  acceptable for dev/test but not for production.
+- For production, set `spaDomainName`, `spaCertificateArn`, `apiDomainName`, and
+  `apiCertificateArn` in the CDK context (e.g. `cdk.json` or `-c` flags).
+- CORS origin configuration automatically uses the custom SPA domain when configured.
+
+**Certificate ownership and renewal:**
+- ACM certificates are AWS-managed. DNS-validated ACM certificates auto-renew as long
+  as the validation CNAME records remain in the hosted zone.
+- The platform team owns certificate provisioning and DNS record management.
+- SPA certificate must be provisioned in **us-east-1** (CloudFront global requirement).
+- API certificate must be provisioned in **eu-west-2** (regional API Gateway requirement).
+- Certificate ARNs are passed as CDK context, not hardcoded — the certificates are
+  provisioned outside this CDK app (manually or via a separate stack) so that certificate
+  lifecycle does not couple to application deployments.
+
+**DNS responsibilities:**
+- SPA: create a CNAME or Route 53 alias record pointing the custom domain to the
+  CloudFront distribution domain name.
+- API: create a CNAME or Route 53 alias record pointing the custom domain to the
+  regional domain name output (`ApiRegionalDomainName`).
+- Both domain names and regional targets are published to SSM Parameter Store for
+  operational reference.
 
 ## Invocation Modes
 
@@ -141,6 +196,39 @@ See [ADR-005](decisions/ADR-005-declared-invocation-mode.md).
 background work, then `app.complete_async_task` when done. Client polls
 `GET /v1/jobs/{jobId}` or registers a webhook. No standalone async-runner Lambda;
 no SQS routing for invocation execution. See [ADR-010](decisions/ADR-010-async-agentcore-native.md).
+
+## Interactive AG-UI Path (Proposed)
+
+The current approved northbound invoke path remains the REST control plane:
+CloudFront → REST API Gateway → Authoriser Lambda → Bridge Lambda →
+AgentCore Runtime.
+
+AgentCore AG-UI is a proposed additive path for human interactive experiences in
+the SPA. It is not a replacement for the REST bridge and is not the canonical
+public API for E2B tenant integrations.
+
+Proposed AG-UI shape:
+
+```text
+SPA
+  → Platform bootstrap endpoint
+      Validates Entra identity and tenant context
+      Confirms agent is AG-UI-capable
+      Records audit/session metadata
+      Returns constrained AG-UI connection details
+  → Per-agent AgentCore AG-UI runtime
+      SSE or WebSocket interactive session
+      Human-facing real-time interaction only
+```
+
+Design constraints:
+- REST remains the supported machine/API invocation path
+- AG-UI is per-agent, not a shared runtime
+- No Cognito is introduced; any AG-UI auth flow must remain compatible with the
+  Entra-first identity model
+- Platform bootstrap remains the policy and audit boundary for AG-UI sessions
+
+See [ADR-018](decisions/ADR-018-agentcore-ag-ui-integration.md).
 
 ## Tenant Isolation Model
 
@@ -223,7 +311,9 @@ Control-plane Lambdas cache capability policy locally and evaluate it with
 deny-by-default fallback semantics: use the last known good AppConfig document
 when available, otherwise fall back to an empty policy that enables nothing.
 Kill switches override all rollout rules. Rollback of capability changes uses
-AppConfig version history rather than ad hoc DynamoDB edits.
+AppConfig version history rather than ad hoc DynamoDB edits. Capability changes
+deploy through a bounded rollout strategy with bake time rather than immediate
+100% rollout.
 
 ### Safe Defaults And Fallbacks
 
@@ -251,8 +341,11 @@ See [ADR-012](decisions/ADR-012-dynamodb-capacity.md) for capacity mode rational
 **platform-tenants** — tenant registry
 - PK: `TENANT#{tenantId}`, SK: `METADATA`
 - Attributes: tenantId, appId, displayName, tier, status, createdAt, updatedAt,
-  ownerEmail, ownerTeam, memoryStoreArn, runtimeRegion, fallbackRegion,
+  provisioningStatus, provisioningUpdatedAt, provisioningError, ownerEmail,
+  ownerTeam, executionRoleArn, memoryStoreArn, runtimeRegion, fallbackRegion,
   apiKeySecretArn, monthlyBudgetUsd, accountId
+- Control-plane metadata only. Do not store high-frequency invocation counters,
+  last-activity markers, or session heartbeat state in this row.
 - Excludes dynamic capability policy. Capability flags, kill switches, and
   rollout-managed model/tool availability live in AppConfig, not in this table.
 - Capacity: provisioned, auto-scaling, 5 RCU/WCU minimum
@@ -288,11 +381,50 @@ version as the highest semver record for an agent where `status=promoted`.
 Rollback is a forward metadata transition on the bad version; the Bridge then
 falls back to the next-highest promoted version without rebuilding artifacts.
 
+### Release Lifecycle Audit Events
+
+Promotion and rollback are control-plane mutations owned by the agent registry
+service. After the `platform-agents` record is updated successfully, the agent
+registry service emits one
+EventBridge event on the platform event bus with detail type:
+
+- `platform.agent_version.promoted`
+- `platform.agent_version.rolled_back`
+
+Event detail schema:
+
+| Field | Meaning |
+|-------|---------|
+| `schemaVersion` | Payload schema version for downstream consumers |
+| `operation` | `promotion` or `rollback` |
+| `occurredAt` | ISO 8601 UTC timestamp for the persisted transition |
+| `actorTenantId` / `actorAppId` / `actorSub` | Control-plane actor identity; platform-operated routes should carry `tenantid=platform` |
+| `releaseId` | Stable immutable release identifier: `{agentName}:{version}` |
+| `agentRecordPk` / `agentRecordSk` | Stable DynamoDB identifiers for the release record |
+| `agentName` / `version` | Human-readable release identifiers |
+| `previousStatus` / `status` | Canonical lifecycle transition |
+| `approvedBy` / `approvedAt` | Approval evidence attached to the release, when present |
+| `releaseNotes` | Operator-supplied promotion or rollback evidence |
+| `evaluationScore` / `evaluationReportUrl` | Evaluation evidence recorded on promotion, when supplied |
+| `rolledBackBy` / `rolledBackAt` | Rollback actor and timestamp, when the transition is `rolled_back` |
+
+Semantics:
+- emitted only for the auditable terminal control-plane transitions covered by ADR-015: `approved -> promoted` and `promoted -> rolled_back`
+- emitted after the DynamoDB update succeeds, so consumers never observe a promotion or rollback that failed persistence
+- one event per successful transition; consumers should treat `releaseId` plus `status` as the stable release transition identity and may also use the EventBridge envelope `id` for delivery-level deduplication
+
+Operational consumers:
+- operator-facing release dashboards and timelines
+- compliance/audit export pipelines that need immutable release history
+- downstream release automation that reacts to confirmed promotion or rollback state changes
+
 **platform-invocations** — invocation audit log
 - PK: `TENANT#{tenantId}`, SK: `INV#{timestamp}#{invocationId}`
 - Attributes: invocationId, tenantId, appId, agentName, agentVersion,
   sessionId, inputTokens, outputTokens, latencyMs, status, errorCode,
   runtimeRegion, invocationMode, jobId
+- This is the high-frequency tenant activity record for invocations. Do not
+  mirror per-request counters or last-seen markers into `platform-tenants`.
 - TTL: 90 days. Capacity: on-demand (unpredictable volume)
 - Hot partition protection: SK includes random jitter suffix for high-volume tenants
 
@@ -305,6 +437,7 @@ falls back to the next-highest promoted version without rebuilding artifacts.
 **platform-sessions** — active session tracking
 - PK: `TENANT#{tenantId}`, SK: `SESSION#{sessionId}`
 - Attributes: sessionId, runtimeSessionId, agentName, startedAt, lastActivityAt, status
+- Session liveness and last-activity state belong here, not in `platform-tenants`.
 - TTL: 24 hours after last activity
 
 **platform-tools** — Gateway tool registry
@@ -348,10 +481,12 @@ tenant-scoped even when initiated by platform-owned automation.
 ```mermaid
 flowchart LR
   subgraph P["Platform Account (home/control plane)"]
-    Admin["Platform Admin / Tenant API\nCREATE tenant"]
-    Tenants["DynamoDB: platform-tenants\n(tenant registry + accountId + resource refs)"]
+    Admin["Platform Admin / Tenant mgmt service\nCREATE tenant"]
+    Tenants["DynamoDB: platform-tenants\n(tenant registry + accountId + provisioning state + resource refs)"]
     EB["EventBridge\nplatform.tenant.created"]
+    Sfn["Step Functions\nTenant provisioning workflow"]
     Prov["Tenant Provisioner\n(CDK TenantStack runner)"]
+    EB2["EventBridge\nplatform.tenant_provisioner.*"]
     Bridge["Bridge Lambda\ninvocation path"]
     STS["AWS STS"]
   end
@@ -364,10 +499,13 @@ flowchart LR
 
   Admin -->|conditional write + metadata| Tenants
   Admin -->|publish tenant.created| EB
-  EB --> Prov
+  EB --> Sfn
+  Sfn -->|start/poll/emit-result| Prov
   Prov -->|deploy TenantStack with tenantId/tier/accountId| Role
   Prov -->|provision/update| TenantRes
-  Prov -->|write resource ARNs/refs| Tenants
+  Prov -->|emit tenant.provisioned / tenant.provisioning_failed| EB2
+  EB2 -->|invoke control-plane listener| Admin
+  Admin -->|update provisioning state + resource refs| Tenants
 
   Bridge -->|lookup tenant + accountId/role refs| Tenants
   Bridge -->|AssumeRole| STS
@@ -391,15 +529,22 @@ See [ADR-007](decisions/ADR-007-cdk-terraform.md) for the CDK vs Terraform split
 | Order | Stack | Region | Resources |
 |-------|-------|--------|-----------|
 | 1 | NetworkStack | eu-west-2 | VPC, subnets, VPC endpoints, security groups |
-| 2 | IdentityStack | eu-west-2 | GitLab OIDC WIF roles, Entra JWKS layer, KMS keys |
+| 2 | IdentityStack | eu-west-2 | GitLab OIDC WIF roles, Entra JWKS layer |
 | 3 | PlatformStack | eu-west-2 | REST API, WAF, CloudFront, Bridge, BFF, Authoriser, Gateway |
 | 4 | TenantStack | eu-west-2 | Per-tenant Memory store, execution role, usage plan key, SSM |
 | 5 | ObservabilityStack | eu-west-2 | Dashboards, alarms, monitoring-account OAM sink only |
 | 6 | AgentCoreStack | eu-west-1 | Runtime config, metric stream to eu-west-2 observability |
 
-TenantStack deploys per-tenant on EventBridge `platform.tenant.created` event.
-It is **not** deployed by the platform pipeline — only triggered by tenant provisioning.
+TenantStack deploys per-tenant through the tenant provisioning Step Functions
+workflow, which is started by EventBridge `platform.tenant.created` and
+completes by emitting `platform.tenant_provisioner` completion events back to
+the control plane. It is **not** deployed by the platform pipeline.
 Existing tenants are migrated/verified with `make ops-backfill-tenant-role-arn [APPLY=1]`.
+
+Implementation note: `PlatformStack` still deploys as one stack, but the CDK
+code now synthesizes its storage/AppConfig resources and compute/orchestration
+resources through separate helper modules. That keeps deployment semantics
+stable while reducing edit risk inside the stack definition.
 
 ObservabilityStack currently provisions the eu-west-2 monitoring-account OAM sink only.
 No regional OAM member links are deployed yet, so the cross-region observability path
@@ -419,6 +564,7 @@ is represented today by the AgentCoreStack metric stream into eu-west-2 dashboar
 | FM-8 | Usage plan quota exhausted | 429 from API Gateway | `FM-8-UsagePlanQuotaExhausted` | By design (native enforcement) |
 | FM-9 | DLQ message arrival | DLQ CloudWatch alarm | `FM-9-DLQ-Arrival-{name}` | [RUNBOOK-005](operations/RUNBOOK-005-dlq-management.md) |
 | FM-10 | Billing Lambda failure | Billing Lambda errors | `FM-10-BillingLambdaFailure` | [RUNBOOK-006](operations/RUNBOOK-006-budget-and-suspension.md) |
+| FM-11 | Bedrock runtime throttle pressure | Bridge emits `Invocation.Throttled.Bedrock` | `FM-11-BedrockThrottlePressure` | Investigate noisy tenants, concurrency pressure, and runtime quota headroom |
 
 ## Security Model
 
@@ -466,5 +612,5 @@ See [ADR-013](decisions/ADR-013-entra-rbac-roles-claim.md).
 | AgentCore Gateway timeout: 5 min | Tools cannot exceed 5 min response | Design tools for fast response; long work uses async mode |
 | Code Interpreter: 25 concurrent sessions | Per-account per-region limit | Monitor via [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md) |
 | arm64 only in Runtime | All Python deps must be cross-compiled aarch64-manylinux2014 | See [ADR-001](decisions/ADR-001-agentcore-runtime.md) |
-| Session idle timeout: 15 min | Long UI sessions require keepalive | BFF keepalive endpoint; see [ADR-011](decisions/ADR-011-thin-bff.md) |
+| Session idle timeout: 15 min | Long UI sessions require keepalive | BFF keepalive endpoint; BFF secret resolution uses cached values plus retry/jitter on fetch miss; see [ADR-011](decisions/ADR-011-thin-bff.md) |
 | REST API sync timeout: 15 min | Not the standard 29s Lambda limit | Lambda configured for 15 min; API Gateway integration timeout matched |

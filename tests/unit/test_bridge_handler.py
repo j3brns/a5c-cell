@@ -16,7 +16,24 @@ from moto import mock_aws
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-access-lib" / "src"))
 
+from data_access.models import AgentRecord, InvocationMode, TenantContext, TenantTier
+
+from src.bridge import handler as bridge_handler
 from src.bridge.handler import handler
+
+
+@pytest.fixture(autouse=True)
+def mock_capabilities():
+    """Mock TenantCapabilityClient to allow all agents for testing."""
+    with patch("src.bridge.handler.get_capability_client") as mock:
+        mock_client = MagicMock()
+        mock.return_value = mock_client
+
+        # Policy that allows everything by default for tests
+        policy = MagicMock()
+        policy.is_enabled.return_value = True
+        mock_client.fetch_policy.return_value = policy
+        yield mock
 
 
 class FakeLambdaContext:
@@ -152,7 +169,9 @@ def test_handler_sync_success(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("requests.post") as mock_post:
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_post = MagicMock()
+        mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
         mock_response.iter_lines.return_value = [
             b'data: {"type": "text", "content": "Echo: Hello"}',
@@ -214,8 +233,7 @@ def test_list_agents_returns_openapi_shape_and_tier_filtered(setup_data):
 
 
 def test_list_agents_handles_multiple_scan_pages(setup_data):
-
-    # Mock TenantScopedDynamoDB.scan to return two pages
+    # Discovery scans are now explicit control-plane reads.
     mock_db = MagicMock()
     mock_db.scan_all.return_value = [
         {
@@ -232,7 +250,7 @@ def test_list_agents_handles_multiple_scan_pages(setup_data):
         },
     ]
 
-    with patch("src.bridge.handler.TenantScopedDynamoDB", return_value=mock_db):
+    with patch("src.bridge.handler.ControlPlaneDynamoDB", return_value=mock_db):
         event = {
             "httpMethod": "GET",
             "path": "/v1/agents",
@@ -559,7 +577,8 @@ def test_handler_async_accepted(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("requests.post"):
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_get_http_session.return_value.post = MagicMock()
         response = handler(event, FakeLambdaContext())
 
         assert response["statusCode"] == 202
@@ -612,7 +631,9 @@ def test_handler_streaming(setup_data):
 
     mock_stream = MagicMock()
 
-    with patch("requests.post") as mock_post:
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_post = MagicMock()
+        mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
         mock_response.iter_lines.return_value = [
             b'data: {"type": "text", "content": "Chunk 1"}',
@@ -673,7 +694,9 @@ def test_handler_session_id_propagation(setup_data):
         "body": json.dumps({"input": "Hello", "sessionId": "provided-session-123"}),
     }
 
-    with patch("requests.post") as mock_post:
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_post = MagicMock()
+        mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
         mock_response.iter_lines.return_value = [
             b'data: {"type": "text", "content": "Echo"}',
@@ -712,7 +735,9 @@ def test_handler_session_id_from_runtime(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("requests.post") as mock_post:
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_post = MagicMock()
+        mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
         mock_response.iter_lines.return_value = [
             b'data: {"type": "session", "sessionId": "runtime-session-456"}',
@@ -918,9 +943,11 @@ def test_handler_emits_bridge_metrics(setup_data):
     }
 
     with (
-        patch("requests.post") as mock_post,
+        patch("src.bridge.handler.get_http_session") as mock_get_http_session,
         patch("src.bridge.handler.get_cloudwatch") as mock_get_cw,
     ):
+        mock_post = MagicMock()
+        mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
         mock_response.iter_lines.return_value = [
             b'data: {"type": "text", "content": "Hi"}',
@@ -961,6 +988,67 @@ def test_handler_emits_bridge_metrics(setup_data):
             dims = {d["Name"]: d["Value"] for d in m["Dimensions"]}
             assert dims["TenantId"] == "t-001"
             assert dims["AgentName"] == "echo-agent"
+
+
+def test_runtime_failure_response_emits_bedrock_throttle_metric(
+    setup_data,
+    aws_credentials,
+) -> None:
+    tenant_context = TenantContext(
+        tenant_id="t-001",
+        app_id="app-001",
+        tier=TenantTier.BASIC,
+        sub="user-1",
+    )
+    agent = AgentRecord(
+        agent_name="echo-agent",
+        version="1.0.0",
+        owner_team="platform",
+        tier_minimum=TenantTier.BASIC,
+        layer_hash="hash",
+        layer_s3_key="layer.zip",
+        script_s3_key="script.py",
+        deployed_at="2026-01-01T00:00:00Z",
+        invocation_mode=InvocationMode.SYNC,
+        streaming_enabled=False,
+    )
+    exc = bridge_handler.ClientError(
+        {
+            "Error": {"Code": "ThrottlingException", "Message": "too many"},
+            "ResponseMetadata": {"HTTPStatusCode": 429},
+        },
+        "InvokeAgentRuntime",
+    )
+
+    with patch("src.bridge.handler.get_cloudwatch") as mock_get_cw:
+        mock_cw = MagicMock()
+        mock_get_cw.return_value = mock_cw
+
+        response = bridge_handler._runtime_failure_response(
+            tenant_context,
+            agent,
+            "inv-001",
+            0.0,
+            InvocationMode.SYNC,
+            "eu-west-1",
+            "req-001",
+            exc,
+        )
+
+    assert response["statusCode"] == 429
+    mock_cw.put_metric_data.assert_called()
+    throttle_metric_found = False
+    for call in mock_cw.put_metric_data.call_args_list:
+        kwargs = call.kwargs
+        if kwargs["Namespace"] != "Platform/Bridge":
+            continue
+        for metric in kwargs["MetricData"]:
+            if metric["MetricName"] == "Invocation.Throttled.Bedrock":
+                throttle_metric_found = True
+                break
+        if throttle_metric_found:
+            break
+    assert throttle_metric_found
     ddb = boto3.resource("dynamodb", region_name="eu-west-2")
     jobs_table = ddb.Table("platform-jobs")
     jobs_table.put_item(
@@ -1063,7 +1151,8 @@ def test_handler_async_uses_registered_webhook_callback(setup_data):
         "body": json.dumps({"input": "hello", "webhookId": "webhook-001"}),
     }
 
-    with patch("requests.post"):
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_get_http_session.return_value.post = MagicMock()
         response = handler(event, FakeLambdaContext())
 
     assert response["statusCode"] == 202
@@ -1111,7 +1200,8 @@ def test_handler_async_rejects_unknown_webhook_id(setup_data):
         "body": json.dumps({"input": "hello", "webhookId": "does-not-exist"}),
     }
 
-    with patch("requests.post"):
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_get_http_session.return_value.post = MagicMock()
         response = handler(event, FakeLambdaContext())
 
     assert response["statusCode"] == 404

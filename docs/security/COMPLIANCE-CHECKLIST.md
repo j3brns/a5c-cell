@@ -4,7 +4,7 @@
 
 | Requirement                               | Implementation                             | Status   |
 |-------------------------------------------|--------------------------------------------|----------|
-| Lawful basis for processing               | Contract (B2B service agreement)           | Document |
+| Lawful basis for processing               | Contract (enterprise service agreement)    | Document |
 | Data minimisation                         | Only necessary data collected/stored       | By design|
 | Purpose limitation                        | Invocation data used only for billing/audit| By design|
 | Storage limitation                        | TTL on invocations (90d), sessions (24h)   | Implemented|
@@ -12,7 +12,7 @@
 | Data residency (UK/EU)                    | eu-west-2 home region, EU-only regions     | Implemented|
 | Breach notification (72h to ICO)          | RUNBOOK-003 triggers investigation         | Procedural|
 | DPA with AWS                              | Covered by AWS Data Processing Agreement   | Document |
-| Encryption at rest                        | KMS on all DynamoDB and S3                 | Implemented|
+| Encryption at rest                        | AWS-managed encryption on DynamoDB and S3  | Implemented|
 | Encryption in transit                     | TLS 1.2+ everywhere                        | Implemented|
 | Audit logging                             | CloudTrail + platform invocation logs 7yr  | Implemented|
 
@@ -22,7 +22,7 @@
 |------------------------|--------------------------------------------|
 | Access control         | Entra RBAC, least-privilege IAM            |
 | Logical separation     | Four-layer tenant isolation                |
-| Encryption             | KMS at rest, TLS in transit                |
+| Encryption             | AWS-managed at rest, TLS in transit        |
 | Availability           | Multi-region failover, usage plans         |
 | Change management      | Two-reviewer approval, pipeline validation |
 | Incident response      | Runbooks, PagerDuty integration            |

@@ -6,7 +6,7 @@ If this repository also contains a `GEMINI.md`, read it alongside this file.
 ## What This Platform Is
 
 A production multi-tenant Agent as a Service platform on Amazon Bedrock AgentCore.
-B2B tenants invoke AI agents via REST API. The platform manages isolation, identity,
+B2E users and E2B integrations invoke AI agents via REST API. The platform manages isolation, identity,
 memory, tool access, billing, and observability. This is a production system — not
 a prototype — with real tenants, real data, and real compliance obligations.
 
@@ -43,6 +43,10 @@ alternative. Never silently work around them.
 12. data-access-lib is the only permitted way to access DynamoDB from Lambda handlers.
 13. No superuser IAM roles in normal operation.
 14. All data remains in the EU at all times.
+15. `platform-tenants` is control-plane metadata only. Do not write high-frequency
+    runtime activity, counters, or last-seen markers to tenant `METADATA` records.
+    Use `platform-invocations`, `platform-sessions`, CloudWatch metrics, or a
+    dedicated aggregate path for hot activity data.
 
 ## How To Work
 
@@ -69,6 +73,16 @@ Before marking any task complete:
 8. State completion with the issue/task identifier (for legacy tasks, `TASK-NNN complete. Tests passing.`)
 
 When uncertain about a security decision — stop and ask. Do not guess.
+
+When changing AWS infrastructure or service configuration, verify service-specific
+assumptions against current AWS documentation before shipping. Use the
+`aws-knowledge-mcp-server` tools first for AWS service details, parameters,
+permissions, and regional support. Use web search only as a last resort when the
+AWS MCP tools do not provide the required detail. Do not infer required
+properties, encryption behavior, IAM actions, or regional support from old code
+or memory. Record the specific AWS doc URL(s) used in the issue, review notes,
+or commit/PR narrative whenever the assumption affects resource shape,
+permissions, encryption, or region policy.
 
 ### Execution Loop (Drive To Completion)
 
@@ -149,6 +163,14 @@ GitHub Issues are the canonical task queue (effective 2026-02-25 13:00 local).
 Use issue `Seq:` for ordering and `Depends on:` for dependency gating.
 `docs/TASKS.md` is a snapshot/report and may lag.
 
+Parent `CR-*` issues are roadmap/design containers, not runnable tasks.
+They must not carry `type:task`, and they do not enter the issue queue.
+Only atomic child task issues are queueable and should carry `Seq:` / `Depends on:`.
+Parent `CR-*` issues do not count toward WIP limits; WIP is tracked on child task issues only.
+PR merge is delivery truth. Local `.build` artifacts are execution evidence for this clone.
+Use `make issue-evidence ISSUE=<n>` to inspect linked worktree and `.build` state for an issue.
+Missing local `.build` evidence must never auto-close or auto-reopen a GitHub issue by itself.
+
 ### Queue and worktree commands (preferred)
 
 ```bash
@@ -187,7 +209,9 @@ The pre-push hook runs `make validate-pre-push` (fast path; no CDK synth).
 - Every task issue must have exactly one `status:*` label at all times.
 - Open task issues must never be `status:done`.
 - Closed task issues must always be `status:done` and must never retain `status:in-progress`, `status:not-started`, or `ready`.
-- `make finish-worktree-close` is the required close path even if the issue was already closed manually; it is the normalization step for lifecycle labels.
+- Parent `CR-*` issues must not carry `type:task`; if they do, the issue audit must fail.
+- Parent `CR-*` issues must not carry `status:in-progress`; active implementation is tracked on child task issues.
+- `make finish-worktree-close` is the required close path even if the issue was already closed manually; it is the normalization and hand-back step for lifecycle labels and `.build` evidence.
 - If issue state or labels drift, run `make issues-reconcile` immediately, then re-run `make issues-audit` until it passes.
 
 ### Issue Definition of Done (mandatory)
@@ -199,9 +223,10 @@ An issue is done only when all items below are true:
 4. `make preflight-session` and `make pre-validate-session` pass on the final branch state.
 5. Branch is pushed and PR is open with validation evidence and issue linkage.
 6. PR is merged (not just opened).
-7. Issue is closed only after merge verification (`make finish-worktree-close`).
-8. `make issues-audit` passes after close; if not, run `make issues-reconcile` and re-audit before declaring the issue complete.
-9. Worktree cleanup is complete (`git worktree remove ...`, `git branch -d ...`, `git worktree prune`).
+7. `.build` hand-back evidence is finalized; do not leave the issue in partial local state such as `agent-launching` or an incomplete closeout.
+8. Issue is closed and normalized only after merge verification (`make finish-worktree-close`).
+9. `make issues-audit` passes after close; if not, run `make issues-reconcile` and re-audit before declaring the issue complete.
+10. Cleanup residue is reported explicitly if present, but worktree or branch deletion is not part of semantic completion and must not block done status by itself.
 
 ### Merge Conflict Rule (mandatory)
 
@@ -346,7 +371,7 @@ git worktree prune
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **wt307** (2421 symbols, 6283 relationships, 196 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **tf-acore-aas** (3935 symbols, 10010 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -362,7 +387,7 @@ This project is indexed by GitNexus as **wt307** (2421 symbols, 6283 relationshi
 
 1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
 2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
-3. `READ gitnexus://repo/wt307/process/{processName}` — trace the full execution flow step by step
+3. `READ gitnexus://repo/tf-acore-aas/process/{processName}` — trace the full execution flow step by step
 4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
 
 ## When Refactoring
@@ -401,10 +426,10 @@ This project is indexed by GitNexus as **wt307** (2421 symbols, 6283 relationshi
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/wt307/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/wt307/clusters` | All functional areas |
-| `gitnexus://repo/wt307/processes` | All execution flows |
-| `gitnexus://repo/wt307/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/tf-acore-aas/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/tf-acore-aas/clusters` | All functional areas |
+| `gitnexus://repo/tf-acore-aas/processes` | All execution flows |
+| `gitnexus://repo/tf-acore-aas/process/{name}` | Step-by-step execution trace |
 
 ## Self-Check Before Finishing
 

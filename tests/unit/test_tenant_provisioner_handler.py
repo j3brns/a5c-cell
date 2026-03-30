@@ -1,10 +1,17 @@
+import json
 import os
+import sys
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from botocore.exceptions import ClientError
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from src.tenant_provisioner.handler import lambda_handler
+
+provisioner_handler = sys.modules[lambda_handler.__module__]
 
 
 class TestTenantProvisioner(unittest.TestCase):
@@ -14,7 +21,7 @@ class TestTenantProvisioner(unittest.TestCase):
             {
                 "PLATFORM_ENV": "dev",
                 "TENANT_STACK_TEMPLATE_URL": "s3://bucket/template.json",
-                "TENANTS_TABLE_NAME": "platform-tenants",
+                "EVENT_BUS_NAME": "default",
                 "AWS_REGION": "eu-west-2",
             },
         )
@@ -22,75 +29,72 @@ class TestTenantProvisioner(unittest.TestCase):
 
     def tearDown(self):
         self.env_patcher.stop()
+        provisioner_handler._cloudformation_client = None
+        provisioner_handler._events_client = None
 
-    @patch("boto3.client")
-    def test_handle_start_create_success(self, mock_client):
-        """START operation: stack doesn't exist → calls create_stack."""
+    @patch("src.tenant_provisioner.handler.get_cloudformation")
+    def test_start_create_returns_in_progress(self, mock_get_cloudformation):
         mock_cfn = MagicMock()
-        mock_client.return_value = mock_cfn
-
-        # describe_stacks fails (stack doesn't exist)
+        mock_get_cloudformation.return_value = mock_cfn
         mock_cfn.describe_stacks.side_effect = ClientError(
             {"Error": {"Code": "ValidationError", "Message": "Stack does not exist"}},
             "DescribeStacks",
         )
 
         event = {
-            "operation": "START",
-            "tenantId": "t-test-001",
-            "tier": "premium",
-            "accountId": "123456789012",
+            "detail": {
+                "tenantId": "t-test-001",
+                "tier": "premium",
+                "accountId": "123456789012",
+            }
         }
         context = MagicMock()
         context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:prov"
 
         result = lambda_handler(event, context)
 
-        self.assertEqual(result["status"], "IN_PROGRESS")
+        self.assertEqual(result["status"], "STARTED")
+        self.assertEqual(result["provisioningState"], "IN_PROGRESS")
         self.assertEqual(result["stackName"], "platform-tenant-t-test-001-dev")
         mock_cfn.create_stack.assert_called_once()
 
-    @patch("boto3.client")
-    def test_handle_start_update_success(self, mock_client):
-        """START operation: stack exists → calls update_stack."""
+    @patch("src.tenant_provisioner.handler.get_cloudformation")
+    def test_start_update_noop_returns_ready(self, mock_get_cloudformation):
         mock_cfn = MagicMock()
-        mock_client.return_value = mock_cfn
-
-        # describe_stacks succeeds (stack exists)
-        mock_cfn.describe_stacks.return_value = {"Stacks": [{"StackStatus": "UPDATE_COMPLETE"}]}
-
-        event = {"operation": "START", "tenantId": "t-test-001", "tier": "premium"}
-        context = MagicMock()
-        context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:prov"
-
-        result = lambda_handler(event, context)
-
-        self.assertEqual(result["status"], "IN_PROGRESS")
-        mock_cfn.update_stack.assert_called_once()
-
-    @patch("boto3.client")
-    def test_handle_start_no_updates(self, mock_client):
-        """START operation: update_stack raises 'No updates' → returns skipWait: True."""
-        mock_cfn = MagicMock()
-        mock_client.return_value = mock_cfn
-        mock_cfn.describe_stacks.return_value = {"Stacks": [{"StackStatus": "UPDATE_COMPLETE"}]}
+        mock_get_cloudformation.return_value = mock_cfn
+        mock_cfn.describe_stacks.side_effect = [
+            {"Stacks": [{"StackStatus": "UPDATE_COMPLETE"}]},
+            {
+                "Stacks": [
+                    {
+                        "StackStatus": "UPDATE_COMPLETE",
+                        "Outputs": [
+                            {"OutputKey": "ExecutionRoleArn", "OutputValue": "arn:role"},
+                            {"OutputKey": "MemoryStoreArn", "OutputValue": "arn:mem"},
+                        ],
+                    }
+                ]
+            },
+        ]
         mock_cfn.update_stack.side_effect = ClientError(
             {"Error": {"Code": "ValidationError", "Message": "No updates are to be performed"}},
             "UpdateStack",
         )
 
-        event = {"operation": "START", "tenantId": "t-noop-001"}
-        result = lambda_handler(event, MagicMock())
+        event = {"detail": {"tenantId": "t-noop-001", "tier": "basic"}}
+        context = MagicMock()
+        context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:prov"
 
-        self.assertEqual(result["status"], "SUCCESS")
-        self.assertTrue(result.get("skipWait"))
+        result = lambda_handler(event, context)
 
-    @patch("boto3.client")
-    @patch("boto3.resource")
-    def test_handle_complete_success(self, mock_resource, mock_client):
-        """COMPLETE operation: stack complete → updates DynamoDB status to active."""
+        self.assertEqual(result["provisioningState"], "READY")
+        self.assertEqual(result["outputs"]["ExecutionRoleArn"], "arn:role")
+        mock_cfn.update_stack.assert_called_once()
+
+    @patch("src.tenant_provisioner.handler.get_cloudformation")
+    def test_poll_returns_ready_with_outputs(self, mock_get_cloudformation):
         mock_cfn = MagicMock()
-        mock_client.return_value = mock_cfn
+        mock_get_cloudformation.return_value = mock_cfn
         mock_cfn.describe_stacks.return_value = {
             "Stacks": [
                 {
@@ -103,66 +107,84 @@ class TestTenantProvisioner(unittest.TestCase):
             ]
         }
 
-        mock_ddb = MagicMock()
-        mock_resource.return_value = mock_ddb
-        mock_table = MagicMock()
-        mock_ddb.Table.return_value = mock_table
+        result = lambda_handler(
+            {
+                "action": "poll",
+                "tenantId": "t-test-001",
+                "stackName": "platform-tenant-t-test-001-dev",
+            },
+            MagicMock(),
+        )
 
-        event = {
-            "operation": "COMPLETE",
-            "tenantId": "t-test-001",
-            "stackName": "platform-tenant-t-test-001-dev",
-        }
-        result = lambda_handler(event, MagicMock())
+        self.assertEqual(result["provisioningState"], "READY")
+        self.assertEqual(result["stackStatus"], "CREATE_COMPLETE")
+        self.assertEqual(result["outputs"]["MemoryStoreArn"], "arn:mem")
 
-        self.assertEqual(result["status"], "SUCCESS")
-
-        # Verify DynamoDB update
-        mock_table.update_item.assert_called_once()
-        _, kwargs = mock_table.update_item.call_args
-        self.assertEqual(kwargs["ExpressionAttributeValues"][":status"], "active")
-
-    @patch("boto3.resource")
-    def test_handle_fail(self, mock_resource):
-        """FAIL operation: updates DynamoDB status to failed."""
-        mock_ddb = MagicMock()
-        mock_resource.return_value = mock_ddb
-        mock_table = MagicMock()
-        mock_ddb.Table.return_value = mock_table
-
-        event = {"operation": "FAIL", "tenantId": "t-fail-001", "reason": "Stack failed"}
-        result = lambda_handler(event, MagicMock())
-
-        self.assertEqual(result["status"], "FAILED")
-
-        # Verify DynamoDB update
-        mock_table.update_item.assert_called_once()
-        _, kwargs = mock_table.update_item.call_args
-        self.assertEqual(kwargs["ExpressionAttributeValues"][":status"], "failed")
-        self.assertEqual(kwargs["ExpressionAttributeValues"][":reason"], "Stack failed")
-
-    def test_missing_tenant_id(self):
-        result = lambda_handler({"operation": "START"}, MagicMock())
-        self.assertEqual(result["status"], "FAILED")
-        self.assertIn("tenantId", result["reason"])
-
-    @patch("boto3.client")
-    def test_eventbridge_trigger_mapping(self, mock_client):
-        """Direct EventBridge trigger (with 'detail') maps to START operation."""
+    @patch("src.tenant_provisioner.handler.get_cloudformation")
+    def test_poll_returns_failed_for_terminal_failure(self, mock_get_cloudformation):
         mock_cfn = MagicMock()
-        mock_client.return_value = mock_cfn
+        mock_get_cloudformation.return_value = mock_cfn
+        mock_cfn.describe_stacks.return_value = {
+            "Stacks": [{"StackStatus": "ROLLBACK_COMPLETE", "Outputs": []}]
+        }
+
+        result = lambda_handler(
+            {
+                "action": "poll",
+                "tenantId": "t-fail-001",
+                "stackName": "platform-tenant-t-fail-001-dev",
+            },
+            MagicMock(),
+        )
+
+        self.assertEqual(result["provisioningState"], "FAILED")
+        self.assertEqual(result["reason"], "ROLLBACK_COMPLETE")
+
+    @patch("src.tenant_provisioner.handler.get_events")
+    def test_emit_result_publishes_eventbridge_event(self, mock_get_events):
+        mock_events = MagicMock()
+        mock_get_events.return_value = mock_events
+
+        result = lambda_handler(
+            {
+                "action": "emit-result",
+                "resultType": "provisioned",
+                "tenantId": "t-test-001",
+                "appId": "app-001",
+                "stackName": "platform-tenant-t-test-001-dev",
+                "stackStatus": "CREATE_COMPLETE",
+                "outputs": {"ExecutionRoleArn": "arn:role", "MemoryStoreArn": "arn:mem"},
+            },
+            MagicMock(),
+        )
+
+        self.assertEqual(result["status"], "EMITTED")
+        kwargs = mock_events.put_events.call_args.kwargs
+        detail = json.loads(kwargs["Entries"][0]["Detail"])
+        self.assertEqual(kwargs["Entries"][0]["DetailType"], "tenant.provisioned")
+        self.assertEqual(detail["tenantId"], "t-test-001")
+        self.assertEqual(detail["ExecutionRoleArn"], "arn:role")
+
+    @patch("src.tenant_provisioner.handler.get_cloudformation")
+    def test_start_uses_context_account_when_missing_from_detail(self, mock_get_cloudformation):
+        mock_cfn = MagicMock()
+        mock_get_cloudformation.return_value = mock_cfn
         mock_cfn.describe_stacks.side_effect = ClientError(
             {"Error": {"Code": "ValidationError", "Message": "Stack does not exist"}},
             "DescribeStacks",
         )
 
-        event = {"detail": {"tenantId": "t-eb-001", "tier": "basic"}}
+        event = {"detail": {"tenantId": "t-acct-001", "tier": "basic"}}
         context = MagicMock()
-        context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:prov"
+        context.invoked_function_arn = "arn:aws:lambda:eu-west-2:999888777666:function:prov"
 
-        result = lambda_handler(event, context)
-        self.assertEqual(result["status"], "IN_PROGRESS")
-        self.assertEqual(result["tenantId"], "t-eb-001")
+        lambda_handler(event, context)
+
+        params = {
+            p["ParameterKey"]: p["ParameterValue"]
+            for p in mock_cfn.create_stack.call_args.kwargs["Parameters"]
+        }
+        self.assertEqual(params["accountId"], "999888777666")
 
 
 if __name__ == "__main__":

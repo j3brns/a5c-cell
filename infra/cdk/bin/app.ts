@@ -6,7 +6,7 @@
  *
  * Stack order:
  *   1. NetworkStack    — VPC, subnets, endpoints         (TASK-021)
- *   2. IdentityStack   — OIDC, KMS keys                  (TASK-022)
+ *   2. IdentityStack   — OIDC, pipeline roles, Entra JWKS (TASK-022)
  *   3. PlatformStack   — REST API, WAF, Lambdas, Gateway  (TASK-023)
  *   4. TenantStack     — per-tenant (EventBridge-triggered) (TASK-025)
  *   5. ObservabilityStack — dashboards, alarms            (TASK-026)
@@ -46,12 +46,24 @@ const runtimeEnv: cdk.Environment = {
 const networkStack = new NetworkStack(app, `platform-network-${env}`, {
   env: awsEnv,
   description: `Platform network infrastructure — ${env}`,
+  runtimePeerRegion: PRIMARY_RUNTIME_REGION,
+});
+
+const failoverRuntimeEnv: cdk.Environment = {
+  account: process.env['CDK_DEFAULT_ACCOUNT'],
+  region: FAILOVER_RUNTIME_REGION,
+};
+
+new NetworkStack(app, `platform-network-shadow-${env}`, {
+  env: failoverRuntimeEnv,
+  description: `Platform failover runtime network shadow — ${env}`,
+  runtimePeerRegion: HOME_REGION,
 });
 
 // 2. IdentityStack
 const identityStack = new IdentityStack(app, `platform-identity-${env}`, {
   env: awsEnv,
-  description: `Platform identity and KMS keys — ${env}`,
+  description: `Platform identity and pipeline roles — ${env}`,
 });
 
 // 3. PlatformStack
@@ -59,8 +71,6 @@ const platformStack = new PlatformStack(app, `platform-core-${env}`, {
   env: awsEnv,
   description: `Platform core services — ${env}`,
   vpc: networkStack.vpc,
-  tenantDataKey: identityStack.tenantDataKey,
-  platformConfigKey: identityStack.platformConfigKey,
 });
 
 // 4. TenantStack (real deployments triggered by EventBridge per-tenant)

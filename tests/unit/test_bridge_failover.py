@@ -19,6 +19,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-acces
 from src.bridge.handler import handler
 
 
+@pytest.fixture(autouse=True)
+def mock_capabilities():
+    """Mock TenantCapabilityClient to allow all agents for testing."""
+    with patch("src.bridge.handler.get_capability_client") as mock:
+        mock_client = MagicMock()
+        mock.return_value = mock_client
+
+        # Policy that allows everything by default for tests
+        policy = MagicMock()
+        policy.is_enabled.return_value = True
+        mock_client.fetch_policy.return_value = policy
+        yield mock
+
+
 class FakeLambdaContext:
     function_name = "bridge"
     memory_limit_in_mb = 256
@@ -29,8 +43,8 @@ class FakeLambdaContext:
 @pytest.fixture
 def aws_credentials():
     """Mocked AWS Credentials for moto."""
-    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_ACCESS_KEY_ID"] = "testing"  # pragma: allowlist secret
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"  # pragma: allowlist secret
     os.environ["AWS_SECURITY_TOKEN"] = "testing"
     os.environ["AWS_SESSION_TOKEN"] = "testing"
     os.environ["AWS_DEFAULT_REGION"] = "eu-west-2"
@@ -128,7 +142,9 @@ def test_handler_failover_on_503(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("requests.post") as mock_post:
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_post = MagicMock()
+        mock_get_http_session.return_value.post = mock_post
         # First call fails with 503
         mock_response_503 = MagicMock()
         mock_response_503.status_code = 503
@@ -185,7 +201,9 @@ def test_handler_failover_already_in_progress(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("requests.post") as mock_post:
+    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+        mock_post = MagicMock()
+        mock_get_http_session.return_value.post = mock_post
         mock_response_503 = MagicMock()
         mock_response_503.status_code = 503
         mock_response_503.raise_for_status.side_effect = requests.exceptions.HTTPError(

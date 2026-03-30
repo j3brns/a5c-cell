@@ -106,40 +106,8 @@ describe('IdentityStack', () => {
     });
   });
 
-  test('creates three KMS keys and key policies do not use wildcard principals', () => {
-    template.resourceCountIs('AWS::KMS::Key', 3);
-    template.resourceCountIs('AWS::KMS::Alias', 3);
-    template.hasResourceProperties('AWS::KMS::Alias', {
-      AliasName: 'alias/platform-tenant-data-dev',
-    });
-    template.hasResourceProperties('AWS::KMS::Alias', {
-      AliasName: 'alias/platform-config-dev',
-    });
-    template.hasResourceProperties('AWS::KMS::Alias', {
-      AliasName: 'alias/platform-logs-dev',
-    });
-
-    const keys = template.findResources('AWS::KMS::Key');
-    for (const resource of Object.values(keys)) {
-      const statements = (resource.Properties?.KeyPolicy?.Statement ?? []) as Array<{
-        Principal?: unknown;
-      }>;
-
-      for (const statement of statements) {
-        const principal = statement.Principal;
-        expect(principal).not.toBe('*');
-
-        if (!principal || typeof principal !== 'object') {
-          continue;
-        }
-
-        const awsPrincipal = (principal as Record<string, unknown>)['AWS'];
-        if (Array.isArray(awsPrincipal)) {
-          expect(awsPrincipal).not.toContain('*');
-        } else {
-          expect(awsPrincipal).not.toBe('*');
-        }
-      }
-    }
+  test('does not create platform-managed KMS keys', () => {
+    template.resourceCountIs('AWS::KMS::Key', 0);
+    template.resourceCountIs('AWS::KMS::Alias', 0);
   });
 });

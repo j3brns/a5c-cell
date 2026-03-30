@@ -17,6 +17,8 @@
 .PHONY: bootstrap-cdk bootstrap-secrets bootstrap-gitlab-oidc
 .PHONY: bootstrap-post-deploy bootstrap-verify bootstrap-delete-iam-user
 .PHONY: agent-push agent-invoke agent-logs agent-test agent-rollback
+.PHONY: agentcore-dev agentcore-invoke-dev agentcore-launch agentcore-invoke-runtime
+.PHONY: agentcore-stop-session agentcore-destroy
 .PHONY: spa-dev spa-build spa-push
 .PHONY: ops-login ops-top-tenants ops-tenant-sessions ops-suspend-tenant
 .PHONY: ops-reinstate-tenant ops-quota-report ops-invocation-report
@@ -26,7 +28,7 @@
 .PHONY: logs-bridge logs-authoriser logs-tenant-api logs-bff
 .PHONY: plan-dev
 .PHONY: task-next task-list task-start task-resume task-finish task-prompt
-.PHONY: worktree wt-go wt-batch issue-queue worktree-next-issue worktree-create-issue worktree-resume-issue
+.PHONY: worktree wt-go wt-batch issue-queue issue-evidence worktree-next-issue worktree-create-issue worktree-resume-issue
 .PHONY: preflight-session pre-validate-session worktree-push-issue finish-worktree-summary finish-worktree-close finish-worktree-close-json
 .PHONY: issues-audit issues-reconcile agent-handoff install-git-hooks hooks-status gitnexus-refresh
 
@@ -64,7 +66,7 @@ help:
 		echo ""; \
 		echo "  Worktrees / issues"; \
 		ex "worktree" "open the interactive issue queue"; \
-		ex "wt-go" "launch the next runnable issue in zellij"; \
+		ex "wt-go" "launch the next runnable issue in tmux"; \
 		ex "wt-batch [COUNT=${c_def}3${c_rst}] [AGENTS=${c_def}gemini${c_rst}] [AGENT_MODE=${c_def}yolo${c_rst}] [INTERACTIVE=1]" "start detached runs or use tmux for interactive agent sessions"; \
 		ex "worktree-next-issue" "create a worktree for the next queued issue"; \
 		ex "worktree-create-issue" "create a worktree for a specific issue"; \
@@ -203,6 +205,7 @@ validate-pre-push: validate-local-prereqs
 	@$(MAKE) --no-print-directory validate-python
 	@$(MAKE) --no-print-directory validate-cdk-ts-push
 	@$(MAKE) --no-print-directory validate-secrets-push
+	@uv run python -m scripts.issue_tool write-validation-receipt --check validate-pre-push >/dev/null
 	@echo "==> Pre-push validation passed"
 
 ## validate-local-prereqs: Minimal local tool checks (no auto-install)
@@ -349,11 +352,9 @@ dev-logs:
 ## dev-invoke: Invoke echo agent locally with test tenant
 dev-invoke:
 	@TENANT=$$(grep BASIC_TENANT_ID .env.test 2>/dev/null | cut -d= -f2); \
-	JWT=$$(grep BASIC_TENANT_JWT .env.test 2>/dev/null | cut -d= -f2); \
 	uv run python scripts/dev-invoke.py \
 		--agent echo-agent \
-		--tenant "$$TENANT" \
-		--jwt "$$JWT" \
+		--tenant "$${TENANT:-t-basic-001}" \
 		--prompt "$(or $(PROMPT),Hello from local environment)" \
 		--mode "$(or $(MODE),sync)"
 
@@ -522,6 +523,42 @@ agent-push:
 	@echo "==> Registering agent"
 	uv run python scripts/register_agent.py $(AGENT) --env $(ENV)
 	@echo "==> Agent $(AGENT) deployed successfully to $(ENV)"
+
+## agentcore-dev: Start AgentCore local dev server inside an agent project
+## Usage: make agentcore-dev AGENT=my-agent
+agentcore-dev:
+	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agentcore-dev AGENT=my-agent" && exit 1)
+	cd agents/$(AGENT) && uv run agentcore dev
+
+## agentcore-invoke-dev: Invoke the local AgentCore dev server for an agent
+## Usage: make agentcore-invoke-dev AGENT=my-agent [PAYLOAD='{"prompt":"hello"}']
+agentcore-invoke-dev:
+	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agentcore-invoke-dev AGENT=my-agent" && exit 1)
+	cd agents/$(AGENT) && uv run agentcore invoke --dev '$(or $(PAYLOAD),{"prompt":"Hello"})'
+
+## agentcore-launch: Launch an agent directly with the AgentCore starter toolkit
+## Usage: make agentcore-launch AGENT=my-agent
+agentcore-launch:
+	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agentcore-launch AGENT=my-agent" && exit 1)
+	cd agents/$(AGENT) && uv run agentcore launch
+
+## agentcore-invoke-runtime: Invoke a toolkit-launched runtime directly
+## Usage: make agentcore-invoke-runtime AGENT=my-agent [PAYLOAD='{"prompt":"hello"}']
+agentcore-invoke-runtime:
+	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agentcore-invoke-runtime AGENT=my-agent" && exit 1)
+	cd agents/$(AGENT) && uv run agentcore invoke '$(or $(PAYLOAD),{"prompt":"Hello"})'
+
+## agentcore-stop-session: Stop the active toolkit-managed runtime session
+## Usage: make agentcore-stop-session AGENT=my-agent
+agentcore-stop-session:
+	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agentcore-stop-session AGENT=my-agent" && exit 1)
+	cd agents/$(AGENT) && uv run agentcore stop-session
+
+## agentcore-destroy: Destroy toolkit-managed runtime resources for an agent
+## Usage: make agentcore-destroy AGENT=my-agent
+agentcore-destroy:
+	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agentcore-destroy AGENT=my-agent" && exit 1)
+	cd agents/$(AGENT) && uv run agentcore destroy
 
 ## agent-invoke: Invoke a deployed agent
 ## Usage: make agent-invoke AGENT=my-agent TENANT=t-abc123 [PROMPT="hello"] [MODE=sync]
@@ -782,55 +819,67 @@ task-prompt:
 # =============================================================================
 
 ## issue-queue: Show issue queue ordered by Seq (with dependency blocking)
-## Usage: make issue-queue [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [LIMIT=20]
+## Usage: make issue-queue [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310] [LIMIT=20]
 issue-queue:
-	uv run python scripts/worktree_issues.py issue-queue \
+	uv run python -m scripts.issue_tool issue-queue \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
+		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
 		$(if $(LIMIT),--limit $(LIMIT),)
+
+## issue-evidence: Show local linked-worktree and .build evidence for an issue
+## Usage: make issue-evidence ISSUE=314 [JSON=1]
+issue-evidence:
+	$(if $(ISSUE),,@echo "ERROR: ISSUE required. Usage: make issue-evidence ISSUE=314" && exit 1)
+	uv run python -m scripts.issue_tool issue-evidence \
+		--issue $(ISSUE) \
+		$(if $(JSON),--json,)
 
 ## issues-audit: Objective issue-state/queue invariants check (fails on drift)
 ## Usage: make issues-audit [JSON=1]
 issues-audit:
-	uv run python scripts/worktree_issues.py issues-audit \
+	uv run python -m scripts.issue_tool issues-audit \
 		$(if $(JSON),--json,)
 
 ## issues-reconcile: Repair task issue labels to lifecycle rules
 ## Usage: make issues-reconcile [DRY_RUN=1]
 issues-reconcile:
-	uv run python scripts/worktree_issues.py issues-reconcile \
+	uv run python -m scripts.issue_tool issues-reconcile \
 		$(if $(DRY_RUN),--dry-run,)
 
 ## gitnexus-refresh: Refresh local GitNexus index for the current checkout if stale/missing
 ## Usage: make gitnexus-refresh
 gitnexus-refresh:
-	uv run python scripts/worktree_issues.py gitnexus-refresh
+	uv run python -m scripts.issue_tool gitnexus-refresh
 
 ## worktree: Interactive issue-driven worktree menu (Seq/Depends on aware)
-## Usage: make worktree [QUEUE_MODE=auto|ready|open-task] [STREAM=a]
+## Usage: make worktree [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310]
 worktree:
-	uv run python scripts/worktree_issues.py menu \
+	uv run python -m scripts.issue_tool menu \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
-		$(if $(STREAM),--stream-label "$(STREAM)",)
+		$(if $(STREAM),--stream-label "$(STREAM)",) \
+		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),)
 
-## wt-go: Start the next runnable issue worktree in a visible zellij session
-## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [AGENT=gemini] [AGENT_MODE=yolo]
+## wt-go: Start the next runnable issue worktree and launch an explicit or random agent in tmux
+## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo]
 wt-go:
 	$(MAKE) --no-print-directory worktree-next-issue \
-		OPEN_SHELL=1 \
 		HANDOFF=execute-now \
-		ZELLIJ=1 \
+		TMUX=1 \
 		$(if $(QUEUE_MODE),QUEUE_MODE=$(QUEUE_MODE),) \
 		$(if $(STREAM),STREAM=$(STREAM),) \
-		AGENT=$(if $(AGENT),$(AGENT),gemini) \
+		$(if $(FROM_ISSUE),FROM_ISSUE=$(FROM_ISSUE),) \
+		AGENT=$(if $(AGENT),$(AGENT),random) \
 		AGENT_MODE=$(if $(AGENT_MODE),$(AGENT_MODE),yolo)
 
 ## worktree-next-issue: Create a worktree for the next runnable issue in the queue
-## Usage: make worktree-next-issue [QUEUE_MODE=auto|ready|open-task] [DRY_RUN=1] [OPEN_SHELL=1]
+## Usage: make worktree-next-issue [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [DRY_RUN=1] [OPEN_SHELL=1]
+## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-next-issue:
-	uv run python scripts/worktree_issues.py worktree-next \
+	uv run python -m scripts.issue_tool worktree-next \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
+		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
 		$(if $(DRY_RUN),--dry-run,) \
 		$(if $(OPEN_SHELL),--open-shell,) \
 		$(if $(NO_CLAIM),--no-claim,) \
@@ -844,23 +893,25 @@ worktree-next-issue:
 		$(if $(PRINT_ONLY),--print-only,)
 
 ## wt-batch: Create multiple runnable issue worktrees and start detached agent runs
-## Usage: make wt-batch [COUNT=3] [AGENTS=gemini] [AGENT_MODE=yolo] [INTERACTIVE=1]
+## Usage: make wt-batch [COUNT=3] [FROM_ISSUE=310] [AGENTS=gemini] [AGENT_MODE=yolo] [INTERACTIVE=1]
 wt-batch:
-	uv run python scripts/worktree_issues.py wt-batch \
+	uv run python -m scripts.issue_tool wt-batch \
 		--count $(if $(COUNT),$(COUNT),3) \
 		--agents "$(if $(AGENTS),$(AGENTS),$(if $(INTERACTIVE),gemini,codex,gemini))" \
 		--agent-mode "$(if $(AGENT_MODE),$(AGENT_MODE),yolo)" \
 		$(if $(QUEUE_MODE),--mode "$(QUEUE_MODE)",--mode auto) \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
+		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
 		$(if $(BASE_DIR),--base-dir "$(BASE_DIR)",) \
 		$(if $(INTERACTIVE),--interactive,) \
 		$(if $(DRY_RUN),--dry-run,)
 
 ## worktree-create-issue: Create a worktree for a specific issue number
 ## Usage: make worktree-create-issue ISSUE=23 [DRY_RUN=1] [OPEN_SHELL=1]
+## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-create-issue:
 	@test -n "$(ISSUE)" || (echo "ERROR: ISSUE required. Usage: make worktree-create-issue ISSUE=23" && exit 1)
-	uv run python scripts/worktree_issues.py worktree-create \
+	uv run python -m scripts.issue_tool worktree-create \
 		--issue $(ISSUE) \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
@@ -883,8 +934,9 @@ worktree-create-issue:
 
 ## worktree-resume-issue: Resume/select a linked issue worktree (preflight + optional shell/command)
 ## Usage: make worktree-resume-issue [OPEN_SHELL=1] [CMD='make test-unit']
+## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-resume-issue:
-	uv run python scripts/worktree_issues.py worktree-resume \
+	uv run python -m scripts.issue_tool worktree-resume \
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \
 		$(if $(NO_PREFLIGHT),--no-preflight,) \
 		$(if $(CMD),--command "$(CMD)",) \
@@ -898,50 +950,53 @@ worktree-resume-issue:
 
 ## preflight-session: Run issue-worktree preflight checks for current worktree
 preflight-session:
-	uv run python scripts/worktree_issues.py preflight
+	uv run python -m scripts.issue_tool preflight
 
 ## pre-validate-session: Run enforced pre-push validation (skips cdk synth)
 ## Usage: make pre-validate-session [WT_PATH=../worktrees/wt23]
 pre-validate-session:
-	uv run python scripts/worktree_issues.py pre-validate \
+	uv run python -m scripts.issue_tool pre-validate \
 		$(if $(WT_PATH),--path "$(WT_PATH)",)
 
 ## worktree-push-issue: Push current issue worktree branch (preflight + pre-validate enforced)
 ## Usage: make worktree-push-issue [WT_PATH=../worktrees/wt23] [DRY_RUN=1]
 worktree-push-issue:
-	uv run python scripts/worktree_issues.py push-branch \
+	uv run python -m scripts.issue_tool push-branch \
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \
 		$(if $(DRY_RUN),--dry-run,)
 
 ## finish-worktree-summary: Show guided finish summary for current worktree
 ## Usage: make finish-worktree-summary [WT_PATH=../worktrees/wt23]
 finish-worktree-summary:
-	uv run python scripts/worktree_issues.py finish-summary \
+	uv run python -m scripts.issue_tool finish-summary \
 		$(if $(WT_PATH),--path "$(WT_PATH)",)
 
 ## finish-worktree-close: Close the current worktree issue after merge verification
 ## Usage: make finish-worktree-close [WT_PATH=../worktrees/wt23] [FORCE=1]
 finish-worktree-close:
-	uv run python scripts/worktree_issues.py finish-close \
+	uv run python -m scripts.issue_tool finish-close \
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \
 		$(if $(FORCE),--force,)
 
 ## finish-worktree-close-json: Close the current worktree issue and print the closeout report JSON
 ## Usage: make finish-worktree-close-json [WT_PATH=../worktrees/wt23] [FORCE=1]
 finish-worktree-close-json:
-	uv run python scripts/worktree_issues.py finish-close \
+	uv run python -m scripts.issue_tool finish-close \
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \
 		$(if $(FORCE),--force,) \
 		--json
 
-## agent-handoff: Print/launch agent command with agent selection and yolo modes for current path
-## Usage: make agent-handoff [AGENT=codex] [AGENT_MODE=yolo] [HANDOFF=print-only]
+## agent-handoff: Launch the issue-worktree agent flow for the current path
+## Usage: make agent-handoff [AGENT=codex|gemini|claude|random] [AGENT_MODE=yolo] [HANDOFF=execute-now|print-only]
 agent-handoff:
-	uv run python scripts/worktree_issues.py agent-handoff \
+	uv run python -m scripts.issue_tool agent-handoff \
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \
 		$(if $(AGENT),--agent "$(AGENT)",) \
+		$(if $(AGENT),, --agent "codex") \
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
+		$(if $(AGENT_MODE),, --agent-mode "yolo") \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
+		$(if $(HANDOFF),, --handoff "execute-now") \
 		$(if $(PRINT_ONLY),--print-only,)
 
 ## install-git-hooks: Install repo-local Git hooks (pre-push runs fast pre-validation)
