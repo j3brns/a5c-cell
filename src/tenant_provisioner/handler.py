@@ -140,7 +140,7 @@ def _start_provisioning(event: dict[str, Any], context: Any) -> dict[str, Any]:
             raise
 
     try:
-        if cfn_op == "CREATE":
+        if operation == "CREATE":
             cfn.create_stack(
                 StackName=stack_name,
                 TemplateURL=template_url,

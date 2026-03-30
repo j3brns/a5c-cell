@@ -12,8 +12,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-acces
 
 from src.bridge.handler import _send_streaming_response, handle_streaming_invocation, handler
 
-from src.bridge.handler import _send_streaming_response, handle_streaming_invocation, handler
-
 
 class FakeLambdaContext:
     def __init__(self):

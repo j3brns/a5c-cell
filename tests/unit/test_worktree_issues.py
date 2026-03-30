@@ -1676,6 +1676,52 @@ def test_launch_tmux_batch_session_replaces_existing_session(monkeypatch, capsys
     assert attached["args"] == ["tmux", "attach-session", "-t", "worktrees"]
 
 
+def test_launch_tmux_session_uses_reported_initial_window_index(monkeypatch, capsys):
+    path = Path("/tmp/worktrees/wt318")
+    calls: list[list[str]] = []
+    attached: dict[str, object] = {}
+
+    monkeypatch.setattr(worktree_issues, "tmux_session_exists", lambda _name: False)
+
+    def _run(cmd, **kwargs):
+        calls.append(list(cmd))
+        if cmd[:3] == ["tmux", "list-panes", "-t"]:
+            return subprocess.CompletedProcess(cmd, 0, "wt318:1.0\n", "")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    def _execvp(bin_path, args):
+        attached["bin_path"] = bin_path
+        attached["args"] = args
+        raise SystemExit(0)
+
+    monkeypatch.setattr(worktree_issues.subprocess, "run", _run)
+    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+
+    with pytest.raises(SystemExit):
+        worktree_issues.launch_tmux_session(
+            path=path,
+            agent_command="claude --dangerously-skip-permissions prompt",
+            attach=True,
+        )
+
+    out = capsys.readouterr().out
+    assert "tmux session 'wt318' launching in /tmp/worktrees/wt318" in out
+    assert calls[0][:4] == ["tmux", "new-session", "-d", "-s"]
+    assert [
+        "tmux",
+        "list-panes",
+        "-t",
+        "wt318",
+        "-F",
+        "#{session_name}:#{window_index}.#{pane_index}",
+    ] in calls
+    assert ["tmux", "rename-window", "-t", "wt318:1", "wt318"] in calls
+    assert ["tmux", "split-window", "-h", "-t", "wt318:1", "-c", "/tmp/worktrees/wt318"] in calls
+    assert any(cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.1"] for cmd in calls)
+    assert any(cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.0"] for cmd in calls)
+    assert attached["args"] == ["tmux", "attach-session", "-t", "wt318"]
+
+
 def test_launch_zellij_session_adds_layout_to_existing_session(monkeypatch, capsys):
     path = Path("/tmp/worktrees/wt33")
     captured: dict[str, object] = {}

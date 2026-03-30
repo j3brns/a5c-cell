@@ -2006,24 +2006,35 @@ def launch_tmux_session(
         ],
         check=True,
     )
-    subprocess.run(["tmux", "rename-window", "-t", f"{name}:0", name], check=True)
+    pane_listing = subprocess.run(
+        ["tmux", "list-panes", "-t", name, "-F", "#{session_name}:#{window_index}.#{pane_index}"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    first_pane = pane_listing.splitlines()[0] if pane_listing else f"{name}:0.0"
+    initial_window = first_pane.rsplit(".", 1)[0]
+    subprocess.run(["tmux", "rename-window", "-t", initial_window, name], check=True)
     subprocess.run(
-        ["tmux", "split-window", "-h", "-t", f"{name}:0", "-c", path_str],
+        ["tmux", "split-window", "-h", "-t", initial_window, "-c", path_str],
         check=True,
     )
-    subprocess.run(["tmux", "send-keys", "-t", f"{name}:0.1", venv_preamble, "Enter"], check=True)
+    subprocess.run(
+        ["tmux", "send-keys", "-t", f"{initial_window}.1", venv_preamble, "Enter"],
+        check=True,
+    )
     subprocess.run(
         [
             "tmux",
             "send-keys",
             "-t",
-            f"{name}:0.0",
+            f"{initial_window}.0",
             f"{venv_preamble} && {agent_command}",
             "Enter",
         ],
         check=True,
     )
-    subprocess.run(["tmux", "select-pane", "-t", f"{name}:0.0"], check=True)
+    subprocess.run(["tmux", "select-pane", "-t", f"{initial_window}.0"], check=True)
 
     print(f"tmux session '{name}' launching in {path}")
     print(f"  Session label: {name}")
