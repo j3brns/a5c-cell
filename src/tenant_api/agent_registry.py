@@ -19,9 +19,16 @@ def handle_list_agents(
     _ = event
     _ = deps
     shared._require_admin(caller)
+    shared._require_platform_actor(caller)
     db = shared._control_plane_db(caller)
     items = db.scan_all(shared._agents_table_name())
-    return shared._response(200, {"items": items})
+    return shared._platform_control_response(
+        200,
+        {"items": items},
+        caller=caller,
+        operation_type="agent_registry_list",
+        target_tenant_id=shared._PLATFORM_TENANT_ID,
+    )
 
 
 def handle_register_agent(
@@ -30,6 +37,7 @@ def handle_register_agent(
     deps: shared.TenantApiDependencies,
 ) -> dict[str, Any]:
     shared._require_admin(caller)
+    shared._require_platform_actor(caller)
     body = shared._require_json_body(event)
 
     agent_name = shared._str_or_none(body.get("agentName"))
@@ -91,9 +99,12 @@ def handle_register_agent(
             )
         raise
 
-    return shared._response(
+    return shared._platform_control_response(
         201,
         {"status": "registered", "agentName": agent_name, "version": version},
+        caller=caller,
+        operation_type="agent_version_register",
+        target_tenant_id=shared._PLATFORM_TENANT_ID,
     )
 
 
@@ -105,6 +116,7 @@ def handle_update_agent_version(
     version: str,
 ) -> dict[str, Any]:
     shared._require_admin(caller)
+    shared._require_platform_actor(caller)
     body = shared._require_json_body(event)
 
     new_status = shared._str_or_none(body.get("status"))
@@ -180,7 +192,7 @@ def handle_update_agent_version(
             ),
         )
 
-    return shared._response(
+    return shared._platform_control_response(
         200,
         {
             "status": "updated",
@@ -188,6 +200,9 @@ def handle_update_agent_version(
             "version": version,
             "newStatus": new_agent_status.value,
         },
+        caller=caller,
+        operation_type="agent_version_update",
+        target_tenant_id=shared._PLATFORM_TENANT_ID,
     )
 
 
@@ -198,6 +213,7 @@ def dispatch_routes(
     caller: shared.CallerIdentity,
     deps: shared.TenantApiDependencies,
 ) -> dict[str, Any] | None:
+    shared._require_platform_actor(caller)
     if path == "/v1/platform/agents" and method == "GET":
         return handle_list_agents(event, caller, deps)
     if path == "/v1/platform/agents" and method == "POST":
