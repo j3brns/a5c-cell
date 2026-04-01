@@ -50,6 +50,7 @@ def fake_state(monkeypatch: pytest.MonkeyPatch, fixed_now: datetime) -> dict[str
     monkeypatch.setenv("TENANT_API_KEY_SECRET_PREFIX", "platform/tenants")
     monkeypatch.setattr(tenant_api_handler, "_dependencies", lambda: deps)
     monkeypatch.setattr(tenant_api_handler, "_db_for_tenant", lambda **_kwargs: db)
+    monkeypatch.setattr(tenant_api_handler, "_control_plane_db", lambda *_args, **_kwargs: db)
     monkeypatch.setattr(tenant_api_handler, "_now_utc", lambda: fixed_now)
     return {"db": db, "deps": deps}
 
@@ -67,9 +68,10 @@ def _ops_event(
         "body": None if body is None else json.dumps(body),
         "requestContext": {
             "authorizer": {
-                "tenantid": "platform-admin",
+                "tenantid": "platform",
                 "roles": "Platform.Admin",
                 "sub": "admin-123",
+                "appid": "app-admin",
             }
         },
     }
@@ -123,6 +125,8 @@ def test_ops_tenant_management(fake_state: dict[str, Any]) -> None:
     )
     assert response["statusCode"] == 200
     assert _body(response)["status"] == "suspended"
+    assert _body(response)["audit"]["targetTenantId"] == "t-001"
+    assert _body(response)["audit"]["operationType"] == "tenant_suspend"
 
     # Reinstate
     response = _invoke(_ops_event("POST", "/v1/platform/ops/tenants/t-001/reinstate"))
@@ -141,6 +145,16 @@ def test_ops_service_health(fake_state: dict[str, Any]) -> None:
     response = _invoke(_ops_event("GET", "/v1/platform/service-health"))
     assert response["statusCode"] == 200
     assert _body(response)["status"] == "healthy"
+    assert _body(response)["audit"]["actorTenantId"] == "platform"
+
+
+def test_ops_platform_routes_require_platform_tenant_context(fake_state: dict[str, Any]) -> None:
+    event = _ops_event("GET", "/v1/platform/service-health")
+    event["requestContext"]["authorizer"]["tenantid"] = "t-customer-001"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 403
 
 
 def test_ops_billing_status(fake_state: dict[str, Any]) -> None:
