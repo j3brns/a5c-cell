@@ -1,5 +1,7 @@
 # Scratch / local-only tooling
 .scratch/
+.codex
+.codex-flow/
 
 # Python
 __pycache__/
