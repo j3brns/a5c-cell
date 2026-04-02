@@ -1,21 +1,24 @@
 from __future__ import annotations
-import json
+
 import time
 from datetime import UTC, datetime
 from typing import Any
+
 from aws_lambda_powertools import Logger
 from data_access import TenantScopedDynamoDB
 from data_access.models import (
-    InvocationStatus, 
-    InvocationRecord, 
-    InvocationMode, 
-    JobRecord, 
     AgentRecord,
-    TenantContext
+    InvocationMode,
+    InvocationRecord,
+    InvocationStatus,
+    JobRecord,
+    TenantContext,
 )
-from src.bridge.constants import INVOCATIONS_TABLE, JOBS_TABLE, INVOCATION_TTL_SECONDS
+
+from src.bridge.constants import INVOCATION_TTL_SECONDS, INVOCATIONS_TABLE, JOBS_TABLE
 
 logger = Logger(service="bridge-telemetry")
+
 
 def record_invocation_metric(
     cloudwatch: Any,
@@ -53,6 +56,7 @@ def record_invocation_metric(
     except Exception:
         logger.warning("Failed to record invocation metrics to CloudWatch")
 
+
 def emit_invocation_metrics(
     cloudwatch: Any,
     tenant_context: TenantContext,
@@ -76,18 +80,43 @@ def emit_invocation_metrics(
 
         metric_data = []
         for dims in dimensions_sets:
-            metric_data.extend([
-                {"MetricName": "Invocations", "Value": 1.0, "Unit": "Count", "Dimensions": dims},
-                {"MetricName": "Latency", "Value": float(latency_ms), "Unit": "Milliseconds", "Dimensions": dims},
-                {"MetricName": "InputTokens", "Value": float(input_tokens), "Unit": "Count", "Dimensions": dims},
-                {"MetricName": "OutputTokens", "Value": float(output_tokens), "Unit": "Count", "Dimensions": dims},
-            ])
+            metric_data.extend(
+                [
+                    {
+                        "MetricName": "Invocations",
+                        "Value": 1.0,
+                        "Unit": "Count",
+                        "Dimensions": dims,
+                    },
+                    {
+                        "MetricName": "Latency",
+                        "Value": float(latency_ms),
+                        "Unit": "Milliseconds",
+                        "Dimensions": dims,
+                    },
+                    {
+                        "MetricName": "InputTokens",
+                        "Value": float(input_tokens),
+                        "Unit": "Count",
+                        "Dimensions": dims,
+                    },
+                    {
+                        "MetricName": "OutputTokens",
+                        "Value": float(output_tokens),
+                        "Unit": "Count",
+                        "Dimensions": dims,
+                    },
+                ]
+            )
             if status != InvocationStatus.SUCCESS:
-                metric_data.append({"MetricName": "Errors", "Value": 1.0, "Unit": "Count", "Dimensions": dims})
+                metric_data.append(
+                    {"MetricName": "Errors", "Value": 1.0, "Unit": "Count", "Dimensions": dims}
+                )
 
         cloudwatch.put_metric_data(Namespace="Platform/Bridge", MetricData=metric_data)
     except Exception as e:
         logger.warning(f"Failed to emit invocation metrics: {e}")
+
 
 def emit_bedrock_throttle_metric(
     cloudwatch: Any,
@@ -114,6 +143,7 @@ def emit_bedrock_throttle_metric(
         )
     except Exception as exc:
         logger.warning(f"Failed to emit Bedrock throttle metric: {exc}")
+
 
 def log_invocation(
     cloudwatch: Any,
@@ -175,14 +205,20 @@ def log_invocation(
             "timestamp": record.timestamp,
             "ttl": record.ttl,
         }
-        if record.jitter: item["jitter"] = record.jitter
-        if record.job_id: item["job_id"] = record.job_id
-        if record.error_code: item["error_code"] = record.error_code
+        if record.jitter:
+            item["jitter"] = record.jitter
+        if record.job_id:
+            item["job_id"] = record.job_id
+        if record.error_code:
+            item["error_code"] = record.error_code
 
         db.put_item(INVOCATIONS_TABLE, item)
-        emit_invocation_metrics(cloudwatch, tenant_context, agent, status, latency_ms, input_tokens, output_tokens)
+        emit_invocation_metrics(
+            cloudwatch, tenant_context, agent, status, latency_ms, input_tokens, output_tokens
+        )
     except Exception:
         logger.exception("Failed to log invocation")
+
 
 def log_job(tenant_context: TenantContext, record: JobRecord) -> None:
     """Write job record to DynamoDB."""
@@ -200,13 +236,21 @@ def log_job(tenant_context: TenantContext, record: JobRecord) -> None:
             "ttl": record.ttl,
         }
         # Add optional fields if present
-        for field in ("webhook_id", "webhook_url", "webhook_delivery_status", 
-                     "webhook_delivery_error", "webhook_last_attempt_at", 
-                     "started_at", "completed_at", "result_s3_key", "error_message"):
+        for field in (
+            "webhook_id",
+            "webhook_url",
+            "webhook_delivery_status",
+            "webhook_delivery_error",
+            "webhook_last_attempt_at",
+            "started_at",
+            "completed_at",
+            "result_s3_key",
+            "error_message",
+        ):
             val = getattr(record, field, None)
             if val is not None:
                 item[field] = val
-        
+
         item["webhook_delivered"] = bool(getattr(record, "webhook_delivered", False))
         item["webhook_delivery_attempts"] = int(getattr(record, "webhook_delivery_attempts", 0))
 

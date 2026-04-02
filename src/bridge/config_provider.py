@@ -1,12 +1,16 @@
 from __future__ import annotations
+
 import os
 import time
 from collections.abc import Callable
 from typing import Any
+
 from aws_lambda_powertools import Logger
-from src.bridge.constants import RUNTIME_REGION_PARAM, MOCK_RUNTIME_URL_PARAM
+
+from src.bridge.constants import MOCK_RUNTIME_URL_PARAM, RUNTIME_REGION_PARAM
 
 logger = Logger(service="bridge-config-provider")
+
 
 class ConfigProvider:
     """Cache-backed configuration provider for Bridge runtime settings."""
@@ -41,6 +45,7 @@ class ConfigProvider:
         self._expires_at = now + self._ttl_seconds
         return self._cache
 
+
 def fetch_appconfig_config(http_session: Any) -> dict[str, Any] | None:
     """Fetch configuration from the local AppConfig Lambda Extension."""
     app_id = os.environ.get("APPCONFIG_APPLICATION_ID")
@@ -63,6 +68,7 @@ def fetch_appconfig_config(http_session: Any) -> dict[str, Any] | None:
         logger.warning("Failed to fetch config from local AppConfig extension")
     return None
 
+
 def fetch_ssm_config(ssm: Any, http_session: Any) -> dict[str, Any]:
     """Fetch Bridge runtime configuration from local AppConfig or SSM fallback."""
     config = fetch_appconfig_config(http_session)
@@ -84,6 +90,7 @@ def fetch_ssm_config(ssm: Any, http_session: Any) -> dict[str, Any]:
     except Exception:
         logger.exception("Failed to fetch config from SSM fallback")
         raise
+
 
 def config_defaults() -> dict[str, Any]:
     return {"runtime_region": "eu-west-1", "mock_runtime_url": None}

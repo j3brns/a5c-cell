@@ -1,10 +1,13 @@
 from __future__ import annotations
-import os
+
 from typing import Any
+
 from aws_lambda_powertools import Logger
+
 from src.bridge.constants import TENANT_EXECUTION_ROLE_PARAM_TEMPLATE
 
 logger = Logger(service="bridge-role-resolver")
+
 
 def resolve_tenant_execution_role(
     ssm: Any,
@@ -17,8 +20,11 @@ def resolve_tenant_execution_role(
         response = ssm.get_parameter(Name=param_name)
         return response.get("Parameter", {}).get("Value")
     except Exception:
-        logger.warning("Failed to resolve tenant execution role via SSM", extra={"tenant_id": tenant_id})
+        logger.warning(
+            "Failed to resolve tenant execution role via SSM", extra={"tenant_id": tenant_id}
+        )
         return None
+
 
 def assume_tenant_role(
     sts: Any,
@@ -30,11 +36,11 @@ def assume_tenant_role(
     """Assume a tenant execution role via STS."""
     kwargs = {
         "RoleArn": role_arn,
-        "RoleSessionName": session_name[:64], # STS limit
+        "RoleSessionName": session_name[:64],  # STS limit
     }
     if external_id:
         kwargs["ExternalId"] = external_id
-        
+
     try:
         response = sts.assume_role(**kwargs)
         return response["Credentials"]

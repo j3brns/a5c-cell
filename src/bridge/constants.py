@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import os
 import re
 
@@ -19,15 +20,21 @@ BFF_SESSION_KEEPALIVE_PATH = "/v1/bff/session-keepalive"
 
 # SSM / AppConfig Paths
 RUNTIME_REGION_PARAM = os.environ.get("RUNTIME_REGION_PARAM", "/platform/config/runtime-region")
-MOCK_RUNTIME_URL_PARAM = os.environ.get("MOCK_RUNTIME_URL_PARAM", "/platform/config/mock-runtime-url")
+MOCK_RUNTIME_URL_PARAM = os.environ.get(
+    "MOCK_RUNTIME_URL_PARAM", "/platform/config/mock-runtime-url"
+)
 TENANT_EXECUTION_ROLE_PARAM_TEMPLATE = os.environ.get(
     "TENANT_EXECUTION_ROLE_PARAM_TEMPLATE", "/platform/tenants/{tenant_id}/execution-role-arn"
 )
 
 # Timeouts & TTLs
 JOB_RESULT_URL_EXPIRY_SECONDS = int(os.environ.get("JOB_RESULT_URL_EXPIRY_SECONDS", "3600"))
-AGENTCORE_RUNTIME_CONNECT_TIMEOUT_SECONDS = int(os.environ.get("AGENTCORE_RUNTIME_CONNECT_TIMEOUT_SECONDS", "5"))
-AGENTCORE_RUNTIME_READ_TIMEOUT_SECONDS = int(os.environ.get("AGENTCORE_RUNTIME_READ_TIMEOUT_SECONDS", "900"))
+AGENTCORE_RUNTIME_CONNECT_TIMEOUT_SECONDS = int(
+    os.environ.get("AGENTCORE_RUNTIME_CONNECT_TIMEOUT_SECONDS", "5")
+)
+AGENTCORE_RUNTIME_READ_TIMEOUT_SECONDS = int(
+    os.environ.get("AGENTCORE_RUNTIME_READ_TIMEOUT_SECONDS", "900")
+)
 INVOCATION_TTL_SECONDS = 90 * 24 * 60 * 60
 JOB_TTL_SECONDS = 7 * 24 * 60 * 60
 
