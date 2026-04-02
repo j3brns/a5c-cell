@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import secrets
 import urllib.parse
 import uuid
@@ -158,3 +159,29 @@ def handle_delete_webhook(
 
     db.delete_item(db_factory.tenants_table_name(), key)
     return http_utils.response(204, {})
+
+
+def dispatch_routes(
+    path: str,
+    method: str,
+    event: dict[str, Any],
+    caller: models.CallerIdentity,
+    deps: models.TenantApiDependencies,
+    tenant_id: str | None = None,
+) -> dict[str, Any] | None:
+    # /v1/tenants/{tenant_id}/webhooks
+    if tenant_id and path == f"/v1/tenants/{tenant_id}/webhooks":
+        if method == "GET":
+            return handle_list_webhooks(caller, deps, tenant_id=tenant_id)
+        if method == "POST":
+            return handle_register_webhook(event, caller, deps, tenant_id=tenant_id)
+
+    # /v1/tenants/{tenant_id}/webhooks/{webhook_id}
+    if tenant_id:
+        match = re.match(rf"^/v1/tenants/{tenant_id}/webhooks/([^/]+)$", path)
+        if match and method == "DELETE":
+            return handle_delete_webhook(
+                caller, deps, tenant_id=tenant_id, webhook_id=match.group(1)
+            )
+
+    return None

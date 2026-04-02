@@ -54,7 +54,7 @@ def handle_platform_failover(
                 "actor": caller.sub,
                 "lock_id": lock_id,
                 "target_region": target_region,
-                "lock_name": db_factory.failover_lock_name(),
+                "lock_name": db_factory.ops_locks_table_name(),
             },
         )
         return http_utils.error(409, "LOCK_NOT_HELD", "Runtime failover lock is not currently held")
@@ -74,7 +74,6 @@ def handle_platform_failover(
         )
         return http_utils.error(409, "LOCK_MISMATCH", "Failover lock is held by another session")
 
-    # Lock verified, perform regional failover via SSM update
     try:
         ssm = deps.ssm
         # ADR-009: Runtime region zigzag (London <-> Dublin)

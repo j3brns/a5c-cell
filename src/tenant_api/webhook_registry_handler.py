@@ -34,9 +34,9 @@ def lambda_handler(event: dict[str, Any], context: LambdaContext) -> dict[str, A
         ).rstrip("/")
 
         try:
-            from . import webhook_registry
-        except (ImportError, ValueError):
             from src.tenant_api import webhook_registry
+        except (ImportError, ValueError):
+            from . import webhook_registry
 
         response = webhook_registry.dispatch_routes(path, method, event, caller, deps)
         if response:

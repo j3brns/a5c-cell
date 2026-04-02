@@ -227,9 +227,9 @@ def _dispatch_webhook_routes(
     deps: TenantApiDependencies,
 ) -> dict[str, Any] | None:
     try:
-        from . import webhook_registry
-    except (ImportError, ValueError):
         from src.tenant_api import webhook_registry
+    except (ImportError, ValueError):
+        from . import webhook_registry
     return webhook_registry.dispatch_routes(path, method, event, caller, deps)
 
 

@@ -191,7 +191,13 @@ def _update_agent_status(
         updates["rolled_back_by"] = caller.sub
 
     expression, names, values = db_utils.build_update_expression(updates)
-    db.update_item(table_name, key, expression, names, values)
+    db.update_item(
+        table_name,
+        {"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{version}"},
+        expression,
+        values,
+        expression_attribute_names=names,
+    )
 
     # Emit lifecycle event
     event_detail = agent_logic.build_agent_release_lifecycle_event_detail(

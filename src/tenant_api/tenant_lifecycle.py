@@ -148,7 +148,11 @@ def handle_update(
     expression, names, values = db_utils.build_update_expression(updates)
     db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=None)
     db.update_item(
-        db_factory.tenants_table_name(), db_utils.tenant_key(tenant_id), expression, names, values
+        db_factory.tenants_table_name(),
+        db_utils.tenant_key(tenant_id),
+        expression,
+        values,
+        expression_attribute_names=names,
     )
 
     # Re-fetch for response
@@ -182,7 +186,11 @@ def handle_delete(
     expression, names, values = db_utils.build_update_expression(updates)
     db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=None)
     db.update_item(
-        db_factory.tenants_table_name(), db_utils.tenant_key(tenant_id), expression, names, values
+        db_factory.tenants_table_name(),
+        db_utils.tenant_key(tenant_id),
+        expression,
+        values,
+        expression_attribute_names=names,
     )
 
     return http_utils.response(204, {})
@@ -232,7 +240,11 @@ def handle_tenant_provisioning_event(
     db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=system_caller, app_id=app_id)
     expression, names, values = db_utils.build_update_expression(updates)
     db.update_item(
-        db_factory.tenants_table_name(), db_utils.tenant_key(tenant_id), expression, names, values
+        db_factory.tenants_table_name(),
+        db_utils.tenant_key(tenant_id),
+        expression,
+        values,
+        expression_attribute_names=names,
     )
 
     return {"status": "updated", "tenantId": tenant_id, "provisioningStatus": status}
@@ -281,9 +293,9 @@ def dispatch_routes(
         # Dispatch sub-resources (webhooks, etc.)
         if path.startswith(f"/v1/tenants/{tenant_id}/webhooks"):
             try:
-                from . import webhook_registry
-            except (ImportError, ValueError):
                 from src.tenant_api import webhook_registry
+            except (ImportError, ValueError):
+                from . import webhook_registry
             return webhook_registry.dispatch_routes(path, method, event, caller, deps, tenant_id)
 
     return None
