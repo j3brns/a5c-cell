@@ -75,48 +75,50 @@ from .runtime_orchestrator import build_runtime_orchestrator
 logger = Logger(service="bridge")
 tracer = Tracer()
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-TENANTS_TABLE = os.environ.get("TENANTS_TABLE", "platform-tenants")
-AGENTS_TABLE = os.environ.get("AGENTS_TABLE", "platform-agents")
-INVOCATIONS_TABLE = os.environ.get("INVOCATIONS_TABLE", "platform-invocations")
-JOBS_TABLE = os.environ.get("JOBS_TABLE", "platform-jobs")
-SESSIONS_TABLE = os.environ.get("SESSIONS_TABLE", "platform-sessions")
-OPS_LOCKS_TABLE = os.environ.get("OPS_LOCKS_TABLE", "platform-ops-locks")
-JOB_RESULTS_BUCKET = os.environ.get("JOB_RESULTS_BUCKET")
-ENTRA_AUDIENCE = os.environ.get("ENTRA_AUDIENCE")
-AG_UI_SCOPE_NAME = os.environ.get("AG_UI_SCOPE_NAME", "Agent.AgUi.Connect")
-BFF_TOKEN_REFRESH_PATH = "/v1/bff/token-refresh"
-BFF_SESSION_KEEPALIVE_PATH = "/v1/bff/session-keepalive"
-
-RUNTIME_REGION_PARAM = os.environ.get("RUNTIME_REGION_PARAM", "/platform/config/runtime-region")
-MOCK_RUNTIME_URL_PARAM = os.environ.get(
-    "MOCK_RUNTIME_URL_PARAM", "/platform/config/mock-runtime-url"
+from src.bridge import (
+    config_provider,
+    constants,
+    lock_manager,
+    role_resolver,
+    telemetry,
 )
-TENANT_EXECUTION_ROLE_PARAM_TEMPLATE = os.environ.get(
-    "TENANT_EXECUTION_ROLE_PARAM_TEMPLATE", "/platform/tenants/{tenant_id}/execution-role-arn"
+from src.bridge.constants import (
+    AG_UI_SCOPE_NAME,
+    AGENTS_TABLE,
+    BFF_SESSION_KEEPALIVE_PATH,
+    BFF_TOKEN_REFRESH_PATH,
+    ENTRA_AUDIENCE,
+    INVOCATIONS_TABLE,
+    JOB_RESULTS_BUCKET,
+    JOB_TTL_SECONDS,
+    JOBS_TABLE,
+    OPS_LOCKS_TABLE,
+    SESSIONS_TABLE,
+    TENANTS_TABLE,
+    VALID_WEBHOOK_EVENTS,
+    RUNTIME_REGION_PARAM,
+    MOCK_RUNTIME_URL_PARAM,
+    TENANT_EXECUTION_ROLE_PARAM_TEMPLATE,
+    INVOCATION_TTL_SECONDS,
 )
-JOB_RESULT_URL_EXPIRY_SECONDS = int(os.environ.get("JOB_RESULT_URL_EXPIRY_SECONDS", "3600"))
-AGENTCORE_RUNTIME_ENDPOINT_URL = os.environ.get("BEDROCK_AGENTCORE_DP_ENDPOINT")
-AGENTCORE_RUNTIME_CONNECT_TIMEOUT_SECONDS = int(
-    os.environ.get("AGENTCORE_RUNTIME_CONNECT_TIMEOUT_SECONDS", "5")
-)
-AGENTCORE_RUNTIME_READ_TIMEOUT_SECONDS = int(
-    os.environ.get("AGENTCORE_RUNTIME_READ_TIMEOUT_SECONDS", "900")
-)
-IAM_ROLE_ARN_PATTERN = re.compile(
-    r"^arn:(?:aws|aws-us-gov|aws-cn):iam::(?P<account_id>\d{12}):role/(?P<role_name>[\w+=,.@\-_/]+)$"
-)
-RUNTIME_ARN_PATTERN = re.compile(
-    r"^arn:(?P<partition>aws|aws-us-gov|aws-cn):bedrock-agentcore:(?P<region>[a-z0-9-]+):"
-    r"(?P<account_id>\d{12}):runtime/(?P<runtime_id>[\w+=,.@\-_/]+)$"
+from src.bridge.config_provider import (
+    ConfigProvider,
+    fetch_ssm_config,
+    config_defaults,
 )
 
-# TTL constants from models
-INVOCATION_TTL_SECONDS = 90 * 24 * 60 * 60
-JOB_TTL_SECONDS = 7 * 24 * 60 * 60
-VALID_WEBHOOK_EVENTS = {"job.completed", "job.failed"}
+logger = Logger(service="bridge")
+tracer = Tracer()
+
+# Backward-compatibility aliases for existing submodules/logic
+_acquire_lock = lock_manager.acquire_lock
+_release_lock = lock_manager.release_lock
+_log_invocation = telemetry.log_invocation
+_emit_invocation_metrics = telemetry.emit_invocation_metrics
+_emit_bedrock_throttle_metric = telemetry.emit_bedrock_throttle_metric
+_log_job = telemetry.log_job
+_resolve_tenant_execution_role = role_resolver.resolve_tenant_execution_role
+_assume_tenant_role = role_resolver.assume_tenant_role
 
 # ---------------------------------------------------------------------------
 # Global clients/cache
@@ -128,7 +130,6 @@ _cloudwatch_client = None
 _capability_client = None
 _http_session = None
 
-# Cache for SSM parameters (60s TTL as per ARCHITECTURE.md)
 _config_cache: dict[str, Any] = {}
 _config_cache_expiry: float = 0
 _config_provider: ConfigProvider | None = None
@@ -180,96 +181,12 @@ def get_http_session():
     return _http_session
 
 
-def get_runtime_client(region: str, credentials: dict[str, Any] | None = None) -> Any:
-    session_kwargs: dict[str, Any] = {"region_name": region}
-    if credentials:
-        session_kwargs.update(
-            {
-                "aws_access_key_id": credentials["AccessKeyId"],
-                "aws_secret_access_key": credentials["SecretAccessKey"],
-                "aws_session_token": credentials["SessionToken"],
-            }
-        )
-
-    session = boto3.Session(**session_kwargs)
-    client_kwargs: dict[str, Any] = {
-        "service_name": "bedrock-agentcore",
-        "region_name": region,
-        "config": Config(
-            connect_timeout=AGENTCORE_RUNTIME_CONNECT_TIMEOUT_SECONDS,
-            read_timeout=AGENTCORE_RUNTIME_READ_TIMEOUT_SECONDS,
-            retries={"max_attempts": 1, "mode": "standard"},
-        ),
-    }
-    if AGENTCORE_RUNTIME_ENDPOINT_URL:
-        client_kwargs["endpoint_url"] = AGENTCORE_RUNTIME_ENDPOINT_URL
-    return session.client(**client_kwargs)
-
-
-def _fetch_appconfig_config() -> dict[str, Any] | None:
-    """Fetch configuration from the local AppConfig Lambda Extension."""
-    app_id = os.environ.get("APPCONFIG_APPLICATION_ID")
-    env_id = os.environ.get("APPCONFIG_ENVIRONMENT_ID")
-    profile_id = os.environ.get("APPCONFIG_PROFILE_ID")
-
-    if not all([app_id, env_id, profile_id]):
-        return None
-
-    url = f"http://localhost:2772/applications/{app_id}/environments/{env_id}/configurations/{profile_id}"
-    try:
-        session = get_http_session()
-        response = session.get(url, timeout=1.0)
-        if response.status_code == 200:
-            config = response.json()
-            # Map AppConfig JSON structure to Bridge config expectations
-            return {
-                "runtime_region": config.get("runtime_region", "eu-west-1"),
-                "mock_runtime_url": config.get("mock_runtime_url"),
-            }
-    except Exception:
-        logger.warning("Failed to fetch config from local AppConfig extension")
-
-    return None
-
-
-def _fetch_ssm_config() -> dict[str, Any]:
-    """Fetch Bridge runtime configuration from local AppConfig or SSM fallback."""
-    # 1. Try local AppConfig Extension (0ms hot path)
-    config = _fetch_appconfig_config()
-    if config:
-        return config
-
-    # 2. Fallback to direct SSM API calls
-    try:
-        ssm = get_ssm()
-        names = [RUNTIME_REGION_PARAM, MOCK_RUNTIME_URL_PARAM]
-        response = ssm.get_parameters(Names=names)
-
-        params: dict[str, str] = {
-            str(p.get("Name")): str(p.get("Value"))
-            for p in response.get("Parameters", [])
-            if p.get("Name") and p.get("Value")
-        }
-
-        return {
-            "runtime_region": params.get(RUNTIME_REGION_PARAM, "eu-west-1"),
-            "mock_runtime_url": params.get(MOCK_RUNTIME_URL_PARAM),
-        }
-    except Exception:
-        logger.exception("Failed to fetch config from SSM fallback")
-        raise
-
-
-def _config_defaults() -> dict[str, Any]:
-    return {"runtime_region": "eu-west-1", "mock_runtime_url": None}
-
-
 def _get_config_provider() -> ConfigProvider:
     global _config_provider
     if _config_provider is None:
         _config_provider = ConfigProvider(
-            fetcher=_fetch_ssm_config,
-            fallback_factory=_config_defaults,
+            fetcher=lambda: fetch_ssm_config(get_ssm(), get_http_session()),
+            fallback_factory=config_defaults,
             ttl_seconds=60,
         )
     return _config_provider
@@ -283,109 +200,6 @@ def get_config(force_refresh: bool = False) -> dict[str, Any]:
     _config_cache = dict(config)
     _config_cache_expiry = provider.expires_at
     return config
-
-
-def acquire_lock(lock_name: str, identity: str, ttl_seconds: int = 300) -> str | None:
-    """Acquire a distributed lock in DynamoDB.
-
-    Returns lock_id (UUID) on success, None on failure.
-    """
-    lock_id = str(uuid.uuid4())
-    now = datetime.now(UTC)
-    ttl = int(now.timestamp()) + ttl_seconds
-
-    try:
-        ddb = get_dynamodb()
-        table = ddb.Table(OPS_LOCKS_TABLE)
-
-        table.put_item(
-            Item={
-                "PK": f"LOCK#{lock_name}",
-                "SK": "METADATA",
-                "lock_id": lock_id,
-                "acquired_by": identity,
-                "acquired_at": now.isoformat(),
-                "ttl": ttl,
-            },
-            ConditionExpression="attribute_not_exists(PK) OR #ttl < :now",
-            ExpressionAttributeNames={"#ttl": "ttl"},
-            ExpressionAttributeValues={":now": int(time.time())},
-        )
-        return lock_id
-    except Exception:
-        # ConditionalCheckFailedException or any other error
-        return None
-
-
-def release_lock(lock_name: str, lock_id: str) -> bool:
-    """Release a distributed lock if lock_id matches."""
-    try:
-        ddb = get_dynamodb()
-        table = ddb.Table(OPS_LOCKS_TABLE)
-
-        table.delete_item(
-            Key={"PK": f"LOCK#{lock_name}", "SK": "METADATA"},
-            ConditionExpression="lock_id = :lock_id",
-            ExpressionAttributeValues={":lock_id": lock_id},
-        )
-        return True
-    except Exception:
-        logger.warning(
-            "Failed to release ops lock; will expire via TTL",
-            extra={"lock_name": lock_name},
-        )
-        return False
-
-
-def trigger_failover(current_region: str) -> str:
-    """Failover from eu-west-1 to eu-central-1 (or vice versa).
-
-    Uses distributed lock to ensure only one Lambda instance performs the update.
-    Returns the new active region.
-    """
-    new_region = "eu-central-1" if current_region == "eu-west-1" else "eu-west-1"
-    lock_name = "runtime-region-failover"
-    identity = f"bridge-lambda-{os.environ.get('AWS_LAMBDA_LOG_STREAM_NAME', 'local')}"
-
-    lock_id = acquire_lock(lock_name, identity)
-    if not lock_id:
-        logger.info("Failover in progress by another instance, skipping update")
-        # Wait a bit and re-fetch config
-        time.sleep(2)
-        config = get_config(force_refresh=True)
-        return config["runtime_region"]
-
-    try:
-        # Re-fetch config to ensure we still need to failover
-        ssm = get_ssm()
-        param_response = ssm.get_parameter(Name=RUNTIME_REGION_PARAM)
-        param = param_response.get("Parameter", {})
-        current_ssm_region = str(param.get("Value", current_region))
-
-        if current_ssm_region != current_region:
-            logger.info(
-                "Region already changed by another instance",
-                extra={"ssm_region": current_ssm_region},
-            )
-            return current_ssm_region
-
-        logger.warning(
-            "Triggering region failover", extra={"from": current_region, "to": new_region}
-        )
-        ssm.put_parameter(
-            Name=RUNTIME_REGION_PARAM, Value=new_region, Type="String", Overwrite=True
-        )
-
-        # Clear local cache
-        global _config_cache_expiry
-        _config_cache_expiry = 0
-
-        return new_region
-    except Exception:
-        logger.exception("Failed to trigger failover")
-        return current_region
-    finally:
-        release_lock(lock_name, lock_id)
 
 
 def get_tenant_record(tenant_context: TenantContext) -> dict[str, Any] | None:
@@ -1942,68 +1756,23 @@ def log_invocation(
     error_code: str | None = None,
     runtime_region: str | None = None,
 ) -> None:
-    """Write invocation audit record to DynamoDB using data-access-lib."""
-    try:
-        db = TenantScopedDynamoDB(tenant_context)
-        now_iso = datetime.now(UTC).isoformat()
-        now_ts = int(time.time())
-
-        # Hot-partition mitigation (ADR-012)
-        jitter = get_jitter()
-
-        record = InvocationRecord(
-            invocation_id=invocation_id,
-            tenant_id=tenant_context.tenant_id,
-            app_id=tenant_context.app_id,
-            agent_name=agent.agent_name,
-            agent_version=agent.version,
-            session_id=session_id or "unknown-session",
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            latency_ms=latency_ms,
-            status=status,
-            runtime_region=runtime_region or get_config()["runtime_region"],
-            invocation_mode=mode,
-            timestamp=now_iso,
-            ttl=now_ts + INVOCATION_TTL_SECONDS,
-            jitter=jitter,
-            error_code=error_code,
-            job_id=job_id,
-        )
-
-        item = {
-            "PK": record.pk,
-            "SK": record.sk,
-            "invocation_id": record.invocation_id,
-            "tenant_id": record.tenant_id,
-            "app_id": record.app_id,
-            "agent_name": record.agent_name,
-            "agent_version": record.agent_version,
-            "session_id": record.session_id,
-            "input_tokens": record.input_tokens,
-            "output_tokens": record.output_tokens,
-            "latency_ms": record.latency_ms,
-            "status": str(record.status),
-            "runtime_region": record.runtime_region,
-            "invocation_mode": str(record.invocation_mode),
-            "timestamp": record.timestamp,
-            "ttl": record.ttl,
-        }
-        if record.jitter:
-            item["jitter"] = record.jitter
-        if record.job_id:
-            item["job_id"] = record.job_id
-        if record.error_code:
-            item["error_code"] = record.error_code
-
-        db.put_item(INVOCATIONS_TABLE, item)
-
-        # Emit real-time metrics for observability (TASK-290)
-        emit_invocation_metrics(
-            tenant_context, agent, status, latency_ms, input_tokens, output_tokens
-        )
-    except Exception:
-        logger.exception("Failed to log invocation")
+    # Delegate to modular telemetry
+    telemetry.log_invocation(
+        get_cloudwatch(),
+        tenant_context,
+        agent,
+        invocation_id,
+        status,
+        latency_ms,
+        mode,
+        runtime_region=runtime_region or get_config()["runtime_region"],
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        job_id=job_id,
+        session_id=session_id,
+        error_code=error_code,
+        jitter=get_jitter(),
+    )
 
 
 def emit_invocation_metrics(
@@ -2014,70 +1783,15 @@ def emit_invocation_metrics(
     input_tokens: int,
     output_tokens: int,
 ) -> None:
-    """Emit real-time invocation metrics to CloudWatch."""
-    try:
-        cw = get_cloudwatch()
-
-        # We emit two sets of metrics:
-        # 1. Detailed: {TenantId, AgentName}
-        # 2. Aggregate: {TenantId} (for the tenant dashboard)
-
-        dimensions_sets = [
-            [
-                {"Name": "TenantId", "Value": tenant_context.tenant_id},
-                {"Name": "AgentName", "Value": agent.agent_name},
-            ],
-            [
-                {"Name": "TenantId", "Value": tenant_context.tenant_id},
-            ],
-        ]
-
-        metric_data = []
-        for dims in dimensions_sets:
-            metric_data.extend(
-                [
-                    {
-                        "MetricName": "Invocations",
-                        "Value": 1.0,
-                        "Unit": "Count",
-                        "Dimensions": dims,
-                    },
-                    {
-                        "MetricName": "Latency",
-                        "Value": float(latency_ms),
-                        "Unit": "Milliseconds",
-                        "Dimensions": dims,
-                    },
-                    {
-                        "MetricName": "InputTokens",
-                        "Value": float(input_tokens),
-                        "Unit": "Count",
-                        "Dimensions": dims,
-                    },
-                    {
-                        "MetricName": "OutputTokens",
-                        "Value": float(output_tokens),
-                        "Unit": "Count",
-                        "Dimensions": dims,
-                    },
-                ]
-            )
-
-            if status != InvocationStatus.SUCCESS:
-                metric_data.append(
-                    {
-                        "MetricName": "Errors",
-                        "Value": 1.0,
-                        "Unit": "Count",
-                        "Dimensions": dims,
-                    }
-                )
-
-        # CloudWatch PutMetricData has a limit of 1000 metrics per call
-        # but here we have at most 10 metrics (5 names * 2 sets), so it's fine.
-        cw.put_metric_data(Namespace="Platform/Bridge", MetricData=metric_data)
-    except Exception as e:
-        logger.warning(f"Failed to emit invocation metrics: {e}")
+    telemetry.emit_invocation_metrics(
+        get_cloudwatch(),
+        tenant_context,
+        agent,
+        status,
+        latency_ms,
+        input_tokens,
+        output_tokens,
+    )
 
 
 def emit_bedrock_throttle_metric(
@@ -2086,62 +1800,13 @@ def emit_bedrock_throttle_metric(
     agent: AgentRecord,
     runtime_region: str,
 ) -> None:
-    try:
-        get_cloudwatch().put_metric_data(
-            Namespace="Platform/Bridge",
-            MetricData=[
-                {
-                    "MetricName": "Invocation.Throttled.Bedrock",
-                    "Value": 1.0,
-                    "Unit": "Count",
-                    "Dimensions": [
-                        {"Name": "TenantId", "Value": tenant_context.tenant_id},
-                        {"Name": "AgentName", "Value": agent.agent_name},
-                        {"Name": "RuntimeRegion", "Value": runtime_region},
-                    ],
-                }
-            ],
-        )
-    except Exception as exc:
-        logger.warning(f"Failed to emit Bedrock throttle metric: {exc}")
+    telemetry.emit_bedrock_throttle_metric(
+        get_cloudwatch(),
+        tenant_context=tenant_context,
+        agent=agent,
+        runtime_region=runtime_region,
+    )
 
 
 def log_job(tenant_context: TenantContext, record: JobRecord) -> None:
-    """Write job record to DynamoDB."""
-    try:
-        db = TenantScopedDynamoDB(tenant_context)
-        item = {
-            "PK": record.pk,
-            "SK": record.sk,
-            "job_id": record.job_id,
-            "tenant_id": record.tenant_id,
-            "app_id": record.app_id,
-            "agent_name": record.agent_name,
-            "status": str(record.status),
-            "created_at": record.created_at,
-            "ttl": record.ttl,
-        }
-        if record.webhook_id:
-            item["webhook_id"] = record.webhook_id
-        if record.webhook_url:
-            item["webhook_url"] = record.webhook_url
-        item["webhook_delivered"] = bool(record.webhook_delivered)
-        item["webhook_delivery_attempts"] = int(record.webhook_delivery_attempts)
-        if record.webhook_delivery_status:
-            item["webhook_delivery_status"] = record.webhook_delivery_status
-        if record.webhook_delivery_error:
-            item["webhook_delivery_error"] = record.webhook_delivery_error
-        if record.webhook_last_attempt_at:
-            item["webhook_last_attempt_at"] = record.webhook_last_attempt_at
-        if record.started_at:
-            item["started_at"] = record.started_at
-        if record.completed_at:
-            item["completed_at"] = record.completed_at
-        if record.result_s3_key:
-            item["result_s3_key"] = record.result_s3_key
-        if record.error_message:
-            item["error_message"] = record.error_message
-
-        db.put_item(JOBS_TABLE, item)
-    except Exception:
-        logger.exception("Failed to log job")
+    telemetry.log_job(tenant_context, record)
