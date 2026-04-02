@@ -22,7 +22,9 @@ class CallerIdentity:
     @property
     def is_platform_actor(self) -> bool:
         from src.tenant_api.constants import PLATFORM_TENANT_ID
+
         return self.tenant_id == PLATFORM_TENANT_ID
+
 
 @dataclass(frozen=True)
 class TenantApiDependencies:

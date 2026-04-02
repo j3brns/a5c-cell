@@ -12,6 +12,7 @@ from src.tenant_api.utils import json_default
 def event_bus_name() -> str:
     return os.environ.get(EVENT_BUS_ENV, "default")
 
+
 def put_event(
     deps: TenantApiDependencies,
     *,

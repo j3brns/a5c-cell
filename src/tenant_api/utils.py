@@ -6,13 +6,16 @@ from typing import Any
 
 _OVERRIDE_NOW: datetime | None = None
 
+
 def now_utc() -> datetime:
     if _OVERRIDE_NOW:
         return _OVERRIDE_NOW
     return datetime.now(UTC)
 
+
 def iso(dt: datetime) -> str:
     return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
 
 def str_or_none(value: Any) -> str | None:
     if value is None:
@@ -20,12 +23,14 @@ def str_or_none(value: Any) -> str | None:
     text = str(value).strip()
     return text or None
 
+
 def json_default(value: Any) -> Any:
     if isinstance(value, Decimal):
         if value == value.to_integral_value():
             return int(value)
         return float(value)
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
 
 def coerce_positive_int(value: Any, *, default: int) -> int:
     try:

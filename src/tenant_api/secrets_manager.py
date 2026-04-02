@@ -14,8 +14,10 @@ from src.tenant_api.models import TenantApiDependencies
 
 logger = Logger(service="tenant-api-secrets")
 
+
 def secret_prefix() -> str:
     return os.environ.get(API_KEY_SECRET_PREFIX_ENV, "platform/tenants")
+
 
 def create_api_key_secret(
     deps: TenantApiDependencies,
@@ -47,6 +49,7 @@ def create_api_key_secret(
         app_id=app_id,
     )
     return str(response["ARN"])
+
 
 def attach_tenant_api_key_secret_policy(
     deps: TenantApiDependencies,

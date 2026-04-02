@@ -23,6 +23,7 @@ def parse_issue_meta(body: str) -> tuple[int | None, list[str]]:
     depends = parse_depends(m.group(1)) if (m := DEPENDS_RE.search(body or "")) else []
     return seq, depends
 
+
 def fetch_repo_issues(
     root: Path,
     repo: str,
@@ -79,6 +80,7 @@ def fetch_repo_issues(
             break
         page += 1
     return out
+
 
 def build_queue(
     issues: list[Issue],

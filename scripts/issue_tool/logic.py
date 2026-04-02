@@ -20,6 +20,7 @@ def parse_task_id_from_issue(issue: dict) -> str | None:
         return m.group(1).upper()
     return None
 
+
 def parse_depends(text: str | None) -> list[str]:
     if not text:
         return []
@@ -34,6 +35,7 @@ def parse_depends(text: str | None) -> list[str]:
             out.append(token)
     return out
 
+
 def lifecycle_status(issue: Issue) -> str:
     labels = set(issue.labels)
     if "status:blocked" in labels:
@@ -46,11 +48,14 @@ def lifecycle_status(issue: Issue) -> str:
         return "not-started"
     return "unknown"
 
+
 def queue_task_issues(issues: list[Issue]) -> list[Issue]:
     return [issue for issue in issues if "type:task" in issue.labels and not issue.is_parent_cr]
 
+
 def status_labels(issue: Issue) -> list[str]:
     return [label for label in issue.labels if label in STATUS_LABELS]
+
 
 def choose_reconciled_status(issue: Issue) -> str:
     statuses = status_labels(issue)
@@ -67,6 +72,7 @@ def choose_reconciled_status(issue: Issue) -> str:
     # open+done or missing/invalid status should return to startable backlog state
     return "status:not-started"
 
+
 def reconcile_issue_label_changes(issue: Issue) -> tuple[list[str], list[str]]:
     """Return (add_labels, remove_labels) to enforce lifecycle label policy."""
     desired = choose_reconciled_status(issue)
@@ -80,10 +86,12 @@ def reconcile_issue_label_changes(issue: Issue) -> tuple[list[str], list[str]]:
         remove_labels.append("ready")
     return add_labels, sorted(set(remove_labels))
 
+
 def edit_issue_labels(root: Path, repo: str, issue_number: int, labels: list[str]) -> None:
     from pathlib import Path
 
     from scripts.issue_tool.github_client import ensure_label_exists, gh_text
+
     if not labels:
         return
     edit_args = ["issue", "edit", str(issue_number), "-R", repo]
@@ -94,6 +102,7 @@ def edit_issue_labels(root: Path, repo: str, issue_number: int, labels: list[str
         else:
             edit_args += ["--remove-label", label.removeprefix("-")]
     gh_text(edit_args, root=root)
+
 
 def normalize_closed_issue_labels(root: Path, repo: str, issue_id: int, info: dict | None) -> bool:
     if not info:
@@ -118,8 +127,10 @@ def normalize_closed_issue_labels(root: Path, repo: str, issue_id: int, info: di
     edit_issue_labels(root, repo, issue.number, label_ops)
     return True
 
+
 def assert_issue_startable(issue: Issue, *, allow_blocked: bool) -> None:
     from scripts.issue_tool.shared import CliError
+
     if issue.state != "open":
         raise CliError(f"Issue #{issue.number} is {issue.state}; must be open to start work")
     status = lifecycle_status(issue)

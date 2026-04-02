@@ -12,6 +12,7 @@ class WorktreeInfo:
     branch: str
     is_primary: bool = False
 
+
 @dataclass(slots=True)
 class Issue:
     number: int
@@ -43,13 +44,16 @@ class Issue:
     @property
     def is_parent_cr(self) -> bool:
         from scripts.issue_tool.cli import CR_TITLE_RE
+
         return bool(CR_TITLE_RE.match(self.title.strip()))
+
 
 @dataclass(slots=True)
 class QueueItem:
     issue: Issue
     runnable: bool
     blocked_reasons: list[str] = field(default_factory=list)
+
 
 @dataclass(slots=True)
 class QueueSelection:
@@ -60,6 +64,7 @@ class QueueSelection:
     @property
     def runnable(self) -> list[QueueItem]:
         return [item for item in self.items if item.runnable]
+
 
 @dataclass(slots=True)
 class BatchLaunchResult:

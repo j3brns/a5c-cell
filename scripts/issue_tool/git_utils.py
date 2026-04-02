@@ -25,8 +25,10 @@ def run(
         input=input_text,
     )
 
+
 def eprint(msg: str) -> None:
     print(msg, file=sys.stderr)
+
 
 def repo_root() -> Path:
     try:
@@ -34,8 +36,10 @@ def repo_root() -> Path:
     except subprocess.CalledProcessError as exc:
         raise CliError("Not inside a git repository") from exc
 
+
 def current_path() -> Path:
     return Path.cwd().resolve()
+
 
 def origin_repo_slug(root: Path) -> str:
     try:

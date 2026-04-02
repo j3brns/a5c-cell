@@ -14,8 +14,10 @@ def response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
         "body": json.dumps(body, default=json_default),
     }
 
+
 def error(status_code: int, code: str, message: str) -> dict[str, Any]:
     return response(status_code, {"error": {"code": code, "message": message}})
+
 
 def require_json_body(event: dict[str, Any]) -> dict[str, Any]:
     raw_body = event.get("body")
@@ -31,6 +33,7 @@ def require_json_body(event: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("JSON body must be an object")
     return body
 
+
 def get_authorizer_map(event: dict[str, Any]) -> dict[str, Any]:
     request_context = event.get("requestContext", {})
     authorizer = request_context.get("authorizer", {})
@@ -39,6 +42,7 @@ def get_authorizer_map(event: dict[str, Any]) -> dict[str, Any]:
     if "lambda" in authorizer and isinstance(authorizer["lambda"], dict):
         return authorizer["lambda"]
     return authorizer
+
 
 def parse_roles(value: Any) -> frozenset[str]:
     if value is None:
@@ -55,6 +59,7 @@ def parse_roles(value: Any) -> frozenset[str]:
         normalized = value.replace(",", " ").split()
         return frozenset(part.strip() for part in normalized if part.strip())
     return frozenset()
+
 
 def caller_identity(event: dict[str, Any]) -> CallerIdentity:
     auth = get_authorizer_map(event)

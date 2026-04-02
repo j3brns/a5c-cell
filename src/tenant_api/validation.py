@@ -29,6 +29,7 @@ def canonical_tenant_id(value: Any, *, allow_reserved: bool = False) -> str:
         raise ValueError("tenantId must match ^[a-z](?:[a-z0-9-]{1,30}[a-z0-9])$")
     return normalized
 
+
 def require_aws_account_id(value: Any, *, field: str) -> str:
     account_id = str_or_none(value)
     if account_id is None:
@@ -36,6 +37,7 @@ def require_aws_account_id(value: Any, *, field: str) -> str:
     if not AWS_ACCOUNT_ID_PATTERN.fullmatch(account_id):
         raise ValueError(f"{field} must match ^[0-9]{{12}}$")
     return account_id
+
 
 def parse_utc_timestamp(value: Any, *, field: str) -> datetime:
     text = str_or_none(value)
@@ -49,6 +51,7 @@ def parse_utc_timestamp(value: Any, *, field: str) -> datetime:
     if parsed.tzinfo is None:
         raise ValueError(f"{field} must include a timezone")
     return parsed.astimezone(UTC)
+
 
 def parse_optional_utc_timestamp(value: Any, *, field: str) -> datetime | None:
     if str_or_none(value) is None:

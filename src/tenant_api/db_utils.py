@@ -17,13 +17,16 @@ from src.tenant_api.models import CallerIdentity, TenantApiDependencies
 def tenant_pk(tenant_id: str) -> str:
     return f"TENANT#{tenant_id}"
 
+
 def tenant_key(tenant_id: str) -> dict[str, str]:
     return {"PK": tenant_pk(tenant_id), "SK": "METADATA"}
+
 
 def ddb_value(value: Any) -> Any:
     if isinstance(value, float):
         return Decimal(str(value))
     return value
+
 
 def read_tenant_record(
     *,
@@ -33,6 +36,7 @@ def read_tenant_record(
 ) -> dict[str, Any] | None:
     db = db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
     return db.get_item(tenants_table_name(), tenant_key(tenant_id))
+
 
 def build_update_expression(
     attributes: dict[str, Any],
@@ -48,12 +52,14 @@ def build_update_expression(
         set_parts.append(f"{name_key} = {value_key}")
     return "SET " + ", ".join(set_parts), names, values
 
+
 def read_failover_lock_record(
     caller: CallerIdentity, deps: TenantApiDependencies
 ) -> dict[str, Any] | None:
     import os
 
     from src.tenant_api.constants import DEFAULT_FAILOVER_LOCK_NAME, FAILOVER_LOCK_NAME_ENV
+
     _ = deps
     db = control_plane_db(caller)
     lock_name = os.environ.get(FAILOVER_LOCK_NAME_ENV, DEFAULT_FAILOVER_LOCK_NAME)
