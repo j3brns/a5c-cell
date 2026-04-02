@@ -140,13 +140,27 @@ export class TenantStack extends cdk.Stack {
     // Scoped permissions for S3 (tenants/{tenant_id} prefix)
     executionRole.addToPolicy(
       new iam.PolicyStatement({
-        sid: 'TenantS3Access',
+        sid: 'TenantS3ListAccess',
         effect: iam.Effect.ALLOW,
-        actions: ['s3:GetObject', 's3:PutObject', 's3:ListBucket', 's3:DeleteObject'],
-        resources: [
-          resultsBucketArn,
-          `${resultsBucketArn}/tenants/${tenantId}/*`,
-        ],
+        actions: ['s3:ListBucket'],
+        resources: [resultsBucketArn],
+        conditions: {
+          StringLike: {
+            's3:prefix': [
+              `tenants/${tenantId}`,
+              `tenants/${tenantId}/*`,
+            ],
+          },
+        },
+      }),
+    );
+
+    executionRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'TenantS3ObjectAccess',
+        effect: iam.Effect.ALLOW,
+        actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+        resources: [`${resultsBucketArn}/tenants/${tenantId}/*`],
       }),
     );
 
