@@ -89,4 +89,6 @@ def test_openapi_split_accounts_target_account_id_pattern_matches_runtime_valida
     target_account_schema = schema.get("properties", {}).get("targetAccountId", {})
 
     assert target_account_schema.get("pattern") == "^[0-9]{12}$"
-    assert tenant_api_handler._AWS_ACCOUNT_ID_PATTERN.pattern == "^[0-9]{12}$"
+    from src.tenant_api import constants
+
+    assert constants.AWS_ACCOUNT_ID_PATTERN.pattern == "^[0-9]{12}$"
