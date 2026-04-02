@@ -197,6 +197,12 @@ _as_float = utils.as_float
 _json_default = json_default
 _PLATFORM_TENANT_ID = PLATFORM_TENANT_ID
 
+_response = _response
+_error = _error
+_caller_identity = _caller_identity
+_get_authorizer_map = get_authorizer_map
+_require_json_body = require_json_body
+
 _normalize_agent_status = agent_logic.normalize_agent_status_val
 _validate_agent_status_transition = agent_logic.validate_agent_status_transition
 _agent_event_detail_type = agent_logic.agent_event_detail_type

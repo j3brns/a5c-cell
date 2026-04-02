@@ -54,7 +54,6 @@ def _tenant_context_for_scope(
         app_id=app_id or caller.app_id or "unknown-app",
         tier=tier,
         sub=caller.sub or "system",
-        status=TenantStatus.ACTIVE,
     )
 
 

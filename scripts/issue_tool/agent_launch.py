@@ -73,8 +73,12 @@ def launch_interactive_session(
     elif mux == "tmux":
         from scripts.issue_tool.cli import launch_tmux_session
 
-        launch_tmux_session(session_name or "agent-session", command, path)
+        launch_tmux_session(
+            session_name=session_name or "agent-session", agent_command=command, path=path
+        )
     elif mux == "zellij":
         from scripts.issue_tool.cli import launch_zellij_session
 
-        launch_zellij_session(session_name or "agent-session", command, path)
+        launch_zellij_session(
+            session_name=session_name or "agent-session", agent_command=command, path=path
+        )

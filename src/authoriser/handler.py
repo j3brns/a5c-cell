@@ -18,6 +18,7 @@ from typing import Any
 import boto3
 import jwt
 from aws_lambda_powertools import Logger, Tracer
+from boto3.dynamodb.conditions import Key
 from aws_lambda_powertools.logging import correlation_paths
 from boto3.dynamodb.conditions import Attr
 from jwt import PyJWKClient
@@ -156,11 +157,10 @@ def resolve_sigv4_tenant_binding(caller_arn: str) -> dict[str, str] | None:
             # O(1) GSI Query
             response = table.query(
                 IndexName="gsi-execution-role-arn",
-                KeyConditionExpression=boto3.dynamodb.conditions.Key("executionRoleArn").eq(
-                    role_arn
-                ),
+                KeyConditionExpression=Key("executionRoleArn").eq(role_arn),
                 ProjectionExpression="PK, SK",
             )
+
 
             for index_item in response.get("Items", []):
                 # Follow-up GetItem for full metadata (since GSI is KEYS_ONLY)
