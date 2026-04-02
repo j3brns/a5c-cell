@@ -4,7 +4,7 @@ import os
 from typing import TYPE_CHECKING
 
 from data_access import ControlPlaneDynamoDB, TenantContext, TenantScopedDynamoDB, TenantScopedS3
-from data_access.models import TenantStatus, TenantTier
+from data_access.models import TenantTier
 
 from src.tenant_api.constants import (
     AUDIT_EXPORT_BUCKET_ENV,
