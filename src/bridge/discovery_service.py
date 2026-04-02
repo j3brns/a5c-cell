@@ -6,6 +6,8 @@ from typing import Any
 from boto3.dynamodb.conditions import Key
 from data_access import ControlPlaneDynamoDB, TenantScopedDynamoDB, TenantScopedS3
 from data_access.models import (
+    AgentRecord,
+    AgUiTransport,
     InvocationMode,
     JobStatus,
     TenantContext,
@@ -134,6 +136,69 @@ def list_agents(
         "headers": {"Content-Type": "application/json"},
         "body": json.dumps({"items": summaries}),
     }
+
+
+def resolve_agent_record(
+    dynamodb: Any,
+    *,
+    agents_table: str,
+    agent_name: str,
+    agent_version: str | None = None,
+) -> AgentRecord | None:
+    """Fetch a specific agent version or the latest promoted version."""
+
+    table = dynamodb.Table(agents_table)
+
+    if agent_version:
+        # Direct fetch for specific version
+        resp = table.get_item(Key={"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{agent_version}"})
+        item = resp.get("Item")
+        if item and is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
+            return _agent_record_from_item(item)
+        return None
+
+    # Query for all versions and pick latest promoted
+    response = table.query(KeyConditionExpression=Key("PK").eq(f"AGENT#{agent_name}"))
+    items = response.get("Items", [])
+
+    promoted_items = []
+    for item in items:
+        if is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
+            promoted_items.append(item)
+
+    if not promoted_items:
+        return None
+
+    sorted_items = sorted(promoted_items, key=_agent_record_sort_key, reverse=True)
+    return _agent_record_from_item(sorted_items[0])
+
+
+def _agent_record_from_item(item: dict[str, Any]) -> AgentRecord:
+    from data_access.models import AgentAgUiConfig, AgentRecord, AgentStatus
+
+    ag_ui_item = item.get("ag_ui", {})
+    return AgentRecord(
+        agent_name=str(item.get("agent_name", "")),
+        version=str(item.get("version", "")),
+        owner_team=str(item.get("owner_team", "")),
+        tier_minimum=TenantTier(str(item.get("tier_minimum", TenantTier.BASIC.value))),
+        layer_hash=str(item.get("layer_hash", "")),
+        layer_s3_key=str(item.get("layer_s3_key", "")),
+        script_s3_key=str(item.get("script_s3_key", "")),
+        deployed_at=str(item.get("deployed_at", "")),
+        invocation_mode=InvocationMode(str(item.get("invocation_mode", InvocationMode.SYNC.value))),
+        streaming_enabled=bool(item.get("streaming_enabled", False)),
+        status=AgentStatus(str(item.get("status", AgentStatus.PROMOTED.value))),
+        runtime_arn=_coerce_optional_string(item.get("runtime_arn")),
+        estimated_duration_seconds=item.get("estimated_duration_seconds"),
+        ag_ui=AgentAgUiConfig(
+            enabled=bool(ag_ui_item.get("enabled", False)),
+            transport=AgUiTransport(str(ag_ui_item.get("transport", AgUiTransport.SSE.value))),
+            endpoint=_coerce_optional_string(ag_ui_item.get("endpoint")),
+        )
+        if isinstance(ag_ui_item, dict)
+        else AgentAgUiConfig(),
+    )
 
 
 def get_agent_detail(

@@ -159,7 +159,7 @@ def log_invocation(
     job_id: str | None = None,
     session_id: str | None = None,
     error_code: str | None = None,
-    jitter: float = 0.0,
+    jitter: str | None = None,
 ) -> None:
     """Write invocation audit record to DynamoDB and emit metrics."""
     try:
