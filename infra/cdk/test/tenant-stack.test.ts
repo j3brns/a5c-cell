@@ -29,6 +29,19 @@ describe('TenantStack (TASK-025)', () => {
     return statement as { Action: string[]; Resource: string[]; Sid: string };
   };
 
+  const policyStatement = (template: Template, sid: string) => {
+    const policies = template.findResources('AWS::IAM::Policy') as Record<
+      string,
+      { Properties?: { PolicyDocument?: { Statement?: Array<Record<string, unknown>> } } }
+    >;
+    const statement = Object.values(policies)
+      .flatMap((policy) => policy.Properties?.PolicyDocument?.Statement ?? [])
+      .find((candidate) => candidate.Sid === sid);
+
+    expect(statement).toBeDefined();
+    return statement as Record<string, unknown>;
+  };
+
   const asArray = (value: string | string[]) => (Array.isArray(value) ? value : [value]);
 
   const defaultContext = {
@@ -70,12 +83,34 @@ describe('TenantStack (TASK-025)', () => {
             }),
           }),
           Match.objectLike({
-            Sid: 'TenantS3Access',
-            Action: Match.arrayWith(['s3:GetObject', 's3:PutObject']),
+            Sid: 'TenantS3ListAccess',
+            Action: 's3:ListBucket',
+            Resource: Match.anyValue(),
+            Condition: Match.objectLike({
+              StringLike: {
+                's3:prefix': ['tenants/t-test123', 'tenants/t-test123/*'],
+              },
+            }),
+          }),
+          Match.objectLike({
+            Sid: 'TenantS3ObjectAccess',
+            Action: Match.arrayWith(['s3:GetObject', 's3:PutObject', 's3:DeleteObject']),
             Resource: Match.anyValue(),
           }),
         ]),
       }),
+    });
+  });
+
+  test('limits bucket listing to the tenant results prefix', () => {
+    const template = synthTemplate(defaultContext);
+    const statement = policyStatement(template, 'TenantS3ListAccess');
+
+    expect(asArray(statement.Action as string | string[])).toEqual(['s3:ListBucket']);
+    expect(statement.Condition).toEqual({
+      StringLike: {
+        's3:prefix': ['tenants/t-test123', 'tenants/t-test123/*'],
+      },
     });
   });
 
