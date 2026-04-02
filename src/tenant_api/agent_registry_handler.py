@@ -2,43 +2,45 @@ from __future__ import annotations
 
 from typing import Any
 
-from botocore.exceptions import ClientError
+from aws_lambda_powertools import Logger
+from aws_lambda_powertools.utilities.typing import LambdaContext
 
 try:
-    import agent_registry
     import handler as shared
-except ImportError:  # pragma: no cover - local package import path
-    from src.tenant_api import agent_registry
+
+    from . import http_utils
+except (ImportError, ValueError):  # pragma: no cover
     from src.tenant_api import handler as shared
+    from src.tenant_api import http_utils
+
+logger = Logger(service="tenant-api-agent-registry-handler")
 
 
-@shared.logger.inject_lambda_context(clear_state=True, log_event=False)
-def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
-    method = shared._http_method(event)
-    path = shared._request_path(event)
+@logger.inject_lambda_context(clear_state=True, log_event=False)
+def lambda_handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
+    _ = context
+    method = str(event.get("httpMethod") or "GET").upper()
+    path = str(event.get("path") or "").rstrip("/")
 
     try:
-        if not path.startswith("/v1/platform/agents"):
-            return shared._error(405, "METHOD_NOT_ALLOWED", "Unsupported agent registry route")
         deps = shared._dependencies()
-        caller = shared._caller_identity(event)
-        shared.logger.append_keys(
-            appid=caller.app_id or "unknown",
-            tenantid=caller.tenant_id or "unknown",
-        )
+        caller = http_utils.caller_identity(event)
+        logger.append_keys(appid=caller.app_id or "unknown", tenantid=caller.tenant_id or "unknown")
+
+        try:
+            from . import agent_registry
+        except (ImportError, ValueError):
+            from src.tenant_api import agent_registry
+
         response = agent_registry.dispatch_routes(path, method, event, caller, deps)
         if response:
             return response
-        return shared._error(405, "METHOD_NOT_ALLOWED", "Unsupported agent registry route")
+
+        return http_utils.error(404, "NOT_FOUND", "Route not found")
     except PermissionError as exc:
-        return shared._error(403, "FORBIDDEN", str(exc))
+        return http_utils.error(403, "FORBIDDEN", str(exc))
     except ValueError as exc:
-        return shared._error(400, "BAD_REQUEST", str(exc))
-    except ClientError as exc:
-        shared.logger.exception("AWS client error in agent registry handler")
-        return shared._error(
-            502, "AWS_CLIENT_ERROR", exc.response.get("Error", {}).get("Code", "Unknown")
-        )
+        return http_utils.error(400, "BAD_REQUEST", str(exc))
     except Exception:
-        shared.logger.exception("Unhandled agent registry handler error")
-        return shared._error(500, "INTERNAL_ERROR", "Internal server error")
+        logger.exception("Unhandled error in agent registry handler")
+        return http_utils.error(500, "INTERNAL_ERROR", "Internal server error")

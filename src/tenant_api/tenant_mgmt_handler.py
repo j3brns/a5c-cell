@@ -2,67 +2,77 @@ from __future__ import annotations
 
 from typing import Any
 
-from botocore.exceptions import ClientError
+from aws_lambda_powertools import Logger
+from aws_lambda_powertools.utilities.typing import LambdaContext
 
 try:
     import handler as shared
-    import tenant_lifecycle
-except ImportError:  # pragma: no cover - local package import path
+
+    from . import http_utils, utils, validation
+except (ImportError, ValueError):  # pragma: no cover
     from src.tenant_api import handler as shared
-    from src.tenant_api import tenant_lifecycle
+    from src.tenant_api import http_utils, utils, validation
+
+logger = Logger(service="tenant-api-mgmt")
 
 
-@shared.logger.inject_lambda_context(clear_state=True, log_event=False)
-def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
-    deps = shared._dependencies()
-    detail_type = shared._str_or_none(event.get("detail-type"))
-    source = shared._str_or_none(event.get("source"))
-    if detail_type and source == "platform.tenant_provisioner":
-        detail = event.get("detail") or {}
-        tenant_id = (
-            shared._str_or_none(detail.get("tenantId")) if isinstance(detail, dict) else None
-        )
-        app_id = shared._str_or_none(detail.get("appId")) if isinstance(detail, dict) else None
-        shared.logger.append_keys(appid=app_id or "unknown", tenantid=tenant_id or "unknown")
-        try:
-            return tenant_lifecycle.handle_tenant_provisioning_event(event, deps)
-        except ValueError as exc:
-            return shared._error(400, "BAD_REQUEST", str(exc))
-        except ClientError as exc:
-            shared.logger.exception("AWS client error in tenant provisioning event handler")
-            error_code = exc.response.get("Error", {}).get("Code", "Unknown")
-            return shared._error(502, "AWS_CLIENT_ERROR", error_code)
-
-    caller = shared._caller_identity(event)
-    shared.logger.append_keys(
-        appid=caller.app_id or "unknown",
-        tenantid=caller.tenant_id or "unknown",
-    )
-
-    method = shared._http_method(event)
-    path = shared._request_path(event)
+@logger.inject_lambda_context(clear_state=True, log_event=False)
+def lambda_handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
+    _ = context
+    detail_type = utils.str_or_none(event.get("detail-type"))
+    source = utils.str_or_none(event.get("source"))
 
     try:
-        tenant_id = shared._validated_path_tenant_id(event)
-        if path == "/v1/health" and method == "GET":
-            return tenant_lifecycle.handle_health(deps)
-        if path == "/v1/sessions" and method == "GET":
-            return tenant_lifecycle.handle_sessions(event, caller)
+        deps = shared._dependencies()
+
+        if detail_type and source == "platform.tenant_provisioner":
+            detail = event.get("detail") or {}
+            tenant_id = (
+                utils.str_or_none(detail.get("tenantId")) if isinstance(detail, dict) else None
+            )
+            app_id = utils.str_or_none(detail.get("appId")) if isinstance(detail, dict) else None
+            logger.append_keys(appid=app_id or "unknown", tenantid=tenant_id or "unknown")
+            try:
+                from . import tenant_lifecycle
+            except (ImportError, ValueError):
+                from src.tenant_api import tenant_lifecycle
+            return tenant_lifecycle.handle_tenant_provisioning_event(event, deps)
+
+        caller = http_utils.caller_identity(event)
+        logger.append_keys(appid=caller.app_id or "unknown", tenantid=caller.tenant_id or "unknown")
+
+        method = str(
+            event.get("httpMethod")
+            or event.get("requestContext", {}).get("http", {}).get("method")
+            or "GET"
+        ).upper()
+        path = str(
+            event.get("path") or event.get("requestContext", {}).get("http", {}).get("path") or ""
+        ).rstrip("/")
+
+        path_params = event.get("pathParameters") or {}
+        tenant_id = (
+            validation.canonical_tenant_id(
+                path_params.get("tenantId"), allow_reserved=caller.is_admin
+            )
+            if path_params.get("tenantId")
+            else None
+        )
+
+        try:
+            from . import tenant_lifecycle
+        except (ImportError, ValueError):
+            from src.tenant_api import tenant_lifecycle
 
         response = tenant_lifecycle.dispatch_routes(path, method, event, caller, deps, tenant_id)
         if response:
             return response
 
-        return shared._error(405, "METHOD_NOT_ALLOWED", "Unsupported tenant management route")
+        return http_utils.error(404, "NOT_FOUND", "Route not found")
     except PermissionError as exc:
-        return shared._error(403, "FORBIDDEN", str(exc))
+        return http_utils.error(403, "FORBIDDEN", str(exc))
     except ValueError as exc:
-        return shared._error(400, "BAD_REQUEST", str(exc))
-    except ClientError as exc:
-        shared.logger.exception("AWS client error in tenant management handler")
-        return shared._error(
-            502, "AWS_CLIENT_ERROR", exc.response.get("Error", {}).get("Code", "Unknown")
-        )
+        return http_utils.error(400, "BAD_REQUEST", str(exc))
     except Exception:
-        shared.logger.exception("Unhandled tenant management handler error")
-        return shared._error(500, "INTERNAL_ERROR", "Internal server error")
+        logger.exception("Unhandled error in tenant mgmt handler")
+        return http_utils.error(500, "INTERNAL_ERROR", "Internal server error")
