@@ -1,20 +1,22 @@
 from __future__ import annotations
+
 from pathlib import Path
 from typing import Literal
-from scripts.issue_tool.models import Issue, QueueItem, QueueSelection
-from scripts.issue_tool.github_client import gh_json
-from scripts.issue_tool.shared import CliError
-from scripts.issue_tool.constants import (
-    SEQ_RE,
-    DEPENDS_RE,
-)
 
+from scripts.issue_tool.constants import (
+    DEPENDS_RE,
+    SEQ_RE,
+)
+from scripts.issue_tool.github_client import gh_json
 from scripts.issue_tool.logic import (
-    parse_task_id_from_issue,
-    parse_depends,
     lifecycle_status,
+    parse_depends,
+    parse_task_id_from_issue,
     queue_task_issues,
 )
+from scripts.issue_tool.models import Issue, QueueItem, QueueSelection
+from scripts.issue_tool.shared import CliError
+
 
 def parse_issue_meta(body: str) -> tuple[int | None, list[str]]:
     seq = int(m.group(1)) if (m := SEQ_RE.search(body or "")) else None
@@ -96,7 +98,7 @@ def build_queue(
     if from_issue is not None:
         open_task = [i for i in open_task if i.number >= from_issue]
         source_notes.append(f"starting from issue #{from_issue}")
-    
+
     queued_open_task = [i for i in open_task if lifecycle_status(i) != "in-progress"]
     open_ready = [i for i in queued_open_task if "ready" in i.labels]
 

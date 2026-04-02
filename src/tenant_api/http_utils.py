@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 import json
 from typing import Any
-from src.tenant_api.utils import json_default, str_or_none
+
 from src.tenant_api.models import CallerIdentity
+from src.tenant_api.utils import json_default, str_or_none
+
 
 def response(status_code: int, body: dict[str, Any]) -> dict[str, Any]:
     return {

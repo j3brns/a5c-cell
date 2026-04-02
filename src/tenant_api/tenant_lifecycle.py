@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from typing import Any
+
 from data_access.models import TenantStatus
 
 try:
-    from . import constants, http_utils, models, utils, validation
     import handler as shared
+
+    from . import http_utils, models, utils, validation
 except (ImportError, ValueError):  # pragma: no cover
-    from src.tenant_api import constants, handler as shared, http_utils, models, utils, validation
+    from src.tenant_api import handler as shared
+    from src.tenant_api import http_utils, models, utils, validation
 
 
 def handle_create(

@@ -1,6 +1,8 @@
 from __future__ import annotations
-from src.tenant_api.models import CallerIdentity
+
 from src.tenant_api.constants import SELF_SERVICE_ADMIN_ROLES
+from src.tenant_api.models import CallerIdentity
+
 
 def require_admin(caller: CallerIdentity) -> None:
     if not caller.is_admin:

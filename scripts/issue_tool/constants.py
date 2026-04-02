@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import re
 
 WORKTREE_BRANCH_REGEX = re.compile(r"^wt/[a-z0-9._-]+/[0-9]+-[a-z0-9._-]+$")

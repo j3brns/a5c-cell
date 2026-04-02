@@ -1,13 +1,18 @@
 from __future__ import annotations
+
 from decimal import Decimal
 from typing import Any
-from src.tenant_api.models import CallerIdentity, TenantApiDependencies
+
 from src.tenant_api.db_factory import (
+    control_plane_db,
     db_for_tenant,
     tenants_table_name,
-    control_plane_db,
+)
+from src.tenant_api.db_factory import (
     ops_locks_table_name as _ops_locks_table_name,
 )
+from src.tenant_api.models import CallerIdentity, TenantApiDependencies
+
 
 def tenant_pk(tenant_id: str) -> str:
     return f"TENANT#{tenant_id}"
@@ -46,8 +51,9 @@ def build_update_expression(
 def read_failover_lock_record(
     caller: CallerIdentity, deps: TenantApiDependencies
 ) -> dict[str, Any] | None:
-    from src.tenant_api.constants import DEFAULT_FAILOVER_LOCK_NAME, FAILOVER_LOCK_NAME_ENV
     import os
+
+    from src.tenant_api.constants import DEFAULT_FAILOVER_LOCK_NAME, FAILOVER_LOCK_NAME_ENV
     _ = deps
     db = control_plane_db(caller)
     lock_name = os.environ.get(FAILOVER_LOCK_NAME_ENV, DEFAULT_FAILOVER_LOCK_NAME)

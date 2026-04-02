@@ -28,6 +28,38 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
+from scripts.issue_queue import (
+    build_queue,
+    fetch_repo_issues,
+    parse_issue_meta,
+)
+
+from scripts.issue_tool.agent_launch import (
+    AGENT_CAPABILITIES,
+    DEFAULT_INTERACTIVE_AGENT_POOL,
+    build_agent_launch_command,
+    launch_interactive_session,
+    resolve_launch_request,
+)
+from scripts.issue_tool.constants import (
+    ANSI_ESCAPE_RE,
+    CR_TITLE_RE,
+    DEPENDS_RE,
+    DETACHED_STARTUP_PROBE_INTERVAL_SECONDS,
+    DETACHED_STARTUP_PROBE_SECONDS,
+    MANAGED_TASK_ID_RE,
+    SEQ_RE,
+    STATUS_LABELS,
+    TASK_ID_TOKEN_RE,
+    TITLE_TASK_RE,
+    VALIDATION_RECEIPTS_DIR,
+    WORKTREE_AGENT_RUN_DIR,
+    WORKTREE_BRANCH_ISSUE_RE,
+    WORKTREE_BRANCH_REGEX,
+    WORKTREE_CLOSEOUT_DIR,
+    WORKTREE_RUNS_DIR,
+    WORKTREE_STATE_DIR,
+)
 from scripts.issue_tool.evidence import (
     audit_issue_handoff_evidence as _audit_issue_handoff_evidence,
 )
@@ -52,6 +84,13 @@ from scripts.issue_tool.evidence import (
 from scripts.issue_tool.evidence import (
     write_validation_receipt as _write_validation_receipt,
 )
+from scripts.issue_tool.git_utils import (
+    current_path,
+    eprint,
+    origin_repo_slug,
+    repo_root,
+    run,
+)
 from scripts.issue_tool.github_client import (
     WORKFLOW_LABEL_DEFAULTS,
     ensure_label_exists,
@@ -60,63 +99,28 @@ from scripts.issue_tool.github_client import (
     gh_text,
     shutil_which,
 )
-from scripts.issue_tool.shared import CliError
+from scripts.issue_tool.logic import (
+    assert_issue_startable,
+    choose_reconciled_status,
+    edit_issue_labels,
+    lifecycle_status,
+    normalize_closed_issue_labels,
+    parse_depends,
+    parse_task_id_from_issue,
+    queue_task_issues,
+    reconcile_issue_label_changes,
+    status_labels,
+)
 from scripts.issue_tool.models import (
-    WorktreeInfo,
+    AuditFinding,
+    BatchLaunchResult,
     Issue,
     QueueItem,
     QueueSelection,
-    BatchLaunchResult,
-    AuditFinding,
     SessionPair,
+    WorktreeInfo,
 )
-from scripts.issue_tool.git_utils import (
-    run,
-    eprint,
-    repo_root,
-    current_path,
-    origin_repo_slug,
-)
-from scripts.issue_tool.agent_launch import (
-    AGENT_CAPABILITIES,
-    DEFAULT_INTERACTIVE_AGENT_POOL,
-    resolve_launch_request,
-    build_agent_launch_command,
-    launch_interactive_session,
-)
-from scripts.issue_tool.constants import (
-    WORKTREE_BRANCH_REGEX,
-    WORKTREE_BRANCH_ISSUE_RE,
-    MANAGED_TASK_ID_RE,
-    SEQ_RE,
-    DEPENDS_RE,
-    TASK_ID_TOKEN_RE,
-    TITLE_TASK_RE,
-    CR_TITLE_RE,
-    STATUS_LABELS,
-    ANSI_ESCAPE_RE,
-    WORKTREE_CLOSEOUT_DIR,
-    WORKTREE_RUNS_DIR,
-    WORKTREE_AGENT_RUN_DIR,
-    WORKTREE_STATE_DIR,
-    VALIDATION_RECEIPTS_DIR,
-    DETACHED_STARTUP_PROBE_SECONDS,
-    DETACHED_STARTUP_PROBE_INTERVAL_SECONDS,
-)
-
-
-from scripts.issue_tool.logic import (
-    parse_task_id_from_issue,
-    parse_depends,
-    lifecycle_status,
-    queue_task_issues,
-    status_labels,
-)
-from scripts.issue_queue import (
-    parse_issue_meta,
-    fetch_repo_issues,
-    build_queue,
-)
+from scripts.issue_tool.shared import CliError
 
 
 def print_queue(
@@ -1441,15 +1445,6 @@ def fetch_issue_labels_for_prompt(root: Path, repo: str | None, issue_id: int | 
 
 def choose_default_launch_agent(pool: tuple[str, ...] = DEFAULT_INTERACTIVE_AGENT_POOL) -> str:
     return random.choice(pool)
-
-
-def resolve_launch_request(args: argparse.Namespace) -> tuple[str, str, str, str | None]:
-    agent_raw = getattr(args, "agent", None) or "codex"
-    agent = choose_default_launch_agent() if agent_raw == "random" else agent_raw
-    agent_mode = getattr(args, "agent_mode", None) or "yolo"
-    handoff = getattr(args, "handoff", None) or "execute-now"
-    mux = resolve_mux_flag(args)
-    return agent, agent_mode, handoff, mux
 
 
 def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) -> str:

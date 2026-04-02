@@ -1,14 +1,16 @@
 from __future__ import annotations
+
 import json
 import os
 import secrets
-from typing import Any
+
 from aws_lambda_powertools import Logger
-from src.tenant_api.models import TenantApiDependencies
+
 from src.tenant_api.constants import (
     API_KEY_SECRET_PREFIX_ENV,
     TENANT_MGMT_ROLE_ARN_ENV,
 )
+from src.tenant_api.models import TenantApiDependencies
 
 logger = Logger(service="tenant-api-secrets")
 

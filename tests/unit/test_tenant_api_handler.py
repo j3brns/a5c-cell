@@ -461,10 +461,10 @@ def fake_state(monkeypatch: pytest.MonkeyPatch, fixed_now: datetime) -> dict[str
     monkeypatch.setattr(tenant_api_handler, "_dependencies", lambda: deps)
     monkeypatch.setattr(tenant_api_handler, "_db_for_tenant", lambda **_kwargs: db)
     monkeypatch.setattr(tenant_api_handler, "_control_plane_db", lambda *_args, **_kwargs: db)
-    
+
     # Consistently mock time across all modular boundaries
     monkeypatch.setattr(tenant_api_handler.utils, "_OVERRIDE_NOW", fixed_now)
-    
+
     return {"db": db, "deps": deps}
 
 

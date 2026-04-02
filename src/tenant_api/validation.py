@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from typing import Any
-from src.tenant_api.utils import str_or_none
+
 from src.tenant_api.constants import (
-    TENANT_ID_MIN_LENGTH,
-    TENANT_ID_MAX_LENGTH,
-    TENANT_ID_PATTERN,
     AWS_ACCOUNT_ID_PATTERN,
     RESERVED_TENANT_IDS,
+    TENANT_ID_MAX_LENGTH,
+    TENANT_ID_MIN_LENGTH,
+    TENANT_ID_PATTERN,
 )
+from src.tenant_api.utils import str_or_none
+
 
 def canonical_tenant_id(value: Any, *, allow_reserved: bool = False) -> str:
     tenant_id = str_or_none(value)

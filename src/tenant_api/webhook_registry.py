@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    from . import constants, http_utils, models, utils, validation
     import handler as shared
 except (ImportError, ValueError):  # pragma: no cover
-    from src.tenant_api import constants, handler as shared, http_utils, models, utils, validation
+    from src.tenant_api import handler as shared
 
 
 def handle_list_webhooks(

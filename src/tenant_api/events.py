@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 import json
 import os
 from typing import Any
+
+from src.tenant_api.constants import EVENT_BUS_ENV
 from src.tenant_api.models import TenantApiDependencies
 from src.tenant_api.utils import json_default
-from src.tenant_api.constants import EVENT_BUS_ENV
+
 
 def event_bus_name() -> str:
     return os.environ.get(EVENT_BUS_ENV, "default")

@@ -660,12 +660,12 @@ def test_resolve_sigv4_tenant_binding_invalid_tier_falls_back_to_basic(mock_get_
     authoriser_handler._sigv4_binding_cache.clear()
     mock_table = MagicMock()
     mock_get_dynamodb.return_value.Table.return_value = mock_table
-    
+
     # 1. GSI Query returns PK/SK
     mock_table.query.return_value = {
         "Items": [{"PK": "TENANT#t-test-001", "SK": "METADATA"}]
     }
-    
+
     # 2. GetItem returns full metadata
     mock_table.get_item.return_value = {
         "Item": {

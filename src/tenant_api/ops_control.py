@@ -8,10 +8,9 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 try:
-    from . import constants, http_utils, models, utils, validation
     import handler as shared
 except (ImportError, ValueError):  # pragma: no cover
-    from src.tenant_api import constants, handler as shared, http_utils, models, utils, validation
+    from src.tenant_api import handler as shared
 
 
 PLATFORM_ADMIN_PATHS = {

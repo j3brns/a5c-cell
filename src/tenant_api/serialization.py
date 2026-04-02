@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from typing import Any
+
 
 def serialize_tenant(item: dict[str, Any]) -> dict[str, Any]:
     record = {

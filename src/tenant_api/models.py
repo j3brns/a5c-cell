@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
+
 from src.tenant_api.constants import ADMIN_ROLES
+
 
 @dataclass(frozen=True)
 class CallerIdentity:

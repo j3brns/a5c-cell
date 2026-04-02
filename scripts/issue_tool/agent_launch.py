@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import argparse
 import os
 import shlex
@@ -6,9 +7,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from scripts.issue_tool.git_utils import run, eprint, repo_root, current_path
+
+from scripts.issue_tool.git_utils import current_path, eprint, repo_root, run
+from scripts.issue_tool.models import BatchLaunchResult, Issue
 from scripts.issue_tool.shared import CliError
-from scripts.issue_tool.models import Issue, BatchLaunchResult
 
 AGENT_CAPABILITIES: dict[str, dict[str, bool]] = {
     "gemini": {"requires_tty": False, "supports_detached": True},
@@ -50,7 +52,7 @@ def build_agent_launch_command(
 
     if handoff == "print-only":
         return f"# Launch command for {agent}:\n" + " ".join(cmd)
-    
+
     return " ".join(cmd)
 
 def launch_interactive_session(

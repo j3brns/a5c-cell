@@ -159,7 +159,7 @@ def resolve_sigv4_tenant_binding(caller_arn: str) -> dict[str, str] | None:
                 KeyConditionExpression=boto3.dynamodb.conditions.Key("executionRoleArn").eq(role_arn),
                 ProjectionExpression="PK, SK",
             )
-            
+
             for index_item in response.get("Items", []):
                 # Follow-up GetItem for full metadata (since GSI is KEYS_ONLY)
                 full_item_resp = table.get_item(
@@ -173,15 +173,20 @@ def resolve_sigv4_tenant_binding(caller_arn: str) -> dict[str, str] | None:
                 tenant_id = str(item.get("tenantId") or item.get("tenant_id") or "").strip()
                 app_id = str(item.get("appId") or item.get("app_id") or "").strip()
                 tier = _normalise_tier(str(item.get("tier") or "basic"))
-                
+
                 if tenant_id:
                     result = {"tenant_id": tenant_id, "app_id": app_id, "tier": tier}
                     matches[tenant_id] = result
                     # Update cache for this specific role ARN
-                    _sigv4_binding_cache[role_arn] = (result, now + _SIGV4_BINDING_CACHE_TTL_SECONDS)
+                    _sigv4_binding_cache[role_arn] = (
+                        result,
+                        now + _SIGV4_BINDING_CACHE_TTL_SECONDS,
+                    )
 
     except Exception:
-        logger.exception("Failed to resolve SigV4 tenant binding via GSI", extra={"caller_arn": caller_arn})
+        logger.exception(
+            "Failed to resolve SigV4 tenant binding via GSI", extra={"caller_arn": caller_arn}
+        )
         return None
 
     if not matches:

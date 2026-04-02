@@ -228,7 +228,7 @@ def _fetch_appconfig_config() -> dict[str, Any] | None:
             }
     except Exception:
         logger.warning("Failed to fetch config from local AppConfig extension")
-    
+
     return None
 
 

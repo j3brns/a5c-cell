@@ -1,4 +1,5 @@
 import sys
+
 from scripts.issue_tool.cli import main
 from scripts.issue_tool.shared import CliError
 

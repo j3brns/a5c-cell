@@ -12,12 +12,8 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import secrets
-import urllib.parse
-import uuid
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from typing import Any
 
 import boto3
@@ -34,8 +30,6 @@ from data_access.models import (
     normalize_agent_status,
 )
 
-logger = Logger(service="tenant-api")
-
 from src.tenant_api import (
     auth,
     constants,
@@ -49,99 +43,143 @@ from src.tenant_api import (
     utils,
     validation,
 )
-from src.tenant_api.constants import (
-    TENANTS_TABLE_ENV,
-    AGENTS_TABLE_ENV,
-    INVOCATIONS_TABLE_ENV,
-    EVENT_BUS_ENV,
-    AUDIT_EXPORT_BUCKET_ENV,
-    API_KEY_SECRET_PREFIX_ENV,
-    TENANT_MGMT_ROLE_ARN_ENV,
-    OPS_LOCKS_TABLE_ENV,
-    RUNTIME_REGION_PARAM_ENV,
-    FALLBACK_REGION_PARAM_ENV,
-    FAILOVER_LOCK_NAME_ENV,
-    DELETE_RETENTION_DAYS,
-    ADMIN_ROLES,
-    SELF_SERVICE_ADMIN_ROLES,
-    ALLOWED_TENANT_INVITE_ROLES,
-    INVITE_EXPIRY_DAYS,
-    AUDIT_EXPORT_PREFIX,
-    AUDIT_EXPORT_URL_EXPIRY_SECONDS,
-    AUDIT_EXPORT_PAGE_SIZE,
-    TENANT_ID_MIN_LENGTH,
-    TENANT_ID_MAX_LENGTH,
-    TENANT_ID_PATTERN,
-    AWS_ACCOUNT_ID_PATTERN,
-    RESERVED_TENANT_IDS,
-    DEFAULT_OPS_LOCKS_TABLE,
-    DEFAULT_RUNTIME_REGION_PARAM,
-    DEFAULT_FALLBACK_REGION_PARAM,
-    DEFAULT_FAILOVER_LOCK_NAME,
-    AGENTCORE_QUOTA_NAME,
-    AGENTCORE_CONCURRENT_SESSIONS_NAMESPACE,
-    AGENTCORE_CONCURRENT_SESSIONS_METRIC,
-    AGENTCORE_QUOTA_LOOKBACK_MINUTES,
-    TENANT_PROVISIONING_STATUSES,
-    PLATFORM_TENANT_ID,
+from src.tenant_api.auth import (
+    can_manage_tenant_self_service as _can_manage_tenant_self_service,
 )
-from src.tenant_api.models import CallerIdentity, TenantApiDependencies
-from src.tenant_api.utils import (
-    now_utc,
-    iso,
-    str_or_none,
-    json_default,
-    coerce_positive_int,
+from src.tenant_api.auth import (
+    can_read_tenant as _can_read_tenant,
 )
-from src.tenant_api.http_utils import (
-    response as _response,
-    error as _error,
-    require_json_body,
-    get_authorizer_map,
-    parse_roles,
-    caller_identity as _caller_identity,
-)
-from src.tenant_api.validation import (
-    canonical_tenant_id as _canonical_tenant_id,
-    require_aws_account_id,
-    parse_utc_timestamp,
-    parse_optional_utc_timestamp,
-)
-from src.tenant_api.db_factory import (
-    tenants_table_name as _tenants_table_name,
-    invocations_table_name as _invocations_table_name,
-    audit_export_bucket_name as _audit_export_bucket_name,
-    db_for_tenant as _db_for_tenant,
-    s3_for_tenant as _s3_for_tenant,
-    control_plane_db as _control_plane_db,
+from src.tenant_api.auth import (
+    is_self_service_admin as _is_self_service_admin,
 )
 from src.tenant_api.auth import (
     require_admin as _require_admin,
+)
+from src.tenant_api.auth import (
     require_platform_actor as _require_platform_actor,
-    can_read_tenant as _can_read_tenant,
-    is_self_service_admin as _is_self_service_admin,
-    can_manage_tenant_self_service as _can_manage_tenant_self_service,
+)
+from src.tenant_api.constants import (
+    ADMIN_ROLES,
+    AGENTCORE_CONCURRENT_SESSIONS_METRIC,
+    AGENTCORE_CONCURRENT_SESSIONS_NAMESPACE,
+    AGENTCORE_QUOTA_LOOKBACK_MINUTES,
+    AGENTCORE_QUOTA_NAME,
+    AGENTS_TABLE_ENV,
+    ALLOWED_TENANT_INVITE_ROLES,
+    API_KEY_SECRET_PREFIX_ENV,
+    AUDIT_EXPORT_BUCKET_ENV,
+    AUDIT_EXPORT_PAGE_SIZE,
+    AUDIT_EXPORT_PREFIX,
+    AUDIT_EXPORT_URL_EXPIRY_SECONDS,
+    AWS_ACCOUNT_ID_PATTERN,
+    DEFAULT_FAILOVER_LOCK_NAME,
+    DEFAULT_FALLBACK_REGION_PARAM,
+    DEFAULT_OPS_LOCKS_TABLE,
+    DEFAULT_RUNTIME_REGION_PARAM,
+    DELETE_RETENTION_DAYS,
+    EVENT_BUS_ENV,
+    FAILOVER_LOCK_NAME_ENV,
+    FALLBACK_REGION_PARAM_ENV,
+    INVITE_EXPIRY_DAYS,
+    INVOCATIONS_TABLE_ENV,
+    OPS_LOCKS_TABLE_ENV,
+    PLATFORM_TENANT_ID,
+    RESERVED_TENANT_IDS,
+    RUNTIME_REGION_PARAM_ENV,
+    SELF_SERVICE_ADMIN_ROLES,
+    TENANT_ID_MAX_LENGTH,
+    TENANT_ID_MIN_LENGTH,
+    TENANT_ID_PATTERN,
+    TENANT_MGMT_ROLE_ARN_ENV,
+    TENANT_PROVISIONING_STATUSES,
+    TENANTS_TABLE_ENV,
+)
+from src.tenant_api.db_factory import (
+    audit_export_bucket_name as _audit_export_bucket_name,
+)
+from src.tenant_api.db_factory import (
+    control_plane_db as _control_plane_db,
+)
+from src.tenant_api.db_factory import (
+    db_for_tenant as _db_for_tenant,
+)
+from src.tenant_api.db_factory import (
+    invocations_table_name as _invocations_table_name,
+)
+from src.tenant_api.db_factory import (
+    s3_for_tenant as _s3_for_tenant,
+)
+from src.tenant_api.db_factory import (
+    tenants_table_name as _tenants_table_name,
+)
+from src.tenant_api.db_utils import (
+    build_update_expression as _build_update_expression,
+)
+from src.tenant_api.db_utils import (
+    ddb_value as _ddb_value,
+)
+from src.tenant_api.db_utils import (
+    read_failover_lock_record as _read_failover_lock_record,
+)
+from src.tenant_api.db_utils import (
+    read_tenant_record as _read_tenant_record,
+)
+from src.tenant_api.db_utils import (
+    tenant_key as _tenant_key,
 )
 from src.tenant_api.db_utils import (
     tenant_pk as _tenant_pk,
-    tenant_key as _tenant_key,
-    ddb_value as _ddb_value,
-    read_tenant_record as _read_tenant_record,
-    build_update_expression as _build_update_expression,
-    read_failover_lock_record as _read_failover_lock_record,
 )
 from src.tenant_api.events import (
     event_bus_name as _event_bus_name,
+)
+from src.tenant_api.events import (
     put_event as _put_event,
+)
+from src.tenant_api.http_utils import (
+    caller_identity as _caller_identity,
+)
+from src.tenant_api.http_utils import (
+    error as _error,
+)
+from src.tenant_api.http_utils import (
+    get_authorizer_map,
+    parse_roles,
+    require_json_body,
+)
+from src.tenant_api.http_utils import (
+    response as _response,
+)
+from src.tenant_api.models import CallerIdentity, TenantApiDependencies
+from src.tenant_api.secrets_manager import (
+    attach_tenant_api_key_secret_policy as _attach_tenant_api_key_secret_policy,
+)
+from src.tenant_api.secrets_manager import (
+    create_api_key_secret as _create_api_key_secret,
 )
 from src.tenant_api.secrets_manager import (
     secret_prefix as _secret_prefix,
-    create_api_key_secret as _create_api_key_secret,
-    attach_tenant_api_key_secret_policy as _attach_tenant_api_key_secret_policy,
 )
 from src.tenant_api.serialization import (
     serialize_tenant as _serialize_tenant,
 )
+from src.tenant_api.utils import (
+    coerce_positive_int,
+    iso,
+    json_default,
+    now_utc,
+    str_or_none,
+)
+from src.tenant_api.validation import (
+    canonical_tenant_id as _canonical_tenant_id,
+)
+from src.tenant_api.validation import (
+    parse_optional_utc_timestamp,
+    parse_utc_timestamp,
+    require_aws_account_id,
+)
+
+logger = Logger(service="tenant-api")
 
 # Backward-compatibility aliases for tests and submodules
 _now_utc = now_utc
@@ -153,48 +191,43 @@ _require_aws_account_id = require_aws_account_id
 _parse_utc_timestamp = parse_utc_timestamp
 _parse_optional_utc_timestamp = parse_optional_utc_timestamp
 _coerce_positive_int = coerce_positive_int
-_response = _response
-_error = _error
-_caller_identity = _caller_identity
-_get_authorizer_map = get_authorizer_map
-_require_json_body = require_json_body
-_json_default = json_default
 _as_float = utils.coerce_positive_int
+_json_default = json_default
 _PLATFORM_TENANT_ID = PLATFORM_TENANT_ID
 
-_TENANTS_TABLE_ENV = constants.TENANTS_TABLE_ENV
-_AGENTS_TABLE_ENV = constants.AGENTS_TABLE_ENV
-_INVOCATIONS_TABLE_ENV = constants.INVOCATIONS_TABLE_ENV
-_EVENT_BUS_ENV = constants.EVENT_BUS_ENV
-_AUDIT_EXPORT_BUCKET_ENV = constants.AUDIT_EXPORT_BUCKET_ENV
-_API_KEY_SECRET_PREFIX_ENV = constants.API_KEY_SECRET_PREFIX_ENV
-_TENANT_MGMT_ROLE_ARN_ENV = constants.TENANT_MGMT_ROLE_ARN_ENV
-_OPS_LOCKS_TABLE_ENV = constants.OPS_LOCKS_TABLE_ENV
-_RUNTIME_REGION_PARAM_ENV = constants.RUNTIME_REGION_PARAM_ENV
-_FALLBACK_REGION_PARAM_ENV = constants.FALLBACK_REGION_PARAM_ENV
-_FAILOVER_LOCK_NAME_ENV = constants.FAILOVER_LOCK_NAME_ENV
-_DELETE_RETENTION_DAYS = constants.DELETE_RETENTION_DAYS
-_ADMIN_ROLES = constants.ADMIN_ROLES
-_SELF_SERVICE_ADMIN_ROLES = constants.SELF_SERVICE_ADMIN_ROLES
-_ALLOWED_TENANT_INVITE_ROLES = constants.ALLOWED_TENANT_INVITE_ROLES
-_INVITE_EXPIRY_DAYS = constants.INVITE_EXPIRY_DAYS
-_AUDIT_EXPORT_PREFIX = constants.AUDIT_EXPORT_PREFIX
-_AUDIT_EXPORT_URL_EXPIRY_SECONDS = constants.AUDIT_EXPORT_URL_EXPIRY_SECONDS
-_AUDIT_EXPORT_PAGE_SIZE = constants.AUDIT_EXPORT_PAGE_SIZE
-_TENANT_ID_MIN_LENGTH = constants.TENANT_ID_MIN_LENGTH
-_TENANT_ID_MAX_LENGTH = constants.TENANT_ID_MAX_LENGTH
-_TENANT_ID_PATTERN = constants.TENANT_ID_PATTERN
-_AWS_ACCOUNT_ID_PATTERN = constants.AWS_ACCOUNT_ID_PATTERN
-_RESERVED_TENANT_IDS = constants.RESERVED_TENANT_IDS
-_DEFAULT_OPS_LOCKS_TABLE = constants.DEFAULT_OPS_LOCKS_TABLE
-_DEFAULT_RUNTIME_REGION_PARAM = constants.DEFAULT_RUNTIME_REGION_PARAM
-_DEFAULT_FALLBACK_REGION_PARAM = constants.DEFAULT_FALLBACK_REGION_PARAM
-_DEFAULT_FAILOVER_LOCK_NAME = constants.DEFAULT_FAILOVER_LOCK_NAME
-_AGENTCORE_QUOTA_NAME = constants.AGENTCORE_QUOTA_NAME
-_AGENTCORE_CONCURRENT_SESSIONS_NAMESPACE = constants.AGENTCORE_CONCURRENT_SESSIONS_NAMESPACE
-_AGENTCORE_CONCURRENT_SESSIONS_METRIC = constants.AGENTCORE_CONCURRENT_SESSIONS_METRIC
-_AGENTCORE_QUOTA_LOOKBACK_MINUTES = constants.AGENTCORE_QUOTA_LOOKBACK_MINUTES
-_TENANT_PROVISIONING_STATUSES = constants.TENANT_PROVISIONING_STATUSES
+_TENANTS_TABLE_ENV = TENANTS_TABLE_ENV
+_AGENTS_TABLE_ENV = AGENTS_TABLE_ENV
+_INVOCATIONS_TABLE_ENV = INVOCATIONS_TABLE_ENV
+_EVENT_BUS_ENV = EVENT_BUS_ENV
+_AUDIT_EXPORT_BUCKET_ENV = AUDIT_EXPORT_BUCKET_ENV
+_API_KEY_SECRET_PREFIX_ENV = API_KEY_SECRET_PREFIX_ENV
+_TENANT_MGMT_ROLE_ARN_ENV = TENANT_MGMT_ROLE_ARN_ENV
+_OPS_LOCKS_TABLE_ENV = OPS_LOCKS_TABLE_ENV
+_RUNTIME_REGION_PARAM_ENV = RUNTIME_REGION_PARAM_ENV
+_FALLBACK_REGION_PARAM_ENV = FALLBACK_REGION_PARAM_ENV
+_FAILOVER_LOCK_NAME_ENV = FAILOVER_LOCK_NAME_ENV
+_DELETE_RETENTION_DAYS = DELETE_RETENTION_DAYS
+_ADMIN_ROLES = ADMIN_ROLES
+_SELF_SERVICE_ADMIN_ROLES = SELF_SERVICE_ADMIN_ROLES
+_ALLOWED_TENANT_INVITE_ROLES = ALLOWED_TENANT_INVITE_ROLES
+_INVITE_EXPIRY_DAYS = INVITE_EXPIRY_DAYS
+_AUDIT_EXPORT_PREFIX = AUDIT_EXPORT_PREFIX
+_AUDIT_EXPORT_URL_EXPIRY_SECONDS = AUDIT_EXPORT_URL_EXPIRY_SECONDS
+_AUDIT_EXPORT_PAGE_SIZE = AUDIT_EXPORT_PAGE_SIZE
+_TENANT_ID_MIN_LENGTH = TENANT_ID_MIN_LENGTH
+_TENANT_ID_MAX_LENGTH = TENANT_ID_MAX_LENGTH
+_TENANT_ID_PATTERN = TENANT_ID_PATTERN
+_AWS_ACCOUNT_ID_PATTERN = AWS_ACCOUNT_ID_PATTERN
+_RESERVED_TENANT_IDS = RESERVED_TENANT_IDS
+_DEFAULT_OPS_LOCKS_TABLE = DEFAULT_OPS_LOCKS_TABLE
+_DEFAULT_RUNTIME_REGION_PARAM = DEFAULT_RUNTIME_REGION_PARAM
+_DEFAULT_FALLBACK_REGION_PARAM = DEFAULT_FALLBACK_REGION_PARAM
+_DEFAULT_FAILOVER_LOCK_NAME = DEFAULT_FAILOVER_LOCK_NAME
+_AGENTCORE_QUOTA_NAME = AGENTCORE_QUOTA_NAME
+_AGENTCORE_CONCURRENT_SESSIONS_NAMESPACE = AGENTCORE_CONCURRENT_SESSIONS_NAMESPACE
+_AGENTCORE_CONCURRENT_SESSIONS_METRIC = AGENTCORE_CONCURRENT_SESSIONS_METRIC
+_AGENTCORE_QUOTA_LOOKBACK_MINUTES = AGENTCORE_QUOTA_LOOKBACK_MINUTES
+_TENANT_PROVISIONING_STATUSES = TENANT_PROVISIONING_STATUSES
 
 
 def _query_params(event: dict[str, Any]) -> dict[str, Any]:
@@ -227,14 +260,6 @@ def _validated_path_tenant_id(event: dict[str, Any], *, allow_reserved: bool = F
     return _canonical_tenant_id(tenant_id, allow_reserved=allow_reserved)
 
 
-def _tenant_pk(tenant_id: str) -> str:
-    return f"TENANT#{tenant_id}"
-
-
-def _tenant_key(tenant_id: str) -> dict[str, str]:
-    return {"PK": _tenant_pk(tenant_id), "SK": "METADATA"}
-
-
 def _format_export_timestamp(dt: datetime) -> str:
     return dt.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
@@ -265,49 +290,12 @@ def _optional_ssm_parameter(ssm: Any, name: str) -> str | None:
     return _ssm_parameter_value(ssm, name, required=False)
 
 
-def _tenants_table_name() -> str:
-    return os.environ.get(TENANTS_TABLE_ENV, "platform-tenants")
-
-
-def _invocations_table_name() -> str:
-    return os.environ.get(INVOCATIONS_TABLE_ENV, "platform-invocations")
-
-
-def _agents_table_name() -> str:
-    return os.environ.get(AGENTS_TABLE_ENV, "platform-agents")
-
-
-def _event_bus_name() -> str:
-    return os.environ.get(EVENT_BUS_ENV, "default")
-
-
-def _audit_export_bucket() -> str | None:
-    return str_or_none(os.environ.get(AUDIT_EXPORT_BUCKET_ENV))
-
-
-def _secret_prefix() -> str:
-    return os.environ.get(API_KEY_SECRET_PREFIX_ENV, "platform/tenants")
-
-
-def _audit_export_url_expiry_seconds() -> int:
-    raw = os.environ.get("AUDIT_EXPORT_URL_EXPIRY_SECONDS")
-    return coerce_positive_int(raw, default=AUDIT_EXPORT_URL_EXPIRY_SECONDS)
-
-
-def _ops_locks_table_name() -> str:
-    return os.environ.get(OPS_LOCKS_TABLE_ENV, DEFAULT_OPS_LOCKS_TABLE)
-
-
 def _runtime_region_param_name() -> str:
     return os.environ.get(RUNTIME_REGION_PARAM_ENV, DEFAULT_RUNTIME_REGION_PARAM)
 
 
 def _fallback_region_param_name() -> str:
     return os.environ.get(FALLBACK_REGION_PARAM_ENV, DEFAULT_FALLBACK_REGION_PARAM)
-
-
-def _failover_lock_name() -> str:
-    return os.environ.get(FAILOVER_LOCK_NAME_ENV, DEFAULT_FAILOVER_LOCK_NAME)
 
 
 def _dependencies() -> TenantApiDependencies:
