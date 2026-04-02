@@ -217,9 +217,7 @@ def import_github_issues(
     lane: str,
 ) -> int:
     ensure_lane(board, lane)
-    existing_issue_numbers = {
-        card.issue for card in board_cards(board) if card.issue is not None
-    }
+    existing_issue_numbers = {card.issue for card in board_cards(board) if card.issue is not None}
     added = 0
     for issue in issues:
         issue_number = issue.get("number")
