@@ -303,28 +303,28 @@ team preference:
 
 | Store | Owns | Does not own |
 |-------|------|--------------|
-| **AppConfig** | Dynamic tenant capability policy: tier feature enablement, capability flags, kill switches, model/tool availability, rollout controls | Tenant state, resource inventory, execution-role ARNs, memory-store ARNs |
-| **SSM Parameter Store** | Platform/runtime parameters: active runtime region, failover parameters, stable service endpoints, AppConfig bootstrap identifiers | Tenant feature policy, invocation state |
+| **AppConfig** | Dynamic tenant capability policy: tier feature enablement, capability flags, kill switches, model/tool availability, rollout controls. **Runtime parameters:** active runtime region, mock service URLs. | Tenant state, resource inventory, execution-role ARNs, memory-store ARNs |
+| **SSM Parameter Store** | Operational bootstrap identifiers: AppConfig application/environment/profile IDs. Legacy/fallback platform parameters. | Tenant feature policy, invocation state, hot-path runtime settings |
 | **DynamoDB** | Tenant metadata and transactional state: status, budgets, execution-role ARN, memory-store ARN, audit/job/session records | Rollout-managed capability toggles |
 
-Control-plane Lambdas cache capability policy locally and evaluate it with
-deny-by-default fallback semantics: use the last known good AppConfig document
-when available, otherwise fall back to an empty policy that enables nothing.
-Kill switches override all rollout rules. Rollback of capability changes uses
-AppConfig version history rather than ad hoc DynamoDB edits. Capability changes
-deploy through a bounded rollout strategy with bake time rather than immediate
-100% rollout.
+Control-plane Lambdas (Bridge, Authoriser, Admin APIs) leverage the **AWS AppConfig Lambda Extension**
+to cache all policy and runtime configuration locally. This eliminates the high-latency network
+round-trip to SSM/AppConfig APIs on the hot path, bringing configuration access down to **sub-millisecond**
+latency.
+
+Control-plane Lambdas evaluate configuration with deny-by-default fallback semantics: use the last known
+good AppConfig document when available, otherwise fall back to an empty policy (for capabilities) or
+the ADR-approved regional default (for runtime settings). Kill switches override all rollout rules.
+Rollback of configuration changes uses AppConfig version history rather than ad hoc DynamoDB edits.
+Capability and regional changes deploy through a bounded rollout strategy with bake time.
 
 ### Safe Defaults And Fallbacks
 
-- **AppConfig** is fail-closed for tenant capabilities. If a fetch fails, use the
-  last known good cached document; if none exists, use an empty policy that
-  enables nothing. Control-plane code must not reconstruct capability policy
-  from DynamoDB or SSM.
-- **SSM Parameter Store** is for operational inputs only. Missing or invalid SSM
-  values must never widen tenant capability access. Where a runtime-safe default
-  exists in code, it must be an explicitly approved operational default inside
-  the ADR-defined region policy, not an inferred tenant-policy value.
+- **AppConfig** is the primary source for runtime and capability policy. If a fetch from the local
+  extension fails, handlers attempt a direct fallback to SSM; if that also fails, they use an
+  explicitly approved operational default defined in code.
+- **SSM Parameter Store** remains for administrative and bootstrap reference. Missing or invalid SSM
+  values must never widen tenant capability access.
 - **DynamoDB** remains authoritative for tenant metadata and transactional state.
   If required tenant or resource records are absent, handlers fail the specific
   operation rather than rebuilding tenant state from AppConfig documents or SSM

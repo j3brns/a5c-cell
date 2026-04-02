@@ -6,9 +6,10 @@ from botocore.exceptions import ClientError
 from data_access.models import REGISTERABLE_AGENT_STATUSES, AgentStatus, normalize_agent_status
 
 try:
+    from . import constants, http_utils, models, utils, validation
     import handler as shared
-except ImportError:  # pragma: no cover - local package import path
-    from src.tenant_api import handler as shared
+except (ImportError, ValueError):  # pragma: no cover
+    from src.tenant_api import constants, handler as shared, http_utils, models, utils, validation
 
 
 _REGISTER_MUTABLE_FIELDS = frozenset(

@@ -206,8 +206,40 @@ def get_runtime_client(region: str, credentials: dict[str, Any] | None = None) -
     return session.client(**client_kwargs)
 
 
+def _fetch_appconfig_config() -> dict[str, Any] | None:
+    """Fetch configuration from the local AppConfig Lambda Extension."""
+    app_id = os.environ.get("APPCONFIG_APPLICATION_ID")
+    env_id = os.environ.get("APPCONFIG_ENVIRONMENT_ID")
+    profile_id = os.environ.get("APPCONFIG_PROFILE_ID")
+
+    if not all([app_id, env_id, profile_id]):
+        return None
+
+    url = f"http://localhost:2772/applications/{app_id}/environments/{env_id}/configurations/{profile_id}"
+    try:
+        session = get_http_session()
+        response = session.get(url, timeout=1.0)
+        if response.status_code == 200:
+            config = response.json()
+            # Map AppConfig JSON structure to Bridge config expectations
+            return {
+                "runtime_region": config.get("runtime_region", "eu-west-1"),
+                "mock_runtime_url": config.get("mock_runtime_url"),
+            }
+    except Exception:
+        logger.warning("Failed to fetch config from local AppConfig extension")
+    
+    return None
+
+
 def _fetch_ssm_config() -> dict[str, Any]:
-    """Fetch Bridge runtime configuration from SSM."""
+    """Fetch Bridge runtime configuration from local AppConfig or SSM fallback."""
+    # 1. Try local AppConfig Extension (0ms hot path)
+    config = _fetch_appconfig_config()
+    if config:
+        return config
+
+    # 2. Fallback to direct SSM API calls
     try:
         ssm = get_ssm()
         names = [RUNTIME_REGION_PARAM, MOCK_RUNTIME_URL_PARAM]
@@ -219,13 +251,12 @@ def _fetch_ssm_config() -> dict[str, Any]:
             if p.get("Name") and p.get("Value")
         }
 
-        _config_cache = {
+        return {
             "runtime_region": params.get(RUNTIME_REGION_PARAM, "eu-west-1"),
             "mock_runtime_url": params.get(MOCK_RUNTIME_URL_PARAM),
         }
-        return _config_cache
     except Exception:
-        logger.exception("Failed to fetch config from SSM")
+        logger.exception("Failed to fetch config from SSM fallback")
         raise
 
 

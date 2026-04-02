@@ -1,32 +1,34 @@
 from __future__ import annotations
 
 from typing import Any
+from data_access.models import TenantStatus
 
 try:
+    from . import constants, http_utils, models, utils, validation
     import handler as shared
-except ImportError:  # pragma: no cover - local package import path
-    from src.tenant_api import handler as shared
+except (ImportError, ValueError):  # pragma: no cover
+    from src.tenant_api import constants, handler as shared, http_utils, models, utils, validation
 
 
 def handle_create(
     event: dict[str, Any],
-    caller: shared.CallerIdentity,
-    deps: shared.TenantApiDependencies,
+    caller: models.CallerIdentity,
+    deps: models.TenantApiDependencies,
 ) -> dict[str, Any]:
     shared._require_admin(caller)
-    body = shared._require_json_body(event)
+    body = http_utils.require_json_body(event)
     required = ["tenantId", "appId", "displayName", "tier", "ownerEmail", "ownerTeam", "accountId"]
-    missing = [field for field in required if shared._str_or_none(body.get(field)) is None]
+    missing = [field for field in required if utils.str_or_none(body.get(field)) is None]
     if missing:
         raise ValueError(f"Missing required field(s): {', '.join(missing)}")
 
-    tenant_id = shared._canonical_tenant_id(body["tenantId"])
+    tenant_id = validation.canonical_tenant_id(body["tenantId"])
     app_id = str(body["appId"]).strip()
-    now = shared._now_utc()
+    now = utils.now_utc()
     tier = shared._normalize_tier(body.get("tier"))
 
     if shared._read_tenant_record(tenant_id=tenant_id, caller=caller, app_id=app_id) is not None:
-        return shared._error(409, "CONFLICT", "Tenant already exists")
+        return http_utils.error(409, "CONFLICT", "Tenant already exists")
 
     memory_info = deps.memory_provisioner.provision(tenant_id=tenant_id, app_id=app_id) or {}
     api_key_secret_arn = shared._create_api_key_secret(deps, tenant_id=tenant_id, app_id=app_id)
@@ -36,11 +38,11 @@ def handle_create(
         "appId": app_id,
         "displayName": str(body["displayName"]).strip(),
         "tier": tier,
-        "status": shared.TenantStatus.ACTIVE.value,
-        "createdAt": shared._iso(now),
-        "updatedAt": shared._iso(now),
+        "status": TenantStatus.ACTIVE.value,
+        "createdAt": utils.iso(now),
+        "updatedAt": utils.iso(now),
         "provisioningStatus": "pending",
-        "provisioningUpdatedAt": shared._iso(now),
+        "provisioningUpdatedAt": utils.iso(now),
         "ownerEmail": str(body["ownerEmail"]).strip(),
         "ownerTeam": str(body["ownerTeam"]).strip(),
         "accountId": str(body["accountId"]).strip(),

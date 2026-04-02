@@ -24,7 +24,6 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -62,428 +61,62 @@ from scripts.issue_tool.github_client import (
     shutil_which,
 )
 from scripts.issue_tool.shared import CliError
-
-WORKTREE_BRANCH_REGEX = re.compile(r"^wt/[a-z0-9._-]+/[0-9]+-[a-z0-9._-]+$")
-WORKTREE_BRANCH_ISSUE_RE = re.compile(r"^wt/[^/]+/([0-9]+)-")
-MANAGED_TASK_ID_RE = re.compile(r"<!--\s*codex-task-id:\s*(TASK-\d+)\s*-->", re.I)
-SEQ_RE = re.compile(r"(?mi)^Seq:\s*(\d+)\s*$")
-DEPENDS_RE = re.compile(r"(?mi)^Depends on:\s*(.+?)\s*$")
-TASK_ID_TOKEN_RE = re.compile(r"TASK-\d+")
-TITLE_TASK_RE = re.compile(r"^(TASK-\d+):\s")
-CR_TITLE_RE = re.compile(r"^CR-\d+\b", re.I)
-STATUS_LABELS = {"status:not-started", "status:in-progress", "status:blocked", "status:done"}
-ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
-WORKTREE_CLOSEOUT_DIR = ".build/worktree-closeouts"
-WORKTREE_RUNS_DIR = ".build/worktree-runs"
-WORKTREE_AGENT_RUN_DIR = ".build/agent-run"
-WORKTREE_STATE_DIR = ".build/worktree-state"
-VALIDATION_RECEIPTS_DIR = ".build/validation-receipts"
-DETACHED_STARTUP_PROBE_SECONDS = 0.5
-DETACHED_STARTUP_PROBE_INTERVAL_SECONDS = 0.1
-AGENT_CAPABILITIES: dict[str, dict[str, bool]] = {
-    "gemini": {"requires_tty": False, "supports_detached": True},
-    "claude": {"requires_tty": True, "supports_detached": False},
-    "codex": {"requires_tty": True, "supports_detached": False},
-}
-DEFAULT_INTERACTIVE_AGENT_POOL = ("codex", "gemini", "claude")
-
-
-@dataclass(slots=True)
-class WorktreeInfo:
-    path: Path
-    head: str
-    branch: str
-    is_primary: bool = False
-
-
-@dataclass(slots=True)
-class Issue:
-    number: int
-    title: str
-    state: str
-    created_at: str
-    body: str
-    labels: list[str]
-    url: str
-    task_id: str | None = None
-    seq: int | None = None
-    depends_on: list[str] = field(default_factory=list)
-
-    def has_label(self, label: str) -> bool:
-        return label in self.labels
-
-    def priority_rank(self) -> int:
-        labelset = {label.lower() for label in self.labels}
-        if {"p0", "priority:p0", "priority:high", "priority:critical"} & labelset:
-            return 0
-        if {"p1", "priority:p1", "priority:medium"} & labelset:
-            return 1
-        if {"p2", "priority:p2", "priority:low"} & labelset:
-            return 2
-        if {"p3", "priority:p3"} & labelset:
-            return 3
-        return 50
-
-    @property
-    def is_parent_cr(self) -> bool:
-        return bool(CR_TITLE_RE.match(self.title.strip()))
+from scripts.issue_tool.models import (
+    WorktreeInfo,
+    Issue,
+    QueueItem,
+    QueueSelection,
+    BatchLaunchResult,
+    AuditFinding,
+    SessionPair,
+)
+from scripts.issue_tool.git_utils import (
+    run,
+    eprint,
+    repo_root,
+    current_path,
+    origin_repo_slug,
+)
+from scripts.issue_tool.agent_launch import (
+    AGENT_CAPABILITIES,
+    DEFAULT_INTERACTIVE_AGENT_POOL,
+    resolve_launch_request,
+    build_agent_launch_command,
+    launch_interactive_session,
+)
+from scripts.issue_tool.constants import (
+    WORKTREE_BRANCH_REGEX,
+    WORKTREE_BRANCH_ISSUE_RE,
+    MANAGED_TASK_ID_RE,
+    SEQ_RE,
+    DEPENDS_RE,
+    TASK_ID_TOKEN_RE,
+    TITLE_TASK_RE,
+    CR_TITLE_RE,
+    STATUS_LABELS,
+    ANSI_ESCAPE_RE,
+    WORKTREE_CLOSEOUT_DIR,
+    WORKTREE_RUNS_DIR,
+    WORKTREE_AGENT_RUN_DIR,
+    WORKTREE_STATE_DIR,
+    VALIDATION_RECEIPTS_DIR,
+    DETACHED_STARTUP_PROBE_SECONDS,
+    DETACHED_STARTUP_PROBE_INTERVAL_SECONDS,
+)
 
 
-@dataclass(slots=True)
-class QueueItem:
-    issue: Issue
-    runnable: bool
-    blocked_reasons: list[str] = field(default_factory=list)
-
-
-@dataclass(slots=True)
-class QueueSelection:
-    source_mode: str
-    items: list[QueueItem]
-    source_note: str = ""
-
-    @property
-    def runnable(self) -> list[QueueItem]:
-        return [item for item in self.items if item.runnable]
-
-
-@dataclass(slots=True)
-class AuditFinding:
-    severity: Literal["error", "warning"]
-    issue_number: int
-    message: str
-
-
-@dataclass(slots=True)
-class SessionPair:
-    label: str
-    session_name: str
-
-
-@dataclass(slots=True)
-class BatchLaunchResult:
-    issue_number: int
-    agent: str
-    worktree_path: Path
-    branch: str
-    command: str
-    state: str
-    pid: int | None = None
-    local_status_path: Path | None = None
-    stdout_log_path: Path | None = None
-    stderr_log_path: Path | None = None
-    backend: str = "detached"
-    session_name: str | None = None
-    window_name: str | None = None
-    detail: str = ""
-
-
-def run(
-    cmd: list[str],
-    *,
-    cwd: Path | None = None,
-    check: bool = True,
-    capture_output: bool = True,
-    text: bool = True,
-    input_text: str | None = None,
-) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        cmd,
-        cwd=str(cwd) if cwd else None,
-        check=check,
-        capture_output=capture_output,
-        text=text,
-        input=input_text,
-    )
-
-
-def eprint(msg: str) -> None:
-    print(msg, file=sys.stderr)
-
-
-def repo_root() -> Path:
-    try:
-        return Path(run(["git", "rev-parse", "--show-toplevel"]).stdout.strip())
-    except subprocess.CalledProcessError as exc:
-        raise CliError("Not inside a git repository") from exc
-
-
-def current_path() -> Path:
-    return Path.cwd().resolve()
-
-
-def origin_repo_slug(root: Path) -> str:
-    try:
-        url = run(["git", "remote", "get-url", "origin"], cwd=root).stdout.strip()
-    except subprocess.CalledProcessError as exc:
-        raise CliError("Could not read git remote 'origin'") from exc
-    if url.startswith("git@") and "github.com:" in url:
-        path = url.split("github.com:", 1)[1]
-    elif "github.com/" in url:
-        path = url.split("github.com/", 1)[1]
-    else:
-        raise CliError(f"Origin is not a GitHub remote: {url}")
-    return path.removesuffix(".git").strip("/")
-
-
-def parse_task_id_from_issue(issue: dict) -> str | None:
-    body = str(issue.get("body") or "")
-    title = str(issue.get("title") or "")
-    if m := MANAGED_TASK_ID_RE.search(body):
-        return m.group(1).upper()
-    if m := TITLE_TASK_RE.match(title):
-        return m.group(1).upper()
-    return None
-
-
-def parse_depends(text: str | None) -> list[str]:
-    if not text:
-        return []
-    text = text.strip()
-    if not text or text.lower() in {"none", "n/a", "-"}:
-        return []
-    seen: set[str] = set()
-    out: list[str] = []
-    for token in TASK_ID_TOKEN_RE.findall(text.upper()):
-        if token not in seen:
-            seen.add(token)
-            out.append(token)
-    return out
-
-
-def lifecycle_status(issue: Issue) -> str:
-    labels = set(issue.labels)
-    if "status:blocked" in labels:
-        return "blocked"
-    if "status:in-progress" in labels:
-        return "in-progress"
-    if "status:done" in labels:
-        return "done"
-    if "status:not-started" in labels:
-        return "not-started"
-    return "unknown"
-
-
-def queue_task_issues(issues: list[Issue]) -> list[Issue]:
-    return [issue for issue in issues if "type:task" in issue.labels and not issue.is_parent_cr]
-
-
-def status_labels(issue: Issue) -> list[str]:
-    return [label for label in issue.labels if label in STATUS_LABELS]
-
-
-def choose_reconciled_status(issue: Issue) -> str:
-    statuses = status_labels(issue)
-    state = issue.state
-    if state == "closed":
-        return "status:done"
-    # open state
-    if "status:in-progress" in statuses:
-        return "status:in-progress"
-    if "status:blocked" in statuses:
-        return "status:blocked"
-    if "status:not-started" in statuses:
-        return "status:not-started"
-    # open+done or missing/invalid status should return to startable backlog state
-    return "status:not-started"
-
-
-def reconcile_issue_label_changes(issue: Issue) -> tuple[list[str], list[str]]:
-    """Return (add_labels, remove_labels) to enforce lifecycle label policy."""
-    desired = choose_reconciled_status(issue)
-    labels = set(issue.labels)
-    current_status = set(status_labels(issue))
-    remove_labels = sorted(current_status - {desired})
-    add_labels: list[str] = []
-    if desired not in labels:
-        add_labels.append(desired)
-    if "ready" in labels and desired != "status:not-started":
-        remove_labels.append("ready")
-    return add_labels, sorted(set(remove_labels))
-
-
-def edit_issue_labels(root: Path, repo: str, issue_number: int, labels: list[str]) -> None:
-    if not labels:
-        return
-    edit_args = ["issue", "edit", str(issue_number), "-R", repo]
-    for label in labels:
-        if label in STATUS_LABELS:
-            ensure_label_exists(root, repo, label)
-            edit_args += ["--add-label", label]
-        else:
-            edit_args += ["--remove-label", label.removeprefix("-")]
-    gh_text(edit_args, root=root)
-
-
-def normalize_closed_issue_labels(root: Path, repo: str, issue_id: int, info: dict | None) -> bool:
-    if not info:
-        return False
-    labels = [x["name"] for x in info.get("labels", []) if isinstance(x, dict) and "name" in x]
-    issue = Issue(
-        number=issue_id,
-        title=str(info.get("title", "")),
-        state=str(info.get("state", "")).lower(),
-        created_at="",
-        body="",
-        labels=labels,
-        url=str(info.get("url", "")),
-        task_id=None,
-        seq=None,
-        depends_on=[],
-    )
-    add_labels, remove_labels = reconcile_issue_label_changes(issue)
-    label_ops = add_labels + [f"-{label}" for label in remove_labels]
-    if not label_ops:
-        return False
-    edit_issue_labels(root, repo, issue.number, label_ops)
-    return True
-
-
-def assert_issue_startable(issue: Issue, *, allow_blocked: bool) -> None:
-    if issue.state != "open":
-        raise CliError(f"Issue #{issue.number} is {issue.state}; must be open to start work")
-    status = lifecycle_status(issue)
-    if status == "unknown":
-        raise CliError(
-            f"Issue #{issue.number} is missing/invalid status:* label. Run `make issues-reconcile`."
-        )
-    if status == "done":
-        raise CliError(f"Issue #{issue.number} is status:done; cannot start new work")
-    if status == "in-progress":
-        raise CliError(f"Issue #{issue.number} is already status:in-progress. Use worktree-resume.")
-    if status == "blocked" and not allow_blocked:
-        raise CliError(f"Issue #{issue.number} is status:blocked (use --allow-blocked to override)")
-
-
-def parse_issue_meta(body: str) -> tuple[int | None, list[str]]:
-    seq = int(m.group(1)) if (m := SEQ_RE.search(body or "")) else None
-    depends = parse_depends(m.group(1)) if (m := DEPENDS_RE.search(body or "")) else []
-    return seq, depends
-
-
-def fetch_repo_issues(
-    root: Path,
-    repo: str,
-    *,
-    state: Literal["open", "closed", "all"] = "all",
-) -> list[Issue]:
-    page = 1
-    out: list[Issue] = []
-    while True:
-        data = gh_json(
-            [
-                "api",
-                f"repos/{repo}/issues",
-                "--method",
-                "GET",
-                "-f",
-                f"state={state}",
-                "-f",
-                "per_page=100",
-                "-f",
-                f"page={page}",
-            ],
-            root=root,
-        )
-        if not isinstance(data, list):
-            raise CliError("Unexpected GitHub API response for issues list")
-        if not data:
-            break
-        for raw in data:
-            if not isinstance(raw, dict):
-                continue
-            if "pull_request" in raw:
-                continue
-            labels = [
-                x["name"] for x in raw.get("labels", []) if isinstance(x, dict) and "name" in x
-            ]
-            body = str(raw.get("body") or "")
-            seq, depends = parse_issue_meta(body)
-            out.append(
-                Issue(
-                    number=int(raw["number"]),
-                    title=str(raw.get("title") or ""),
-                    state=str(raw.get("state") or "").lower(),
-                    created_at=str(raw.get("created_at") or raw.get("createdAt") or ""),
-                    body=body,
-                    labels=labels,
-                    url=str(raw.get("html_url") or raw.get("url") or ""),
-                    task_id=parse_task_id_from_issue(raw),
-                    seq=seq,
-                    depends_on=depends,
-                )
-            )
-        if len(data) < 100:
-            break
-        page += 1
-    return out
-
-
-def build_queue(
-    issues: list[Issue],
-    *,
-    stream_label: str | None = None,
-    from_issue: int | None = None,
-    mode: Literal["auto", "ready", "open-task"] = "auto",
-) -> QueueSelection:
-    task_issues = queue_task_issues(issues)
-    by_task_id = {i.task_id: i for i in task_issues if i.task_id}
-    source_notes: list[str] = []
-
-    def stream_ok(issue: Issue) -> bool:
-        return not stream_label or stream_label in issue.labels
-
-    open_task = [i for i in task_issues if i.state == "open" and stream_ok(i)]
-    if from_issue is not None:
-        open_task = [i for i in open_task if i.number >= from_issue]
-        source_notes.append(f"starting from issue #{from_issue}")
-    # Queue excludes actively worked items. They remain visible via issue views / finish-summary.
-    queued_open_task = [i for i in open_task if lifecycle_status(i) != "in-progress"]
-    open_ready = [i for i in queued_open_task if "ready" in i.labels]
-
-    source_mode = mode
-    if mode == "auto":
-        if open_ready:
-            source_mode = "ready"
-        else:
-            source_mode = "open-task"
-            source_notes.append(
-                "auto-fallback: no queued task issues labeled 'ready' (excludes status:in-progress)"
-            )
-    if source_mode == "ready":
-        candidates = open_ready
-    elif source_mode == "open-task":
-        candidates = queued_open_task
-    else:
-        raise CliError(f"Unsupported queue mode: {mode}")
-
-    items: list[QueueItem] = []
-    for issue in candidates:
-        reasons: list[str] = []
-        if lifecycle_status(issue) == "blocked":
-            reasons.append("blocked by status label (status:blocked)")
-        for dep_task_id in issue.depends_on:
-            dep = by_task_id.get(dep_task_id)
-            if dep is None:
-                reasons.append(f"missing dependency {dep_task_id}")
-                continue
-            if dep.state != "closed":
-                reasons.append(f"blocked by {dep_task_id} (issue #{dep.number} is {dep.state})")
-        items.append(QueueItem(issue=issue, runnable=(len(reasons) == 0), blocked_reasons=reasons))
-
-    items.sort(
-        key=lambda item: (
-            item.issue.seq if item.issue.seq is not None else 999_999_999,
-            item.issue.priority_rank(),
-            item.issue.created_at or "",
-            item.issue.number,
-        )
-    )
-    return QueueSelection(
-        source_mode=str(source_mode),
-        items=items,
-        source_note="; ".join(source_notes),
-    )
+from scripts.issue_tool.logic import (
+    parse_task_id_from_issue,
+    parse_depends,
+    lifecycle_status,
+    queue_task_issues,
+    status_labels,
+)
+from scripts.issue_queue import (
+    parse_issue_meta,
+    fetch_repo_issues,
+    build_queue,
+)
 
 
 def print_queue(

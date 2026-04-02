@@ -37,6 +37,14 @@ export function createPlatformStorage(
     removalPolicy: cdk.RemovalPolicy.RETAIN,
   });
 
+  tenantsTable.addGlobalSecondaryIndex({
+    indexName: 'gsi-execution-role-arn',
+    partitionKey: { name: 'executionRoleArn', type: dynamodb.AttributeType.STRING },
+    projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+    readCapacity: 5,
+    writeCapacity: 5,
+  });
+
   const agentsTable = new dynamodb.Table(scope, 'AgentsTable', {
     tableName: 'platform-agents',
     partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },

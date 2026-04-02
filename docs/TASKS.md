@@ -545,7 +545,14 @@ task. Result delivered via webhook and available via poll endpoint.
               In progress: SPA pages implemented for tenant members, invites, webhooks;
               Issues #170, #171, #172 closed; Issue #199 open (webhook page contract drift)
 
-[ ] TASK-054  Re-evaluate runtime placement in eu-west-2
+[x] TASK-054  Re-evaluate runtime placement in eu-west-2
               AWS now supports AgentCore Runtime in eu-west-2, but the approved
               London-home / Dublin-runtime zigzag remains in place.
               Requires explicit architecture review and controlled migration plan.
+
+[x] TASK-055  Performance Optimization: Authoriser GSI and AppConfig
+              Added gsi-execution-role-arn to platform-tenants table (CR-005)
+              Refactored Authoriser to use O(1) GSI query instead of table scan
+              Integrated AppConfig Lambda Extension for local config caching
+              Eliminated hot-path SSM API calls and database scan lag
+              Done: 2026-04-02

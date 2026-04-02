@@ -62,6 +62,13 @@ export function createPlatformCompute(
   const dlqs: Record<string, sqs.IQueue> = {};
   const stack = cdk.Stack.of(scope);
 
+  // AWS AppConfig Lambda Extension Layer (eu-west-2)
+  const appConfigExtension = lambda.LayerVersion.fromLayerVersionArn(
+    scope,
+    'AppConfigExtension',
+    `arn:aws:lambda:${stack.region}:434090535690:layer:AWS-AppConfig-Extension:162`,
+  );
+
   const tenantMgmtFn = createPythonLambda({
     assetPath: path.join(__dirname, '../../../src/tenant_api'),
     handler: 'tenant_mgmt_handler.lambda_handler',
@@ -76,6 +83,7 @@ export function createPlatformCompute(
       TENANT_API_KEY_SECRET_PREFIX: 'platform/tenants', // pragma: allowlist secret
     },
   });
+  tenantMgmtFn.addLayers(appConfigExtension);
   tenantMgmtFn.addEnvironment('TENANT_MGMT_ROLE_ARN', tenantMgmtFn.role!.roleArn);
   storage.tenantsTable.grantReadWriteData(tenantMgmtFn);
   storage.invocationsTable.grantReadData(tenantMgmtFn);
@@ -166,6 +174,7 @@ export function createPlatformCompute(
       FALLBACK_REGION_PARAM: '/platform/config/fallback-region',
     },
   });
+  adminOpsFn.addLayers(appConfigExtension);
   storage.tenantsTable.grantReadWriteData(adminOpsFn);
   storage.opsLocksTable.grantReadData(adminOpsFn);
   adminOpsFn.addToRolePolicy(
@@ -210,6 +219,7 @@ export function createPlatformCompute(
       APPCONFIG_PROFILE_ID: storage.capabilityProfile.ref,
     },
   });
+  bridgeFn.addLayers(appConfigExtension);
   storage.tenantsTable.grantReadData(bridgeFn);
   storage.agentsTable.grantReadData(bridgeFn);
   storage.invocationsTable.grantReadWriteData(bridgeFn);

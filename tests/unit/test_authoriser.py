@@ -654,24 +654,26 @@ def test_get_tenant_status_no_table(mock_env):
 
 @patch("src.authoriser.handler.get_dynamodb")
 def test_resolve_sigv4_tenant_binding_invalid_tier_falls_back_to_basic(mock_get_dynamodb, mock_env):
+    from src.authoriser import handler as authoriser_handler
     from src.authoriser.handler import resolve_sigv4_tenant_binding
 
+    authoriser_handler._sigv4_binding_cache.clear()
     mock_table = MagicMock()
     mock_get_dynamodb.return_value.Table.return_value = mock_table
-    mock_table.scan.side_effect = [
-        {
-            "Items": [
-                {
-                    "tenantId": "t-test-001",
-                    "appId": "app-001",
-                    "tier": "not-a-tier",
-                    "executionRoleArn": (
-                        "arn:aws:iam::123456789012:role/platform-tenant-t-test-001-execution-role"
-                    ),
-                }
-            ]
+    
+    # 1. GSI Query returns PK/SK
+    mock_table.query.return_value = {
+        "Items": [{"PK": "TENANT#t-test-001", "SK": "METADATA"}]
+    }
+    
+    # 2. GetItem returns full metadata
+    mock_table.get_item.return_value = {
+        "Item": {
+            "tenantId": "t-test-001",
+            "appId": "app-001",
+            "tier": "not-a-tier",
         }
-    ]
+    }
 
     binding = resolve_sigv4_tenant_binding(
         "arn:aws:sts::123456789012:assumed-role/platform-tenant-t-test-001-execution-role/machine-session"
@@ -681,24 +683,28 @@ def test_resolve_sigv4_tenant_binding_invalid_tier_falls_back_to_basic(mock_get_
 
 
 @patch("src.authoriser.handler.get_dynamodb")
-def test_resolve_sigv4_tenant_binding_uses_filter_and_projection(mock_get_dynamodb, mock_env):
+def test_resolve_sigv4_tenant_binding_uses_gsi_query(mock_get_dynamodb, mock_env):
     from src.authoriser import handler as authoriser_handler
     from src.authoriser.handler import resolve_sigv4_tenant_binding
 
     mock_table = MagicMock()
     mock_get_dynamodb.return_value.Table.return_value = mock_table
-    mock_table.scan.return_value = {"Items": [], "LastEvaluatedKey": None}
+    mock_table.query.return_value = {"Items": []}
     authoriser_handler._sigv4_binding_cache.clear()
 
     resolve_sigv4_tenant_binding(
         "arn:aws:sts::123456789012:assumed-role/platform-tenant-t-test-001-execution-role/machine-session"
     )
 
-    kwargs = mock_table.scan.call_args.kwargs
-    assert "FilterExpression" in kwargs
+    # Verify GSI Query was used instead of Scan
+    assert mock_table.query.called
+    kwargs = mock_table.query.call_args.kwargs
+    assert kwargs["IndexName"] == "gsi-execution-role-arn"
+    assert "KeyConditionExpression" in kwargs
     assert "ProjectionExpression" in kwargs
-    assert "executionRoleArn" in kwargs["ProjectionExpression"]
-    assert "execution_role_arn" in kwargs["ProjectionExpression"]
+    assert "PK" in kwargs["ProjectionExpression"]
+    assert "SK" in kwargs["ProjectionExpression"]
+    assert not mock_table.scan.called
 
 
 @patch("src.authoriser.handler.get_jwk_client")

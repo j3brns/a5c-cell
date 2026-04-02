@@ -127,55 +127,64 @@ def _sigv4_caller_role_arns(caller_arn: str) -> set[str]:
 def resolve_sigv4_tenant_binding(caller_arn: str) -> dict[str, str] | None:
     """Resolve a SigV4 caller to a trusted tenant using tenant metadata.
 
-    CR005: Results are cached in-process for SIGV4_BINDING_CACHE_TTL_SECONDS (default 60 s)
-    to avoid a full DynamoDB table scan on every machine-auth request.
+    CR005: Results are cached in-process for SIGV4_BINDING_CACHE_TTL_SECONDS (60s)
+    to avoid a DynamoDB lookup on every machine-auth request.
 
-    A GSI on executionRoleArn is the long-term fix (see ISSUE-CR005).  Until that
-    GSI is in place this cache provides the primary latency/cost mitigation.
+    Uses the 'gsi-execution-role-arn' GSI for O(1) lookup instead of a table scan.
     """
     if not TENANTS_TABLE:
         logger.warning("TENANTS_TABLE not set; SigV4 tenant binding unavailable")
         return None
 
-    # Check in-memory cache first.
+    # 1. Check in-memory cache first
     now = time.time()
-    cached = _sigv4_binding_cache.get(caller_arn)
-    if cached is not None:
-        binding, expiry = cached
-        if now < expiry:
-            return binding
-        # Expired — evict and re-resolve below.
-        del _sigv4_binding_cache[caller_arn]
+    for arn in _sigv4_caller_role_arns(caller_arn):
+        cached = _sigv4_binding_cache.get(arn)
+        if cached is not None:
+            binding, expiry = cached
+            if now < expiry:
+                return binding
+            del _sigv4_binding_cache[arn]
 
+    # 2. Resolve via DynamoDB GSI
     candidate_role_arns = _sigv4_caller_role_arns(caller_arn)
     table = get_dynamodb().Table(TENANTS_TABLE)
     matches: dict[str, dict[str, str]] = {}
-    scan_kwargs: dict[str, Any] = {
-        "FilterExpression": Attr("executionRoleArn").is_in(list(candidate_role_arns))
-        | Attr("execution_role_arn").is_in(list(candidate_role_arns)),
-        "ProjectionExpression": (
-            "tenantId, tenant_id, appId, app_id, tier, executionRoleArn, execution_role_arn"
-        ),
-    }
 
     try:
-        while True:
-            response = table.scan(**scan_kwargs)
-            for item in response.get("Items", []):
-                role_arn = str(item.get("executionRoleArn") or item.get("execution_role_arn") or "")
-                if role_arn not in candidate_role_arns:
+        for role_arn in candidate_role_arns:
+            # O(1) GSI Query
+            response = table.query(
+                IndexName="gsi-execution-role-arn",
+                KeyConditionExpression=boto3.dynamodb.conditions.Key("executionRoleArn").eq(role_arn),
+                ProjectionExpression="PK, SK",
+            )
+            
+            for index_item in response.get("Items", []):
+                # Follow-up GetItem for full metadata (since GSI is KEYS_ONLY)
+                full_item_resp = table.get_item(
+                    Key={"PK": index_item["PK"], "SK": index_item["SK"]},
+                    ProjectionExpression="tenantId, tenant_id, appId, app_id, tier",
+                )
+                item = full_item_resp.get("Item")
+                if not item:
                     continue
+
                 tenant_id = str(item.get("tenantId") or item.get("tenant_id") or "").strip()
                 app_id = str(item.get("appId") or item.get("app_id") or "").strip()
                 tier = _normalise_tier(str(item.get("tier") or "basic"))
+                
                 if tenant_id:
-                    matches[tenant_id] = {"tenant_id": tenant_id, "app_id": app_id, "tier": tier}
-            last_evaluated_key = response.get("LastEvaluatedKey")
-            if not last_evaluated_key:
-                break
-            scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
+                    result = {"tenant_id": tenant_id, "app_id": app_id, "tier": tier}
+                    matches[tenant_id] = result
+                    # Update cache for this specific role ARN
+                    _sigv4_binding_cache[role_arn] = (result, now + _SIGV4_BINDING_CACHE_TTL_SECONDS)
+
     except Exception:
-        logger.exception("Failed to resolve SigV4 tenant binding", extra={"caller_arn": caller_arn})
+        logger.exception("Failed to resolve SigV4 tenant binding via GSI", extra={"caller_arn": caller_arn})
+        return None
+
+    if not matches:
         return None
 
     if len(matches) != 1:
@@ -185,10 +194,7 @@ def resolve_sigv4_tenant_binding(caller_arn: str) -> dict[str, str] | None:
         )
         return None
 
-    result = next(iter(matches.values()))
-    # Store in cache for subsequent warm-Lambda invocations.
-    _sigv4_binding_cache[caller_arn] = (result, now + _SIGV4_BINDING_CACHE_TTL_SECONDS)
-    return result
+    return next(iter(matches.values()))
 
 
 def _normalise_headers(event: dict[str, Any]) -> dict[str, str]:
