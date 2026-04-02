@@ -7,8 +7,6 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from src.tenant_api import handler as tenant_api_handler
-
 
 def _load_openapi() -> dict:
     spec_path = Path(__file__).resolve().parents[2] / "docs" / "openapi.yaml"
