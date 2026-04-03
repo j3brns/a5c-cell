@@ -16,8 +16,14 @@
 
 ### 1. Inspect the DLQ
 ```bash
-make ops-dlq-inspect QUEUE=platform-bridge-dlq-prod ENV=prod
-# Shows: message body, error reason, receive count, first received timestamp
+# Resolve the DLQ URL first if you only know the queue name:
+# aws sqs get-queue-url --queue-name platform-bridge-dlq-prod
+aws sqs receive-message \
+  --queue-url "${BRIDGE_DLQ_URL}" \
+  --max-number-of-messages 10 \
+  --attribute-names All \
+  --message-attribute-names All
+# Review message body, error reason, receive count, and first received timestamp.
 ```
 
 ### 2. Diagnose root cause from message content
@@ -33,15 +39,14 @@ messages back in the DLQ.
 
 ### 4. Redrive after fix
 ```bash
-make ops-dlq-redrive QUEUE=platform-bridge-dlq-prod ENV=prod
-# Moves messages from DLQ back to the main queue
-# Lambda will retry up to max receive count again
+# Redrive the DLQ directly with AWS CLI or the console after the root cause is fixed.
+# Lambda will retry up to max receive count again.
 ```
 
 ### 5. Monitor after redrive
 ```bash
-make ops-error-rate ENV=prod MINUTES=10
-# Confirm error rate is recovering
+make logs-bridge ENV=prod MINUTES=10 | grep -E "ERROR|Exception"
+# Confirm bridge errors are no longer repeating after redrive.
 ```
 
 ## Native Async Note

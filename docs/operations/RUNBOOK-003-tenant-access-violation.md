@@ -13,8 +13,8 @@
 
 ### 1. Get violation details immediately
 ```bash
-make ops-security-events ENV=prod HOURS=1
-# Shows: tenantId, callerTenantId, attempted key, requestId, Lambda function, timestamp
+make logs-tenant-api ENV=prod MINUTES=60 | grep tenant_access_violation
+# Collect: tenantId, callerTenantId, attempted key, requestId, Lambda function, timestamp
 ```
 
 ### 2. Determine source

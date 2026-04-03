@@ -11,15 +11,13 @@
 ```bash
 make ops-quota-report ENV=prod
 # Shows: current concurrent sessions, account limit, utilisation %
-# Also shows: top 10 tenants by active session count
 ```
 
 ### 2. Identify if a single tenant is dominant
 ```bash
-make ops-top-tenants ENV=prod N=10
-# If one tenant has >40% of sessions: likely a runaway agent
-# Check for runaway:
-make ops-tenant-sessions TENANT={tenantId} ENV=prod
+# Use CloudWatch AgentCore concurrent-session metrics and tenant audit records to identify
+# whether one tenant dominates current session load.
+# If one tenant has >40% of sessions: likely a runaway agent.
 ```
 
 ### 3a. If runaway agent detected

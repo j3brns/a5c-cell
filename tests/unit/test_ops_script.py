@@ -128,33 +128,54 @@ def test_login_persists_profile(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "Logged in as operator@example.com" in captured.out
 
 
-def test_top_tenants_calls_expected_endpoint(monkeypatch, tmp_path: Path) -> None:
-    creds_path = tmp_path / ".platform" / "credentials"
-    monkeypatch.setenv("PLATFORM_CREDENTIALS_PATH", str(creds_path))
-    _write_creds(
-        creds_path,
-        env_name="dev",
-        token="tkn",
-        api_base_url="https://api.example.com",
-    )
+@pytest.mark.parametrize(
+    ("argv", "expected_message"),
+    [
+        (
+            ["top-tenants", "--env", "dev", "--n", "5"],
+            "top-tenants` is disabled",
+        ),
+        (
+            ["tenant-sessions", "--env", "dev", "--tenant", "t-sessions"],
+            "tenant-sessions` is disabled",
+        ),
+        (
+            ["invocation-report", "--env", "dev", "--tenant", "t-inv", "--days", "14"],
+            "invocation-report` is disabled",
+        ),
+        (
+            ["security-events", "--env", "dev", "--hours", "48"],
+            "security-events` is disabled",
+        ),
+        (
+            ["dlq-inspect", "--env", "dev", "--queue", "bridge-dlq"],
+            "dlq-inspect` is disabled",
+        ),
+        (
+            ["dlq-redrive", "--env", "dev", "--queue", "bridge-dlq"],
+            "dlq-redrive` is disabled",
+        ),
+        (
+            ["error-rate", "--env", "dev", "--minutes", "15"],
+            "error-rate` is disabled",
+        ),
+        (
+            ["service-health", "--env", "dev"],
+            "service-health` is disabled",
+        ),
+    ],
+)
+def test_non_authoritative_ops_commands_fail_fast(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str], expected_message: str
+) -> None:
+    _make_creds(monkeypatch, tmp_path)
+    seen = _capture_request(monkeypatch)
 
-    seen: dict[str, Any] = {}
+    rc = ops.main(argv)
 
-    def _fake_urlopen(request: Request, timeout: int) -> _FakeResponse:
-        seen["url"] = request.full_url
-        seen["method"] = request.get_method()
-        seen["auth"] = request.get_header("Authorization")
-        seen["timeout"] = timeout
-        return _FakeResponse(status=200, payload={"items": []})
-
-    monkeypatch.setattr(ops, "urlopen", _fake_urlopen)
-
-    rc = ops.main(["top-tenants", "--env", "dev", "--n", "5"])
-    assert rc == 0
-    assert seen["method"] == "GET"
-    assert seen["url"] == "https://api.example.com/v1/platform/ops/top-tenants?n=5"
-    assert seen["auth"] == "Bearer tkn"
-    assert seen["timeout"] == 30
+    assert rc == 2
+    assert seen == {}
+    assert expected_message in capsys.readouterr().err
 
 
 def test_update_tenant_budget_uses_patch_and_json_body(monkeypatch, tmp_path: Path) -> None:
@@ -412,74 +433,6 @@ def test_reinstate_tenant_calls_correct_endpoint(monkeypatch, tmp_path: Path) ->
     assert rc == 0
     assert seen["method"] == "POST"
     assert "/v1/platform/ops/tenants/t-xyz/reinstate" in seen["url"]
-
-
-def test_tenant_sessions_calls_correct_endpoint(monkeypatch, tmp_path: Path) -> None:
-    _make_creds(monkeypatch, tmp_path)
-    seen = _capture_request(monkeypatch)
-
-    rc = ops.main(["tenant-sessions", "--env", "dev", "--tenant", "t-sessions"])
-
-    assert rc == 0
-    assert seen["method"] == "GET"
-    assert "/v1/platform/ops/tenants/t-sessions/sessions" in seen["url"]
-
-
-def test_invocation_report_calls_correct_endpoint_with_days(monkeypatch, tmp_path: Path) -> None:
-    _make_creds(monkeypatch, tmp_path)
-    seen = _capture_request(monkeypatch)
-
-    rc = ops.main(["invocation-report", "--env", "dev", "--tenant", "t-inv", "--days", "14"])
-
-    assert rc == 0
-    assert seen["method"] == "GET"
-    assert "/v1/platform/ops/tenants/t-inv/invocations" in seen["url"]
-    assert "days=14" in seen["url"]
-
-
-def test_security_events_calls_correct_endpoint_with_hours(monkeypatch, tmp_path: Path) -> None:
-    _make_creds(monkeypatch, tmp_path)
-    seen = _capture_request(monkeypatch)
-
-    rc = ops.main(["security-events", "--env", "dev", "--hours", "48"])
-
-    assert rc == 0
-    assert seen["method"] == "GET"
-    assert "/v1/platform/ops/security-events" in seen["url"]
-    assert "hours=48" in seen["url"]
-
-
-def test_dlq_inspect_calls_correct_endpoint(monkeypatch, tmp_path: Path) -> None:
-    _make_creds(monkeypatch, tmp_path)
-    seen = _capture_request(monkeypatch)
-
-    rc = ops.main(["dlq-inspect", "--env", "dev", "--queue", "bridge-dlq"])
-
-    assert rc == 0
-    assert seen["method"] == "GET"
-    assert "/v1/platform/ops/dlq/bridge-dlq" in seen["url"]
-
-
-def test_dlq_redrive_calls_correct_endpoint(monkeypatch, tmp_path: Path) -> None:
-    _make_creds(monkeypatch, tmp_path)
-    seen = _capture_request(monkeypatch)
-
-    rc = ops.main(["dlq-redrive", "--env", "dev", "--queue", "bridge-dlq"])
-
-    assert rc == 0
-    assert seen["method"] == "POST"
-    assert "/v1/platform/ops/dlq/bridge-dlq/redrive" in seen["url"]
-
-
-def test_error_rate_calls_correct_endpoint(monkeypatch, tmp_path: Path) -> None:
-    _make_creds(monkeypatch, tmp_path)
-    seen = _capture_request(monkeypatch)
-
-    rc = ops.main(["error-rate", "--env", "dev", "--minutes", "15"])
-
-    assert rc == 0
-    assert seen["method"] == "GET"
-    assert "minutes=15" in seen["url"]
 
 
 def test_notify_tenant_calls_correct_endpoint(monkeypatch, tmp_path: Path) -> None:
