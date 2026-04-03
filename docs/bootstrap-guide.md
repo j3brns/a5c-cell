@@ -93,6 +93,7 @@ The script checks what already exists before creating resources.
 
 To re-run a specific step using the corresponding make target:
 ```bash
+export BOOTSTRAP_IAM_USER=<bootstrap-iam-username>
 export BOOTSTRAP_ACCOUNT_ID=<target-account-id>
 export PLATFORM_HOME_REGION=eu-west-2
 export AWS_REGION=$PLATFORM_HOME_REGION
@@ -104,6 +105,7 @@ make bootstrap-verify ENV=dev           # re-run step: verify
 
 Or call bootstrap.py directly with the step name:
 ```bash
+export BOOTSTRAP_IAM_USER=<bootstrap-iam-username>
 export BOOTSTRAP_ACCOUNT_ID=<target-account-id>
 export PLATFORM_HOME_REGION=eu-west-2
 export AWS_REGION=$PLATFORM_HOME_REGION
