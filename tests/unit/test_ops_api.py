@@ -157,10 +157,10 @@ def test_platform_agent_read_only_surface_is_bounded_to_authoritative_routes() -
     assert ("POST", "/v1/platform/failover") not in ops_control.READ_ONLY_PLATFORM_DIAGNOSTIC_ROUTES
     assert ("POST", "/v1/platform/agents") not in ops_control.READ_ONLY_PLATFORM_DIAGNOSTIC_ROUTES
     assert (
-        ("GET", "/v1/platform/ops/top-tenants")
-        not in ops_control.READ_ONLY_PLATFORM_DIAGNOSTIC_ROUTES
-    )
+        "GET",
+        "/v1/platform/ops/top-tenants",
+    ) not in ops_control.READ_ONLY_PLATFORM_DIAGNOSTIC_ROUTES
     assert (
-        ("GET", "/v1/platform/ops/tenants/{tenant}/invocations")
-        not in ops_control.READ_ONLY_PLATFORM_DIAGNOSTIC_ROUTES
-    )
+        "GET",
+        "/v1/platform/ops/tenants/{tenant}/invocations",
+    ) not in ops_control.READ_ONLY_PLATFORM_DIAGNOSTIC_ROUTES
