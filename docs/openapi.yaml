@@ -497,6 +497,40 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /v1/tenants/{tenantId}/users/invites:
+    get:
+      tags: [Tenants]
+      operationId: listTenantUserInvites
+      summary: List tenant user invites
+      description: >
+        Lists pending and historical tenant user invitations for the specified tenant.
+        Allowed for own-tenant callers with self-service admin rights and platform admin/operator roles.
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      responses:
+        "200":
+          description: Tenant invites
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TenantUserInviteDto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /v1/jobs/{jobId}:
     get:
       tags: [Jobs]
