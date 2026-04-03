@@ -68,7 +68,6 @@ def _dependencies() -> TenantApiDependencies:
     return TenantApiDependencies(
         secretsmanager=session.client("secretsmanager"),
         events=session.client("events"),
-        dynamodb=session.resource("dynamodb"),
         ssm=session.client("ssm"),
         awslambda=session.client("lambda"),
         usage_client=_NoopUsageClient(),
