@@ -187,9 +187,27 @@ export class PlatformStack extends cdk.Stack {
     const tenantStackTemplateAsset = new s3assets.Asset(this, 'TenantStackTemplateAsset', {
       path: tenantStackTemplatePath,
     });
+
+    const resultsBucket = new s3.Bucket(this, 'ResultsBucket', {
+      bucketName: `platform-results-${env}`,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      versioned: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    new ssm.StringParameter(this, 'ResultsBucketArnParam', {
+      parameterName: `/platform/core/${env}/results-bucket-arn`,
+      stringValue: resultsBucket.bucketArn,
+      description: 'ARN for the platform results S3 bucket',
+    });
+
     const compute = createPlatformCompute(this, {
       envName: env,
       storage,
+      resultsBucketArn: resultsBucket.bucketArn,
+      resultsBucketName: resultsBucket.bucketName,
       entra,
       scopedTokenSigningKeySecret,
       tenantStackTemplateAsset,
@@ -273,15 +291,6 @@ export class PlatformStack extends cdk.Stack {
       versioned: true,
     });
 
-    const resultsBucket = new s3.Bucket(this, 'ResultsBucket', {
-      bucketName: `platform-results-${env}`,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
-      versioned: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
     const spaLogBucket = new s3.Bucket(this, 'SpaLogBucket', {
       bucketName: `platform-spa-logs-${env}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -290,12 +299,6 @@ export class PlatformStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
       accessControl: s3.BucketAccessControl.LOG_DELIVERY_WRITE,
-    });
-
-    new ssm.StringParameter(this, 'ResultsBucketArnParam', {
-      parameterName: `/platform/core/${env}/results-bucket-arn`,
-      stringValue: resultsBucket.bucketArn,
-      description: 'ARN for the platform results S3 bucket',
     });
 
     const spaResponseHeadersPolicy = new cloudfront.CfnResponseHeadersPolicy(

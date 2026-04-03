@@ -25,6 +25,8 @@ export type PythonLambdaFactoryProps = {
 export interface PlatformComputeProps {
   readonly envName: string;
   readonly storage: PlatformStorageResources;
+  readonly resultsBucketArn: string;
+  readonly resultsBucketName: string;
   readonly entra: EntraConfiguration;
   readonly scopedTokenSigningKeySecret: secretsmanager.ISecret;
   readonly tenantStackTemplateAsset: s3assets.Asset;
@@ -53,6 +55,8 @@ export function createPlatformCompute(
   const {
     envName,
     storage,
+    resultsBucketArn,
+    resultsBucketName,
     entra,
     scopedTokenSigningKeySecret,
     tenantStackTemplateAsset,
@@ -79,6 +83,7 @@ export function createPlatformCompute(
       POWERTOOLS_SERVICE_NAME: 'tenant-mgmt-service',
       TENANTS_TABLE_NAME: storage.tenantsTable.tableName,
       INVOCATIONS_TABLE_NAME: storage.invocationsTable.tableName,
+      AUDIT_EXPORT_BUCKET: resultsBucketName,
       EVENT_BUS_NAME: 'default',
       TENANT_API_KEY_SECRET_PREFIX: 'platform/tenants', // pragma: allowlist secret
     },
@@ -108,6 +113,23 @@ export function createPlatformCompute(
     new iam.PolicyStatement({
       actions: ['ssm:GetParameter'],
       resources: [`arn:aws:ssm:${stack.region}:${stack.account}:parameter/platform/config/runtime-region`],
+    }),
+  );
+  tenantMgmtFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      actions: ['s3:ListBucket'],
+      resources: [resultsBucketArn],
+      conditions: {
+        StringLike: {
+          's3:prefix': ['tenants/*'],
+        },
+      },
+    }),
+  );
+  tenantMgmtFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+      resources: [`${resultsBucketArn}/tenants/*`],
     }),
   );
 
