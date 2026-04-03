@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from data_access.models import PaginatedItems
 
+from src.tenant_api import db_utils as tenant_api_db_utils
 from src.tenant_api import handler as tenant_api_handler
 
 
@@ -463,6 +464,8 @@ def fake_state(monkeypatch: pytest.MonkeyPatch, fixed_now: datetime) -> dict[str
     monkeypatch.setattr(
         tenant_api_handler.db_factory, "control_plane_db", lambda *_args, **_kwargs: db
     )
+    monkeypatch.setattr(tenant_api_db_utils, "db_for_tenant", lambda **_kwargs: db)
+    monkeypatch.setattr(tenant_api_db_utils, "control_plane_db", lambda *_args, **_kwargs: db)
 
     # Consistently mock time across all modular boundaries
     monkeypatch.setattr(tenant_api_handler.utils, "_OVERRIDE_NOW", fixed_now)
@@ -1123,6 +1126,8 @@ def test_list_tenants_admin_only(fake_state: dict[str, Any]) -> None:
 def test_audit_export_writes_real_s3_export_and_returns_presigned_url(
     fake_state: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    from src.tenant_api import tenant_lifecycle
+
     fake_state["db"].items[("TENANT#t-005", "METADATA")] = {
         "PK": "TENANT#t-005",
         "SK": "METADATA",
@@ -1150,8 +1155,8 @@ def test_audit_export_writes_real_s3_export_and_returns_presigned_url(
     }
 
     fake_s3 = FakeTenantScopedS3()
-    monkeypatch.setattr(tenant_api_handler.secrets, "token_hex", lambda _n: "feedfacecafebeef")
-    monkeypatch.setattr(tenant_api_handler, "_tenant_s3_for_scope", lambda **_kwargs: fake_s3)
+    monkeypatch.setattr(tenant_lifecycle.secrets, "token_hex", lambda _n: "feedfacecafebeef")
+    monkeypatch.setattr(tenant_lifecycle.db_factory, "s3_for_tenant", lambda **_kwargs: fake_s3)
 
     event = _event(method="GET", tenant_id="t-005")
     event["path"] = "/v1/tenants/t-005/audit-export"

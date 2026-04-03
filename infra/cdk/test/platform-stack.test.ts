@@ -545,15 +545,63 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('splits tenant control-plane routes across dedicated service lambdas', () => {
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      FunctionName: 'platform-core-dev-tenant-mgmt',
-      Handler: 'tenant_mgmt_handler.lambda_handler',
-      Environment: {
-        Variables: Match.objectLike({
-          POWERTOOLS_SERVICE_NAME: 'tenant-mgmt-service',
-          TENANTS_TABLE_NAME: Match.anyValue(),
-          INVOCATIONS_TABLE_NAME: Match.anyValue(),
-        }),
+    const lambdaFunctions = template.findResources('AWS::Lambda::Function') as Record<
+      string,
+      {
+        Properties?: {
+          FunctionName?: string;
+          Handler?: string;
+          Environment?: { Variables?: Record<string, unknown> };
+        };
+      }
+    >;
+
+    const tenantMgmtLambda = Object.values(lambdaFunctions).find(
+      (resource) => resource.Properties?.FunctionName === 'platform-core-dev-tenant-mgmt',
+    );
+
+    expect(tenantMgmtLambda?.Properties?.Handler).toBe('tenant_mgmt_handler.lambda_handler');
+    expect(tenantMgmtLambda?.Properties?.Environment?.Variables).toEqual(
+      expect.objectContaining({
+        POWERTOOLS_SERVICE_NAME: 'tenant-mgmt-service',
+        TENANTS_TABLE_NAME: expect.anything(),
+        INVOCATIONS_TABLE_NAME: expect.anything(),
+        AUDIT_EXPORT_BUCKET: {
+          Ref: 'ResultsBucketA95A2103',
+        },
+        TENANT_API_KEY_SECRET_PREFIX: 'platform/tenants', // pragma: allowlist secret
+      }),
+    );
+
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: 's3:ListBucket',
+            Resource: {
+              'Fn::GetAtt': ['ResultsBucketA95A2103', 'Arn'],
+            },
+            Condition: {
+              StringLike: {
+                's3:prefix': ['tenants/*'],
+              },
+            },
+          }),
+          Match.objectLike({
+            Action: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+            Resource: {
+              'Fn::Join': [
+                '',
+                [
+                  {
+                    'Fn::GetAtt': ['ResultsBucketA95A2103', 'Arn'],
+                  },
+                  '/tenants/*',
+                ],
+              ],
+            },
+          }),
+        ]),
       },
     });
 
