@@ -23,6 +23,48 @@ DEFAULT_TIMEOUT_SECONDS = 30
 DEFAULT_TOKEN_TTL_SECONDS = 3600
 DEFAULT_FAILOVER_LOCK_TOKEN_PATH = ".build/failover-lock-token.json"
 _TOKEN_ENV_NAMES = ("OPS_ACCESS_TOKEN", "PLATFORM_ACCESS_TOKEN", "BEARER_TOKEN")
+_NON_AUTHORITATIVE_COMMAND_MESSAGES = {
+    "top-tenants": (
+        "Command `top-tenants` is disabled because `/v1/platform/ops/top-tenants` is not an "
+        "authoritative production signal. Use CloudWatch AgentCore concurrent session metrics "
+        "and tenant audit records instead."
+    ),
+    "tenant-sessions": (
+        "Command `tenant-sessions` is disabled because "
+        "`/v1/platform/ops/tenants/{tenant}/sessions` "
+        "is not an authoritative production signal. Use tenant status records, bridge logs, and "
+        "runtime session metadata instead."
+    ),
+    "invocation-report": (
+        "Command `invocation-report` is disabled because "
+        "`/v1/platform/ops/tenants/{tenant}/invocations` "
+        "is not an authoritative production signal. Use billing exports, tenant usage records, and "
+        "CloudWatch metrics instead."
+    ),
+    "security-events": (
+        "Command `security-events` is disabled because "
+        "`/v1/platform/ops/security-events` is not an "
+        "authoritative production signal. Use CloudWatch logs and audit-export evidence instead."
+    ),
+    "dlq-inspect": (
+        "Command `dlq-inspect` is disabled because `/v1/platform/ops/dlq/{queue}` is not an "
+        "authoritative production signal. Inspect the SQS DLQ directly with AWS CLI or console "
+        "read-only access."
+    ),
+    "dlq-redrive": (
+        "Command `dlq-redrive` is disabled because "
+        "`/v1/platform/ops/dlq/{queue}/redrive` is not an authoritative production control. "
+        "Redrive the SQS DLQ directly after confirming root cause."
+    ),
+    "error-rate": (
+        "Command `error-rate` is disabled because `/v1/platform/ops/error-rate` is not an "
+        "authoritative production signal. Use CloudWatch metrics and bridge logs instead."
+    ),
+    "service-health": (
+        "Command `service-health` is disabled because `/v1/platform/service-health` is synthetic. "
+        "Use AWS Health, CloudWatch alarms, and bridge/runtime logs instead."
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -331,6 +373,8 @@ def _handle_login(args: argparse.Namespace) -> int:
 
 
 def _command_to_operation(args: argparse.Namespace) -> ApiOperation:
+    if args.command in _NON_AUTHORITATIVE_COMMAND_MESSAGES:
+        raise OpsCliError(_NON_AUTHORITATIVE_COMMAND_MESSAGES[args.command])
     if args.command == "top-tenants":
         return ApiOperation(
             method="GET",

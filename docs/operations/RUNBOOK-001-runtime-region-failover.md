@@ -11,8 +11,10 @@
 
 ### 1. Verify the outage
 ```bash
-# Check AWS Service Health for eu-west-1 AgentCore
-make ops-service-health ENV=prod
+# Check AWS Health and the CloudWatch alarm state for eu-west-1 AgentCore.
+# Confirm with bridge logs before acting:
+aws health describe-events --region us-east-1 --filter services=bedrock-agentcore
+make logs-bridge ENV=prod MINUTES=5 | grep ServiceUnavailableException
 # If confirmed: proceed. If uncertain: wait 2 minutes, re-check.
 ```
 
@@ -42,9 +44,16 @@ make logs-bridge ENV=prod MINUTES=5 | grep runtimeRegion
 
 ### 5. Monitor error rate
 ```bash
-make ops-error-rate ENV=prod MINUTES=5
-# Should drop below 1% within 2 minutes
-# If not: check AgentCore status in Frankfurt
+aws cloudwatch get-metric-statistics \
+  --namespace Platform/Bridge \
+  --metric-name ErrorRate \
+  --start-time "$(date -u -d '10 minutes ago' +%FT%TZ)" \
+  --end-time "$(date -u +%FT%TZ)" \
+  --period 300 \
+  --statistics Average \
+  --dimensions Name=Environment,Value=prod
+# Error rate should drop below 1% within 2 minutes.
+# If not: check AgentCore status in Frankfurt and bridge logs.
 ```
 
 ### 6. Release lock
@@ -57,8 +66,9 @@ make failover-lock-release ENV=prod
 
 ### 1. Confirm Dublin recovery
 ```bash
-make ops-service-health ENV=prod
-# Confirm eu-west-1 AgentCore status: Operational
+aws health describe-events --region us-east-1 --filter services=bedrock-agentcore
+make logs-bridge ENV=prod MINUTES=5 | grep runtimeRegion
+# Confirm eu-west-1 AgentCore has recovered and new bridge invocations can route back.
 ```
 
 ### 2. Acquire lock, switch back, release
@@ -72,8 +82,8 @@ make failover-lock-release ENV=prod
 ## Post-Incident
 - File incident report within 24 hours
 - Check Frankfurt quota headroom after failover (higher latency = longer sessions = more quota)
-- Confirm bridge/webhook DLQ messages from during failover have been processed:
-  `make ops-dlq-inspect QUEUE=platform-bridge-dlq-prod ENV=prod`
+- Confirm bridge/webhook DLQ messages from during failover have been processed by inspecting the
+  SQS DLQs directly with AWS CLI or the read-only console.
 
 ## Notes
 - Frankfurt adds ~25ms RTT vs Dublin's ~12ms — visible in P99 latency metrics

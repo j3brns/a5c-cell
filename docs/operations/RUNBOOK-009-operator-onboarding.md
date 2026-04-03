@@ -37,8 +37,8 @@ make ops-login
 ### 4. Verify ops access
 ```bash
 make ops-quota-report ENV=prod        # Should return quota data
-make ops-top-tenants ENV=prod N=5     # Should return top 5 tenants
-make ops-error-rate ENV=prod          # Should return current error rate
+make ops-billing-status ENV=prod      # Should return current billing status
+make logs-bridge ENV=prod MINUTES=5   # Should return recent bridge telemetry
 ```
 
 ### 5. Read all runbooks (in order)
@@ -48,7 +48,8 @@ Complete a dry-run of RUNBOOK-001 (failover) in the dev environment.
 ## Success Criteria
 Operator is considered onboarded when:
 - They can complete RUNBOOK-001 (failover) in dev without assistance
-- They can answer: "How do I find out which tenant is consuming the most quota?"
+- They can answer: "How do I identify the tenant driving the most quota pressure?"
+  Use CloudWatch AgentCore concurrent-session metrics together with tenant audit and usage records.
 - They have NOT needed direct AWS console access for any of the above
 
 ## What Operators Cannot Do

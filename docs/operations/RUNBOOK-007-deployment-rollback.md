@@ -23,8 +23,15 @@ No manual action needed if auto-rollback triggers cleanly.
 ```bash
 make logs-bridge ENV=prod MINUTES=10 | grep "Lambda version"
 # Should show the previous version number being served
-make ops-error-rate ENV=prod MINUTES=5
-# Should be recovering to <1%
+aws cloudwatch get-metric-statistics \
+  --namespace Platform/Bridge \
+  --metric-name ErrorRate \
+  --start-time "$(date -u -d '10 minutes ago' +%FT%TZ)" \
+  --end-time "$(date -u +%FT%TZ)" \
+  --period 300 \
+  --statistics Average \
+  --dimensions Name=Environment,Value=prod
+# Error rate should be recovering to <1%.
 ```
 
 ## Manual Lambda Rollback
@@ -57,7 +64,7 @@ Operational rule:
   transition that preserves audit history.
 
 ## Post-Rollback
-1. Verify error rate is recovering: make ops-error-rate ENV=prod MINUTES=5
+1. Verify error rate is recovering with CloudWatch metrics and bridge logs.
 2. Identify root cause of the issue before re-deploying
 3. Write a brief post-mortem note in the GitLab issue
 4. Fix the issue in a new MR — do not re-deploy the same broken commit

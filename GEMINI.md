@@ -8,8 +8,8 @@ This file exists so tools that look for assistant instruction files can redirect
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-Read [AGENTS.md](AGENTS.md) for the current generated GitNexus repo guidance.
-Keep this file as a stable pointer; do not duplicate or fork generated GitNexus context here.
+Keep this file as a stable pointer stub.
+Do not duplicate or fork generated GitNexus context here.
 
 <!-- gitnexus:end -->
 After committing code changes, the GitNexus index becomes stale. Re-run analyze to update it:

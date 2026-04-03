@@ -12,8 +12,8 @@
 
 ### 1. Investigate if spike is expected
 ```bash
-make ops-invocation-report TENANT={tenantId} DAYS=7 ENV=prod
-# Shows: daily token consumption, agent breakdown, cost estimate
+# Use billing exports and tenant usage records for the last 7 days.
+# Do not rely on the deprecated ops invocation report.
 ```
 
 ### 2. Notify tenant owner
@@ -38,8 +38,8 @@ make ops-suspend-tenant TENANT={tenantId} REASON="runaway_agent_budget_protectio
 
 ### 1. Verify suspension
 ```bash
-make ops-tenant-sessions TENANT={tenantId} ENV=prod
-# Should show: status=suspended, no active sessions
+make ops-quota-report ENV=prod
+# Confirm the tenant remains suspended in control-plane state and active session pressure has fallen.
 ```
 
 ### 2. Notify tenant
