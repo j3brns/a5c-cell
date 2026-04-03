@@ -142,6 +142,51 @@ describe('PlatformStack (TASK-023)', () => {
     );
   });
 
+  test('exposes documented webhook and tenant invite listing routes', () => {
+    const resources = template.findResources('AWS::ApiGateway::Resource');
+    const pathParts = Object.values(resources).map((resource) => {
+      const properties = (resource as { Properties?: { PathPart?: string } }).Properties;
+      return properties?.PathPart;
+    });
+
+    expect(pathParts).toContain('webhooks');
+    expect(pathParts).toContain('invites');
+
+    const methods = template.findResources('AWS::ApiGateway::Method') as Record<
+      string,
+      { Properties?: { HttpMethod?: string; ResourceId?: unknown } }
+    >;
+    const resourceEntries = Object.entries(resources);
+    const webhookLogicalId = resourceEntries.find(
+      ([, resource]) =>
+        (resource as { Properties?: { PathPart?: string } }).Properties?.PathPart === 'webhooks',
+    )?.[0];
+    const invitesLogicalId = resourceEntries.find(
+      ([, resource]) =>
+        (resource as { Properties?: { PathPart?: string } }).Properties?.PathPart === 'invites',
+    )?.[0];
+
+    expect(webhookLogicalId).toBeDefined();
+    expect(invitesLogicalId).toBeDefined();
+
+    expect(Object.values(methods)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Properties: expect.objectContaining({
+            HttpMethod: 'GET',
+            ResourceId: { Ref: webhookLogicalId },
+          }),
+        }),
+        expect.objectContaining({
+          Properties: expect.objectContaining({
+            HttpMethod: 'GET',
+            ResourceId: { Ref: invitesLogicalId },
+          }),
+        }),
+      ]),
+    );
+  });
+
   test('attaches VPC Lambdas to the endpoint-trusted Lambda security group', () => {
     const template = synthTemplate('dev');
 

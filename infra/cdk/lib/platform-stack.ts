@@ -661,6 +661,7 @@ export class PlatformStack extends cdk.Stack {
     const tenantApiKeyRotate = tenantApiKey.addResource('rotate');
     const tenantUsers = tenantById.addResource('users');
     const tenantUsersInvite = tenantUsers.addResource('invite');
+    const tenantUsersInvites = tenantUsers.addResource('invites');
     const platform = v1.addResource('platform');
     const failover = platform.addResource('failover');
     const quota = platform.addResource('quota');
@@ -718,6 +719,7 @@ export class PlatformStack extends cdk.Stack {
     auditExport.addMethod('GET', tenantMgmtIntegration, securedMethodOptions);
     tenantApiKeyRotate.addMethod('POST', tenantMgmtIntegration, securedMethodOptions);
     tenantUsersInvite.addMethod('POST', tenantMgmtIntegration, securedMethodOptions);
+    tenantUsersInvites.addMethod('GET', tenantMgmtIntegration, securedMethodOptions);
 
     failover.addMethod('POST', adminOpsIntegration, securedMethodOptions);
     quota.addMethod('GET', adminOpsIntegration, securedMethodOptions);

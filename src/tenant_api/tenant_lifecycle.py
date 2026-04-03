@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
+from boto3.dynamodb.conditions import Key
 from data_access.models import TenantStatus
 
 try:
@@ -272,6 +273,40 @@ def handle_sessions(
     return http_utils.response(200, {"items": []})
 
 
+def handle_list_invites(
+    caller: models.CallerIdentity,
+    *,
+    tenant_id: str,
+) -> dict[str, Any]:
+    if not auth.can_read_tenant(caller, tenant_id) or not auth.can_manage_tenant_self_service(
+        caller, tenant_id
+    ):
+        raise PermissionError("Access denied")
+
+    db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=None)
+    item = db.get_item(db_factory.tenants_table_name(), db_utils.tenant_key(tenant_id))
+    if item is None:
+        return http_utils.error(404, "NOT_FOUND", f"Tenant '{tenant_id}' not found")
+
+    results = db.query(
+        db_factory.tenants_table_name(),
+        sk_condition=Key("SK").begins_with("INVITE#"),
+    )
+
+    invites = [
+        {
+            "inviteId": str(invite.get("inviteId", "")),
+            "tenantId": tenant_id,
+            "email": str(invite.get("email", "")),
+            "role": str(invite.get("role", "Agent.Invoke")),
+            "status": str(invite.get("status", "")),
+            "expiresAt": invite.get("expiresAt"),
+        }
+        for invite in results.items
+    ]
+    return http_utils.response(200, {"items": invites})
+
+
 def dispatch_routes(
     path: str,
     method: str,
@@ -289,6 +324,8 @@ def dispatch_routes(
             return handle_update(event, caller, deps, tenant_id=tenant_id)
         if path == f"/v1/tenants/{tenant_id}" and method == "DELETE":
             return handle_delete(caller, deps, tenant_id=tenant_id)
+        if path == f"/v1/tenants/{tenant_id}/users/invites" and method == "GET":
+            return handle_list_invites(caller, tenant_id=tenant_id)
 
         # Dispatch sub-resources (webhooks, etc.)
         if path.startswith(f"/v1/tenants/{tenant_id}/webhooks"):
