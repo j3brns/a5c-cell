@@ -1,12 +1,12 @@
 {
-  "semver": "0.1.1",
+  "semver": "0.1.2",
   "components": {
-    "python": "0.1.1",
-    "cdk": "0.1.1",
-    "spa": "0.1.1"
+    "python": "0.1.2",
+    "cdk": "0.1.2",
+    "spa": "0.1.2"
   },
-  "commit": "085198b71506cea302db4db26e5cd08a667a1a21",
-  "commit_short": "085198b",
-  "generated_at_utc": "2026-03-01T03:40:28+00:00",
+  "commit": "429f10a53797845dba0797c94c7437b9a10ce7ce",
+  "commit_short": "429f10a",
+  "generated_at_utc": "2026-04-06T00:00:00+00:00",
   "strategy": "Release-oriented docs sync stamp. Update when behavior/docs are intentionally aligned for a release checkpoint; do not append on every file write."
 }
