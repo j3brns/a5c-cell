@@ -14,8 +14,7 @@ from src.authoriser.handler import is_admin_route, is_platform_route
 from src.tenant_api import db_utils as tenant_api_db_utils
 from src.tenant_api import handler as tenant_api_handler
 from src.tenant_api import ops_control
-from tests.unit.test_ops_api import (
-    FakeDynamoDbResource,
+from tests.unit.tenant_api_test_support import (
     FakeEvents,
     FakeLambdaClient,
     FakeMemoryProvisioner,
@@ -24,10 +23,10 @@ from tests.unit.test_ops_api import (
     FakeSecretsManager,
     FakeSsm,
     FakeUsageClient,
-    _body,
-    _invoke,
-    _ops_event,
+    invoke_handler,
+    response_body,
 )
+from tests.unit.test_ops_api import _ops_event
 
 
 def _load_openapi() -> dict:
@@ -48,7 +47,6 @@ def fake_state(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     deps = tenant_api_handler.TenantApiDependencies(
         secretsmanager=FakeSecretsManager(),
         events=FakeEvents(),
-        dynamodb=FakeDynamoDbResource(),
         ssm=FakeSsm(),
         awslambda=FakeLambdaClient(),
         usage_client=FakeUsageClient(),
@@ -105,7 +103,7 @@ def test_non_platform_tenants_cannot_access_platform_diagnostic_surface(
     del fake_state
 
     for path in ("/v1/platform/quota", "/v1/platform/billing/status", "/v1/platform/agents"):
-        response = _invoke(
+        response = invoke_handler(
             _ops_event(
                 "GET",
                 path,
@@ -115,4 +113,4 @@ def test_non_platform_tenants_cannot_access_platform_diagnostic_surface(
             )
         )
         assert response["statusCode"] == 403
-        assert _body(response)["error"]["code"] == "FORBIDDEN"
+        assert response_body(response)["error"]["code"] == "FORBIDDEN"

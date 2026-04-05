@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from decimal import Decimal
 from typing import Any
 
@@ -11,14 +10,7 @@ from src.tenant_api.db_factory import (
 from src.tenant_api.models import CallerIdentity, TenantApiDependencies
 
 
-def _shared_handler() -> Any | None:
-    return sys.modules.get("src.tenant_api.handler") or sys.modules.get("handler")
-
-
 def db_for_tenant(*, tenant_id: str, caller: CallerIdentity, app_id: str | None = None):
-    shared = _shared_handler()
-    if shared is not None and hasattr(shared, "_db_for_tenant"):
-        return shared._db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
     from src.tenant_api.db_factory import db_for_tenant as _db_for_tenant_impl
 
     return _db_for_tenant_impl(tenant_id=tenant_id, caller=caller, app_id=app_id)

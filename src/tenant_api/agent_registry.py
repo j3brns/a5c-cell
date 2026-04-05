@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any
 
 from data_access.models import REGISTERABLE_AGENT_STATUSES, AgentStatus, normalize_agent_status
@@ -10,6 +9,7 @@ try:
     from . import (
         agent_logic,
         auth,
+        bootstrap,
         db_factory,
         db_utils,
         events,
@@ -22,6 +22,7 @@ except (ImportError, ValueError):  # pragma: no cover
     from src.tenant_api import (
         agent_logic,
         auth,
+        bootstrap,
         db_factory,
         db_utils,
         events,
@@ -32,22 +33,12 @@ except (ImportError, ValueError):  # pragma: no cover
     )
 
 
-def _shared_handler() -> Any | None:
-    return sys.modules.get("src.tenant_api.handler") or sys.modules.get("handler")
-
-
 def _db_for_tenant(*, tenant_id: str, caller: models.CallerIdentity, app_id: str | None):
-    shared = _shared_handler()
-    if shared is not None and hasattr(shared, "_db_for_tenant"):
-        return shared._db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
-    return db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
+    return bootstrap.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
 
 
 def _now_utc():
-    shared = _shared_handler()
-    if shared is not None and hasattr(shared, "_now_utc"):
-        return shared._now_utc()
-    return utils.now_utc()
+    return bootstrap.now_utc()
 
 
 _REGISTER_MUTABLE_FIELDS = frozenset(

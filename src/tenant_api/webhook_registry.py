@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import secrets
-import sys
 import urllib.parse
 import uuid
 from typing import Any
@@ -10,10 +9,11 @@ from typing import Any
 from boto3.dynamodb.conditions import Key
 
 try:
-    from . import auth, db_factory, http_utils, models, utils
+    from . import auth, bootstrap, db_factory, http_utils, models, utils
 except (ImportError, ValueError):  # pragma: no cover
     from src.tenant_api import (
         auth,
+        bootstrap,
         db_factory,
         http_utils,
         models,
@@ -21,22 +21,12 @@ except (ImportError, ValueError):  # pragma: no cover
     )
 
 
-def _shared_handler() -> Any | None:
-    return sys.modules.get("src.tenant_api.handler") or sys.modules.get("handler")
-
-
 def _db_for_tenant(*, tenant_id: str, caller: models.CallerIdentity, app_id: str | None):
-    shared = _shared_handler()
-    if shared is not None and hasattr(shared, "_db_for_tenant"):
-        return shared._db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
-    return db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
+    return bootstrap.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
 
 
 def _now_utc():
-    shared = _shared_handler()
-    if shared is not None and hasattr(shared, "_now_utc"):
-        return shared._now_utc()
-    return utils.now_utc()
+    return bootstrap.now_utc()
 
 
 def handle_list_webhooks(

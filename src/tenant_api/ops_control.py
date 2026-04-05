@@ -3,16 +3,14 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from aws_lambda_powertools import Logger
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 try:
-    import handler as shared
-
-    from . import auth, db_factory, db_utils, http_utils, lifecycle_logic, models, utils
-except (ImportError, ValueError):  # pragma: no cover
-    from src.tenant_api import (
+    from . import (
         auth,
+        bootstrap,
         db_factory,
         db_utils,
         http_utils,
@@ -20,9 +18,18 @@ except (ImportError, ValueError):  # pragma: no cover
         models,
         utils,
     )
+except (ImportError, ValueError):  # pragma: no cover
     from src.tenant_api import (
-        handler as shared,
+        auth,
+        bootstrap,
+        db_factory,
+        db_utils,
+        http_utils,
+        lifecycle_logic,
+        models,
+        utils,
     )
+logger = Logger(service="tenant-api-ops")
 
 
 PLATFORM_ADMIN_PATHS = {
@@ -57,7 +64,7 @@ def handle_platform_failover(
 
     lock_record = db_utils.read_failover_lock_record(caller, deps)
     if lock_record is None:
-        shared.logger.warning(
+        logger.warning(
             "Platform failover rejected: lock missing",
             extra={
                 "actor": caller.sub,
@@ -76,7 +83,7 @@ def handle_platform_failover(
         return http_utils.error(409, "LOCK_EXPIRED", "Failover lock has expired")
 
     if current_lock_id != lock_id:
-        shared.logger.warning(
+        logger.warning(
             "Platform failover rejected: lock mismatch",
             extra={
                 "actor": caller.sub,
@@ -89,7 +96,7 @@ def handle_platform_failover(
 
     try:
         ssm = deps.ssm
-        previous_region = shared._required_ssm_parameter(
+        previous_region = bootstrap.required_ssm_parameter(
             ssm, db_factory.runtime_region_param_name()
         )
         changed = previous_region != target_region
@@ -113,10 +120,10 @@ def handle_platform_failover(
             operation_type="runtime_failover",
         )
     except ClientError as exc:
-        previous_region = shared._required_ssm_parameter(
+        previous_region = bootstrap.required_ssm_parameter(
             ssm, db_factory.runtime_region_param_name()
         )
-        shared.logger.exception(
+        logger.exception(
             "Platform failover SSM update failed",
             extra={
                 "actor": caller.sub,
@@ -138,8 +145,8 @@ def handle_platform_quota(
     auth.require_admin(caller)
 
     ssm = deps.ssm
-    active_region = shared._required_ssm_parameter(ssm, db_factory.runtime_region_param_name())
-    fallback_region = shared._optional_ssm_parameter(ssm, db_factory.fallback_region_param_name())
+    active_region = bootstrap.required_ssm_parameter(ssm, db_factory.runtime_region_param_name())
+    fallback_region = bootstrap.optional_ssm_parameter(ssm, db_factory.fallback_region_param_name())
 
     # Get real-time utilization from CloudWatch/Service Quotas
     quotas = deps.platform_quota_client.get_utilisation(

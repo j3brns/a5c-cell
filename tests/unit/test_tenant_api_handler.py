@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 
 from src.tenant_api import handler as tenant_api_handler
+from src.tenant_api import ops_control
 from tests.unit.tenant_api_test_support import (
     build_handler_state,
     fixed_now_value,
@@ -1059,7 +1060,7 @@ def test_platform_failover_ssm_update_failure_returns_error_and_logs_context(
         if message == "Platform failover SSM update failed" and isinstance(extra, dict):
             logged.append((message, dict(extra)))
 
-    monkeypatch.setattr(tenant_api_handler.logger, "exception", _capture_exception)
+    monkeypatch.setattr(ops_control.logger, "exception", _capture_exception)
     event = _event(
         method="POST",
         body={"targetRegion": "eu-central-1", "lockId": "lock-123"},

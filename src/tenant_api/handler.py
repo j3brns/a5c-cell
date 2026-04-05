@@ -36,6 +36,7 @@ from data_access.models import (
 from src.tenant_api import (
     agent_logic,
     auth,
+    bootstrap,
     constants,
     db_factory,
     db_utils,
@@ -173,86 +174,58 @@ def _dispatch_tenant_routes(
 
 @logger.inject_lambda_context(clear_state=True, log_event=False)
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
-    deps = _dependencies()
-    detail_type = utils.str_or_none(event.get("detail-type"))
-    source = utils.str_or_none(event.get("source"))
-    if detail_type and source == "platform.tenant_provisioner":
-        detail = event.get("detail") or {}
-        tenant_id = utils.str_or_none(detail.get("tenantId")) if isinstance(detail, dict) else None
-        app_id = utils.str_or_none(detail.get("appId")) if isinstance(detail, dict) else None
-        logger.append_keys(appid=app_id or "unknown", tenantid=tenant_id or "unknown")
-        try:
+    try:
+        runtime = bootstrap.build_runtime(event, dependency_builder=lambda region: _dependencies())
+        deps = runtime.deps
+        if runtime.detail_type and runtime.source == "platform.tenant_provisioner":
+            detail = runtime.detail or {}
+            tenant_id = utils.str_or_none(detail.get("tenantId"))
+            app_id = utils.str_or_none(detail.get("appId"))
+            logger.append_keys(appid=app_id or "unknown", tenantid=tenant_id or "unknown")
             try:
                 from . import tenant_lifecycle
             except (ImportError, ValueError):
                 from src.tenant_api import tenant_lifecycle
             return tenant_lifecycle.handle_tenant_provisioning_event(event, deps)
-        except ValueError as exc:
-            return http_utils.error(400, "BAD_REQUEST", str(exc))
-        except ClientError as exc:
-            logger.exception("AWS client error in tenant provisioning event handler")
-            error_code = exc.response.get("Error", {}).get("Code", "Unknown")
-            return http_utils.error(502, "AWS_CLIENT_ERROR", error_code)
 
-    caller = http_utils.caller_identity(event)
-    logger.append_keys(appid=caller.app_id or "unknown", tenantid=caller.tenant_id or "unknown")
+        caller = runtime.caller
+        logger.append_keys(appid=caller.app_id or "unknown", tenantid=caller.tenant_id or "unknown")
 
-    method = str(
-        event.get("httpMethod")
-        or event.get("requestContext", {}).get("http", {}).get("method")
-        or "GET"
-    ).upper()
-    path = str(
-        event.get("path") or event.get("requestContext", {}).get("http", {}).get("path") or ""
-    ).rstrip("/")
-
-    try:
-        path_params = event.get("pathParameters") or {}
-        tenant_id = (
-            validation.canonical_tenant_id(
-                path_params.get("tenantId"), allow_reserved=caller.is_admin
-            )
-            if path_params.get("tenantId")
-            else None
-        )
-        if tenant_id and isinstance(path_params, dict):
-            raw_tenant_id = path_params.get("tenantId")
-            if raw_tenant_id:
-                path = path.replace(str(raw_tenant_id), tenant_id)
-
-        if path == "/v1/health" and method == "GET":
+        if runtime.path == "/v1/health" and runtime.method == "GET":
             try:
                 from . import tenant_lifecycle
             except (ImportError, ValueError):
                 from src.tenant_api import tenant_lifecycle
             return tenant_lifecycle.handle_health(deps)
-        if path == "/v1/sessions" and method == "GET":
+        if runtime.path == "/v1/sessions" and runtime.method == "GET":
             try:
                 from . import tenant_lifecycle
             except (ImportError, ValueError):
                 from src.tenant_api import tenant_lifecycle
             return tenant_lifecycle.handle_sessions(event, caller)
         if (
-            path.startswith("/v1/platform")
-            and not path.startswith("/v1/platform/agents")
+            runtime.path.startswith("/v1/platform")
+            and not runtime.path.startswith("/v1/platform/agents")
             and not caller.is_platform_actor
         ):
             raise PermissionError("Platform tenant context required")
 
         # Dispatch route groups
-        response = _dispatch_platform_routes(path, method, event, caller, deps)
+        response = _dispatch_platform_routes(runtime.path, runtime.method, event, caller, deps)
         if response:
             return response
 
-        response = _dispatch_ops_routes(path, method, event, caller, deps)
+        response = _dispatch_ops_routes(runtime.path, runtime.method, event, caller, deps)
         if response:
             return response
 
-        response = _dispatch_webhook_routes(path, method, event, caller, deps)
+        response = _dispatch_webhook_routes(runtime.path, runtime.method, event, caller, deps)
         if response:
             return response
 
-        response = _dispatch_tenant_routes(path, method, event, caller, deps, tenant_id)
+        response = _dispatch_tenant_routes(
+            runtime.path, runtime.method, event, caller, deps, runtime.tenant_id
+        )
         if response:
             return response
 

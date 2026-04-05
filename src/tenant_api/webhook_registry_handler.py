@@ -6,12 +6,9 @@ from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 try:
-    import handler as shared
-
-    from . import http_utils
+    from . import bootstrap, http_utils
 except (ImportError, ValueError):  # pragma: no cover
-    from src.tenant_api import handler as shared
-    from src.tenant_api import http_utils
+    from src.tenant_api import bootstrap, http_utils
 
 logger = Logger(service="tenant-api-webhook-handler")
 
@@ -20,25 +17,19 @@ logger = Logger(service="tenant-api-webhook-handler")
 def lambda_handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
     _ = context
     try:
-        deps = shared._dependencies()
-        caller = http_utils.caller_identity(event)
+        runtime = bootstrap.build_runtime(event)
+        deps = runtime.deps
+        caller = runtime.caller
         logger.append_keys(appid=caller.app_id or "unknown", tenantid=caller.tenant_id or "unknown")
-
-        method = str(
-            event.get("httpMethod")
-            or event.get("requestContext", {}).get("http", {}).get("method")
-            or "GET"
-        ).upper()
-        path = str(
-            event.get("path") or event.get("requestContext", {}).get("http", {}).get("path") or ""
-        ).rstrip("/")
 
         try:
             from src.tenant_api import webhook_registry
         except (ImportError, ValueError):
             from . import webhook_registry
 
-        response = webhook_registry.dispatch_routes(path, method, event, caller, deps)
+        response = webhook_registry.dispatch_routes(
+            runtime.path, runtime.method, event, caller, deps
+        )
         if response:
             return response
 
