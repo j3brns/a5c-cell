@@ -2,65 +2,27 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from test_tenant_api_handler import (
-    FakeEvents,
-    FakeLambdaClient,
-    FakeMemoryProvisioner,
-    FakePlatformQuotaClient,
-    FakeScopedDb,
-    FakeSecretsManager,
-    FakeSsm,
-    FakeUsageClient,
-)
 
 from src.tenant_api import agent_registry, ops_control, tenant_lifecycle, webhook_registry
 from src.tenant_api import handler as tenant_api_handler
+from tests.unit.tenant_api_test_support import build_module_state, fixed_now_value
 
 
 @pytest.fixture
 def fixed_now() -> datetime:
-    return datetime(2026, 2, 25, 12, 0, 0, tzinfo=UTC)
+    return fixed_now_value()
 
 
 @pytest.fixture
 def module_state(monkeypatch: pytest.MonkeyPatch, fixed_now: Any) -> dict[str, Any]:
-    db = FakeScopedDb()
-    deps = tenant_api_handler.TenantApiDependencies(
-        secretsmanager=FakeSecretsManager(),
-        events=FakeEvents(),
-        ssm=FakeSsm(),
-        awslambda=FakeLambdaClient(),
-        usage_client=FakeUsageClient(),
-        memory_provisioner=FakeMemoryProvisioner(),
-        platform_quota_client=FakePlatformQuotaClient(),
-    )
-    monkeypatch.setenv("AWS_REGION", "eu-west-2")
-    monkeypatch.setenv("TENANTS_TABLE_NAME", "platform-tenants")
-    monkeypatch.setenv("AGENTS_TABLE_NAME", "platform-agents")
-    monkeypatch.setenv("INVOCATIONS_TABLE_NAME", "platform-invocations")
-    monkeypatch.setenv("EVENT_BUS_NAME", "platform-bus")
-    monkeypatch.setenv("AUDIT_EXPORT_BUCKET", "platform-audit-exports")
-    monkeypatch.setenv("AUDIT_EXPORT_URL_EXPIRY_SECONDS", "1800")
-    monkeypatch.setenv("TENANT_API_KEY_SECRET_PREFIX", "platform/tenants")
-    monkeypatch.setenv(
-        "TENANT_MGMT_ROLE_ARN",
-        "arn:aws:iam::111111111111:role/platform-tenant-mgmt-dev",
-    )
-    monkeypatch.setenv("OPS_LOCKS_TABLE", "platform-ops-locks")
-    monkeypatch.setenv("RUNTIME_REGION_PARAM", "/platform/config/runtime-region")
-    monkeypatch.setenv("FALLBACK_REGION_PARAM", "/platform/config/fallback-region")
-    monkeypatch.setattr(tenant_api_handler, "_db_for_tenant", lambda **_kwargs: db)
-    monkeypatch.setattr(tenant_api_handler, "_now_utc", lambda: fixed_now)
-    return {"db": db, "deps": deps}
+    return build_module_state(monkeypatch, fixed_now)
 
 
 def _caller(
