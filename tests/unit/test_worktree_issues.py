@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
+import importlib
 import json
 import os
 import signal
@@ -17,17 +17,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 worktree_issues = importlib.import_module("scripts.issue_tool.cli")
-
-
-def _load_legacy_shim():
-    spec = importlib.util.spec_from_file_location(
-        "legacy_worktree_issues", REPO_ROOT / "scripts" / "worktree_issues.py"
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
 
 
 def _issue(
@@ -67,10 +56,18 @@ def test_canonical_issue_tool_entrypoint_help_smoke():
 
 
 def test_legacy_worktree_shim_delegates_without_exec():
-    shim = _load_legacy_shim()
+    shim_path = REPO_ROOT / "scripts" / "worktree_issues.py"
+    proc = subprocess.run(
+        [sys.executable, str(shim_path), "--help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-    assert "exec(" not in Path(shim.__file__).read_text(encoding="utf-8")
-    assert shim.main is worktree_issues.main
+    assert "exec(" not in shim_path.read_text(encoding="utf-8")
+    assert proc.returncode == 0
+    assert "Issue-driven worktree workflow" in proc.stdout
 
 
 def test_build_queue_auto_excludes_in_progress_from_candidates():
