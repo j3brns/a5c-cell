@@ -6,53 +6,25 @@
 
 ## Atomic AWS service cells for agent workloads
 
-**a5c-cell** is a personal exploratory project: Production-informed, its a free formed framework for packaging agent workloads into repeatable, operable service cells on AWS-managed agentic aligned infrastructure. It's been through three major changes already, switching lanes from Terra, adding the tenancy facade layer and a car crash identity mock up, that wasted hours.
+**a5c-cell** is a personal exploratory project, production-informed but free-formed. It packages agent workloads into repeatable, operable service cells on AWS-managed infrastructure, adding a microservice control layer over Amazon Bedrock and AgentCore that gives each cell partitionable tenancy, operational tooling, logging, control points, a fast development inner loop, and for human users — a scaffolded SPA on CloudFront.
 
-> _**a5c??** Yes, its not a commit fragment "a5c" is just a barely necessary typographic abbreviation of *agentic*. It makes more sense with k8s, but I did need a name.._
+> _**a5c??** A typographic abbreviation of *agentic*. It makes more sense when you know k8s, but it needed a name._
 
-At its core, this project asks a practical question: can a bootable, paved, end-to-end stack for operations, tooling, agent development inner loops, and tenancy act as a reusable cellular platform layer, and is that layer worth the operational overhead when compared with runbooks, SOPs, and business-as-usual DevOps procedure?
+## Why this exists
 
-> The squeeze is real: overhead, maintenance, roadmap pressure, resourcing, operational demarcation, developer experience, inner loop speed, lifecycle management of hosted agents, and the continuing care and feeding of the framework itself.
+At its core, this project asks a practical question: can a bootable, paved, end-to-end stack for operations, tooling, agent development inner loops, and tenancy act as a reusable cellular platform layer — and is that layer worth the operational overhead when compared with runbooks, SOPs, and business-as-usual DevOps procedure?
 
-Each **a5c-cell** adds a microservice control layer over Amazon Bedrock and AgentCore to provide each cell with partitionable tenancy, operational tooling, logging, control points, a fast development inner loop, and for human users - a scaffolded single-page application exposure layer, on Cloudfront.
+The squeeze is real: overhead, maintenance, roadmap pressure, resourcing, operational demarcation, developer experience, inner loop speed, lifecycle management of hosted agents, and the continuing care and feeding of the framework itself.
 
-**Who builds it, who runs it?** Normally the same answer as; Who decides its actually Prod ready
+### Who builds it, who runs it?
 
-No one, in this case, so I built as if to happily transfer between my alter-ego's for 100 days. 
+Normally the same answer as "who decides it's actually prod ready." No one, in this case, so I built as if to happily transfer between my alter-egos for 100 days. New tech needs to be underpinned by sharp-end skill, and devs are usually first to hit the "unsupported yet" wall.
 
-> I'm actually a firm believer in the mentality **"You build it , YOU run it"** exacts. New tech needs to be unerpinned by sharp end skill, and Devs are usually first to hit the 'unsupported yet' wall!
+The aim was not merely to prototype, but to test whether an operable task and automation layer for agent workloads could survive realistic operating conditions. And sample the dev experience. The result is a practical Ops CLI, a supersonic inner loop, and a runbook model that supports federated ownership, clearer standardisation, and better alignment with emerging AI operations practice.
 
-_The aim was not merely to prototype, but to test whether an operable task and automation layer for agent workloads could survive realistic operating conditions. And sample the Dev Experience._
+### Scaling demarcation
 
-The result is a practical Ops CLI, supersonic inner-loop and a runbook model that supports federated ownership, clearer standardisation, and better alignment with emerging AI operations practice.
-
-> **Scaling demarcation (concept)**  
-> Every **a5c-cell** maps 1:1 to:
-> - an AWS account
-> - a service boundary
-> - an operations and accounting unit
-> - a resource namespace
-> - a resource boundary
-> - a fixed service allow list
-
-## Drinking our own champagne
-
-  A useful end-state is a platform-ops agent running under the reserved internal
-  `platform` tenant and using the same control-plane surfaces we expect others to
-  trust. Not a super-tenant, not a bypass path; just us proving the model on
-  ourselves first  with agents operating our runbooks and troubleshoooting.
-
-## Fictional Operational model
-
-Tenants invoke AI agents through a controlled REST interface exposed through the portal, with tenant isolation, billing attribution, and compliance controls designed in from the start.
-
-> Agent teams can push and iterate on agents independently through a responsive inner-loop harness, including local stack support for development and test.
-
-In practice, this creates a fast self-service path that separates agent code from heavier platform dependencies. Sub-production releases and aliased challengers can move without waiting for a full outer-loop platform release.
-
-> _Useful?, certainly. Also the sort of thing that encourages dangerous optimism. Please do not test in production. Not yet._
-
-![Platform architecture showing eu-west-2 control plane, eu-west-1 compute, and eu-central-1 evaluation regions](docs/images/tf_acore_aas_architecture.drawio.png)
+Every **a5c-cell** maps 1:1 to an AWS account, a service boundary, an operations and accounting unit, a resource namespace, a resource boundary, and a fixed service allow list.
 
 ## Highlights
 
@@ -64,38 +36,186 @@ In practice, this creates a fast self-service path that separates agent code fro
 - **EU-only data residency** — approved topology keeps data in London and runtime in Dublin, with evaluation capability in Frankfurt
 - **LocalStack developer loop** — full local inner loop without AWS credentials
 
+## Architecture
+
+> Full details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+> Diagram catalogue: [docs/README.md#diagram-catalog](docs/README.md#diagram-catalog)
+
+### System shape
+
+Tenants invoke AI agents through a controlled REST interface with tenant isolation, billing attribution, and compliance controls designed in from the start. The platform has four jobs: admit requests with the right identity and tenant context, route work through tenant-aware policy and execution roles, run agents and tools in the approved AgentCore runtime plane, and preserve audit, configuration, and operational control around those flows.
+
+```mermaid
+flowchart LR
+    U[Tenant Users]
+    O[Platform Operators]
+    C[API Clients]
+
+    subgraph EDGE[Platform Edge]
+        CF[CloudFront + WAF]
+        GW[API Gateway + Usage Plans]
+    end
+
+    subgraph CONTROL[Control Plane - eu-west-2]
+        AUTH[Authoriser Lambda]
+        BRIDGE[Bridge Lambda]
+        BFF[BFF and Tenant API]
+        DDB[DynamoDB]
+        APP[AppConfig]
+        SSM[SSM Parameter Store]
+        SEC[Secrets Manager + KMS]
+    end
+
+    subgraph RUNTIME[Runtime Plane - eu-west-1]
+        AC[AgentCore Runtime]
+        INT[Gateway Interceptors]
+        TOOLS[Tool Lambdas + AWS Services]
+    end
+
+    U --> CF
+    O --> CF
+    C --> GW
+    CF --> GW
+    GW --> AUTH
+    AUTH --> BRIDGE
+    AUTH --> BFF
+    BRIDGE --> DDB
+    BRIDGE --> APP
+    BRIDGE --> SSM
+    BRIDGE --> SEC
+    BRIDGE --> AC
+    AC --> INT
+    INT --> TOOLS
+```
+
+*System topology: three actor types enter through the platform edge. The control plane in London resolves identity, policy, and routing. The runtime plane in Dublin executes agents under scoped controls. Regions reflect the current deployment topology defined in ADR-009.*
+
+### Request lifecycle
+
+Client → CloudFront → API Gateway with WAF and usage plan → **Authoriser** for JWT validation and tenant context → **Bridge** for tenant role assumption and runtime dispatch → **AgentCore Runtime** in Firecracker microVM → **Gateway interceptors** for act-on-behalf tokens and tier filtering → Tool Lambdas → response stream returned to client.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Tenant User or API Client
+    participant Edge as CloudFront + API Gateway
+    participant Auth as Authoriser Lambda
+    participant Bridge as Bridge Lambda
+    participant State as DynamoDB + AppConfig + SSM
+    participant Runtime as AgentCore Runtime
+    participant Tools as Interceptors + Tools
+
+    Client->>Edge: request with JWT
+    Edge->>Auth: validate token
+    Auth-->>Edge: tenant context + allow policy
+    Edge->>Bridge: forward with tenant context
+    Bridge->>State: resolve policy, role, runtime region
+    State-->>Bridge: tenant config + routing data
+    Bridge->>Runtime: invoke in approved region
+    Runtime->>Tools: tool access under scoped controls
+    Tools-->>Runtime: results
+    Runtime-->>Bridge: response or stream
+    Bridge-->>Client: response or stream
+```
+
+### Invocation modes
+
+The same control model applies to all three invocation modes — sync, streaming, and async. The differences are in execution dispatch and response delivery, not in admission or policy.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Accepted: Request admitted
+    Accepted --> Authorised: Identity and tenant validated
+    Authorised --> Routed: Policy and runtime selected
+    Routed --> RunningSync: Sync
+    Routed --> Streaming: Stream
+    Routed --> QueuedAsync: Async
+    RunningSync --> Completed
+    Streaming --> Completed
+    QueuedAsync --> RunningAsync: AgentCore task executing
+    RunningAsync --> WebhookDelivered: Webhook sent
+    RunningAsync --> Polled: Job status fetched
+    WebhookDelivered --> Completed
+    Polled --> Completed
+    Completed --> [*]
+```
+
+*All three modes share the admission, authorisation, and routing path. They diverge at execution. Async mode adds webhook delivery, retries, and job status lookup.*
+
+### Tenant isolation
+
+Tenant isolation is enforced in depth across four layers:
+
+| Layer | Component | Enforcement |
+|-------|-----------|-------------|
+| 1 | REST API Authoriser | Validates JWT and rejects invalid or suspended tenants |
+| 2 | Bridge Lambda | Assumes tenant-specific IAM execution role |
+| 3 | Gateway Interceptors | Issues scoped act-on-behalf token and tier-filtered tool access |
+| 4 | data-access-lib | `TenantScopedDynamoDB` raises `TenantAccessViolation` on cross-tenant access |
+
+A single-layer failure is not sufficient to compromise tenant data boundaries. This is compositional by design — because in a multi-tenant agentic platform, the agent itself is an autonomous actor with tool access. Cross-tenant reach is not a data leak, it is a compromised agent.
+
+### Regional topology
+
+The control plane and the runtime plane are in different regions. This is not an accident.
+
+#### Why separate the planes
+
+AWS prescriptive guidance for both [SaaS architecture](https://docs.aws.amazon.com/whitepapers/latest/saas-architecture-fundamentals/control-plane-vs.-application-plane.html) and [multi-tenant agentic AI](https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-multitenant/employing-control-planes-in-agentic-environments.html) recommends separating control plane from application plane. The control plane owns onboarding, identity, policy, metering, and operational management across all tenants. The application plane — here, the AgentCore runtime — is where tenant workloads execute. These concerns have different failure modes, different scaling profiles, and different blast radii. A control plane outage does not affect one workload; it removes identity resolution, policy enforcement, and audit for every tenant simultaneously.
+
+The [Fault Isolation Boundaries](https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/control-planes-and-data-planes.html) whitepaper reinforces the point: data planes are intentionally simpler, with fewer moving parts, and the design goal is static stability — if the control plane is impaired, the runtime continues serving on previously resolved configuration. The [multi-tenant AaaS guidance](https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-multitenant/enforcing-tenant-isolation.html) extends this explicitly to agentic workloads, where tenant isolation, noisy-neighbour throttling, and tier-based policy all benefit from a control plane that is not competing for the same compute and failure domain as the agents.
+
+#### Current deployment
+
+| Region | Role | Key services |
+|--------|------|-------------|
+| **eu-west-2** London | HOME — control and data plane | REST API Gateway, WAF, CloudFront, DynamoDB, S3, Secrets Manager, SSM, Lambda, KMS |
+| **eu-west-1** Dublin | COMPUTE — primary runtime | AgentCore Runtime arm64 Firecracker, Observability, Browser, Code Interpreter |
+| **eu-central-1** Frankfurt | EVALUATION and failover | AgentCore Evaluations, runtime failover target |
+
+#### Intentional optionality
+
+This regional split was intentional optionality: at the time of ADR-009, AgentCore Runtime was not available in London, so the architecture treats the runtime region as a policy-driven parameter rather than a hardcoded assumption. AWS has since expanded AgentCore availability across multiple EU regions, largely superseding the original availability constraint. The topology remains in place pending an architecture review and controlled migration decision — but the separation of concerns it enforces is worth preserving regardless of which region hosts what.
+
+### Entity lifecycle and CDK dependencies
+
+![State transitions for tenants, agents, invocations, jobs, and sessions](docs/images/tf_acore_aas_entities_state_diagram.drawio.png)
+
+![CDK stack deployment order and cross-stack resource wiring](docs/images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
+
+`NetworkStack` → `IdentityStack` → `PlatformStack` → `TenantStack` per tenant, event-driven → `ObservabilityStack` → `AgentCoreStack`
+
 ## Drinking our own champagne
 
-One direction for the platform is a reserved internal `platform` tenant with a
-platform-ops agent that helps operate the system through the same control-plane
-surfaces the product exposes. The point is not to create a hidden super-tenant;
-it is to prove the operational model on ourselves first. If we cannot run release,
-onboarding, and operator-assist flows safely through explicit APIs, audit trails,
-and tenant-scoped context, the platform contract is weaker than it looks.
+One direction for the platform is a reserved internal `platform` tenant with a platform-ops agent that operates the system through the same control-plane surfaces the product exposes. Not a super-tenant, not a bypass path — just us proving the model on ourselves first, with agents operating our runbooks and troubleshooting.
 
-## Portal experience
+If we cannot run release, onboarding, and operator-assist flows safely through explicit APIs, audit trails, and tenant-scoped context, the platform contract is weaker than it looks.
 
-The SPA is the operator and tenant-facing control surface for the platform. It provides:
+```mermaid
+flowchart LR
+    OP[Operator] --> SPA[Admin SPA]
+    SPA --> AUTH[Entra OIDC]
+    AUTH --> API[REST API]
+    API --> CTRL[Control-plane Handler or Platform Agent]
+    CTRL --> AUDIT[Audit Records]
+    CTRL --> TARGET[Explicit Target-tenant APIs + Workflows]
+```
 
-- **Tenant dashboard** — daily usage, budget posture, tier and status, and quick actions for keys, members, webhooks, and audit export
-- **Platform admin** — cross-region health, quota headroom, tenant portfolio state, and operator actions
-- **Members and invites** — tenant-scoped user access and invitation workflow
-- **Webhooks** — asynchronous callback registration and lifecycle management
-- **Invoke flow** — prompt submission, streaming responses or async tracking, and session continuity
+*The internal platform tenant uses the same control-plane surfaces as external tenants. Operator identity and target-tenant context are always auditable. Cross-tenant actions require explicit control-plane APIs.*
 
-Portal previews in the documentation:
+## Current state
 
-- [Tenant dashboard preview](docs/images/tf_acore_aas_portal_tenant_dashboard.svg)
-- [Admin overview preview](docs/images/tf_acore_aas_portal_admin_overview.svg)
-- [Members and invites preview](docs/images/tf_acore_aas_portal_members.svg)
-- [Webhooks preview](docs/images/tf_acore_aas_portal_webhooks.svg)
-- [Invoke flow preview](docs/images/tf_acore_aas_portal_invoke.svg)
+Recent platform work has tightened the contract around the system rather than just adding more surface area:
 
-These are fixture-based documentation renders derived from the current SPA page structure, not live production screenshots.
+- the platform-agent diagnostics surface is now explicitly bounded to read-only routes
+- the SPA API client retry and SSE path has been hardened
+- `/v1/health` now matches its documented unauthenticated contract
+- tenant invite listing, failover observability, and tenant S3 IAM scope have all been corrected in code and tests
+- the active issue backlog has been reduced to one intentionally blocked future item rather than a pile of stale tracker drift
 
 ## Quick start
 
-**Prerequisites**: [uv](https://docs.astral.sh/uv/) 0.4 or later, Docker 24 or later, AWS CLI v2, Node 20 LTS, npm, GitLab access, and the required Entra group membership.
+**Prerequisites**: [uv](https://docs.astral.sh/uv/) 0.4+, Docker 24+, AWS CLI v2, Node 20 LTS, npm, GitHub access for issues and pull requests, GitLab access for CI/CD and protected deploys, and the required Entra group membership.
 
 ```bash
 git clone <repo> && cd tf-acore-aas
@@ -111,168 +231,20 @@ make dev-invoke               # Confirm echo-agent works end-to-end locally
 | First AWS deployment | [Bootstrap Guide](docs/bootstrap-guide.md) |
 | Entra app registration | [Entra Setup](docs/entra-setup.md) |
 
-## Architecture
-
-> Full details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)  
-> Diagram catalogue: [docs/README.md#diagram-catalog](docs/README.md#diagram-catalog)
-
-### Region topology
-
-| Region | Role | Key services |
-|--------|------|-------------|
-| **eu-west-2** London | HOME — control and data plane | REST API Gateway, WAF, CloudFront, DynamoDB, S3, Secrets Manager, SSM, Lambda, KMS |
-| **eu-west-1** Dublin | COMPUTE — current primary runtime region by platform policy | AgentCore Runtime arm64 Firecracker, Observability, Browser, Code Interpreter |
-| **eu-central-1** Frankfurt | EVALUATION and failover | AgentCore Evaluations, runtime failover target |
-
-AWS documentation now shows AgentCore Runtime and related core services available in multiple EU regions, including London, Dublin, and Frankfurt. This platform, however, still operates the London-to-Dublin topology defined in ADR-009. That deployment policy remains in place pending explicit architecture review and a controlled migration decision.
-
-### Request lifecycle
-
-![Synchronous request lifecycle: client through CloudFront, API Gateway, Authoriser, Bridge, Runtime, Gateway interceptors, and back](docs/images/tf_acore_aas_request_lifecycle_engineer.drawio.png)
-
-Client → CloudFront → API Gateway with WAF and usage plan → **Authoriser** for JWT validation and tenant context → **Bridge** for tenant role assumption and runtime dispatch → **AgentCore Runtime** in Firecracker microVM → **Gateway interceptors** for act-on-behalf tokens and tier filtering → Tool Lambdas → response stream returned to client.
-
-```mermaid
-stateDiagram-v2
-    [*] --> RequestSent: Client initiates Request
-    RequestSent --> EdgeEntry: CloudFront receives Request
-
-    state "Edge Entry (CloudFront)" as EdgeEntry {
-        state "WAF Validation" as WAF {
-            [*] --> Inspecting
-            Inspecting --> Blocked: WAF rules fail
-            Inspecting --> Allowed: WAF rules pass
-        }
-        Blocked --> [*]: Return 403 Response
-        Allowed --> EndpointControl: Forward to API Gateway
-    }
-
-    state "Endpoint Control (API Gateway)" as EndpointControl {
-        state "Check Usage Plan" as UsageCheck {
-            [*] --> Checking limits
-            Checking limits --> LimitExceeded: API Key throttled
-            Checking limits --> WithinLimit: API Key allowed
-        }
-        LimitExceeded --> [*]: Return 429 Response
-        WithinLimit --> ContextAndIdentity: Invoke Authorizer
-    }
-
-    state "Context & Identity (Authorizer Lambda)" as ContextAndIdentity {
-        state "Authenticating" as Auth {
-            [*] --> JWT_Validation
-            JWT_Validation --> Invalid: Signature/Expire fail
-            JWT_Validation --> Valid: Signature/Expire pass
-        }
-        Invalid --> [*]: Return 401/403 Response
-        Valid --> Build_Context_And_Policy: Extract Tenant ID
-        Build_Context_And_Policy --> RoutingAndSecurity: Return Context + Forward to Bridge
-    }
-
-    state "Routing & Security (Bridge Lambda)" as RoutingAndSecurity {
-        state "Tenant Mapping" as Map
-        state "Assume Role via STS" as AssumeRole
-        state "Secure Dispatch" as Dispatch
-
-        [*] --> Map
-        Map --> AssumeRole: Perform Mapping
-        AssumeRole --> Dispatch: STS Credentials obtained
-        Dispatch --> AgentCore_Runtime: Firecracker microVM Initialized & Dispatched
-
-        note left of Map
-            Consults mapping:
-            TenantID -> ARN
-        end note
-    }
-
-    state "AgentCore Runtime Execution (in microVM)" as AgentCore_Runtime {
-        state "Gateway Interceptors" as Interceptors {
-            state "Tier Filtering" as TierFilter
-            state "Act-On-Behalf" as ActOnBehalf
-
-            [*] --> TierFilter: Check Tenant Tier
-            TierFilter --> ActOnBehalf: Access is approved
-            ActOnBehalf --> Exchange_Tokens: Call Token Exchange Service
-            Exchange_Tokens --> TokenExchangeServiceResponse: Tool Token obtained
-        }
-        state "Tool Execution" as ToolExec
-        state "Result Aggregation" as Aggregation
-
-        [*] --> Interceptors
-        Interceptors --> ToolExec: Forward refined request with Tool Token
-        ToolExec --> Aggregation: Tools return data
-        Aggregation --> ProcessingComplete: Aggregate results, open stream
-    }
-
-    state "Token Exchange Service" as TokenExchangeServiceResponse
-    note right of TokenExchangeServiceResponse : External service called from Interceptor
-
-    ProcessingComplete --> ResponseStreaming: Continuous Stream open
-
-    state "Response Streaming (Dashed lines indicate return flow)" as ResponseStreaming {
-        state "Stream to Bridge" as sB
-        state "Stream to APIGW" as sA
-        state "Stream to CloudFront" as sC
-        state "Stream to Client" as sCl
-
-        [*] --> sB
-        sB --> sA
-        sA --> sC
-        sC --> sCl
-        sCl --> Complete: All data delivered
-    }
-
-    Complete --> [*]: Terminate request cycle
-
-    note right of AgentCore_Runtime
-        Detailed lifecycle within the microVM.
-        Interceptors handle tier checks and
-        obtaining short-lived tool tokens.
-    end note
-```
-
-### Tenant isolation
-
-Tenant isolation is enforced in depth across four layers:
-
-| Layer | Component | Enforcement |
-|-------|-----------|-------------|
-| 1 | REST API Authoriser | Validates JWT and rejects invalid or suspended tenants |
-| 2 | Bridge Lambda | Assumes tenant-specific IAM execution role |
-| 3 | Gateway Interceptors | Issues scoped act-on-behalf token and tier-filtered tool access |
-| 4 | data-access-lib | `TenantScopedDynamoDB` raises `TenantAccessViolation` on cross-tenant access |
-
-A single-layer failure is not sufficient to compromise tenant data boundaries.
-
-### Entity lifecycle
-
-![State transitions for tenants, agents, invocations, jobs, and sessions](docs/images/tf_acore_aas_entities_state_diagram.drawio.png)
-
-### CDK stack dependencies
-
-![CDK stack deployment order and cross-stack resource wiring](docs/images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
-
-`NetworkStack` → `IdentityStack` → `PlatformStack` → `TenantStack` per tenant, event-driven → `ObservabilityStack` → `AgentCoreStack`
-
 ## Project structure
 
 ```text
 tf-acore-aas/
-├── AGENTS.md                 Pointer to CLAUDE.md
 ├── CLAUDE.md                 AI coding assistant rules
-├── GEMINI.md                 Pointer to CLAUDE.md
 ├── Makefile                   Dev, test, ops, and deploy commands
 ├── .env.example               Required environment variables
-├── .githooks/                 Repository-local Git hooks
 │
 ├── docs/                      Documentation suite
 │   ├── README.md              Index, diagram catalogue, role-based reading guide
 │   ├── ARCHITECTURE.md        System design, data model, failure modes
 │   ├── PLAN.md                Phased delivery plan with gates
 │   ├── ROADMAP.md             Vision, milestones M1–M7, V1.x backlog
-│   ├── TASKS.md               Task snapshot; GitHub Issues are canonical
-│   ├── bootstrap-guide.md     Day-zero deployment
-│   ├── entra-setup.md         Entra app registration
-│   ├── decisions/             ADR-001..014
+│   ├── decisions/             ADR-001..018
 │   ├── operations/            RUNBOOK-000..009
 │   ├── security/              Threat model, compliance checklist
 │   ├── development/           Local setup, agent developer guide
@@ -299,6 +271,11 @@ tf-acore-aas/
 
 ## Development workflow
 
+### Repo and pipeline split
+
+- **GitHub** is the canonical home for issues, pull requests, and day-to-day collaboration.
+- **GitLab** remains the CI/CD and protected deployment target, including GitLab OIDC wiring and production approval gates.
+
 ### Getting started
 
 ```bash
@@ -306,16 +283,12 @@ make bootstrap                # One-time: check prerequisites and install depend
 make install-git-hooks        # One-time: install pre-push hook
 make dev                      # Start LocalStack and mock services
 make test-unit                # Run all unit tests
-make validate-local           # fast local validation (parallel rules/python/diff-aware cdk-ts/diff-secrets)
-make validate-local-full      # full local validation (parallel fast checks + full cdk validation + full repo secret scan)
+make validate-local           # ruff + pyright + tsc + cdk synth + detect-secrets
 ```
 
 ### Working on issues
 
 All work is tracked through [GitHub Issues](https://github.com/j3brns/tf-acore-aas/issues), using `Seq:` for ordering and `Depends on:` for dependency gating.
-
-Canonical issue-tool CLI entrypoint: `uv run python -m scripts.issue_tool ...`
-The legacy `scripts/worktree_issues.py` file remains only as a compatibility shim.
 
 ```bash
 make issue-queue              # Dependency-aware queue ordered by Seq
@@ -329,29 +302,24 @@ make worktree-push-issue      # Push with preflight and validation enforced
 
 ### Agent developer inner loop
 
+Agent teams can push and iterate on agents independently through a responsive inner-loop harness, including local stack support for development and test. In practice, this creates a fast self-service path that separates agent code from heavier platform dependencies — sub-production releases and aliased challengers can move without waiting for a full outer-loop platform release.
+
+> _Useful? Certainly. Also the sort of thing that encourages dangerous optimism. Please do not test in production. Not yet._
+
 ```bash
-make agent-test AGENT=my-agent              # 1. Local logic and golden tests (fast)
-make agentcore-dev AGENT=my-agent           # 2. Optional: run with the AgentCore CLI locally
-make agentcore-invoke-dev AGENT=my-agent    # 3. Optional: invoke the local AgentCore dev server
-make agentcore-launch AGENT=my-agent        # 4. Optional: launch directly with the starter toolkit
-make agentcore-invoke-runtime AGENT=my-agent # 5. Optional: invoke the toolkit-managed runtime
-make agent-push AGENT=my-agent ENV=dev      # 6. Push through A5C (deploy + register)
-make agent-invoke AGENT=my-agent ENV=dev    # 7. Invoke through the A5C platform
+make agent-test AGENT=my-agent              # Local logic and golden tests
+make agent-push AGENT=my-agent ENV=dev      # Push to AWS dev compute
+make agent-invoke AGENT=my-agent ENV=dev    # Invoke on real AWS
 ```
 
-Use the `agentcore-*` targets for agent-side iteration only. They exercise the Bedrock AgentCore starter toolkit directly and do not register the runtime in the A5C control plane.
-
-Use `make agent-push` when you need the real platform path: package, deploy, register, and then invoke through the Bridge. `make agent-push` still uses the fast path when dependencies are unchanged, which keeps the inner loop quick without bypassing the platform boundary entirely.
+`make agent-push` uses the fast path when dependencies are unchanged, which keeps the inner loop quick without bypassing the platform boundary entirely. Local development of agent logic is done via `pytest` and `make agent-test`.
 
 ### Frontend developer inner loop
 
 ```bash
-make spa-dev
-make spa-push ENV=dev
+make spa-dev                  # Local SPA dev server against mock API
+make spa-push ENV=dev         # Build, publish to S3, invalidate CloudFront
 ```
-
-`make spa-dev` starts the local SPA development server against the mock API.  
-`make spa-push` builds and publishes the SPA to S3, then invalidates CloudFront.
 
 ### Operations
 
@@ -380,18 +348,18 @@ Platform Lambda source directories use `snake_case`. The shared `src/data-access
 
 | Concern | Technology |
 |---------|-----------|
-| Agent runtime | Amazon Bedrock AgentCore Runtime arm64 Firecracker; current primary runtime region is eu-west-1 |
+| Agent runtime | Amazon Bedrock AgentCore Runtime arm64 Firecracker; primary runtime region is eu-west-1 |
 | Human authentication | Microsoft Entra ID OIDC |
 | Machine authentication | AWS SigV4 |
 | Platform IaC | AWS CDK with strict TypeScript |
 | Account IaC | Terraform HCL |
-| Python tooling | uv and `pyproject.toml` |
+| Python tooling | uv and pyproject.toml |
 | Logging | aws-lambda-powertools Logger structured JSON |
 | CDK testing | Jest and cdk-assertions |
 | Python testing | pytest and LocalStack |
 | Secrets | AWS Secrets Manager |
 | Configuration | AWS AppConfig for dynamic capability policy; AWS SSM Parameter Store for runtime/platform parameters |
-| Async agents | AgentCore `add_async_task` and `complete_async_task` SDK |
+| Async agents | AgentCore add_async_task and complete_async_task SDK |
 | Observability | AgentCore Observability and Amazon CloudWatch |
 
 ## Key documents
@@ -410,7 +378,7 @@ Platform Lambda source directories use `snake_case`. The shared `src/data-access
 | [Threat Model](docs/security/THREAT-MODEL.md) | Security | Threat analysis and mitigations |
 | [Compliance Checklist](docs/security/COMPLIANCE-CHECKLIST.md) | Security | Controls and evidence tracking |
 | [Operator Runbooks](docs/operations/) | Ops | Incident procedures and operational runbooks |
-| [Architecture Decisions](docs/decisions/) | Engineers | ADR-001..014 |
+| [Architecture Decisions](docs/decisions/) | Engineers | ADR set, including newer platform-agent and gateway decisions |
 | [GitHub Issues](https://github.com/j3brns/tf-acore-aas/issues) | All | Canonical task queue |
 
 ## Contacts
@@ -418,82 +386,3 @@ Platform Lambda source directories use `snake_case`. The shared `src/data-access
 | Role | Contact |
 |------|---------|
 | Faith | Hope |
-
-# Appendix
-
-## Sequence diagram - services layer
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Client
-    participant CloudFront as CloudFront (Edge)
-    participant WAF as AWS WAF (Firewall)
-    participant APIGW as API Gateway (with Usage Plan)
-    participant Authorizer as Lambda Authorizer (JWT & Context)
-    participant Bridge as Bridge Lambda (Tenant Context Mapper)
-    participant STS as AWS STS (Role Assumption)
-    participant AgentCoreRuntime as AgentCore Runtime (in Firecracker microVM)
-    participant TokenEx as Token Exchange Service
-    participant ToolLambdas as Tool Lambdas
-
-    Client->>CloudFront: 1. Send Request (with JWT)
-    CloudFront->>WAF: 2. Forward Request
-
-    alt WAF inspection
-        WAF-->>CloudFront: 2a. Blocked (403)
-        CloudFront-->>Client: 2b. Blocked (403 Response)
-    else WAF inspection allowed
-        WAF->>APIGW: 3. Forward Request
-    end
-
-    APIGW->>APIGW: 4. Apply Usage Plan (API Key check)
-    alt Usage limit exceeded
-        APIGW-->>CloudFront: 4a. Throttle (429)
-        CloudFront-->>Client: 4b. Throttle (429 Response)
-    end
-
-    APIGW->>Authorizer: 5. Invoke for JWT Validation
-    Note right of Authorizer: Validates JWT signature,<br/>Extracts Tenant ID.
-    Authorizer->>Authorizer: 6. Build Policy & Context
-
-    alt Authentication fails (Invalid JWT)
-        Authorizer-->>APIGW: 6a. Deny Policy
-        APIGW-->>Client: 6b. Unauthorized (401/403 Response)
-    end
-
-    Authorizer-->>APIGW: 7. Return Allow Policy & `tenantContext`
-
-    Note right of APIGW: API Gateway caches policy<br/>and context for request.
-    APIGW->>Bridge: 8. Invoke Bridge Lambda (Forward Request + `tenantContext`)
-
-    Note right of Bridge: Consults mapping:<br/>TenantID -> IAM Role ARN
-    Bridge->>STS: 9. `AssumeRole(Tenant IAM Role ARN)`
-    STS-->>Bridge: 10. Return Tenant Temporary Credentials
-
-    Note right of Bridge: Prepares refined runtime payload,<br/>including `tenantContext` and<br/>tenant temporary credentials.
-    Bridge->>Bridge: 11. Launch & Dispatch to Firecracker microVM
-
-    Bridge->>AgentCoreRuntime: 12. Invoke AgentCore Runtime (Refined Request + Credentials)
-
-    par Parallel Gateway Interceptors
-        AgentCoreRuntime->>AgentCoreRuntime: 13. Interceptor: Tier Filtering Check
-        Note right of AgentCoreRuntime: Filters operations<br/>based on tenant tier.
-    and Interceptor: Act-On-Behalf Token
-        AgentCoreRuntime->>TokenEx: 14. `Exchange(Tenant Credentials + AOBT)` for Tool Token
-        TokenEx-->>AgentCoreRuntime: 15. Return Tool Token
-    end
-
-    Note right of AgentCoreRuntime: Prepares tool execution with Tool Token.
-    AgentCoreRuntime->>ToolLambdas: 16. Invoke Tool Lambdas
-    ToolLambdas-->>AgentCoreRuntime: 17. Return Tool Results
-
-    AgentCoreRuntime->>AgentCoreRuntime: 18. Process Results & Aggregate
-
-    Note right of AgentCoreRuntime: Starts response stream back.
-    AgentCoreRuntime-->>Bridge: 19. Response Stream (Continuous)
-    Bridge-->>APIGW: 20. Response Stream (Continuous)
-    APIGW-->>CloudFront: 21. Response Stream (Continuous)
-    CloudFront-->>Client: 22. Response Stream (Continuous)
-    Note right of Client: Response stream is fully delivered.
-```

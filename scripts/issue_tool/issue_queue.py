@@ -30,55 +30,47 @@ def fetch_repo_issues(
     *,
     state: Literal["open", "closed", "all"] = "all",
 ) -> list[Issue]:
-    page = 1
+    data = gh_json(
+        [
+            "issue",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            state,
+            "--limit",
+            "1000",
+            "--json",
+            "number,title,body,labels,state,createdAt,url",
+        ],
+        root=root,
+    )
+    if not isinstance(data, list):
+        raise CliError("Unexpected GitHub issue list response")
+
     out: list[Issue] = []
-    while True:
-        data = gh_json(
-            [
-                "api",
-                f"repos/{repo}/issues",
-                "--method",
-                "GET",
-                "-f",
-                f"state={state}",
-                "-f",
-                "per_page=100",
-                "-f",
-                f"page={page}",
-            ],
-            root=root,
-        )
-        if not isinstance(data, list):
-            raise CliError("Unexpected GitHub API response for issues list")
-        if not data:
-            break
-        for raw in data:
-            if not isinstance(raw, dict):
-                continue
-            if "pull_request" in raw:
-                continue
-            labels = [
-                x["name"] for x in raw.get("labels", []) if isinstance(x, dict) and "name" in x
-            ]
-            body = str(raw.get("body") or "")
-            seq, depends = parse_issue_meta(body)
-            out.append(
-                Issue(
-                    number=int(raw["number"]),
-                    title=str(raw.get("title") or ""),
-                    state=str(raw.get("state") or "").lower(),
-                    created_at=str(raw.get("created_at") or raw.get("createdAt") or ""),
-                    body=body,
-                    labels=labels,
-                    url=str(raw.get("html_url") or raw.get("url") or ""),
-                    task_id=parse_task_id_from_issue(raw),
-                    seq=seq,
-                    depends_on=depends,
-                )
+    for raw in data:
+        if not isinstance(raw, dict):
+            continue
+        labels = [
+            x["name"] for x in raw.get("labels", []) if isinstance(x, dict) and "name" in x
+        ]
+        body = str(raw.get("body") or "")
+        seq, depends = parse_issue_meta(body)
+        out.append(
+            Issue(
+                number=int(raw["number"]),
+                title=str(raw.get("title") or ""),
+                state=str(raw.get("state") or "").lower(),
+                created_at=str(raw.get("createdAt") or raw.get("created_at") or ""),
+                body=body,
+                labels=labels,
+                url=str(raw.get("url") or raw.get("html_url") or ""),
+                task_id=parse_task_id_from_issue(raw),
+                seq=seq,
+                depends_on=depends,
             )
-        if len(data) < 100:
-            break
-        page += 1
+        )
     return out
 
 

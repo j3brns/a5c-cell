@@ -5,6 +5,12 @@ Start here, then follow the links for your role.
 
 > Back to [project README](../README.md)
 
+## Source Of Truth Split
+
+- **GitHub** is the canonical system for issues, pull requests, and active work tracking.
+- **GitLab** remains the CI/CD and protected deployment target for this repository.
+- The docs below describe the product and operating model; they do not imply that collaboration and deployment live in the same system.
+
 ## Reading Guide (by Role)
 
 | I am a... | Read in this order |
@@ -45,8 +51,12 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-012](decisions/ADR-012-dynamodb-capacity.md) | On-demand for invocations; provisioned for config tables |
 | [ADR-013](decisions/ADR-013-entra-rbac-roles-claim.md) | Entra group membership as JWT roles claim for RBAC |
 | [ADR-014](decisions/ADR-014-minimise-vpc-bound-services.md) | Default non-VPC control plane; VPC attachment only for genuine private dependencies |
+| [ADR-015](decisions/ADR-015-agent-release-governance-and-rollback.md) | Canonical agent release lifecycle and rollback model |
 | [ADR-016](decisions/ADR-016-platform-internal-tenant.md) | Reserved `platform` tenant for operator-controlled agents without super-tenant bypass |
 | [ADR-017](decisions/ADR-017-tenant-capability-configuration-model.md) | AppConfig for dynamic capability policy; SSM and DynamoDB retain operational parameters and tenant metadata |
+| [ADR-018](decisions/ADR-018-agentcore-ag-ui-integration.md) | Additive AG-UI bootstrap and per-agent interactive runtime boundary |
+| [ADR-701](decisions/ADR-701-tenant-agent-inference-chargeback-and-tagging.md) | Tenant inference chargeback and tagging model |
+| [ADR-702](decisions/ADR-702-bedrock-proxy-gateway-as-additive-internal-model-gateway.md) | Bedrock proxy gateway as additive internal model gateway |
 
 ## Operator Runbooks
 

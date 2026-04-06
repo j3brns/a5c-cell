@@ -59,10 +59,10 @@ Before writing any code:
 6. Start from a known fresh issue worktree based on current `main`/`origin/main`; do not begin implementation in a stale resumed worktree without first refreshing or recreating it
 7. If not already in that fresh issue worktree, start via `make worktree` / `make worktree-next-issue` unless the operator explicitly instructs in-place work
 8. If you are in local WSL with the repo checked out, run `make validate-local` — confirm it passes
-   (`validate-local` is the fast default path; use `make validate-local-full` when a full-repo secret scan is required)
+   (use `make validate-local-full` when a full-repo secret scan is required)
 9. State which issue/task you are working on explicitly
 10. Do not use `make task-*` unless the operator explicitly asks for the legacy snapshot workflow.
-11. If branch validation exposes unrelated breakage outside the active issue scope, do not bundle it into the same branch; queue/fix it separately or restart from a mainline that already contains that fix.
+11. If branch validation exposes unrelated breakage or drift outside the active issue scope, stop bundling it into the same branch: queue/fix it separately or refresh onto a mainline that already contains that fix, then restart from a fresh worktree.
 
 Before marking any task complete:
 1. All tests pass
@@ -75,14 +75,6 @@ Before marking any task complete:
 8. State completion with the issue/task identifier (for legacy tasks, `TASK-NNN complete. Tests passing.`)
 
 When uncertain about a security decision — stop and ask. Do not guess.
-
-Approved shared helper paths for handler bootstrap:
-- `src/platform_aws.py` for default-region boto3 session/client/resource bootstrap
-- `src/platform_utils.py` for shared boring utilities such as UTC time, retry jitter, JSON default handling, and coercion
-- `src/bridge/runtime_dependencies.py` for Bridge runtime/config/data access wiring
-- `gateway/interceptors/request_*.py` modules for Request interceptor sub-boundaries
-
-Do not introduce new handler-local `boto3.client(...)`, `boto3.resource(...)`, `boto3.session.Session(...)`, or `requests.Session()` construction outside an explicitly documented allowlist.
 
 When changing AWS infrastructure or service configuration, verify service-specific
 assumptions against current AWS documentation before shipping. Use the
@@ -113,6 +105,10 @@ Preferred signals (use what is available in the current environment):
 Do not stop just because one command failed. Investigate the error, form a hypothesis,
 apply a fix, and re-run the smallest relevant check. Only stop for the explicit
 "stop and ask" conditions, gate tasks, or when the operator redirects you.
+Do not stop at intermediate delivery milestones such as local commit, branch push,
+or PR creation. Continue through merge and required closeout steps until the issue
+meets the repository Definition of Done, unless one of the explicit stop/escalate
+conditions applies.
 
 ## When To Stop And Ask
 
@@ -213,6 +209,8 @@ make install-git-hooks              # installs .githooks/pre-push
 ```
 
 The pre-push hook runs `make validate-pre-push` (fast path; no CDK synth).
+Opening a PR is not completion by itself; after push, continue through PR merge and
+`make finish-worktree-close` unless a listed blocker requires escalation.
 
 ### Issue lifecycle label policy (mandatory)
 
@@ -250,6 +248,9 @@ Never leave a task in a merge-conflicted state.
 
 Every task runs in its own git branch and for local dev (WSL) a worktree. This is so main stays clean and multiple tasks
 can be in flight at the same time without conflicts. When operating in Claude Code mobile / remote prompt mode, worktrees are not required.
+
+Always begin implementation from a known fresh worktree created from the current mainline. If an older issue worktree already exists, refresh or recreate it before coding rather than resuming on a stale base.
+Do not mix unrelated branch-tip cleanup into the active issue just to get green. If current mainline has unrelated breakage, resolve it in its own issue/branch and then restart the active issue from a fresh worktree.
 
 This deprecated flow (`make task-*`) is only for explicit legacy/snapshot work. GitHub Issues are canonical; use the issue worktree flow by default.
 
@@ -381,7 +382,7 @@ git worktree prune
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **ag** (3321 symbols, 8277 relationships, 265 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **wt389** (2825 symbols, 7315 relationships, 229 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -397,7 +398,7 @@ This project is indexed by GitNexus as **ag** (3321 symbols, 8277 relationships,
 
 1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
 2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
-3. `READ gitnexus://repo/ag/process/{processName}` — trace the full execution flow step by step
+3. `READ gitnexus://repo/wt389/process/{processName}` — trace the full execution flow step by step
 4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
 
 ## When Refactoring
@@ -436,10 +437,10 @@ This project is indexed by GitNexus as **ag** (3321 symbols, 8277 relationships,
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/ag/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/ag/clusters` | All functional areas |
-| `gitnexus://repo/ag/processes` | All execution flows |
-| `gitnexus://repo/ag/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/wt389/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/wt389/clusters` | All functional areas |
+| `gitnexus://repo/wt389/processes` | All execution flows |
+| `gitnexus://repo/wt389/process/{name}` | Step-by-step execution trace |
 
 ## Self-Check Before Finishing
 
