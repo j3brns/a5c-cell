@@ -52,9 +52,7 @@ def fetch_repo_issues(
     for raw in data:
         if not isinstance(raw, dict):
             continue
-        labels = [
-            x["name"] for x in raw.get("labels", []) if isinstance(x, dict) and "name" in x
-        ]
+        labels = [x["name"] for x in raw.get("labels", []) if isinstance(x, dict) and "name" in x]
         body = str(raw.get("body") or "")
         seq, depends = parse_issue_meta(body)
         out.append(
