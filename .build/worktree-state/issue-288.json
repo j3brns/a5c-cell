@@ -1,0 +1,55 @@
+{
+  "branch": "wt/task/288-provision-the-missing-firehose-and-role-dependencies-for-the",
+  "details": {
+    "agent": "gemini",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "zellij",
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/task/288-provision-the-missing-firehose-and-role-dependencies-for-the",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "provision-the-missing-firehose-and-role-dependencies-for-the"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:288:wt/task/288-provision-the-missing-firehose-and-role-dependencies-for-the:/mnt/c/Users/julia/worktrees/wt288",
+      "issue_number": 288,
+      "issue_title": "BUG: Provision the missing Firehose and role dependencies for the AgentCore metric stream",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-03-29T04:05:48.754987+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt288"
+    },
+    {
+      "branch": "wt/task/288-provision-the-missing-firehose-and-role-dependencies-for-the",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "zellij",
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:288:/mnt/c/Users/julia/worktrees/wt288:gemini:yolo:execute-now:zellij",
+      "issue_number": 288,
+      "issue_title": "BUG: Provision the missing Firehose and role dependencies for the AgentCore metric stream",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-03-29T04:05:48.793711+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt288"
+    }
+  ],
+  "issue_number": 288,
+  "issue_title": "BUG: Provision the missing Firehose and role dependencies for the AgentCore metric stream",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-03-29T04:05:48.793711+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt288"
+}

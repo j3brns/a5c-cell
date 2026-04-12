@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/273-stop-routing-make-agent-invoke-through-the-local-dev-invoke-",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt273']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/task/273-stop-routing-make-agent-invoke-through-the-local-dev-invoke-",
+      "issue_id": 273,
+      "message": "closeout started",
+      "pid": 18320,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:32:02.290538+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt273"
+    },
+    {
+      "branch": "wt/task/273-stop-routing-make-agent-invoke-through-the-local-dev-invoke-",
+      "issue_id": 273,
+      "message": "merged PR lookup missed",
+      "pid": 18320,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:32:04.004334+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt273"
+    },
+    {
+      "branch": "wt/task/273-stop-routing-make-agent-invoke-through-the-local-dev-invoke-",
+      "issue_id": 273,
+      "message": "issue already closed; labels normalized",
+      "pid": 18320,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:32:05.623862+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt273"
+    },
+    {
+      "branch": "wt/task/273-stop-routing-make-agent-invoke-through-the-local-dev-invoke-",
+      "issue_id": 273,
+      "message": "cleanup started",
+      "pid": 18320,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:32:05.638009+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt273"
+    },
+    {
+      "branch": "wt/task/273-stop-routing-make-agent-invoke-through-the-local-dev-invoke-",
+      "issue_id": 273,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt273']' returned non-zero exit status 128.",
+      "pid": 18320,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:32:08.535319+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt273"
+    }
+  ],
+  "generated_at": "2026-04-03T17:32:08.539424+00:00",
+  "issue_id": 273,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt273"
+}

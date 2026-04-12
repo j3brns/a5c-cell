@@ -1,0 +1,68 @@
+{
+  "branch": "wt/chore/359-fix-gitnexus-refresh-hang",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/chore/359-fix-gitnexus-refresh-hang",
+      "issue_id": 359,
+      "message": "closeout started",
+      "pid": 66419,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-03-20T21:31:23.308668+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt359"
+    },
+    {
+      "branch": "wt/chore/359-fix-gitnexus-refresh-hang",
+      "issue_id": 359,
+      "message": "merged PR lookup found",
+      "pid": 66419,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-03-20T21:31:24.360055+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt359"
+    },
+    {
+      "branch": "wt/chore/359-fix-gitnexus-refresh-hang",
+      "issue_id": 359,
+      "message": "issue already closed; labels normalized",
+      "pid": 66419,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-03-20T21:31:25.430231+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt359"
+    },
+    {
+      "branch": "wt/chore/359-fix-gitnexus-refresh-hang",
+      "issue_id": 359,
+      "message": "cleanup started",
+      "pid": 66419,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-03-20T21:31:25.438507+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt359"
+    },
+    {
+      "branch": "wt/chore/359-fix-gitnexus-refresh-hang",
+      "issue_id": 359,
+      "message": "cleanup verified",
+      "pid": 66419,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-03-20T21:33:00.090769+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt359"
+    }
+  ],
+  "generated_at": "2026-03-20T21:33:00.094798+00:00",
+  "issue_closed": true,
+  "issue_id": 359,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt359"
+}

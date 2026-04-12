@@ -1,0 +1,62 @@
+{
+  "branch": "wt/chore/361-cfn-guard-wildcard-exemptions",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt361']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/chore/361-cfn-guard-wildcard-exemptions",
+      "issue_id": 361,
+      "message": "closeout started",
+      "pid": 87543,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-03-20T23:06:15.640490+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt361"
+    },
+    {
+      "branch": "wt/chore/361-cfn-guard-wildcard-exemptions",
+      "issue_id": 361,
+      "message": "merged PR lookup found",
+      "pid": 87543,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-03-20T23:06:17.165842+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt361"
+    },
+    {
+      "branch": "wt/chore/361-cfn-guard-wildcard-exemptions",
+      "issue_id": 361,
+      "message": "issue already closed; labels normalized",
+      "pid": 87543,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-03-20T23:06:18.753076+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt361"
+    },
+    {
+      "branch": "wt/chore/361-cfn-guard-wildcard-exemptions",
+      "issue_id": 361,
+      "message": "cleanup started",
+      "pid": 87543,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-03-20T23:06:18.762435+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt361"
+    },
+    {
+      "branch": "wt/chore/361-cfn-guard-wildcard-exemptions",
+      "issue_id": 361,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt361']' returned non-zero exit status 128.",
+      "pid": 87543,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-03-20T23:06:20.978103+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt361"
+    }
+  ],
+  "generated_at": "2026-03-20T23:06:20.981972+00:00",
+  "issue_id": 361,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt361"
+}

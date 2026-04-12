@@ -1,0 +1,72 @@
+{
+  "branch": "wt/task/211-unify-runtime-failover-lock",
+  "error": "Issue state evidence is missing a worktree start/resume event",
+  "events": [
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "issue_id": 211,
+      "message": "closeout started",
+      "pid": 17884,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:26:04.754362+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    },
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "issue_id": 211,
+      "message": "merged PR lookup found",
+      "pid": 17884,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:26:06.077468+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    },
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "issue_id": 211,
+      "message": "issue already closed; labels normalized",
+      "pid": 17884,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:26:10.811980+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    },
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "issue_id": 211,
+      "message": "cleanup started",
+      "pid": 17884,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:26:10.824995+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    },
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "issue_id": 211,
+      "message": "cleanup verified",
+      "pid": 17884,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-03T17:28:21.287222+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    },
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "issue_id": 211,
+      "message": "Issue state evidence is missing a worktree start/resume event",
+      "pid": 17884,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:28:21.329064+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    }
+  ],
+  "generated_at": "2026-04-03T17:28:21.333185+00:00",
+  "issue_id": 211,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+}

@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/302-agent-release-governance-and-rollback-model",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt302']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/task/302-agent-release-governance-and-rollback-model",
+      "issue_id": 302,
+      "message": "closeout started",
+      "pid": 107998,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-03-21T04:22:55.389360+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt302"
+    },
+    {
+      "branch": "wt/task/302-agent-release-governance-and-rollback-model",
+      "issue_id": 302,
+      "message": "merged PR lookup found",
+      "pid": 107998,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-03-21T04:22:56.840345+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt302"
+    },
+    {
+      "branch": "wt/task/302-agent-release-governance-and-rollback-model",
+      "issue_id": 302,
+      "message": "issue already closed; labels normalized",
+      "pid": 107998,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-03-21T04:22:58.405768+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt302"
+    },
+    {
+      "branch": "wt/task/302-agent-release-governance-and-rollback-model",
+      "issue_id": 302,
+      "message": "cleanup started",
+      "pid": 107998,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-03-21T04:22:58.417893+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt302"
+    },
+    {
+      "branch": "wt/task/302-agent-release-governance-and-rollback-model",
+      "issue_id": 302,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt302']' returned non-zero exit status 128.",
+      "pid": 107998,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-03-21T04:23:00.760999+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt302"
+    }
+  ],
+  "generated_at": "2026-03-21T04:23:00.764700+00:00",
+  "issue_id": 302,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt302"
+}

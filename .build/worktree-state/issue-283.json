@@ -1,0 +1,90 @@
+{
+  "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+  "details": {
+    "evidence_hash": "90b94714b0f698c30b187220fa2e4214bc36d6f4a04ba59a006a8e661c607482",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-283-wt_task_283-stop-runtime-handlers-from-bypassing-data-access-lib.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib-with-ra",
+      "details": {
+        "source": "worktree-create"
+      },
+      "event_type": "worktree-reused",
+      "idempotency_key": "reuse:283:wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib-with-ra:/mnt/c/Users/julia/worktrees/wt283",
+      "issue_number": 283,
+      "issue_title": "BUG: Stop runtime handlers from bypassing data-access-lib with raw DynamoDB access",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-03T04:01:09.366058+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283"
+    },
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-283-wt_task_283-stop-runtime-handlers-from-bypassing-data-access-lib.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:283:wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib:/mnt/c/Users/julia/worktrees/wt283b",
+      "issue_number": 283,
+      "issue_title": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:32:53.744920+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    },
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-283-wt_task_283-stop-runtime-handlers-from-bypassing-data-access-lib.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:283:wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib:/mnt/c/Users/julia/worktrees/wt283b",
+      "issue_number": 283,
+      "issue_title": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-03T17:33:59.482742+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    },
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "details": {
+        "evidence_hash": "90b94714b0f698c30b187220fa2e4214bc36d6f4a04ba59a006a8e661c607482",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-283-wt_task_283-stop-runtime-handlers-from-bypassing-data-access-lib.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:283:90b94714b0f698c30b187220fa2e4214bc36d6f4a04ba59a006a8e661c607482",
+      "issue_number": 283,
+      "issue_title": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-03T17:33:59.538144+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    },
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "details": {
+        "evidence_hash": "90b94714b0f698c30b187220fa2e4214bc36d6f4a04ba59a006a8e661c607482",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-283-wt_task_283-stop-runtime-handlers-from-bypassing-data-access-lib.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:283:90b94714b0f698c30b187220fa2e4214bc36d6f4a04ba59a006a8e661c607482",
+      "issue_number": 283,
+      "issue_title": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-03T17:34:03.849440+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    }
+  ],
+  "issue_number": 283,
+  "issue_title": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-03T17:34:03.849440+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+}

@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/389-platform-agent-readonly-surface",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "issue_id": 389,
+      "message": "closeout started",
+      "pid": 18841,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:35:09.834682+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    },
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "issue_id": 389,
+      "message": "merged PR lookup found",
+      "pid": 18841,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:35:11.695568+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    },
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "issue_id": 389,
+      "message": "issue already closed; labels normalized",
+      "pid": 18841,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:35:13.611463+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    },
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "issue_id": 389,
+      "message": "cleanup started",
+      "pid": 18841,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:35:13.629628+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    },
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "issue_id": 389,
+      "message": "cleanup verified",
+      "pid": 18841,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-03T17:36:15.476845+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    }
+  ],
+  "generated_at": "2026-04-03T17:36:15.483948+00:00",
+  "issue_closed": true,
+  "issue_id": 389,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+}

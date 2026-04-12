@@ -1,0 +1,153 @@
+{
+  "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+  "details": {
+    "evidence_hash": "1cd104be8c6dc95fdc297a0489238cb0912ebccba0fc90d1ac8df5a0dfb99058",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-163-wt_task_163-harden-spa-cloudfront-delivery.json"
+  },
+  "events": [
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "frontend",
+        "slug": "harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:163:wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr:/mnt/c/Users/julia/worktrees/wt163",
+      "issue_number": 163,
+      "issue_title": "PROD: Harden CloudFront SPA delivery for deep links and cache correctness",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-03-28T21:24:59.158120+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "details": {
+        "source": "worktree-next"
+      },
+      "event_type": "shell-opened",
+      "idempotency_key": "shell:163:/mnt/c/Users/julia/worktrees/wt163",
+      "issue_number": 163,
+      "issue_title": "PROD: Harden CloudFront SPA delivery for deep links and cache correctness",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "shell-active",
+      "ts": "2026-03-28T21:24:59.187141+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-163-wt_frontend_163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:163:wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr:/mnt/c/Users/julia/worktrees/wt163",
+      "issue_number": 163,
+      "issue_title": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:23:29.639766+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt163']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-163-wt_frontend_163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:163:wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr:/mnt/c/Users/julia/worktrees/wt163",
+      "issue_number": 163,
+      "issue_title": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-03T17:23:37.993494+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt163']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-163-wt_frontend_163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:163:wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr:/mnt/c/Users/julia/worktrees/wt163:Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt163']' returned non-zero exit status 128.",
+      "issue_number": 163,
+      "issue_title": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-03T17:23:38.013970+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-163-wt_task_163-harden-spa-cloudfront-delivery.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:163:wt/task/163-harden-spa-cloudfront-delivery:/mnt/c/Users/julia/worktrees/wt163b",
+      "issue_number": 163,
+      "issue_title": "wt/task/163-harden-spa-cloudfront-delivery",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:23:42.430066+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    },
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-163-wt_task_163-harden-spa-cloudfront-delivery.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:163:wt/task/163-harden-spa-cloudfront-delivery:/mnt/c/Users/julia/worktrees/wt163b",
+      "issue_number": 163,
+      "issue_title": "wt/task/163-harden-spa-cloudfront-delivery",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-03T17:25:33.611385+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    },
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "details": {
+        "evidence_hash": "1cd104be8c6dc95fdc297a0489238cb0912ebccba0fc90d1ac8df5a0dfb99058",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-163-wt_task_163-harden-spa-cloudfront-delivery.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:163:1cd104be8c6dc95fdc297a0489238cb0912ebccba0fc90d1ac8df5a0dfb99058",
+      "issue_number": 163,
+      "issue_title": "wt/task/163-harden-spa-cloudfront-delivery",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-03T17:25:33.663083+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    },
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "details": {
+        "evidence_hash": "1cd104be8c6dc95fdc297a0489238cb0912ebccba0fc90d1ac8df5a0dfb99058",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-163-wt_task_163-harden-spa-cloudfront-delivery.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:163:1cd104be8c6dc95fdc297a0489238cb0912ebccba0fc90d1ac8df5a0dfb99058",
+      "issue_number": 163,
+      "issue_title": "wt/task/163-harden-spa-cloudfront-delivery",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-03T17:25:36.816182+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    }
+  ],
+  "issue_number": 163,
+  "issue_title": "wt/task/163-harden-spa-cloudfront-delivery",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-03T17:25:36.816182+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+}

@@ -1,0 +1,72 @@
+{
+  "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+  "error": "Issue state evidence is missing a worktree start/resume event",
+  "events": [
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "issue_id": 167,
+      "message": "closeout started",
+      "pid": 17771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:25:40.687816+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    },
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "issue_id": 167,
+      "message": "merged PR lookup missed",
+      "pid": 17771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:25:41.895766+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    },
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "issue_id": 167,
+      "message": "issue already closed; labels normalized",
+      "pid": 17771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:25:42.942147+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    },
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "issue_id": 167,
+      "message": "cleanup started",
+      "pid": 17771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:25:42.953044+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    },
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "issue_id": 167,
+      "message": "cleanup verified",
+      "pid": 17771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-03T17:25:48.931056+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    },
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "issue_id": 167,
+      "message": "Issue state evidence is missing a worktree start/resume event",
+      "pid": 17771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:25:48.987140+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    }
+  ],
+  "generated_at": "2026-04-03T17:25:48.992398+00:00",
+  "issue_id": 167,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+}

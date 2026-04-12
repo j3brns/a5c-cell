@@ -1,0 +1,62 @@
+{
+  "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt163']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "issue_id": 163,
+      "message": "closeout started",
+      "pid": 17622,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:23:29.614537+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "issue_id": 163,
+      "message": "merged PR lookup missed",
+      "pid": 17622,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:23:30.789631+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "issue_id": 163,
+      "message": "issue already closed; labels normalized",
+      "pid": 17622,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:23:35.737049+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "issue_id": 163,
+      "message": "cleanup started",
+      "pid": 17622,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:23:35.747467+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    },
+    {
+      "branch": "wt/frontend/163-harden-cloudfront-spa-delivery-for-deep-links-and-cache-corr",
+      "issue_id": 163,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt163']' returned non-zero exit status 128.",
+      "pid": 17622,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:23:37.976797+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+    }
+  ],
+  "generated_at": "2026-04-03T17:23:37.980369+00:00",
+  "issue_id": 163,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt163"
+}

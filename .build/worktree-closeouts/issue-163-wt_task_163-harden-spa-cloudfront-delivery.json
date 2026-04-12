@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "issue_id": 163,
+      "message": "closeout started",
+      "pid": 17701,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:23:42.424990+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    },
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "issue_id": 163,
+      "message": "merged PR lookup found",
+      "pid": 17701,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:23:42.556544+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    },
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "issue_id": 163,
+      "message": "issue already closed; labels normalized",
+      "pid": 17701,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:23:43.677457+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    },
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "issue_id": 163,
+      "message": "cleanup started",
+      "pid": 17701,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:23:43.687327+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    },
+    {
+      "branch": "wt/task/163-harden-spa-cloudfront-delivery",
+      "issue_id": 163,
+      "message": "cleanup verified",
+      "pid": 17701,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-03T17:25:33.586010+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+    }
+  ],
+  "generated_at": "2026-04-03T17:25:33.592627+00:00",
+  "issue_closed": true,
+  "issue_id": 163,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt163b"
+}

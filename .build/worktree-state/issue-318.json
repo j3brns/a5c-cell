@@ -1,0 +1,170 @@
+{
+  "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+  "details": {
+    "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt318']' returned non-zero exit status 255.",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-318-wt_task_318-define-implementation-backlog-for-platform-agent-assisted-co.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "define-implementation-backlog-for-platform-agent-assisted-co"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:318:wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co:/mnt/c/Users/julia/worktrees/wt318",
+      "issue_number": 318,
+      "issue_title": "FEATURE: Define implementation backlog for platform-agent-assisted control-plane operations",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-03-30T02:24:32.797083+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:318:/mnt/c/Users/julia/worktrees/wt318:claude:yolo:execute-now:tmux",
+      "issue_number": 318,
+      "issue_title": "FEATURE: Define implementation backlog for platform-agent-assisted control-plane operations",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-03-30T02:24:32.828062+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "source": "worktree-resume"
+      },
+      "event_type": "worktree-resumed",
+      "idempotency_key": "resume:318:wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co:/mnt/c/Users/julia/worktrees/wt318",
+      "issue_number": 318,
+      "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-03-30T03:11:39.145772+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "source": "worktree-resume"
+      },
+      "event_type": "shell-opened",
+      "idempotency_key": "shell:318:/mnt/c/Users/julia/worktrees/wt318",
+      "issue_number": 318,
+      "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "shell-active",
+      "ts": "2026-03-30T03:11:39.179959+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-318-wt_task_318-define-implementation-backlog-for-platform-agent-assisted-co.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:318:wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co:/mnt/c/Users/julia/worktrees/wt318",
+      "issue_number": 318,
+      "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-03-31T15:19:03.486268+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt318']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-318-wt_task_318-define-implementation-backlog-for-platform-agent-assisted-co.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:318:wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co:/mnt/c/Users/julia/worktrees/wt318",
+      "issue_number": 318,
+      "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-03-31T15:19:12.717564+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt318']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-318-wt_task_318-define-implementation-backlog-for-platform-agent-assisted-co.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:318:wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co:/mnt/c/Users/julia/worktrees/wt318:Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt318']' returned non-zero exit status 128.",
+      "issue_number": 318,
+      "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-03-31T15:19:12.749974+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "force": false,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-318-wt_task_318-define-implementation-backlog-for-platform-agent-assisted-co.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:318:wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co:/mnt/c/Users/julia/worktrees/wt318",
+      "issue_number": 318,
+      "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-03-31T15:19:50.629153+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt318']' returned non-zero exit status 255.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-318-wt_task_318-define-implementation-backlog-for-platform-agent-assisted-co.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:318:wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co:/mnt/c/Users/julia/worktrees/wt318",
+      "issue_number": 318,
+      "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-03-31T15:21:44.403967+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    },
+    {
+      "branch": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt318']' returned non-zero exit status 255.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-318-wt_task_318-define-implementation-backlog-for-platform-agent-assisted-co.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:318:wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co:/mnt/c/Users/julia/worktrees/wt318:Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt318']' returned non-zero exit status 255.",
+      "issue_number": 318,
+      "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-03-31T15:21:44.441557+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+    }
+  ],
+  "issue_number": 318,
+  "issue_title": "wt/task/318-define-implementation-backlog-for-platform-agent-assisted-co",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-03-31T15:21:44.441557+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt318"
+}

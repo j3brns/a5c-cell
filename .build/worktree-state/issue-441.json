@@ -1,0 +1,47 @@
+{
+  "branch": "wt/task/441-split-src-authoriser-handler-py-by-trust-path",
+  "details": {
+    "source": "worktree-create"
+  },
+  "events": [
+    {
+      "branch": "wt/task/441-split-src-authoriser-handler-py-by-trust-path",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "split-src-authoriser-handler-py-by-trust-path"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:441:wt/task/441-split-src-authoriser-handler-py-by-trust-path:/mnt/c/Users/julia/worktrees/af",
+      "issue_number": 441,
+      "issue_title": "HARDENING: Split src/authoriser/handler.py by trust path",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-05T01:30:40.424090+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/af"
+    },
+    {
+      "branch": "wt/task/441-split-src-authoriser-handler-py-by-trust-path",
+      "details": {
+        "source": "worktree-create"
+      },
+      "event_type": "shell-opened",
+      "idempotency_key": "shell:441:/mnt/c/Users/julia/worktrees/af",
+      "issue_number": 441,
+      "issue_title": "HARDENING: Split src/authoriser/handler.py by trust path",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "shell-active",
+      "ts": "2026-04-05T01:30:40.446979+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/af"
+    }
+  ],
+  "issue_number": 441,
+  "issue_title": "HARDENING: Split src/authoriser/handler.py by trust path",
+  "last_event_type": "shell-opened",
+  "last_updated_at": "2026-04-05T01:30:40.446979+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "shell-active",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/af"
+}

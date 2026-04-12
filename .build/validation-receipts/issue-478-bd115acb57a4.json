@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/478-split-worktree-issue-tests-by-command-family-and-reduce-monk",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-05T04:22:26.194022+00:00",
+  "head_sha": "bd115acb57a42233aace38339be28f84e11ed3f6",
+  "issue_number": 478,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt478"
+}

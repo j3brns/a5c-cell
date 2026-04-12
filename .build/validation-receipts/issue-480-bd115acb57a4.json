@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/480-move-tenant-api-bootstrap-assembly-into-a-single-composition",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-05T14:59:30.940760+00:00",
+  "head_sha": "bd115acb57a42233aace38339be28f84e11ed3f6",
+  "issue_number": 480,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt480"
+}

@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/214-wire-bff-runtime-config",
+  "cleanup": {
+    "branch_deleted": false,
+    "worktree_pruned": true,
+    "worktree_removed": false
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "issue_id": 214,
+      "message": "closeout started",
+      "pid": 17975,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:28:29.904575+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "issue_id": 214,
+      "message": "merged PR lookup missed",
+      "pid": 17975,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:28:31.362640+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "issue_id": 214,
+      "message": "issue already closed; labels normalized",
+      "pid": 17975,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:28:36.729303+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "issue_id": 214,
+      "message": "cleanup started",
+      "pid": 17975,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:28:36.739353+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "issue_id": 214,
+      "message": "cleanup verified",
+      "pid": 17975,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-03T17:28:39.815167+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    }
+  ],
+  "generated_at": "2026-04-03T17:28:39.819514+00:00",
+  "issue_closed": true,
+  "issue_id": 214,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+}

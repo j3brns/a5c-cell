@@ -1,0 +1,72 @@
+{
+  "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+  "error": "Issue state evidence is missing a worktree start/resume event",
+  "events": [
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "issue_id": 274,
+      "message": "closeout started",
+      "pid": 18361,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:32:14.401332+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    },
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "issue_id": 274,
+      "message": "merged PR lookup missed",
+      "pid": 18361,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:32:15.925706+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    },
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "issue_id": 274,
+      "message": "issue already closed; labels normalized",
+      "pid": 18361,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:32:17.391775+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    },
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "issue_id": 274,
+      "message": "cleanup started",
+      "pid": 18361,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:32:17.403024+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    },
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "issue_id": 274,
+      "message": "cleanup verified",
+      "pid": 18361,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-03T17:32:24.834905+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    },
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "issue_id": 274,
+      "message": "Issue state evidence is missing a worktree start/resume event",
+      "pid": 18361,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:32:24.893173+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    }
+  ],
+  "generated_at": "2026-04-03T17:32:24.898201+00:00",
+  "issue_id": 274,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+}

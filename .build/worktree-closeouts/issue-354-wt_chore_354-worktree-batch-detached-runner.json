@@ -1,0 +1,68 @@
+{
+  "branch": "wt/chore/354-worktree-batch-detached-runner",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/chore/354-worktree-batch-detached-runner",
+      "issue_id": 354,
+      "message": "closeout started",
+      "pid": 31148,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-03-20T00:51:41.594081+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt-batch-runner"
+    },
+    {
+      "branch": "wt/chore/354-worktree-batch-detached-runner",
+      "issue_id": 354,
+      "message": "merged PR lookup found",
+      "pid": 31148,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-03-20T00:51:42.643212+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt-batch-runner"
+    },
+    {
+      "branch": "wt/chore/354-worktree-batch-detached-runner",
+      "issue_id": 354,
+      "message": "issue already closed; labels normalized",
+      "pid": 31148,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-03-20T00:51:47.275692+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt-batch-runner"
+    },
+    {
+      "branch": "wt/chore/354-worktree-batch-detached-runner",
+      "issue_id": 354,
+      "message": "cleanup started",
+      "pid": 31148,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-03-20T00:51:47.286890+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt-batch-runner"
+    },
+    {
+      "branch": "wt/chore/354-worktree-batch-detached-runner",
+      "issue_id": 354,
+      "message": "cleanup verified",
+      "pid": 31148,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-03-20T00:54:07.399570+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt-batch-runner"
+    }
+  ],
+  "generated_at": "2026-03-20T00:54:07.403709+00:00",
+  "issue_closed": true,
+  "issue_id": 354,
+  "merged_pr_required": true,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt-batch-runner"
+}

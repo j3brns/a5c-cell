@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/275-make-local-dev-wait-for-mock-jwks-and-runtime-readiness-befo",
+  "error": "Command '['git', 'branch', '-d', 'wt/task/275-make-local-dev-wait-for-mock-jwks-and-runtime-readiness-befo']' returned non-zero exit status 1.",
+  "events": [
+    {
+      "branch": "wt/task/275-make-local-dev-wait-for-mock-jwks-and-runtime-readiness-befo",
+      "issue_id": 275,
+      "message": "closeout started",
+      "pid": 18415,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:32:30.606289+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt275"
+    },
+    {
+      "branch": "wt/task/275-make-local-dev-wait-for-mock-jwks-and-runtime-readiness-befo",
+      "issue_id": 275,
+      "message": "merged PR lookup missed",
+      "pid": 18415,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:32:32.294189+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt275"
+    },
+    {
+      "branch": "wt/task/275-make-local-dev-wait-for-mock-jwks-and-runtime-readiness-befo",
+      "issue_id": 275,
+      "message": "issue already closed; labels normalized",
+      "pid": 18415,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:32:34.252124+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt275"
+    },
+    {
+      "branch": "wt/task/275-make-local-dev-wait-for-mock-jwks-and-runtime-readiness-befo",
+      "issue_id": 275,
+      "message": "cleanup started",
+      "pid": 18415,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:32:34.264614+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt275"
+    },
+    {
+      "branch": "wt/task/275-make-local-dev-wait-for-mock-jwks-and-runtime-readiness-befo",
+      "issue_id": 275,
+      "message": "Command '['git', 'branch', '-d', 'wt/task/275-make-local-dev-wait-for-mock-jwks-and-runtime-readiness-befo']' returned non-zero exit status 1.",
+      "pid": 18415,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:32:36.855080+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt275"
+    }
+  ],
+  "generated_at": "2026-04-03T17:32:36.860712+00:00",
+  "issue_id": 275,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt275"
+}

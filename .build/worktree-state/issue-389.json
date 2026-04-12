@@ -1,0 +1,157 @@
+{
+  "branch": "wt/task/389-platform-agent-readonly-surface",
+  "details": {
+    "evidence_hash": "889a9a2644b8d6d605b41507bb8e2f3c53ced79bbe1377b1536481abc7245721",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-389-wt_task_389-platform-agent-readonly-surface.json"
+  },
+  "events": [
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "docs",
+        "slug": "add-read-only-platform-agent-diagnostics-and-runbook-assista"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:389:wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista:/mnt/c/Users/julia/worktrees/wt389",
+      "issue_number": 389,
+      "issue_title": "FEATURE: Add read-only platform-agent diagnostics and runbook assistance surface",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-01T01:33:01.960109+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:389:/mnt/c/Users/julia/worktrees/wt389:gemini:yolo:execute-now:tmux",
+      "issue_number": 389,
+      "issue_title": "FEATURE: Add read-only platform-agent diagnostics and runbook assistance surface",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-01T01:33:01.981300+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-389-wt_docs_389-add-read-only-platform-agent-diagnostics-and-runbook-assista.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:389:wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista:/mnt/c/Users/julia/worktrees/wt389",
+      "issue_number": 389,
+      "issue_title": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:34:52.213580+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt389']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-389-wt_docs_389-add-read-only-platform-agent-diagnostics-and-runbook-assista.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:389:wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista:/mnt/c/Users/julia/worktrees/wt389",
+      "issue_number": 389,
+      "issue_title": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-03T17:35:03.268315+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt389']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-389-wt_docs_389-add-read-only-platform-agent-diagnostics-and-runbook-assista.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:389:wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista:/mnt/c/Users/julia/worktrees/wt389:Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt389']' returned non-zero exit status 128.",
+      "issue_number": 389,
+      "issue_title": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-03T17:35:03.299882+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-389-wt_task_389-platform-agent-readonly-surface.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:389:wt/task/389-platform-agent-readonly-surface:/mnt/c/Users/julia/worktrees/wt389b",
+      "issue_number": 389,
+      "issue_title": "wt/task/389-platform-agent-readonly-surface",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:35:09.845972+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    },
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-389-wt_task_389-platform-agent-readonly-surface.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:389:wt/task/389-platform-agent-readonly-surface:/mnt/c/Users/julia/worktrees/wt389b",
+      "issue_number": 389,
+      "issue_title": "wt/task/389-platform-agent-readonly-surface",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-03T17:36:15.508756+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    },
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "details": {
+        "evidence_hash": "889a9a2644b8d6d605b41507bb8e2f3c53ced79bbe1377b1536481abc7245721",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-389-wt_task_389-platform-agent-readonly-surface.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:389:889a9a2644b8d6d605b41507bb8e2f3c53ced79bbe1377b1536481abc7245721",
+      "issue_number": 389,
+      "issue_title": "wt/task/389-platform-agent-readonly-surface",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-03T17:36:15.575331+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    },
+    {
+      "branch": "wt/task/389-platform-agent-readonly-surface",
+      "details": {
+        "evidence_hash": "889a9a2644b8d6d605b41507bb8e2f3c53ced79bbe1377b1536481abc7245721",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-389-wt_task_389-platform-agent-readonly-surface.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:389:889a9a2644b8d6d605b41507bb8e2f3c53ced79bbe1377b1536481abc7245721",
+      "issue_number": 389,
+      "issue_title": "wt/task/389-platform-agent-readonly-surface",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-03T17:36:21.338462+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+    }
+  ],
+  "issue_number": 389,
+  "issue_title": "wt/task/389-platform-agent-readonly-surface",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-03T17:36:21.338462+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt389b"
+}

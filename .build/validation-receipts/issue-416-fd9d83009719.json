@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/416-split-bridge-handler-into-thin-adapter-and-runtime-services",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-04T11:47:52.441805+00:00",
+  "head_sha": "fd9d830097196b3712162859feb56b70df37ac11",
+  "issue_number": 416,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
+}

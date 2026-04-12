@@ -1,0 +1,76 @@
+{
+  "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+  "details": {
+    "error": "Issue state evidence is missing a worktree start/resume event",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-167-wt_frontend_167-make-bff-token-refresh-and-session-keepalive-deployable-in-i.json"
+  },
+  "events": [
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-167-wt_frontend_167-make-bff-token-refresh-and-session-keepalive-deployable-in-i.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:167:wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i:/mnt/c/Users/julia/worktrees/wt167",
+      "issue_number": 167,
+      "issue_title": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:25:40.689328+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    },
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-167-wt_frontend_167-make-bff-token-refresh-and-session-keepalive-deployable-in-i.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:167:wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i:/mnt/c/Users/julia/worktrees/wt167",
+      "issue_number": 167,
+      "issue_title": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-03T17:25:48.948763+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    },
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "details": {
+        "error": "Issue state evidence is missing a worktree start/resume event",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-167-wt_frontend_167-make-bff-token-refresh-and-session-keepalive-deployable-in-i.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:167:wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i:/mnt/c/Users/julia/worktrees/wt167",
+      "issue_number": 167,
+      "issue_title": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-03T17:25:49.007909+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    },
+    {
+      "branch": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "details": {
+        "error": "Issue state evidence is missing a worktree start/resume event",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-167-wt_frontend_167-make-bff-token-refresh-and-session-keepalive-deployable-in-i.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:167:wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i:/mnt/c/Users/julia/worktrees/wt167:Issue state evidence is missing a worktree start/resume event",
+      "issue_number": 167,
+      "issue_title": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-03T17:25:49.034744+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+    }
+  ],
+  "issue_number": 167,
+  "issue_title": "wt/frontend/167-make-bff-token-refresh-and-session-keepalive-deployable-in-i",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-04-03T17:25:49.034744+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt167"
+}

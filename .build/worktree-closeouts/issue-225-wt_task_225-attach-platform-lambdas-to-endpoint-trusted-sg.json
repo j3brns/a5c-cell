@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt225b']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "issue_id": 225,
+      "message": "closeout started",
+      "pid": 18253,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:31:48.010243+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+    },
+    {
+      "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "issue_id": 225,
+      "message": "merged PR lookup found",
+      "pid": 18253,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:31:50.177132+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+    },
+    {
+      "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "issue_id": 225,
+      "message": "issue already closed; labels normalized",
+      "pid": 18253,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:31:55.217370+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+    },
+    {
+      "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "issue_id": 225,
+      "message": "cleanup started",
+      "pid": 18253,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:31:55.233913+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+    },
+    {
+      "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "issue_id": 225,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt225b']' returned non-zero exit status 128.",
+      "pid": 18253,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:31:56.332191+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+    }
+  ],
+  "generated_at": "2026-04-03T17:31:56.338438+00:00",
+  "issue_id": 225,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+}

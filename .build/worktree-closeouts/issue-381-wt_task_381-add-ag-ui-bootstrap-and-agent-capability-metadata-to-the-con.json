@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt381']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "issue_id": 381,
+      "message": "closeout started",
+      "pid": 573104,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-03-31T15:39:17.731315+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    },
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "issue_id": 381,
+      "message": "merged PR lookup found",
+      "pid": 573104,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-03-31T15:39:19.165714+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    },
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "issue_id": 381,
+      "message": "issue already closed; labels normalized",
+      "pid": 573104,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-03-31T15:39:20.496574+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    },
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "issue_id": 381,
+      "message": "cleanup started",
+      "pid": 573104,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-03-31T15:39:20.505317+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    },
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "issue_id": 381,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt381']' returned non-zero exit status 128.",
+      "pid": 573104,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-03-31T15:39:22.656331+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    }
+  ],
+  "generated_at": "2026-03-31T15:39:22.660853+00:00",
+  "issue_id": 381,
+  "merged_pr_required": true,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+}

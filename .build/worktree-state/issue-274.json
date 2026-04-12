@@ -1,0 +1,76 @@
+{
+  "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+  "details": {
+    "error": "Issue state evidence is missing a worktree start/resume event",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-274-wt_task_274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-274-wt_task_274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:274:wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt:/mnt/c/Users/julia/worktrees/wt274",
+      "issue_number": 274,
+      "issue_title": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:32:14.403557+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    },
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-274-wt_task_274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:274:wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt:/mnt/c/Users/julia/worktrees/wt274",
+      "issue_number": 274,
+      "issue_title": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-03T17:32:24.856709+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    },
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "details": {
+        "error": "Issue state evidence is missing a worktree start/resume event",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-274-wt_task_274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:274:wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt:/mnt/c/Users/julia/worktrees/wt274",
+      "issue_number": 274,
+      "issue_title": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-03T17:32:24.917462+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    },
+    {
+      "branch": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "details": {
+        "error": "Issue state evidence is missing a worktree start/resume event",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-274-wt_task_274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:274:wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt:/mnt/c/Users/julia/worktrees/wt274:Issue state evidence is missing a worktree start/resume event",
+      "issue_number": 274,
+      "issue_title": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-03T17:32:24.951410+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+    }
+  ],
+  "issue_number": 274,
+  "issue_title": "wt/task/274-align-local-setup-docs-with-the-actual-seeded-tenant-and-jwt",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-04-03T17:32:24.951410+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt274"
+}

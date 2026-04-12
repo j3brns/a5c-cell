@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/215-align-billing-schema",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt215b']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/task/215-align-billing-schema",
+      "issue_id": 215,
+      "message": "closeout started",
+      "pid": 18078,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:28:50.042630+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt215b"
+    },
+    {
+      "branch": "wt/task/215-align-billing-schema",
+      "issue_id": 215,
+      "message": "merged PR lookup found",
+      "pid": 18078,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:28:51.662777+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt215b"
+    },
+    {
+      "branch": "wt/task/215-align-billing-schema",
+      "issue_id": 215,
+      "message": "issue already closed; labels normalized",
+      "pid": 18078,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:28:56.905292+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt215b"
+    },
+    {
+      "branch": "wt/task/215-align-billing-schema",
+      "issue_id": 215,
+      "message": "cleanup started",
+      "pid": 18078,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:28:56.917465+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt215b"
+    },
+    {
+      "branch": "wt/task/215-align-billing-schema",
+      "issue_id": 215,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt215b']' returned non-zero exit status 128.",
+      "pid": 18078,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:28:58.088518+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt215b"
+    }
+  ],
+  "generated_at": "2026-04-03T17:28:58.094425+00:00",
+  "issue_id": 215,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt215b"
+}

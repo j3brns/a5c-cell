@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/417-split-authoriser-handler-jwt-and-sigv4-paths-into-separate-s",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-04T12:30:48.493253+00:00",
+  "head_sha": "b6b313b5f0e054a84c83de812f5588b8850c76d3",
+  "issue_number": 417,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
+}

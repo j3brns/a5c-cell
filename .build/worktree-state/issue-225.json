@@ -1,0 +1,61 @@
+{
+  "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+  "details": {
+    "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt225b']' returned non-zero exit status 128.",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-225-wt_task_225-attach-platform-lambdas-to-endpoint-trusted-sg.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-225-wt_task_225-attach-platform-lambdas-to-endpoint-trusted-sg.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:225:wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg:/mnt/c/Users/julia/worktrees/wt225b",
+      "issue_number": 225,
+      "issue_title": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:31:48.013319+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+    },
+    {
+      "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt225b']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-225-wt_task_225-attach-platform-lambdas-to-endpoint-trusted-sg.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:225:wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg:/mnt/c/Users/julia/worktrees/wt225b",
+      "issue_number": 225,
+      "issue_title": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-03T17:31:56.363247+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+    },
+    {
+      "branch": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt225b']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-225-wt_task_225-attach-platform-lambdas-to-endpoint-trusted-sg.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:225:wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg:/mnt/c/Users/julia/worktrees/wt225b:Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt225b']' returned non-zero exit status 128.",
+      "issue_number": 225,
+      "issue_title": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-03T17:31:56.406253+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+    }
+  ],
+  "issue_number": 225,
+  "issue_title": "wt/task/225-attach-platform-lambdas-to-endpoint-trusted-sg",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-04-03T17:31:56.406253+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt225b"
+}

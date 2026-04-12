@@ -1,0 +1,67 @@
+{
+  "branch": "wt/task/306-define-explicit-agent-release-state-model-and-transition-rul",
+  "cleanup": null,
+  "cleanup_complete": false,
+  "cleanup_status": "failed",
+  "delivery_complete": true,
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt306']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/task/306-define-explicit-agent-release-state-model-and-transition-rul",
+      "issue_id": 306,
+      "message": "closeout started",
+      "pid": 23771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-03-22T04:15:27.692724+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt306"
+    },
+    {
+      "branch": "wt/task/306-define-explicit-agent-release-state-model-and-transition-rul",
+      "issue_id": 306,
+      "message": "merged PR lookup found",
+      "pid": 23771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-03-22T04:15:29.003816+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt306"
+    },
+    {
+      "branch": "wt/task/306-define-explicit-agent-release-state-model-and-transition-rul",
+      "issue_id": 306,
+      "message": "issue already closed; labels normalized",
+      "pid": 23771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-03-22T04:15:30.296026+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt306"
+    },
+    {
+      "branch": "wt/task/306-define-explicit-agent-release-state-model-and-transition-rul",
+      "issue_id": 306,
+      "message": "cleanup started",
+      "pid": 23771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-03-22T04:15:30.306511+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt306"
+    },
+    {
+      "branch": "wt/task/306-define-explicit-agent-release-state-model-and-transition-rul",
+      "issue_id": 306,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt306']' returned non-zero exit status 128.",
+      "pid": 23771,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-03-22T04:15:32.160011+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt306"
+    }
+  ],
+  "generated_at": "2026-03-22T04:15:32.163421+00:00",
+  "issue_closed": true,
+  "issue_id": 306,
+  "merged_pr_required": true,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt306"
+}

@@ -1,0 +1,97 @@
+{
+  "branch": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+  "details": {
+    "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt383']' returned non-zero exit status 128.",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-383-wt_task_383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "formalize-agentcore-ag-ui-integration-strategy-and-update-ar"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:383:wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar:/mnt/c/Users/julia/worktrees/wt383",
+      "issue_number": 383,
+      "issue_title": "FEATURE: Formalize AgentCore AG-UI integration strategy and update architecture docs",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-03-30T03:01:13.697009+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt383"
+    },
+    {
+      "branch": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:383:/mnt/c/Users/julia/worktrees/wt383:gemini:yolo:execute-now:tmux",
+      "issue_number": 383,
+      "issue_title": "FEATURE: Formalize AgentCore AG-UI integration strategy and update architecture docs",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-03-30T03:01:13.728901+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt383"
+    },
+    {
+      "branch": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-383-wt_task_383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:383:wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar:/mnt/c/Users/julia/worktrees/wt383",
+      "issue_number": 383,
+      "issue_title": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:34:34.263344+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt383"
+    },
+    {
+      "branch": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt383']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-383-wt_task_383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:383:wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar:/mnt/c/Users/julia/worktrees/wt383",
+      "issue_number": 383,
+      "issue_title": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-03T17:34:45.915808+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt383"
+    },
+    {
+      "branch": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt383']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-383-wt_task_383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:383:wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar:/mnt/c/Users/julia/worktrees/wt383:Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt383']' returned non-zero exit status 128.",
+      "issue_number": 383,
+      "issue_title": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-03T17:34:45.954325+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt383"
+    }
+  ],
+  "issue_number": 383,
+  "issue_title": "wt/task/383-formalize-agentcore-ag-ui-integration-strategy-and-update-ar",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-04-03T17:34:45.954325+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt383"
+}

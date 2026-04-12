@@ -1,0 +1,62 @@
+{
+  "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt389']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "issue_id": 389,
+      "message": "closeout started",
+      "pid": 18774,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:34:52.183784+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "issue_id": 389,
+      "message": "merged PR lookup missed",
+      "pid": 18774,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:34:54.029370+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "issue_id": 389,
+      "message": "issue already closed; labels normalized",
+      "pid": 18774,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:34:59.395832+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "issue_id": 389,
+      "message": "cleanup started",
+      "pid": 18774,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:34:59.413194+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    },
+    {
+      "branch": "wt/docs/389-add-read-only-platform-agent-diagnostics-and-runbook-assista",
+      "issue_id": 389,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt389']' returned non-zero exit status 128.",
+      "pid": 18774,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:35:03.241669+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+    }
+  ],
+  "generated_at": "2026-04-03T17:35:03.248467+00:00",
+  "issue_id": 389,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt389"
+}

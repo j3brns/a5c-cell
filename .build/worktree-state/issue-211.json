@@ -1,0 +1,76 @@
+{
+  "branch": "wt/task/211-unify-runtime-failover-lock",
+  "details": {
+    "error": "Issue state evidence is missing a worktree start/resume event",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-211-wt_task_211-unify-runtime-failover-lock.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-211-wt_task_211-unify-runtime-failover-lock.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:211:wt/task/211-unify-runtime-failover-lock:/mnt/c/Users/julia/worktrees/wt211b",
+      "issue_number": 211,
+      "issue_title": "wt/task/211-unify-runtime-failover-lock",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:26:04.756074+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    },
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-211-wt_task_211-unify-runtime-failover-lock.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:211:wt/task/211-unify-runtime-failover-lock:/mnt/c/Users/julia/worktrees/wt211b",
+      "issue_number": 211,
+      "issue_title": "wt/task/211-unify-runtime-failover-lock",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-03T17:28:21.302435+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    },
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "details": {
+        "error": "Issue state evidence is missing a worktree start/resume event",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-211-wt_task_211-unify-runtime-failover-lock.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:211:wt/task/211-unify-runtime-failover-lock:/mnt/c/Users/julia/worktrees/wt211b",
+      "issue_number": 211,
+      "issue_title": "wt/task/211-unify-runtime-failover-lock",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-03T17:28:21.344498+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    },
+    {
+      "branch": "wt/task/211-unify-runtime-failover-lock",
+      "details": {
+        "error": "Issue state evidence is missing a worktree start/resume event",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-211-wt_task_211-unify-runtime-failover-lock.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:211:wt/task/211-unify-runtime-failover-lock:/mnt/c/Users/julia/worktrees/wt211b:Issue state evidence is missing a worktree start/resume event",
+      "issue_number": 211,
+      "issue_title": "wt/task/211-unify-runtime-failover-lock",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-03T17:28:21.368868+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+    }
+  ],
+  "issue_number": 211,
+  "issue_title": "wt/task/211-unify-runtime-failover-lock",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-04-03T17:28:21.368868+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt211b"
+}

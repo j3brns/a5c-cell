@@ -1,0 +1,97 @@
+{
+  "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+  "details": {
+    "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt381']' returned non-zero exit status 128.",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-381-wt_task_381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:381:wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con:/mnt/c/Users/julia/worktrees/wt381",
+      "issue_number": 381,
+      "issue_title": "FEATURE: Add AG-UI bootstrap and agent capability metadata to the control plane",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-03-31T14:56:26.876428+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    },
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:381:/mnt/c/Users/julia/worktrees/wt381:codex:yolo:execute-now:tmux",
+      "issue_number": 381,
+      "issue_title": "FEATURE: Add AG-UI bootstrap and agent capability metadata to the control plane",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-03-31T14:56:26.899569+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    },
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "details": {
+        "force": false,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-381-wt_task_381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:381:wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con:/mnt/c/Users/julia/worktrees/wt381",
+      "issue_number": 381,
+      "issue_title": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-03-31T15:39:17.740593+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    },
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt381']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-381-wt_task_381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:381:wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con:/mnt/c/Users/julia/worktrees/wt381",
+      "issue_number": 381,
+      "issue_title": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-03-31T15:39:22.671725+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    },
+    {
+      "branch": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt381']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-381-wt_task_381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:381:wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con:/mnt/c/Users/julia/worktrees/wt381:Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt381']' returned non-zero exit status 128.",
+      "issue_number": 381,
+      "issue_title": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-03-31T15:39:22.695071+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+    }
+  ],
+  "issue_number": 381,
+  "issue_title": "wt/task/381-add-ag-ui-bootstrap-and-agent-capability-metadata-to-the-con",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-03-31T15:39:22.695071+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt381"
+}

@@ -1,0 +1,108 @@
+{
+  "branch": "wt/task/214-wire-bff-runtime-config",
+  "details": {
+    "evidence_hash": "be11c3cc1b74607c9e9443ec4072a5c6a079ac0b1496d4900eeaf6a6e11c60a5",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-214-wt_task_214-wire-bff-runtime-config.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "details": {
+        "source": "worktree-create"
+      },
+      "event_type": "worktree-reused",
+      "idempotency_key": "reuse:214:wt/task/214-wire-bff-runtime-config:/mnt/c/Users/julia/worktrees/wt214b",
+      "issue_number": 214,
+      "issue_title": "BUG: Provision BFF runtime config and secrets required by token refresh and keepalive routes",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-03T03:32:16.964542+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "no-mux",
+        "source": "worktree-create"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:214:/mnt/c/Users/julia/worktrees/wt214b:gemini:yolo:execute-now:no-mux",
+      "issue_number": 214,
+      "issue_title": "BUG: Provision BFF runtime config and secrets required by token refresh and keepalive routes",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-03T03:32:16.985724+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-214-wt_task_214-wire-bff-runtime-config.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:214:wt/task/214-wire-bff-runtime-config:/mnt/c/Users/julia/worktrees/wt214b",
+      "issue_number": 214,
+      "issue_title": "wt/task/214-wire-bff-runtime-config",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:28:29.927827+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-214-wt_task_214-wire-bff-runtime-config.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:214:wt/task/214-wire-bff-runtime-config:/mnt/c/Users/julia/worktrees/wt214b",
+      "issue_number": 214,
+      "issue_title": "wt/task/214-wire-bff-runtime-config",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-03T17:28:39.837520+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "details": {
+        "evidence_hash": "be11c3cc1b74607c9e9443ec4072a5c6a079ac0b1496d4900eeaf6a6e11c60a5",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-214-wt_task_214-wire-bff-runtime-config.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:214:be11c3cc1b74607c9e9443ec4072a5c6a079ac0b1496d4900eeaf6a6e11c60a5",
+      "issue_number": 214,
+      "issue_title": "wt/task/214-wire-bff-runtime-config",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-03T17:28:39.893925+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    },
+    {
+      "branch": "wt/task/214-wire-bff-runtime-config",
+      "details": {
+        "evidence_hash": "be11c3cc1b74607c9e9443ec4072a5c6a079ac0b1496d4900eeaf6a6e11c60a5",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-214-wt_task_214-wire-bff-runtime-config.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:214:be11c3cc1b74607c9e9443ec4072a5c6a079ac0b1496d4900eeaf6a6e11c60a5",
+      "issue_number": 214,
+      "issue_title": "wt/task/214-wire-bff-runtime-config",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-03T17:28:44.244840+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+    }
+  ],
+  "issue_number": 214,
+  "issue_title": "wt/task/214-wire-bff-runtime-config",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-03T17:28:44.244840+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt214b"
+}

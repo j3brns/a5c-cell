@@ -1,0 +1,61 @@
+{
+  "branch": "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+  "details": {
+    "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt314']' returned non-zero exit status 128.",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-314-wt_task_314-reserved-platform-tenant-and-control-plane-agent-model.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+      "details": {
+        "force": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-314-wt_task_314-reserved-platform-tenant-and-control-plane-agent-model.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:314:wt/task/314-reserved-platform-tenant-and-control-plane-agent-model:/mnt/c/Users/julia/worktrees/wt314",
+      "issue_number": 314,
+      "issue_title": "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-03T17:34:20.373561+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt314"
+    },
+    {
+      "branch": "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt314']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-314-wt_task_314-reserved-platform-tenant-and-control-plane-agent-model.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:314:wt/task/314-reserved-platform-tenant-and-control-plane-agent-model:/mnt/c/Users/julia/worktrees/wt314",
+      "issue_number": 314,
+      "issue_title": "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-03T17:34:28.334094+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt314"
+    },
+    {
+      "branch": "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt314']' returned non-zero exit status 128.",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-314-wt_task_314-reserved-platform-tenant-and-control-plane-agent-model.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:314:wt/task/314-reserved-platform-tenant-and-control-plane-agent-model:/mnt/c/Users/julia/worktrees/wt314:Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt314']' returned non-zero exit status 128.",
+      "issue_number": 314,
+      "issue_title": "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-03T17:34:28.372195+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt314"
+    }
+  ],
+  "issue_number": 314,
+  "issue_title": "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-04-03T17:34:28.372195+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt314"
+}

@@ -1,0 +1,37 @@
+{
+  "branch": "wt/task/479-centralize-tenant-api-environment-reads-behind-tenantapiconf",
+  "details": {
+    "auto_claim": true,
+    "base_ref": "origin/main",
+    "preflight": true,
+    "scope": "task",
+    "slug": "centralize-tenant-api-environment-reads-behind-tenantapiconf"
+  },
+  "events": [
+    {
+      "branch": "wt/task/479-centralize-tenant-api-environment-reads-behind-tenantapiconf",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "centralize-tenant-api-environment-reads-behind-tenantapiconf"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:479:wt/task/479-centralize-tenant-api-environment-reads-behind-tenantapiconf:/mnt/c/Users/julia/worktrees/wt479",
+      "issue_number": 479,
+      "issue_title": "HARDENING: Centralize tenant_api environment reads behind TenantApiConfig",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-05T04:29:33.761858+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt479"
+    }
+  ],
+  "issue_number": 479,
+  "issue_title": "HARDENING: Centralize tenant_api environment reads behind TenantApiConfig",
+  "last_event_type": "worktree-created",
+  "last_updated_at": "2026-04-05T04:29:33.761858+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "worktree-ready",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt479"
+}

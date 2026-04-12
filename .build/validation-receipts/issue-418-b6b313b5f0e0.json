@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/418-decompose-request-interceptor-into-token-tier-and-idempotenc",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-04T12:48:36.963764+00:00",
+  "head_sha": "b6b313b5f0e054a84c83de812f5588b8850c76d3",
+  "issue_number": 418,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt418"
+}

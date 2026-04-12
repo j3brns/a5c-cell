@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/388-add-platform-agent-auth-context-and-audit-envelope-for-contr",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt388']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/task/388-add-platform-agent-auth-context-and-audit-envelope-for-contr",
+      "issue_id": 388,
+      "message": "closeout started",
+      "pid": 632031,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-01T01:21:07.710910+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt388"
+    },
+    {
+      "branch": "wt/task/388-add-platform-agent-auth-context-and-audit-envelope-for-contr",
+      "issue_id": 388,
+      "message": "merged PR lookup found",
+      "pid": 632031,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-01T01:21:09.113924+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt388"
+    },
+    {
+      "branch": "wt/task/388-add-platform-agent-auth-context-and-audit-envelope-for-contr",
+      "issue_id": 388,
+      "message": "issue already closed; labels normalized",
+      "pid": 632031,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-01T01:21:10.587640+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt388"
+    },
+    {
+      "branch": "wt/task/388-add-platform-agent-auth-context-and-audit-envelope-for-contr",
+      "issue_id": 388,
+      "message": "cleanup started",
+      "pid": 632031,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-01T01:21:10.596748+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt388"
+    },
+    {
+      "branch": "wt/task/388-add-platform-agent-auth-context-and-audit-envelope-for-contr",
+      "issue_id": 388,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt388']' returned non-zero exit status 128.",
+      "pid": 632031,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-01T01:21:12.710492+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt388"
+    }
+  ],
+  "generated_at": "2026-04-01T01:21:12.714235+00:00",
+  "issue_id": 388,
+  "merged_pr_required": true,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt388"
+}

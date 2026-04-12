@@ -1,0 +1,47 @@
+{
+  "branch": "wt/task/471-restore-tenant-api-handler-contract-and-route-behavior",
+  "details": {
+    "source": "worktree-create"
+  },
+  "events": [
+    {
+      "branch": "wt/task/471-restore-tenant-api-handler-contract-and-route-behavior",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "restore-tenant-api-handler-contract-and-route-behavior"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:471:wt/task/471-restore-tenant-api-handler-contract-and-route-behavior:/mnt/c/Users/julia/worktrees/17inch",
+      "issue_number": 471,
+      "issue_title": "HARDENING: Restore tenant API handler contract and route behavior",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-04T16:21:49.277592+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/471-restore-tenant-api-handler-contract-and-route-behavior",
+      "details": {
+        "source": "worktree-create"
+      },
+      "event_type": "shell-opened",
+      "idempotency_key": "shell:471:/mnt/c/Users/julia/worktrees/17inch",
+      "issue_number": 471,
+      "issue_title": "HARDENING: Restore tenant API handler contract and route behavior",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "shell-active",
+      "ts": "2026-04-04T16:21:49.304297+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
+    }
+  ],
+  "issue_number": 471,
+  "issue_title": "HARDENING: Restore tenant API handler contract and route behavior",
+  "last_event_type": "shell-opened",
+  "last_updated_at": "2026-04-04T16:21:49.304297+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "shell-active",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
+}

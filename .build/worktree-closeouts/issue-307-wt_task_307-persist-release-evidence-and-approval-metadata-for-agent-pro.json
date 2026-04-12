@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/307-persist-release-evidence-and-approval-metadata-for-agent-pro",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/307-persist-release-evidence-and-approval-metadata-for-agent-pro",
+      "issue_id": 307,
+      "message": "closeout started",
+      "pid": 103896,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-03-23T20:48:46.150796+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt307"
+    },
+    {
+      "branch": "wt/task/307-persist-release-evidence-and-approval-metadata-for-agent-pro",
+      "issue_id": 307,
+      "message": "merged PR lookup found",
+      "pid": 103896,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-03-23T20:48:47.580018+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt307"
+    },
+    {
+      "branch": "wt/task/307-persist-release-evidence-and-approval-metadata-for-agent-pro",
+      "issue_id": 307,
+      "message": "issue already closed; labels normalized",
+      "pid": 103896,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-03-23T20:48:48.932079+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt307"
+    },
+    {
+      "branch": "wt/task/307-persist-release-evidence-and-approval-metadata-for-agent-pro",
+      "issue_id": 307,
+      "message": "cleanup started",
+      "pid": 103896,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-03-23T20:48:48.941507+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt307"
+    },
+    {
+      "branch": "wt/task/307-persist-release-evidence-and-approval-metadata-for-agent-pro",
+      "issue_id": 307,
+      "message": "cleanup verified",
+      "pid": 103896,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-03-23T20:49:21.110226+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt307"
+    }
+  ],
+  "generated_at": "2026-03-23T20:49:21.114307+00:00",
+  "issue_closed": true,
+  "issue_id": 307,
+  "merged_pr_required": true,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt307"
+}

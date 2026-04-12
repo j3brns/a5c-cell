@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/437-add-shared-aws-client-resource-helpers-for-platform-handlers",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-04T15:28:46.519729+00:00",
+  "head_sha": "ad4719f589e4bd5aab75bf11e77b9c337d1ba7f6",
+  "issue_number": 437,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt437"
+}

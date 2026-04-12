@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/440-split-src-bridge-handler-py-into-thin-adapter-and-runtime-se",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-05T01:22:40.092341+00:00",
+  "head_sha": "bc1ebde822ae3a8813f773a272e2d2554be888a4",
+  "issue_number": 440,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/ad"
+}

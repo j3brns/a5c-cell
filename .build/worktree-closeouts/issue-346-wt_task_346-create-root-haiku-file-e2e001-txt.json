@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/346-create-root-haiku-file-e2e001-txt",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt346']' died with <Signals.SIGTERM: 15>.",
+  "events": [
+    {
+      "branch": "wt/task/346-create-root-haiku-file-e2e001-txt",
+      "issue_id": 346,
+      "message": "closeout started",
+      "pid": 87406,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-03-20T23:05:43.736095+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt346"
+    },
+    {
+      "branch": "wt/task/346-create-root-haiku-file-e2e001-txt",
+      "issue_id": 346,
+      "message": "merged PR lookup found",
+      "pid": 87406,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-03-20T23:05:45.092140+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt346"
+    },
+    {
+      "branch": "wt/task/346-create-root-haiku-file-e2e001-txt",
+      "issue_id": 346,
+      "message": "issue already closed; labels normalized",
+      "pid": 87406,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-03-20T23:05:49.983936+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt346"
+    },
+    {
+      "branch": "wt/task/346-create-root-haiku-file-e2e001-txt",
+      "issue_id": 346,
+      "message": "cleanup started",
+      "pid": 87406,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-03-20T23:05:49.995117+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt346"
+    },
+    {
+      "branch": "wt/task/346-create-root-haiku-file-e2e001-txt",
+      "issue_id": 346,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt346']' died with <Signals.SIGTERM: 15>.",
+      "pid": 87406,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-03-20T23:08:20.266862+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt346"
+    }
+  ],
+  "generated_at": "2026-03-20T23:08:20.273312+00:00",
+  "issue_id": 346,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt346"
+}

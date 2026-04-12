@@ -13,7 +13,13 @@ __pycache__/
 .nox/
 .hypothesis/
 .pyre/
-.build/
+.build/*
+!.build/validation-receipts/
+!.build/validation-receipts/**
+!.build/worktree-closeouts/
+!.build/worktree-closeouts/**
+!.build/worktree-state/
+!.build/worktree-state/**
 *.egg-info/
 dist/
 *.egg

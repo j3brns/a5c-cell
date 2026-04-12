@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "issue_id": 283,
+      "message": "closeout started",
+      "pid": 18497,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:32:53.718084+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    },
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "issue_id": 283,
+      "message": "merged PR lookup found",
+      "pid": 18497,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:32:55.912968+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    },
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "issue_id": 283,
+      "message": "issue already closed; labels normalized",
+      "pid": 18497,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:33:02.177521+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    },
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "issue_id": 283,
+      "message": "cleanup started",
+      "pid": 18497,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:33:02.188804+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    },
+    {
+      "branch": "wt/task/283-stop-runtime-handlers-from-bypassing-data-access-lib",
+      "issue_id": 283,
+      "message": "cleanup verified",
+      "pid": 18497,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-03T17:33:59.455175+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+    }
+  ],
+  "generated_at": "2026-04-03T17:33:59.460683+00:00",
+  "issue_closed": true,
+  "issue_id": 283,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt283b"
+}

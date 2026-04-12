@@ -1,0 +1,47 @@
+{
+  "branch": "wt/task/439-split-gateway-interceptors-request-interceptor-py-into-token",
+  "details": {
+    "source": "worktree-create"
+  },
+  "events": [
+    {
+      "branch": "wt/task/439-split-gateway-interceptors-request-interceptor-py-into-token",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "split-gateway-interceptors-request-interceptor-py-into-token"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:439:wt/task/439-split-gateway-interceptors-request-interceptor-py-into-token:/mnt/c/Users/julia/worktrees/17inch",
+      "issue_number": 439,
+      "issue_title": "HARDENING: Split gateway/interceptors/request_interceptor.py into token, tier, tool, and idempotency modules",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-04T17:53:00.589742+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/439-split-gateway-interceptors-request-interceptor-py-into-token",
+      "details": {
+        "source": "worktree-create"
+      },
+      "event_type": "shell-opened",
+      "idempotency_key": "shell:439:/mnt/c/Users/julia/worktrees/17inch",
+      "issue_number": 439,
+      "issue_title": "HARDENING: Split gateway/interceptors/request_interceptor.py into token, tier, tool, and idempotency modules",
+      "repo": "j3brns/tf-acore-aas",
+      "state": "shell-active",
+      "ts": "2026-04-04T17:53:00.615232+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
+    }
+  ],
+  "issue_number": 439,
+  "issue_title": "HARDENING: Split gateway/interceptors/request_interceptor.py into token, tier, tool, and idempotency modules",
+  "last_event_type": "shell-opened",
+  "last_updated_at": "2026-04-04T17:53:00.615232+00:00",
+  "repo": "j3brns/tf-acore-aas",
+  "state": "shell-active",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
+}

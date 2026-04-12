@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/179-refactor-spa-api-client",
+  "error": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt179b']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/task/179-refactor-spa-api-client",
+      "issue_id": 179,
+      "message": "closeout started",
+      "pid": 17818,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-03T17:25:53.034413+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt179b"
+    },
+    {
+      "branch": "wt/task/179-refactor-spa-api-client",
+      "issue_id": 179,
+      "message": "merged PR lookup found",
+      "pid": 17818,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-03T17:25:54.335568+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt179b"
+    },
+    {
+      "branch": "wt/task/179-refactor-spa-api-client",
+      "issue_id": 179,
+      "message": "issue already closed; labels normalized",
+      "pid": 17818,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-03T17:25:58.827700+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt179b"
+    },
+    {
+      "branch": "wt/task/179-refactor-spa-api-client",
+      "issue_id": 179,
+      "message": "cleanup started",
+      "pid": 17818,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-03T17:25:58.836404+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt179b"
+    },
+    {
+      "branch": "wt/task/179-refactor-spa-api-client",
+      "issue_id": 179,
+      "message": "Command '['git', 'worktree', 'remove', '/mnt/c/Users/julia/worktrees/wt179b']' returned non-zero exit status 128.",
+      "pid": 17818,
+      "repo": "j3brns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-03T17:25:59.800546+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt179b"
+    }
+  ],
+  "generated_at": "2026-04-03T17:25:59.804320+00:00",
+  "issue_id": 179,
+  "merged_pr_required": false,
+  "repo": "j3brns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt179b"
+}
