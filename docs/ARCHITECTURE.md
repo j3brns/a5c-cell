@@ -543,22 +543,19 @@ Required boundary rules:
 
 ### Follow-On Backlog For Platform-Agent Operations
 
-Issue [#318](https://github.com/j3brns/tf-acore-aas/issues/318) closes only after the
+GitLab issue `#318` closes only after the
 follow-on implementation backlog is explicit. The scoped follow-on work is:
 
 | Issue | Focus | Why it exists |
 |-------|-------|---------------|
-| [#388](https://github.com/j3brns/tf-acore-aas/issues/388) | Platform-agent auth context and audit envelope | Makes `tenantid=platform` explicit, auditable, and non-bypassable |
-| [#389](https://github.com/j3brns/tf-acore-aas/issues/389) | Read-only diagnostics and runbook assistance | Keeps operator-assistance flows bounded to authoritative read-only signals |
-| [#390](https://github.com/j3brns/tf-acore-aas/issues/390) | Tenant operational workflows | Forces target-tenant actions through explicit admin workflows with validation and audit |
-| [#391](https://github.com/j3brns/tf-acore-aas/issues/391) | Release-governance workflows | Reuses the ADR-015 lifecycle instead of hidden scripts or direct table mutation |
+| `#388` | Platform-agent auth context and audit envelope | Makes `tenantid=platform` explicit, auditable, and non-bypassable |
+| `#389` | Read-only diagnostics and runbook assistance | Keeps operator-assistance flows bounded to authoritative read-only signals |
+| `#390` | Tenant operational workflows | Forces target-tenant actions through explicit admin workflows with validation and audit |
+| `#391` | Release-governance workflows | Reuses the ADR-015 lifecycle instead of hidden scripts or direct table mutation |
 
 Out of scope for this backlog:
 - AG-UI bootstrap, runtime session contracts, and SPA integration, which are already
-  tracked separately in issues [#381](https://github.com/j3brns/tf-acore-aas/issues/381),
-  [#382](https://github.com/j3brns/tf-acore-aas/issues/382), [#383](https://github.com/j3brns/tf-acore-aas/issues/383),
-  [#384](https://github.com/j3brns/tf-acore-aas/issues/384), and
-  [#385](https://github.com/j3brns/tf-acore-aas/issues/385)
+  tracked separately in GitLab issues `#381`, `#382`, `#383`, `#384`, and `#385`
 - any design that weakens the reserved-tenant guardrails from ADR-016 or the stop-and-ask
   security boundaries in [CLAUDE.md](../CLAUDE.md)
 
