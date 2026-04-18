@@ -37,7 +37,7 @@ default:
     GITLAB_OIDC_TOKEN:
       aud: sts.amazonaws.com
 
-.aws_oidc_base:
+.tools_base:
   before_script:
     - |
       if command -v apt-get >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
@@ -54,12 +54,11 @@ default:
         echo "AWS CLI not found; installing user-scoped awscli with uv."
         uv tool install --force awscli
       fi
-      if ! command -v aws >/dev/null 2>&1; then
-        echo "ERROR: AWS CLI required for OIDC bootstrap is unavailable."
-        echo "Install aws in the runner image or allow uv package downloads."
-        exit 1
-      fi
-      aws --version
+
+.aws_auth_base:
+  extends: .tools_base
+  before_script:
+    - !reference [.tools_base, before_script]
     - |
       if [ -z "${AWS_ROLE_ARN:-}" ]; then
         if [ -n "${AWS_ROLE_ARN_PRIMARY:-}" ]; then
@@ -71,7 +70,6 @@ default:
       if [ -z "${AWS_ROLE_ARN:-}" ]; then
         echo "ERROR: AWS role ARN not set."
         echo "Set canonical PLATFORM_PIPELINE_*_ROLE_ARN variables (preferred)."
-        echo "Legacy AWS_ROLE_ARN_* variables are accepted temporarily for compatibility."
         exit 1
       fi
     - |
@@ -90,14 +88,11 @@ default:
 
 .test_job_base:
   stage: test
-  extends: .aws_oidc_base
-  variables:
-    AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
-    AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
+  extends: .tools_base
   interruptible: true
 
 .deploy_job_base:
-  extends: .aws_oidc_base
+  extends: .aws_auth_base
   allow_failure: false
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -106,10 +101,7 @@ default:
 
 validate:
   stage: validate
-  extends: .aws_oidc_base
-  variables:
-    AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
-    AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
+  extends: .tools_base
   script:
     - make validate-python
     - make validate-cdk
@@ -118,10 +110,7 @@ validate:
 
 validate-pipeline-policy:
   stage: validate
-  extends: .aws_oidc_base
-  variables:
-    AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
-    AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
+  extends: .tools_base
   script:
     - >
       PYTHONPATH=. uv run pytest
@@ -142,7 +131,11 @@ test-unit:
       junit: junit-report.xml
 
 test-integration:
-  extends: .test_job_base
+  extends: .aws_auth_base
+  stage: test
+  variables:
+    AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
+    AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
   script:
     - make test-int
 
@@ -166,7 +159,7 @@ test-spa:
 
 plan-infra:
   stage: plan
-  extends: .aws_oidc_base
+  extends: .aws_auth_base
   variables:
     AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
     AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
