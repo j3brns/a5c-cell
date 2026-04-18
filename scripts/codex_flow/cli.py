@@ -170,9 +170,9 @@ def detect_git_context(path: Path) -> tuple[str | None, str | None]:
     return str(worktree_path), branch
 
 
-def github_repo_slug(root: Path) -> str:
+def gitlab_repo_slug(root: Path) -> str:
     result = subprocess.run(
-        ["git", "remote", "get-url", "origin"],
+        ["git", "remote", "get-url", "gitlab"],
         cwd=root,
         check=True,
         capture_output=True,
@@ -181,36 +181,38 @@ def github_repo_slug(root: Path) -> str:
     raw = result.stdout.strip()
     if raw.endswith(".git"):
         raw = raw[:-4]
-    if raw.startswith("git@github.com:"):
+    if raw.startswith("git@gitlab.com:"):
         return raw.split(":", 1)[1]
-    if "github.com/" in raw:
-        return raw.split("github.com/", 1)[1]
-    raise SystemExit(f"Could not derive GitHub repo slug from origin URL: {raw}")
+    if "gitlab.com/" in raw:
+        return raw.split("gitlab.com/", 1)[1]
+    raise SystemExit(f"Could not derive GitLab project path from gitlab remote URL: {raw}")
 
 
-def fetch_github_issues(root: Path, *, state: str, limit: int) -> list[dict[str, Any]]:
-    repo = github_repo_slug(root)
+def fetch_gitlab_issues(root: Path, *, state: str, limit: int) -> list[dict[str, Any]]:
+    repo = gitlab_repo_slug(root)
     command = [
-        "gh",
+        "glab",
         "issue",
         "list",
-        "--repo",
+        "-R",
         repo,
-        "--state",
-        state,
-        "--limit",
+        "--per-page",
         str(limit),
-        "--json",
-        "number,title,state,labels",
+        "--output",
+        "json",
     ]
+    if state == "all":
+        command.append("--all")
+    elif state == "closed":
+        command.append("--closed")
     result = subprocess.run(command, cwd=root, check=True, capture_output=True, text=True)
     payload = json.loads(result.stdout)
     if not isinstance(payload, list):
-        raise SystemExit("Unexpected gh issue list payload.")
+        raise SystemExit("Unexpected glab issue list payload.")
     return [item for item in payload if isinstance(item, dict)]
 
 
-def import_github_issues(
+def import_gitlab_issues(
     board: dict[str, Any],
     issues: list[dict[str, Any]],
     *,
@@ -220,7 +222,7 @@ def import_github_issues(
     existing_issue_numbers = {card.issue for card in board_cards(board) if card.issue is not None}
     added = 0
     for issue in issues:
-        issue_number = issue.get("number")
+        issue_number = issue.get("iid") or issue.get("number")
         title = issue.get("title")
         if not isinstance(issue_number, int) or not isinstance(title, str):
             continue
@@ -235,7 +237,7 @@ def import_github_issues(
             issue=issue_number,
             worktree_path=None,
             branch=None,
-            note="imported from GitHub issue",
+            note="imported from GitLab issue",
             updated_at=iso_now(),
         )
         append_card(board, card)
@@ -402,11 +404,11 @@ def cmd_note(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_import_github(args: argparse.Namespace) -> int:
+def cmd_import_gitlab(args: argparse.Namespace) -> int:
     root = repo_root()
     board = load_board(root)
-    issues = fetch_github_issues(root, state=args.state, limit=args.limit)
-    added = import_github_issues(board, issues, lane=args.lane)
+    issues = fetch_gitlab_issues(root, state=args.state, limit=args.limit)
+    added = import_gitlab_issues(board, issues, lane=args.lane)
     save_board(root, board)
     print(f"Imported {added} issues into lane '{args.lane}'.")
     return 0
@@ -465,14 +467,14 @@ def build_parser() -> argparse.ArgumentParser:
     note.add_argument("card", type=int)
     note.set_defaults(func=cmd_note)
 
-    import_github = subparsers.add_parser(
-        "import-github",
-        help="Import GitHub issues into the local board as cards.",
+    import_gitlab = subparsers.add_parser(
+        "import-gitlab",
+        help="Import GitLab issues into the local board as cards.",
     )
-    import_github.add_argument("--state", default="open", choices=("open", "closed", "all"))
-    import_github.add_argument("--limit", type=int, default=DEFAULT_IMPORT_LIMIT)
-    import_github.add_argument("--lane", default="backlog")
-    import_github.set_defaults(func=cmd_import_github)
+    import_gitlab.add_argument("--state", default="open", choices=("open", "closed", "all"))
+    import_gitlab.add_argument("--limit", type=int, default=DEFAULT_IMPORT_LIMIT)
+    import_gitlab.add_argument("--lane", default="backlog")
+    import_gitlab.set_defaults(func=cmd_import_gitlab)
 
     return parser
 

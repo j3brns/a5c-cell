@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -46,15 +47,31 @@ def current_path() -> Path:
     return Path.cwd().resolve()
 
 
-def origin_repo_slug(root: Path) -> str:
+def _remote_url(root: Path, remote: str) -> str | None:
     try:
-        url = run(["git", "remote", "get-url", "origin"], cwd=root).stdout.strip()
-    except subprocess.CalledProcessError as exc:
-        raise CliError("Could not read git remote 'origin'") from exc
-    if url.startswith("git@") and "github.com:" in url:
-        path = url.split("github.com:", 1)[1]
-    elif "github.com/" in url:
-        path = url.split("github.com/", 1)[1]
+        return run(["git", "remote", "get-url", remote], cwd=root).stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def _repo_slug_from_url(url: str) -> str | None:
+    if url.startswith("git@") and "gitlab.com:" in url:
+        path = url.split("gitlab.com:", 1)[1]
+    elif "gitlab.com/" in url:
+        path = url.split("gitlab.com/", 1)[1]
     else:
-        raise CliError(f"Origin is not a GitHub remote: {url}")
+        return None
     return path.removesuffix(".git").strip("/")
+
+
+def origin_repo_slug(root: Path) -> str:
+    preferred_remote = os.environ.get("ISSUE_TRACKER_REMOTE", "gitlab")
+    remotes = [preferred_remote, "origin"]
+    for remote in dict.fromkeys(remotes):
+        url = _remote_url(root, remote)
+        if not url:
+            continue
+        slug = _repo_slug_from_url(url)
+        if slug:
+            return slug
+    raise CliError("Could not resolve a GitLab repository slug from git remotes")

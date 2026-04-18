@@ -193,9 +193,10 @@ deploy-dev:
     AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_DEPLOY_DEV}
     ENV: dev
   script:
-    - echo "Applying canary policy for ${ENV}: ${CANARY_POLICY_DEV}"
-    - make infra-deploy ENV=dev
-    - make spa-push ENV=dev
+    - |
+      echo "Applying canary policy for ${ENV}: ${CANARY_POLICY_DEV}"
+      make infra-deploy ENV=dev
+      make spa-push ENV=dev
   environment:
     name: dev
     deployment_tier: development
@@ -210,10 +211,11 @@ deploy-staging:
     AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_DEPLOY_STAGING}
     ENV: staging
   script:
-    - echo "Applying canary policy for ${ENV}: ${CANARY_POLICY_STAGING}"
-    - echo "Staging rollout observation window: ${STAGING_ROLLOUT_WINDOW_MINUTES} minutes"
-    - make infra-deploy ENV=staging
-    - make spa-push ENV=staging
+    - |
+      echo "Applying canary policy for ${ENV}: ${CANARY_POLICY_STAGING}"
+      echo "Staging rollout observation window: ${STAGING_ROLLOUT_WINDOW_MINUTES} minutes"
+      make infra-deploy ENV=staging
+      make spa-push ENV=staging
   environment:
     name: staging
     deployment_tier: staging
@@ -228,11 +230,11 @@ staging-rollout-window:
   needs: ["deploy-staging"]
   script:
     - echo "Staging rollout window complete after ${STAGING_ROLLOUT_WINDOW_MINUTES} minutes."
-  when: delayed
-  start_in: 30 minutes
   allow_failure: false
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+      when: delayed
+      start_in: 30 minutes
 
 # --- DEPLOY PROD ---
 
@@ -245,14 +247,14 @@ deploy-prod:
     AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_DEPLOY_PROD}
     ENV: prod
   script:
-    - >
-      uv run python scripts/check_gitlab_protected_environment.py
-      --environment "${GITLAB_PROTECTED_ENVIRONMENT_NAME}"
-      --min-approvals "${GITLAB_PROTECTED_ENV_REQUIRED_APPROVALS}"
-    - echo "Applying canary policy for ${ENV}: ${CANARY_POLICY_PROD}"
-    - echo "Production rollout observation window: ${PROD_ROLLOUT_WINDOW_MINUTES} minutes"
-    - make infra-deploy-prod-ci
-    - make spa-push ENV=prod
+    - |
+      uv run python scripts/check_gitlab_protected_environment.py \
+        --environment "${GITLAB_PROTECTED_ENVIRONMENT_NAME}" \
+        --min-approvals "${GITLAB_PROTECTED_ENV_REQUIRED_APPROVALS}"
+      echo "Applying canary policy for ${ENV}: ${CANARY_POLICY_PROD}"
+      echo "Production rollout observation window: ${PROD_ROLLOUT_WINDOW_MINUTES} minutes"
+      make infra-deploy-prod-ci
+      make spa-push ENV=prod
   environment:
     name: prod
     deployment_tier: production
@@ -267,8 +269,8 @@ prod-rollout-window:
   needs: ["deploy-prod"]
   script:
     - echo "Production rollout window complete after ${PROD_ROLLOUT_WINDOW_MINUTES} minutes."
-  when: delayed
-  start_in: 15 minutes
   allow_failure: false
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+      when: delayed
+      start_in: 15 minutes

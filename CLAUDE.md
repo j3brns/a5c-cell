@@ -53,7 +53,7 @@ alternative. Never silently work around them.
 Before writing any code:
 1. Read this file
 2. Read docs/ARCHITECTURE.md
-3. Identify the issue you are working on. GitHub Issues are the canonical task queue; `docs/TASKS.md` is a snapshot.
+3. Identify the issue you are working on. GitLab Issues are the canonical task queue; `docs/TASKS.md` is a snapshot.
 4. Read the ADR(s) linked to the current task/issue (use `docs/TASKS.md` as a reference snapshot when needed)
 5. In local WSL, confirm you are in an issue worktree on a policy branch (not `main` in the primary repo working tree)
 6. Start from a known fresh issue worktree based on current `main`/`origin/main`; do not begin implementation in a stale resumed worktree without first refreshing or recreating it
@@ -83,7 +83,7 @@ permissions, and regional support. Use web search only as a last resort when the
 AWS MCP tools do not provide the required detail. Do not infer required
 properties, encryption behavior, IAM actions, or regional support from old code
 or memory. Record the specific AWS doc URL(s) used in the issue, review notes,
-or commit/PR narrative whenever the assumption affects resource shape,
+or commit/MR narrative whenever the assumption affects resource shape,
 permissions, encryption, or region policy.
 
 ### Execution Loop (Drive To Completion)
@@ -106,7 +106,7 @@ Do not stop just because one command failed. Investigate the error, form a hypot
 apply a fix, and re-run the smallest relevant check. Only stop for the explicit
 "stop and ask" conditions, gate tasks, or when the operator redirects you.
 Do not stop at intermediate delivery milestones such as local commit, branch push,
-or PR creation. Continue through merge and required closeout steps until the issue
+or MR creation. Continue through merge and required closeout steps until the issue
 meets the repository Definition of Done, unless one of the explicit stop/escalate
 conditions applies.
 
@@ -165,21 +165,24 @@ except TenantAccessViolation as e:
 
 ## Issue Workflow (Canonical)
 
-GitHub Issues are the canonical task queue (effective 2026-02-25 13:00 local).
+GitLab Issues are the canonical task queue (effective 2026-04-18 local).
 Use issue `Seq:` for ordering and `Depends on:` for dependency gating.
 `docs/TASKS.md` is a snapshot/report and may lag.
+Use `glab` for issue and merge-request operations. The issue worktree tooling
+defaults to the `gitlab` remote.
 
 Parent `CR-*` issues are roadmap/design containers, not runnable tasks.
 They must not carry `type:task`, and they do not enter the issue queue.
 Only atomic child task issues are queueable and should carry `Seq:` / `Depends on:`.
 Parent `CR-*` issues do not count toward WIP limits; WIP is tracked on child task issues only.
-PR merge is delivery truth. Local `.build` artifacts are execution evidence for this clone.
+Merge request merge is delivery truth. Local `.build` artifacts are execution evidence for this clone.
 Use `make issue-evidence ISSUE=<n>` to inspect linked worktree and `.build` state for an issue.
-Missing local `.build` evidence must never auto-close or auto-reopen a GitHub issue by itself.
+Missing local `.build` evidence must never auto-close or auto-reopen a GitLab issue by itself.
 
 ### Queue and worktree commands (preferred)
 
 ```bash
+make issue-create TITLE='TASK-123: Summary' SEQ=123
 make issue-queue                    # dependency-aware queue ordered by Seq
 make worktree-next-issue            # create worktree for next runnable issue
 make worktree                       # interactive queue/worktree/finish menu
@@ -209,7 +212,7 @@ make install-git-hooks              # installs .githooks/pre-push
 ```
 
 The pre-push hook runs `make validate-pre-push` (fast path; no CDK synth).
-Opening a PR is not completion by itself; after push, continue through PR merge and
+Opening an MR is not completion by itself; after push, continue through MR merge and
 `make finish-worktree-close` unless a listed blocker requires escalation.
 
 ### Issue lifecycle label policy (mandatory)
@@ -229,8 +232,8 @@ An issue is done only when all items below are true:
 2. `make validate-local` passes in the issue worktree (or equivalent required checks for remote/mobile mode).
 3. Senior engineer review is complete; findings are fixed or explicitly accepted in writing.
 4. `make preflight-session` and `make pre-validate-session` pass on the final branch state.
-5. Branch is pushed and PR is open with validation evidence and issue linkage.
-6. PR is merged (not just opened).
+5. Branch is pushed and MR is open with validation evidence and issue linkage.
+6. MR is merged (not just opened).
 7. `.build` hand-back evidence is finalized; do not leave the issue in partial local state such as `agent-launching` or an incomplete closeout.
 8. Issue is closed and normalized only after merge verification (`make finish-worktree-close`).
 9. `make issues-audit` passes after close; if not, run `make issues-reconcile` and re-audit before declaring the issue complete.
@@ -239,9 +242,9 @@ An issue is done only when all items below are true:
 ### Merge Conflict Rule (mandatory)
 
 Never leave a task in a merge-conflicted state.
-1. If branch update or PR merge reports conflicts, resolve them in the issue worktree immediately.
+1. If branch update or MR merge reports conflicts, resolve them in the issue worktree immediately.
 2. Re-run targeted tests plus `make preflight-session` and `make pre-validate-session`.
-3. Push the conflict-resolution commit(s) and confirm PR is mergeable before closing the issue.
+3. Push the conflict-resolution commit(s) and confirm the MR is mergeable before closing the issue.
 4. If a required permission/policy blocks merge, stop and report the blocker with the exact next command.
 
 ## Task Workflow (Legacy / Snapshot-Driven)
@@ -252,7 +255,7 @@ can be in flight at the same time without conflicts. When operating in Claude Co
 Always begin implementation from a known fresh worktree created from the current mainline. If an older issue worktree already exists, refresh or recreate it before coding rather than resuming on a stale base.
 Do not mix unrelated branch-tip cleanup into the active issue just to get green. If current mainline has unrelated breakage, resolve it in its own issue/branch and then restart the active issue from a fresh worktree.
 
-This deprecated flow (`make task-*`) is only for explicit legacy/snapshot work. GitHub Issues are canonical; use the issue worktree flow by default.
+This deprecated flow (`make task-*`) is only for explicit legacy/snapshot work. GitLab Issues are canonical; use the issue worktree flow by default.
 
 ### Selecting a task
 
@@ -324,7 +327,7 @@ In remote/mobile mode, it prints the prompt for copy/paste and does not require 
 make task-finish TASK=TASK-011
 ```
 
-Prints the finish checklist and the exact `git push` / `gh pr create` commands.
+Prints the finish checklist and the exact `git push` / `glab mr create` commands.
 The agent is responsible for:
 1. Running `make validate-local` — must pass clean
    - Use `make validate-local-full` when you need a full-repo secret scan (the default is diff-only secrets)
@@ -333,7 +336,7 @@ The agent is responsible for:
 4. Re-running senior engineer review until findings are cleared (or explicitly accepted)
 5. Committing all changes with a message referencing `TASK-NNN`
 6. Updating `docs/TASKS.md`: mark `[x]` with today's date and commit SHA
-7. Closing only when errors are cleared, then pushing and opening a PR titled `TASK-NNN: <title>`
+7. Closing only when errors are cleared, then pushing and opening an MR titled `TASK-NNN: <title>`
 
 ### Gate tasks
 

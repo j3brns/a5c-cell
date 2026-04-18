@@ -148,6 +148,34 @@ def test_choose_next_runnable_requires_not_blocked_and_dependencies_closed():
     assert next_item.issue.number == 26
 
 
+def test_build_queue_supports_issue_number_dependencies():
+    dependency = _issue(
+        number=25,
+        task_id="TASK-018",
+        seq=180,
+        state="closed",
+        labels=["type:task", "status:done"],
+    )
+    runnable = _issue(
+        number=26,
+        task_id="TASK-019",
+        seq=190,
+        labels=["type:task", "status:not-started"],
+        depends_on=["#25"],
+    )
+
+    selection = worktree_issues.build_queue([dependency, runnable], mode="open-task")
+
+    assert selection.items[0].issue.number == 26
+    assert selection.items[0].runnable
+
+
+def test_build_task_issue_body_uses_parser_contract():
+    body = worktree_issues.build_task_issue_body(seq=42, depends="#41", problem="Fix drift")
+
+    assert worktree_issues.parse_issue_meta(body) == (42, ["#41"])
+
+
 def test_audit_issues_flags_invalid_status_and_ready_combinations():
     closed_wrong_status = _issue(
         number=30,
@@ -868,11 +896,11 @@ def test_build_agent_prompt_for_worktree_includes_explicit_dod_and_conflict_requ
     assert "detect_changes before commit" in prompt
     assert "If GitNexus is unavailable, use rg and direct file reads." in prompt
     assert "Loop: inspect; plan; implement; run make preflight-session; fix; repeat;" in prompt
-    assert "Do not stop at PR creation" in prompt
+    assert "Do not stop at MR creation" in prompt
     assert "make preflight-session" in prompt
     assert "Push gate: make pre-validate-session must pass before push." in prompt
     assert (
-        "Done: only when the PR is merged to the target branch; the issue is closed "
+        "Done: only when the MR is merged to the target branch; the issue is closed "
         "and normalized; validation evidence is recorded; .build hand-back evidence "
         "is finalized; and make finish-worktree-close has completed successfully." in prompt
     )
@@ -910,7 +938,7 @@ def test_finish_summary_prints_explicit_dod_conflict_and_cleanup_steps(monkeypat
     monkeypatch.setattr(worktree_issues, "list_worktrees", _list_worktrees)
     monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
     monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
-    monkeypatch.setattr(worktree_issues, "gh_repo_ready", lambda _root: (False, None))
+    monkeypatch.setattr(worktree_issues, "tracker_repo_ready", lambda _root: (False, None))
     monkeypatch.setattr(worktree_issues, "finish_stage", lambda *_args, **_kwargs: "merged")
 
     def _run_summary(*args, **kwargs):
@@ -921,7 +949,7 @@ def test_finish_summary_prints_explicit_dod_conflict_and_cleanup_steps(monkeypat
     worktree_issues.finish_summary(root, path=target.path)
     out = capsys.readouterr().out
 
-    assert "dod:      merged PR + closed issue + cleaned worktree/branch" in out
+    assert "dod:      merged MR + closed issue + cleaned worktree/branch" in out
     assert "next:     make finish-worktree-close" in out
     assert "conflict: if merge/rebase conflicts appear:" in out
     assert "cleanup:  git worktree remove <this-worktree-path>" in out
@@ -1871,7 +1899,7 @@ def test_launch_zellij_batch_session_adds_tabs_to_existing_session(monkeypatch, 
 
 
 def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch, capsys, tmp_path):
-    from scripts.issue_tool import github_client
+    from scripts.issue_tool import tracker_client
 
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
@@ -1897,10 +1925,10 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
     monkeypatch.setattr(worktree_issues, "list_worktrees", lambda _root: [primary, target])
     monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
     monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
-    monkeypatch.setattr(worktree_issues, "gh_repo_ready", lambda _root: (True, "owner/repo"))
+    monkeypatch.setattr(worktree_issues, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
     monkeypatch.setattr(
         worktree_issues,
-        "pr_for_branch",
+        "merge_request_for_source_branch",
         lambda _root, _repo, _branch, _state: {"number": 157},
     )
     monkeypatch.setattr(
@@ -1918,18 +1946,18 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
         },
     )
 
-    def _gh_text(args, *, root):
-        if args[:2] == ["issue", "comment"]:
-            comments.append(args)
-        else:
-            edits.append(args)
+    def _update_issue_labels(_root, _repo, issue_id, *, add=None, remove=None):
+        edits.append([str(issue_id), sorted(add or []), sorted(remove or [])])
+
+    def _comment_issue(_root, _repo, issue_id, body):
+        comments.append([str(issue_id), body])
         return ""
 
-    monkeypatch.setattr(worktree_issues, "gh_text", _gh_text)
-    monkeypatch.setattr(github_client, "gh_text", _gh_text)
+    monkeypatch.setattr(worktree_issues, "update_issue_labels", _update_issue_labels)
+    monkeypatch.setattr(tracker_client, "update_issue_labels", _update_issue_labels)
+    monkeypatch.setattr(worktree_issues, "comment_issue", _comment_issue)
     monkeypatch.setattr(worktree_issues, "issue_has_handback_comment", lambda **_kwargs: False)
-    monkeypatch.setattr(worktree_issues, "ensure_label_exists", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(github_client, "ensure_label_exists", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(tracker_client, "ensure_label_exists", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         worktree_issues,
         "local_branch_exists",
@@ -1963,25 +1991,11 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
     worktree_issues.close_issue_done(root, path=target.path, force=False)
     out = capsys.readouterr().out
 
-    assert edits == [
-        [
-            "issue",
-            "edit",
-            "153",
-            "-R",
-            "owner/repo",
-            "--add-label",
-            "status:done",
-            "--remove-label",
-            "ready",
-            "--remove-label",
-            "status:in-progress",
-        ]
-    ]
+    assert edits == [["153", ["status:done"], ["ready", "status:in-progress"]]]
     assert len(comments) == 1
-    assert comments[0][:5] == ["issue", "comment", "153", "-R", "owner/repo"]
-    assert "Execution evidence: PASS" in comments[0][6]
-    assert "Evidence hash:" in comments[0][6]
+    assert comments[0][0] == "153"
+    assert "Execution evidence: PASS" in comments[0][1]
+    assert "Evidence hash:" in comments[0][1]
     assert cleanup_calls == [
         (["git", "worktree", "remove", str(target.path)], root),
         (["git", "branch", "-d", "wt/task/153-sample"], root),
@@ -2069,19 +2083,19 @@ def test_cmd_agent_handoff_defaults_to_codex_yolo_execute_now(monkeypatch):
 
 
 def test_append_issue_handback_comment_skips_existing_hash(monkeypatch):
-    posted: list[list[str]] = []
+    posted: list[str] = []
 
     monkeypatch.setattr(
         worktree_issues,
-        "gh_json",
+        "get_issue",
         lambda *_args, **_kwargs: {
             "comments": [{"body": "Execution evidence: PASS\nEvidence hash: abc123"}]
         },
     )
     monkeypatch.setattr(
         worktree_issues,
-        "gh_text",
-        lambda args, **kwargs: posted.append(args) or "",
+        "comment_issue",
+        lambda _root, _repo, _issue_id, body: posted.append(body),
     )
 
     worktree_issues.append_issue_handback_comment(

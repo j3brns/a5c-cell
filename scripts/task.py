@@ -14,7 +14,7 @@ Commands:
     resume [TASK-NNN] Run install-dev-tools.sh, resume existing worktree,
                       relaunch Claude Code.
                       Omit TASK-NNN to auto-select the first [~] task with a worktree.
-    finish TASK-NNN   Print finish checklist and next git/gh commands (deprecated flow)
+    finish TASK-NNN   Print finish checklist and next git/glab commands (deprecated flow)
     prompt TASK-NNN   Print the agent prompt without creating a worktree
 
 Usage (via make):
@@ -285,7 +285,7 @@ def generate_prompt(
             "  - Follow every forbidden pattern in CLAUDE.md\n"
             "  - For any security decision: STOP and ask. Do not guess.\n"
             "  - When uncertain about DynamoDB schema, IAM, or authoriser logic: STOP and ask.\n"
-            "  - Do not treat PR creation as completion; "
+            "  - Do not treat MR creation as completion; "
             "merge, issue close, and cleanup are required.\n"
             "  - Do not stop at the first failure; use test output, "
             "validate-local output, synth errors, and logs as signals."
@@ -306,7 +306,7 @@ def generate_prompt(
             "  - Follow every forbidden pattern in CLAUDE.md\n"
             "  - For any security decision: STOP and ask. Do not guess.\n"
             "  - When uncertain about DynamoDB schema, IAM, or authoriser logic: STOP and ask.\n"
-            "  - Do not treat PR creation as completion; "
+            "  - Do not treat MR creation as completion; "
             "merge, issue close, and cleanup are required.\n"
             "  - Do not stop at the first failure; use available test output, "
             "logs, and operator-provided signals to continue."
@@ -362,7 +362,7 @@ Constraints:
         "operator sign-off at gate — present findings and stop"
         if task.gate
         else (
-            "all task tests pass, make validate-local passes clean, PR is merged, "
+            "all task tests pass, make validate-local passes clean, MR is merged, "
             "issue is closed, worktree cleanup is complete, and errors are cleared"
         )
     }
@@ -376,7 +376,7 @@ Finish protocol (perform in order when closure is reached):
    (or operator accepts residual risk)
 6. Commit all changes; commit message must reference TASK-{task.number}
 7. Update docs/TASKS.md: mark this task [x] with today's date and commit SHA
-8. Push only when errors are cleared, then open PR titled "TASK-{task.number}: {task.title}"
+8. Push only when errors are cleared, then open MR titled "TASK-{task.number}: {task.title}"
    Body must include: what was implemented, tests evidence, validate-local output,
    review findings addressed
 
@@ -612,7 +612,7 @@ def cmd_finish(task_id: str, tasks: list[Task], root: Path) -> None:
     print(f"Branch:   {branch}")
     print(f"Worktree: {wt}")
     print()
-    print("Before opening PR, confirm all of these:")
+    print("Before opening MR, confirm all of these:")
     print("  [ ] make validate-local passes")
     print("  [ ] All task tests pass")
     print("  [ ] Senior engineer review completed (bugs/regressions/risks/missing tests)")
@@ -651,23 +651,23 @@ def cmd_finish(task_id: str, tasks: list[Task], root: Path) -> None:
                     print(f"  (behind by {behind} — consider rebasing first)")
                 print()
 
-    # Detect GH repo
-    gh_repo = _detect_gh_repo(root)
+    # Detect GitLab project
+    gitlab_repo = _detect_gitlab_repo(root)
 
     print("Next commands:")
     print("  # Close only after errors are cleared and review findings are addressed")
     print(f"  git -C {wt} push -u origin {branch}")
-    if gh_repo:
-        print(f"  gh pr create -R {gh_repo} \\")
-        print(f"       --base main --head {branch} \\")
+    if gitlab_repo:
+        print(f"  glab mr create -R {gitlab_repo} \\")
+        print(f"       --target-branch main --source-branch {branch} \\")
         print(f"       --title 'TASK-{task.number}: {task.title}' \\")
         print(f"       --body 'Implements TASK-{task.number}. Closes on merge.'")
     else:
-        print(f"  gh pr create --base main --head {branch} \\")
+        print(f"  glab mr create --target-branch main --source-branch {branch} \\")
         print(f"       --title 'TASK-{task.number}: {task.title}'")
 
     print()
-    print("After PR is merged:")
+    print("After MR is merged:")
     print(f"  git worktree remove {wt}")
     print(f"  git -C {root} branch -d {branch}")
     print("  git worktree prune")
@@ -686,17 +686,20 @@ def _require_task(task_id: str, tasks: list[Task]) -> Task:
     return task
 
 
-def _detect_gh_repo(root: Path) -> str:
+def _detect_gitlab_repo(root: Path) -> str:
     r = subprocess.run(
-        ["git", "remote", "get-url", "origin"],
+        ["git", "remote", "get-url", "gitlab"],
         cwd=root,
         capture_output=True,
         text=True,
     )
     if r.returncode != 0:
         return ""
-    m = re.search(r"github\.com[:/]([^/]+/[^/.]+)", r.stdout.strip())
-    return m.group(1) if m else ""
+    url = r.stdout.strip()
+    if url.startswith("git@gitlab.com:"):
+        return url.split("git@gitlab.com:", 1)[1].removesuffix(".git")
+    m = re.search(r"gitlab\.com[:/]([^?#]+)", url)
+    return m.group(1).removesuffix(".git") if m else ""
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from scripts.issue_tool.constants import (
@@ -29,7 +30,7 @@ def parse_depends(text: str | None) -> list[str]:
         return []
     seen: set[str] = set()
     out: list[str] = []
-    for token in TASK_ID_TOKEN_RE.findall(text.upper()):
+    for token in re.findall(r"#\d+|TASK-\d+", text.upper()):
         if token not in seen:
             seen.add(token)
             out.append(token)
@@ -88,20 +89,18 @@ def reconcile_issue_label_changes(issue: Issue) -> tuple[list[str], list[str]]:
 
 
 def edit_issue_labels(root: Path, repo: str, issue_number: int, labels: list[str]) -> None:
-    from pathlib import Path
-
-    from scripts.issue_tool.github_client import ensure_label_exists, gh_text
+    from scripts.issue_tool.tracker_client import update_issue_labels
 
     if not labels:
         return
-    edit_args = ["issue", "edit", str(issue_number), "-R", repo]
+    add_labels: list[str] = []
+    remove_labels: list[str] = []
     for label in labels:
         if label in STATUS_LABELS:
-            ensure_label_exists(root, repo, label)
-            edit_args += ["--add-label", label]
+            add_labels.append(label)
         else:
-            edit_args += ["--remove-label", label.removeprefix("-")]
-    gh_text(edit_args, root=root)
+            remove_labels.append(label.removeprefix("-"))
+    update_issue_labels(root, repo, issue_number, add=add_labels, remove=remove_labels)
 
 
 def normalize_closed_issue_labels(root: Path, repo: str, issue_id: int, info: dict | None) -> bool:

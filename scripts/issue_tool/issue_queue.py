@@ -7,7 +7,6 @@ from scripts.issue_tool.constants import (
     DEPENDS_RE,
     SEQ_RE,
 )
-from scripts.issue_tool.github_client import gh_json
 from scripts.issue_tool.logic import (
     lifecycle_status,
     parse_depends,
@@ -16,6 +15,7 @@ from scripts.issue_tool.logic import (
 )
 from scripts.issue_tool.models import Issue, QueueItem, QueueSelection
 from scripts.issue_tool.shared import CliError
+from scripts.issue_tool.tracker_client import list_issues
 
 
 def parse_issue_meta(body: str) -> tuple[int | None, list[str]]:
@@ -30,23 +30,9 @@ def fetch_repo_issues(
     *,
     state: Literal["open", "closed", "all"] = "all",
 ) -> list[Issue]:
-    data = gh_json(
-        [
-            "issue",
-            "list",
-            "--repo",
-            repo,
-            "--state",
-            state,
-            "--limit",
-            "1000",
-            "--json",
-            "number,title,body,labels,state,createdAt,url",
-        ],
-        root=root,
-    )
+    data = list_issues(root, repo, state=state)
     if not isinstance(data, list):
-        raise CliError("Unexpected GitHub issue list response")
+        raise CliError("Unexpected issue list response")
 
     out: list[Issue] = []
     for raw in data:
@@ -81,6 +67,7 @@ def build_queue(
 ) -> QueueSelection:
     task_issues = queue_task_issues(issues)
     by_task_id = {i.task_id: i for i in task_issues if i.task_id}
+    by_issue_ref = {f"#{i.number}": i for i in task_issues}
     source_notes: list[str] = []
 
     def stream_ok(issue: Issue) -> bool:
@@ -116,7 +103,11 @@ def build_queue(
         if lifecycle_status(issue) == "blocked":
             reasons.append("blocked by status label (status:blocked)")
         for dep_task_id in issue.depends_on:
-            dep = by_task_id.get(dep_task_id)
+            dep = (
+                by_issue_ref.get(dep_task_id)
+                if dep_task_id.startswith("#")
+                else by_task_id.get(dep_task_id)
+            )
             if dep is None:
                 reasons.append(f"missing dependency {dep_task_id}")
                 continue

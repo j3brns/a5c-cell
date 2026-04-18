@@ -28,9 +28,9 @@
 .PHONY: logs-bridge logs-authoriser logs-tenant-api logs-bff
 .PHONY: plan-dev
 .PHONY: task-next task-list task-start task-resume task-finish task-prompt
-.PHONY: worktree wt-go wt-batch issue-queue issue-evidence worktree-next-issue worktree-create-issue worktree-resume-issue
+.PHONY: worktree wt-go wt-batch issue-create issue-queue issue-evidence worktree-next-issue worktree-create-issue worktree-resume-issue
 .PHONY: preflight-session pre-validate-session worktree-push-issue finish-worktree-summary finish-worktree-close finish-worktree-close-json
-.PHONY: issues-audit issues-reconcile agent-handoff install-git-hooks hooks-status gitnexus-refresh
+.PHONY: issues-audit issues-reconcile issue-repair-stale-locks agent-handoff install-git-hooks hooks-status gitnexus-refresh
 
 ENV ?= dev
 
@@ -817,7 +817,7 @@ task-start:
 task-resume:
 	uv run python scripts/task.py resume $(TASK)
 
-## task-finish: Print finish checklist and git/gh commands for a task
+## task-finish: Print finish checklist and git/glab commands for a task
 ## Usage: make task-finish TASK=TASK-011
 task-finish:
 	@test -n "$(TASK)" || (echo "ERROR: TASK required. Usage: make task-finish TASK=TASK-011" && exit 1)
@@ -830,7 +830,7 @@ task-prompt:
 	uv run python scripts/task.py prompt $(TASK)
 
 # =============================================================================
-# ISSUE-DRIVEN WORKTREE FLOW (canonical GitHub Issues path)
+# ISSUE-DRIVEN WORKTREE FLOW (canonical GitLab Issues path)
 # Start here:
 #   1) issue-queue
 #   2) worktree / worktree-next-issue / worktree-create-issue / worktree-resume-issue
@@ -847,6 +847,18 @@ issue-queue:
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
 		$(if $(LIMIT),--limit $(LIMIT),)
+
+## issue-create: Create a canonical GitLab task issue
+## Usage: make issue-create TITLE='TASK-123: Summary' SEQ=123 [DEPENDS='none|#122|TASK-122'] [READY=1]
+issue-create:
+	@test -n "$(TITLE)" || (echo "ERROR: TITLE required" && exit 1)
+	@test -n "$(SEQ)" || (echo "ERROR: SEQ required" && exit 1)
+	uv run python -m scripts.issue_tool issue-create \
+		--title "$(TITLE)" \
+		--seq "$(SEQ)" \
+		--depends "$(if $(DEPENDS),$(DEPENDS),none)" \
+		$(if $(PROBLEM),--problem "$(PROBLEM)",) \
+		$(if $(READY),--ready,)
 
 ## issue-evidence: Show local linked-worktree and .build evidence for an issue
 ## Usage: make issue-evidence ISSUE=314 [JSON=1]
@@ -867,6 +879,13 @@ issues-audit:
 issues-reconcile:
 	uv run python -m scripts.issue_tool issues-reconcile \
 		$(if $(DRY_RUN),--dry-run,)
+
+## issue-repair-stale-locks: Reset in-progress issues without linked worktree/open MR
+## Usage: make issue-repair-stale-locks [APPLY=1] [READY=1]
+issue-repair-stale-locks:
+	uv run python -m scripts.issue_tool issue-repair-stale-locks \
+		$(if $(APPLY),--apply,) \
+		$(if $(READY),--ready,)
 
 ## gitnexus-refresh: Refresh local GitNexus index for the current checkout if stale/missing
 ## Usage: make gitnexus-refresh

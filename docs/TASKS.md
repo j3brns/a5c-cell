@@ -2,18 +2,18 @@
 
 ## Source of Truth Notice (Issue Novation)
 
-As of **2026-02-25 13:00** (local time), task tracking is novated to GitHub Issues
-for this repository. GitHub Issues are now the canonical source of truth for task
+As of **2026-04-18** (local time), task tracking is novated to GitLab Issues
+for this repository. GitLab Issues are now the canonical source of truth for task
 status, sequencing (`Seq:`), and dependencies (`Depends on:`).
 
-GitHub Issues: https://github.com/j3brns/tf-acore-aas/issues
+GitLab Issues: use `glab issue list -R julian.burns50/tf-acore-aas` or `make issue-queue`.
 
 This file remains useful as a historical snapshot/report/export and may lag behind
 live issue state.
 
 ## Active Blockers (as of 2026-03-24)
 
-These open GitHub Issues represent constraint violations or deployment blockers.
+These open issue snapshots represent historical constraint violations or deployment blockers.
 Address before considering the platform production-ready.
 
 | Issue | Severity | Constraint | Summary |

@@ -34,7 +34,7 @@
   Follow `CLAUDE.md` exactly.
 
   Issue selection (canonical):
-  1. GitHub Issues are the source of truth (ordered by `Seq:` and gated by `Depends on:`)
+  1. GitLab Issues are the source of truth (ordered by `Seq:` and gated by `Depends on:`)
   2. Run `make issue-queue` and pick the next runnable issue (or use the operator-provided issue)
   3. State: `Starting issue #NNN: <title>` (include `TASK-XXX` when present in title)
   4. Read the ADR(s) linked to that issue/task before coding (use `docs/TASKS.md` as a snapshot reference if needed)

@@ -1,6 +1,6 @@
 # Codex Flow
 
-`codex_flow` is a separate local kanban for agent work. It does not read GitHub
+`codex_flow` is a separate local kanban for agent work. It does not read GitLab
 issue labels, does not use the repository issue queue, and does not try to be
 the canonical workflow. It is just a lightweight local board for planning and
 tracking work while you keep using Codex or Gemini.
@@ -17,7 +17,7 @@ Local state lives entirely under `.codex-flow/`.
 
 ## What it is not
 
-- not the GitHub issue queue
+- not the GitLab issue queue
 - not label-driven
 - not tied to `ready` or `status:*`
 - not a replacement for the canonical repo lifecycle
@@ -31,17 +31,17 @@ uv run python -m scripts.codex_flow assign 1 --owner codex --role implement
 uv run python -m scripts.codex_flow move 1 --lane doing
 uv run python -m scripts.codex_flow attach 1 --issue 388 --path ../worktrees/wt388
 uv run python -m scripts.codex_flow note 1
-uv run python -m scripts.codex_flow import-github --state open --lane backlog
+uv run python -m scripts.codex_flow import-gitlab --state open --lane backlog
 uv run python -m scripts.codex_flow board
 ```
 
-## GitHub migration
+## Tracker migration
 
-If you already have GitHub issues and want them in the local board:
+If you already have tracker issues and want them in the local board:
 
 ```bash
 uv run python -m scripts.codex_flow init
-uv run python -m scripts.codex_flow import-github --state open --lane backlog
+uv run python -m scripts.codex_flow import-gitlab --state open --lane backlog
 ```
 
 That imports issue numbers and titles as cards. It does not make the board
@@ -63,5 +63,5 @@ Recommended split:
 - `gemini` + `plan`
 - `manual` for work you do yourself
 
-The point is to give you a local kanban without forcing the GitHub issue system
+The point is to give you a local kanban without forcing the canonical issue system
 to act like one.

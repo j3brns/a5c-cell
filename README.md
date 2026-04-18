@@ -215,7 +215,7 @@ Recent platform work has tightened the contract around the system rather than ju
 
 ## Quick start
 
-**Prerequisites**: [uv](https://docs.astral.sh/uv/) 0.4+, Docker 24+, AWS CLI v2, Node 20 LTS, npm, GitHub access for issues and pull requests, GitLab access for CI/CD and protected deploys, and the required Entra group membership.
+**Prerequisites**: [uv](https://docs.astral.sh/uv/) 0.4+, Docker 24+, AWS CLI v2, Node 20 LTS, npm, `glab`, GitLab access for issues, merge requests, CI/CD, and protected deploys, and the required Entra group membership.
 
 ```bash
 git clone <repo> && cd tf-acore-aas
@@ -273,8 +273,8 @@ tf-acore-aas/
 
 ### Repo and pipeline split
 
-- **GitHub** is the canonical home for issues, pull requests, and day-to-day collaboration.
-- **GitLab** remains the CI/CD and protected deployment target, including GitLab OIDC wiring and production approval gates.
+- **GitLab** is the canonical home for issues, merge requests, CI/CD, protected deployments, and day-to-day collaboration.
+- External mirrors are read-only references; GitLab is the issue and review source of truth.
 
 ### Getting started
 
@@ -288,9 +288,10 @@ make validate-local           # ruff + pyright + tsc + cdk synth + detect-secret
 
 ### Working on issues
 
-All work is tracked through [GitHub Issues](https://github.com/j3brns/tf-acore-aas/issues), using `Seq:` for ordering and `Depends on:` for dependency gating.
+All work is tracked through GitLab Issues, using `Seq:` for ordering and `Depends on:` for dependency gating. The issue worktree tooling uses the `gitlab` remote and `glab` by default.
 
 ```bash
+make issue-create TITLE='TASK-123: Summary' SEQ=123
 make issue-queue              # Dependency-aware queue ordered by Seq
 make worktree-next-issue      # Create worktree for next runnable issue
 make worktree                 # Interactive worktree menu
@@ -340,7 +341,7 @@ See [Operator Runbooks](docs/operations/) for incident procedures and operationa
 3. Implement and test: write code, run `make test-unit`, iterate
 4. Validate: `make preflight-session && make pre-validate-session`
 5. Push: `make worktree-push-issue`
-6. Open a pull request and link the issue; CI runs full validation
+6. Open a merge request and link the issue; CI runs full validation
 
 Platform Lambda source directories use `snake_case`. The shared `src/data-access-lib/` workspace is the tenant-scoped data access package. See [CLAUDE.md](CLAUDE.md) for conventions and branch naming patterns.
 
@@ -379,7 +380,7 @@ Platform Lambda source directories use `snake_case`. The shared `src/data-access
 | [Compliance Checklist](docs/security/COMPLIANCE-CHECKLIST.md) | Security | Controls and evidence tracking |
 | [Operator Runbooks](docs/operations/) | Ops | Incident procedures and operational runbooks |
 | [Architecture Decisions](docs/decisions/) | Engineers | ADR set, including newer platform-agent and gateway decisions |
-| [GitHub Issues](https://github.com/j3brns/tf-acore-aas/issues) | All | Canonical task queue |
+| GitLab Issues | All | Canonical task queue |
 
 ## Contacts
 

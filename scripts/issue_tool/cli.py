@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Issue-driven worktree workflow (GitHub Issues as source of truth).
+Issue-driven worktree workflow (GitLab Issues as source of truth).
 
 Key behavior:
 - Queue order uses `Seq:` in issue bodies as the canonical ordering.
 - `Depends on:` task IDs (TASK-###) gate runnable items.
-- Uses `gh` CLI for GitHub reads/writes and local `git worktree` for worktree ops.
+- Uses `glab` CLI for GitLab reads/writes and local `git worktree` for worktree ops.
 
 This intentionally keeps Makefile targets thin; the policy/selection logic lives here.
 """
@@ -103,14 +103,6 @@ from scripts.issue_tool.git_utils import (
     repo_root,
     run,
 )
-from scripts.issue_tool.github_client import (
-    WORKFLOW_LABEL_DEFAULTS,
-    ensure_label_exists,
-    gh_available,
-    gh_json,
-    gh_text,
-    shutil_which,
-)
 from scripts.issue_tool.issue_queue import (
     build_queue,
     fetch_repo_issues,
@@ -138,6 +130,17 @@ from scripts.issue_tool.models import (
     WorktreeInfo,
 )
 from scripts.issue_tool.shared import CliError
+from scripts.issue_tool.tracker_client import (
+    WORKFLOW_LABEL_DEFAULTS,
+    close_issue,
+    comment_issue,
+    create_issue,
+    get_issue,
+    merge_request_for_branch,
+    shutil_which,
+    tracker_available,
+    update_issue_labels,
+)
 
 
 def print_queue(
@@ -161,6 +164,49 @@ def print_queue(
         print(f"    labels: {labels}")
         if item.blocked_reasons:
             print(f"    why:    {'; '.join(item.blocked_reasons)}")
+
+
+def build_task_issue_body(*, seq: int, depends: str, problem: str = "") -> str:
+    return "\n".join(
+        [
+            f"Seq: {seq}",
+            f"Depends on: {depends.strip() or 'none'}",
+            "",
+            "## Problem",
+            "",
+            problem.strip() or "Describe the problem to solve and why it matters.",
+            "",
+            "## Scope",
+            "",
+            "Keep the change narrowly scoped to this issue.",
+            "",
+            "## Acceptance Criteria",
+            "",
+            "- [ ] The requested behaviour is implemented.",
+            "- [ ] Existing behaviour outside this scope is unchanged.",
+            (
+                "- [ ] Security, tenant isolation, and operability constraints in "
+                "CLAUDE.md are preserved."
+            ),
+            "",
+            "## Test Plan",
+            "",
+            "List the smallest command(s) that prove the change works.",
+            "",
+            "## Definition of Done",
+            "",
+            "- [ ] Implementation and tests are complete for this issue.",
+            "- [ ] `make validate-local` passes, or the accepted equivalent is recorded.",
+            (
+                "- [ ] Senior engineer review is complete and findings are resolved or "
+                "explicitly accepted."
+            ),
+            "- [ ] `make preflight-session` and `make pre-validate-session` pass before push.",
+            "- [ ] Merge request is merged.",
+            "- [ ] `make finish-worktree-close` closes and normalizes the issue.",
+            "",
+        ]
+    )
 
 
 def choose_next_runnable(selection: QueueSelection) -> QueueItem:
@@ -276,11 +322,28 @@ def audit_issues(issues: list[Issue]) -> list[AuditFinding]:
         if issue.state == "open" and issue.seq is None:
             findings.append(
                 AuditFinding(
-                    severity="warning",
+                    severity="error",
                     issue_number=issue.number,
                     message="open task is missing Seq marker",
                 )
             )
+        if issue.state == "open" and issue.task_id is None:
+            findings.append(
+                AuditFinding(
+                    severity="error",
+                    issue_number=issue.number,
+                    message="open task is missing TASK-### title prefix or managed task marker",
+                )
+            )
+        for dependency in issue.depends_on:
+            if dependency.startswith("TASK-") and dependency == issue.task_id:
+                findings.append(
+                    AuditFinding(
+                        severity="error",
+                        issue_number=issue.number,
+                        message=f"task cannot depend on itself ({dependency})",
+                    )
+                )
 
     # Objective gate: next runnable item must be a startable task, never in-progress/blocked/done.
     selection = build_queue(issues, mode="auto")
@@ -410,7 +473,7 @@ def issue_by_number(issues: list[Issue], number: int) -> Issue:
 
 def claim_issue(root: Path, repo: str, issue: Issue) -> bool:
     # Re-fetch labels to reduce stale-queue races.
-    data = gh_json(["issue", "view", str(issue.number), "-R", repo, "--json", "labels"], root=root)
+    data = get_issue(root, repo, issue.number)
     if not isinstance(data, dict):
         raise CliError(f"Unexpected response while checking issue #{issue.number}")
     labels = [x["name"] for x in data.get("labels", []) if isinstance(x, dict) and "name" in x]
@@ -425,29 +488,32 @@ def claim_issue(root: Path, repo: str, issue: Issue) -> bool:
         raise CliError(
             f"Issue #{issue.number} must be status:not-started to claim (found {states[0]})"
         )
-    ensure_label_exists(root, repo, "status:in-progress")
-
-    args = ["issue", "edit", str(issue.number), "-R", repo]
+    add_labels = ["status:in-progress"] if "status:in-progress" not in labels else []
+    remove_labels = ["status:not-started"]
     if had_ready:
-        args += ["--remove-label", "ready"]
-    if "status:not-started" in labels:
-        args += ["--remove-label", "status:not-started"]
-    if "status:in-progress" not in labels:
-        args += ["--add-label", "status:in-progress"]
-    gh_text(args, root=root)
+        remove_labels.append("ready")
+    update_issue_labels(root, repo, issue.number, add=add_labels, remove=remove_labels)
+
+    verified = get_issue(root, repo, issue.number)
+    verified_labels = [
+        x["name"] for x in verified.get("labels", []) if isinstance(x, dict) and "name" in x
+    ]
+    verified_statuses = [label for label in verified_labels if label in STATUS_LABELS]
+    if set(verified_statuses) != {"status:in-progress"} or "ready" in verified_labels:
+        raise CliError(
+            f"Issue #{issue.number} claim post-condition failed; "
+            f"labels are {sorted(verified_labels)}"
+        )
     return had_ready
 
 
 def unclaim_issue(root: Path, repo: str, issue: Issue, *, add_ready: bool = True) -> None:
-    ensure_label_exists(root, repo, "status:not-started")
-    if add_ready:
-        ensure_label_exists(root, repo, "ready")
-    args = ["issue", "edit", str(issue.number), "-R", repo]
     # Best-effort rollback for failed worktree creation.
-    args += ["--remove-label", "status:in-progress", "--add-label", "status:not-started"]
+    add_labels = ["status:not-started"]
+    remove_labels = ["status:in-progress"]
     if add_ready:
-        args += ["--add-label", "ready"]
-    gh_text(args, root=root)
+        add_labels.append("ready")
+    update_issue_labels(root, repo, issue.number, add=add_labels, remove=remove_labels)
 
 
 def create_worktree_for_issue(
@@ -590,7 +656,7 @@ def run_preflight(
     errors: list[str] = []
     warnings: list[str] = []
 
-    enforce_lookup = parse_bool_env("ENFORCE_GH_ISSUE_LOOKUP", True)
+    enforce_lookup = parse_bool_env("ENFORCE_TRACKER_ISSUE_LOOKUP", True)
     require_clean = parse_bool_env("REQUIRE_CLEAN_WORKTREE", False)
 
     if current.path == primary.path:
@@ -614,13 +680,13 @@ def run_preflight(
                     errors.append(str(exc))
                     repo = None
             if repo is not None:
-                if not gh_available():
-                    warnings.append(f"gh CLI not found; skipped issue lookup for #{issue_id}")
+                if not tracker_available():
+                    warnings.append(f"issue CLI not found; skipped issue lookup for #{issue_id}")
                 else:
                     try:
-                        gh_json(["api", f"repos/{repo}/issues/{issue_id}"], root=root)
+                        get_issue(root, repo, issue_id)
                     except CliError as exc:
-                        errors.append(f"gh issue lookup failed for #{issue_id}: {exc}")
+                        errors.append(f"issue lookup failed for #{issue_id}: {exc}")
 
     if require_clean:
         status = run(["git", "status", "--porcelain"], cwd=current.path).stdout.strip()
@@ -1085,10 +1151,7 @@ def issue_has_handback_comment(
     evidence_hash: str,
 ) -> bool:
     try:
-        data = gh_json(
-            ["issue", "view", str(issue_id), "-R", repo, "--json", "comments"],
-            root=root,
-        )
+        data = get_issue(root, repo, issue_id, comments=True)
     except CliError:
         return False
     if not isinstance(data, dict):
@@ -1117,18 +1180,7 @@ def append_issue_handback_comment(
         evidence_hash=str(summary["evidence_hash"]),
     ):
         return
-    gh_text(
-        [
-            "issue",
-            "comment",
-            str(issue_id),
-            "-R",
-            repo,
-            "--body",
-            build_issue_handback_comment(summary),
-        ],
-        root=root,
-    )
+    comment_issue(root, repo, issue_id, build_issue_handback_comment(summary))
 
 
 def pid_is_running(pid: int) -> bool:
@@ -1448,10 +1500,10 @@ def worktree_issue_id(path: Path) -> int | None:
 
 
 def fetch_issue_labels_for_prompt(root: Path, repo: str | None, issue_id: int | None) -> str:
-    if repo is None or issue_id is None or not gh_available():
+    if repo is None or issue_id is None or not tracker_available():
         return ""
     try:
-        data = gh_json(["issue", "view", str(issue_id), "-R", repo, "--json", "labels"], root=root)
+        data = get_issue(root, repo, issue_id)
     except CliError:
         return ""
     if not isinstance(data, dict):
@@ -1501,12 +1553,12 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
             ),
             (
                 "Loop: inspect; plan; implement; run make preflight-session; fix; repeat; "
-                "continue until done. Do not stop at PR creation, the first passing test, "
+                "continue until done. Do not stop at MR creation, the first passing test, "
                 "or a partial implementation."
             ),
             "Push gate: make pre-validate-session must pass before push.",
             (
-                "Done: only when the PR is merged to the target branch; the issue is closed "
+                "Done: only when the MR is merged to the target branch; the issue is closed "
                 "and normalized; validation evidence is recorded; .build hand-back evidence "
                 "is finalized; and make finish-worktree-close has completed successfully. "
                 "Report any cleanup residue explicitly, but do not treat worktree or branch "
@@ -2105,8 +2157,8 @@ def auto_detect_mux() -> str:
     return "none"
 
 
-def gh_repo_ready(root: Path) -> tuple[bool, str | None]:
-    if not gh_available():
+def tracker_repo_ready(root: Path) -> tuple[bool, str | None]:
+    if not tracker_available():
         return False, None
     try:
         return True, origin_repo_slug(root)
@@ -2114,35 +2166,12 @@ def gh_repo_ready(root: Path) -> tuple[bool, str | None]:
         return False, None
 
 
-def pr_for_branch(root: Path, repo: str, branch: str, state: str) -> dict | None:
-    data = gh_json(
-        [
-            "pr",
-            "list",
-            "-R",
-            repo,
-            "--head",
-            branch,
-            "--state",
-            state,
-            "--limit",
-            "1",
-            "--json",
-            "number,url,title,isDraft,mergedAt",
-        ],
-        root=root,
-    )
-    if not isinstance(data, list) or not data:
-        return None
-    return data[0] if isinstance(data[0], dict) else None
+def merge_request_for_source_branch(root: Path, repo: str, branch: str, state: str) -> dict | None:
+    return merge_request_for_branch(root, repo, branch, state)
 
 
 def issue_state_info(root: Path, repo: str, issue_id: int) -> dict | None:
-    data = gh_json(
-        ["issue", "view", str(issue_id), "-R", repo, "--json", "state,labels,url,title"],
-        root=root,
-    )
-    return data if isinstance(data, dict) else None
+    return get_issue(root, repo, issue_id)
 
 
 def find_latest_closeout_report(root: Path, issue_id: int) -> Path | None:
@@ -2194,17 +2223,43 @@ def evidence_drift_findings(root: Path, issues: list[Issue]) -> list[AuditFindin
     return findings
 
 
+def stale_lock_findings(root: Path, repo: str, issues: list[Issue]) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    for issue in queue_task_issues(issues):
+        if issue.state != "open" or lifecycle_status(issue) != "in-progress":
+            continue
+        if find_linked_worktree_for_issue(root, issue.number) is not None:
+            continue
+        expected_branch = f"wt/{infer_scope(issue)}/{issue.number}-{slugify_text(issue.title)}"
+        try:
+            if merge_request_for_source_branch(root, repo, expected_branch, "open"):
+                continue
+        except CliError:
+            pass
+        findings.append(
+            AuditFinding(
+                severity="error",
+                issue_number=issue.number,
+                message=(
+                    "status:in-progress has no linked local worktree and no detected open MR; "
+                    f"repair the stale lock or recreate branch {expected_branch}"
+                ),
+            )
+        )
+    return findings
+
+
 def finish_stage(root: Path, wt: WorktreeInfo, repo: str | None) -> str:
     dirty = run(["git", "status", "--porcelain"], cwd=wt.path).stdout.strip()
     if dirty:
         return "implementing"
     branch = wt.branch
     if branch and branch != "(detached)" and repo:
-        open_pr = pr_for_branch(root, repo, branch, "open")
-        if open_pr:
+        open_mr = merge_request_for_source_branch(root, repo, branch, "open")
+        if open_mr:
             return "review"
-        merged_pr = pr_for_branch(root, repo, branch, "merged")
-        if merged_pr:
+        merged_mr = merge_request_for_source_branch(root, repo, branch, "merged")
+        if merged_mr:
             return "merged"
     try:
         upstream = run(
@@ -2223,14 +2278,14 @@ def finish_stage(root: Path, wt: WorktreeInfo, repo: str | None) -> str:
             if ahead > 0:
                 return "ready-to-push"
             if ahead == 0 and behind == 0:
-                return "pr-open"
-    return "pr-open"
+                return "mr-open"
+    return "mr-open"
 
 
 def finish_summary(root: Path, *, path: Path | None = None) -> None:
     worktrees = list_worktrees(root)
     target = resolve_current_worktree(path or current_path(), worktrees)
-    ready, repo = gh_repo_ready(root)
+    ready, repo = tracker_repo_ready(root)
     branch = target.branch
     issue_id = extract_issue_id_from_branch(branch) if branch else None
     stage = finish_stage(root, target, repo if ready else None)
@@ -2249,36 +2304,36 @@ def finish_summary(root: Path, *, path: Path | None = None) -> None:
             print(f"  issue:    {info.get('state')} - {info.get('title')}")
             print(f"  labels:   {labels}")
             print(f"  issueurl: {info.get('url')}")
-        open_pr = pr_for_branch(root, repo, branch, "open")
-        merged_pr = pr_for_branch(root, repo, branch, "merged")
-        if open_pr:
-            print(f"  pr:       #{open_pr.get('number')} OPEN - {open_pr.get('title')}")
-            print(f"  prurl:    {open_pr.get('url')}")
-        elif merged_pr:
-            print(f"  pr:       #{merged_pr.get('number')} MERGED")
-            print(f"  prurl:    {merged_pr.get('url')}")
-            print(f"  mergedAt: {merged_pr.get('mergedAt')}")
+        open_mr = merge_request_for_source_branch(root, repo, branch, "open")
+        merged_mr = merge_request_for_source_branch(root, repo, branch, "merged")
+        if open_mr:
+            print(f"  mr:       #{open_mr.get('number')} OPEN - {open_mr.get('title')}")
+            print(f"  mrurl:    {open_mr.get('url')}")
+        elif merged_mr:
+            print(f"  mr:       #{merged_mr.get('number')} MERGED")
+            print(f"  mrurl:    {merged_mr.get('url')}")
+            print(f"  mergedAt: {merged_mr.get('mergedAt')}")
         else:
-            print("  pr:       none")
+            print("  mr:       none")
     else:
         if not (ready and repo):
-            print("  pr:       (gh unavailable)")
+            print("  mr:       (glab unavailable)")
         elif issue_id is None:
-            print("  pr:       (not an issue worktree branch)")
+            print("  mr:       (not an issue worktree branch)")
         else:
-            print("  pr:       (unavailable)")
+            print("  mr:       (unavailable)")
 
     print("  policy:   pushes must run preflight + validate-pre-push")
-    print("  dod:      merged PR + closed issue + cleaned worktree/branch")
+    print("  dod:      merged MR + closed issue + cleaned worktree/branch")
     if stage == "implementing":
         print("  next:     complete implementation/tests; keep git status clean before push")
     elif stage == "ready-to-push":
         print("  next:     make worktree-push-issue")
         if branch and branch != "(detached)":
-            print(f"  then:     gh pr create --fill --head {branch}")
-    elif stage in {"review", "pr-open"}:
+            print(f"  then:     glab mr create --fill --source-branch {branch}")
+    elif stage in {"review", "mr-open"}:
         print(
-            "  next:     merge PR; do not stop at PR open. "
+            "  next:     merge MR; do not stop at MR open. "
             "If conflicts appear, resolve in this worktree and re-validate"
         )
     elif stage == "merged":
@@ -2349,9 +2404,9 @@ def verify_cleanup_finished(root: Path, target: WorktreeInfo) -> list[str]:
 def close_issue_done(root: Path, *, path: Path | None = None, force: bool = False) -> None:
     worktrees = list_worktrees(root)
     target = resolve_current_worktree(path or current_path(), worktrees)
-    ready, repo = gh_repo_ready(root)
+    ready, repo = tracker_repo_ready(root)
     if not ready or not repo:
-        raise CliError("gh/GitHub repo not available")
+        raise CliError("glab/GitLab repo not available")
     issue_id = extract_issue_id_from_branch(target.branch)
     if issue_id is None:
         raise CliError(f"Could not parse issue id from branch {target.branch}")
@@ -2359,7 +2414,7 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
     report_base: dict[str, object] = {
         "issue_id": issue_id,
         "repo": repo,
-        "merged_pr_required": not force,
+        "merged_mr_required": not force,
         "stage": "starting",
         "events": [],
     }
@@ -2388,19 +2443,19 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
     )
     write_closeout_report(root, target, report_base)
     try:
-        merged_pr = pr_for_branch(root, repo, target.branch, "merged")
+        merged_mr = merge_request_for_source_branch(root, repo, target.branch, "merged")
         if isinstance(events, list):
             events.append(
                 closeout_event(
                     stage="merge-check",
-                    message=f"merged PR lookup {'found' if merged_pr else 'missed'}",
+                    message=f"merged MR lookup {'found' if merged_mr else 'missed'}",
                     target=target,
                     repo=repo,
                     issue_id=issue_id,
                 )
             )
-        if not merged_pr and not force:
-            raise CliError("No merged PR found for branch; refusing to close issue without --force")
+        if not merged_mr and not force:
+            raise CliError("No merged MR found for branch; refusing to close issue without --force")
         info = issue_state_info(root, repo, issue_id)
         issue_closed = False
         if info and str(info.get("state", "")).upper() == "CLOSED":
@@ -2420,30 +2475,31 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
                     )
                 )
         else:
-            args = ["issue", "edit", str(issue_id), "-R", repo]
+            add_labels: list[str] = []
+            remove_labels: list[str] = []
             if info:
                 label_names = [x["name"] for x in info.get("labels", []) if isinstance(x, dict)]
                 if "review" in label_names:
-                    args += ["--remove-label", "review"]
+                    remove_labels.append("review")
                 if "in-progress" in label_names:
-                    args += ["--remove-label", "in-progress"]
+                    remove_labels.append("in-progress")
                 if "done" not in label_names:
-                    args += ["--add-label", "done"]
+                    add_labels.append("done")
                 if "status:in-progress" in label_names:
-                    args += ["--remove-label", "status:in-progress"]
+                    remove_labels.append("status:in-progress")
                 if "status:not-started" in label_names:
-                    args += ["--remove-label", "status:not-started"]
+                    remove_labels.append("status:not-started")
                 if "status:done" not in label_names:
-                    args += ["--add-label", "status:done"]
-            gh_text(args, root=root)
-            gh_text(["issue", "close", str(issue_id), "-R", repo], root=root)
+                    add_labels.append("status:done")
+            update_issue_labels(root, repo, issue_id, add=add_labels, remove=remove_labels)
+            close_issue(root, repo, issue_id)
             print(f"Closed issue #{issue_id}.")
             issue_closed = True
             if isinstance(events, list):
                 events.append(
                     closeout_event(
                         stage="issue-close",
-                        message="issue closed via gh",
+                        message="issue closed via glab",
                         target=target,
                         repo=repo,
                         issue_id=issue_id,
@@ -2683,6 +2739,24 @@ def cmd_issue_queue(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_issue_create(args: argparse.Namespace) -> int:
+    root = repo_root()
+    repo = args.repo or origin_repo_slug(root)
+    title = args.title.strip()
+    if not title:
+        raise CliError("TITLE is required")
+    if not TITLE_TASK_RE.match(title):
+        raise CliError("Task issue title must start with TASK-###: ")
+    depends = args.depends.strip() if args.depends else "none"
+    labels = ["type:task", "status:not-started"]
+    if args.ready:
+        labels.append("ready")
+    body = build_task_issue_body(seq=args.seq, depends=depends, problem=args.problem or "")
+    output = create_issue(root, repo, title=title, description=body, labels=labels)
+    print(output.strip())
+    return 0
+
+
 def cmd_issue_evidence(args: argparse.Namespace) -> int:
     root = repo_root()
     issue_id = args.issue
@@ -2758,6 +2832,7 @@ def cmd_issues_audit(args: argparse.Namespace) -> int:
     issues = fetch_repo_issues(root, repo, state="all")
     findings = audit_issues(issues)
     findings.extend(evidence_drift_findings(root, issues))
+    findings.extend(stale_lock_findings(root, repo, issues))
     errors = [f for f in findings if f.severity == "error"]
     warnings = [f for f in findings if f.severity == "warning"]
 
@@ -2802,17 +2877,47 @@ def cmd_issues_reconcile(args: argparse.Namespace) -> int:
         print(f"#{issue.number}: +{','.join(add_labels) or '-'} -{','.join(remove_labels) or '-'}")
         if args.dry_run:
             continue
-        for label in add_labels:
-            if label in STATUS_LABELS:
-                ensure_label_exists(root, repo, label)
-        edit_args = ["issue", "edit", str(issue.number), "-R", repo]
-        for label in add_labels:
-            edit_args += ["--add-label", label]
-        for label in remove_labels:
-            edit_args += ["--remove-label", label]
-        gh_text(edit_args, root=root)
+        update_issue_labels(root, repo, issue.number, add=add_labels, remove=remove_labels)
 
     print(f"Issues reconciled: {changed} issue(s) {'(dry-run)' if args.dry_run else ''}".strip())
+    return 0
+
+
+def cmd_issue_repair_stale_locks(args: argparse.Namespace) -> int:
+    root = repo_root()
+    repo = args.repo or origin_repo_slug(root)
+    issues = fetch_repo_issues(root, repo, state="all")
+    repairs = [
+        issue
+        for issue in queue_task_issues(issues)
+        if issue.state == "open"
+        and lifecycle_status(issue) == "in-progress"
+        and find_linked_worktree_for_issue(root, issue.number) is None
+        and not merge_request_for_source_branch(
+            root,
+            repo,
+            f"wt/{infer_scope(issue)}/{issue.number}-{slugify_text(issue.title)}",
+            "open",
+        )
+    ]
+    for issue in repairs:
+        print(f"#{issue.number}: status:in-progress -> status:not-started")
+        if args.apply:
+            update_issue_labels(
+                root,
+                repo,
+                issue.number,
+                add=["status:not-started", "ready"] if args.ready else ["status:not-started"],
+                remove=["status:in-progress"],
+            )
+            comment_issue(
+                root,
+                repo,
+                issue.number,
+                "Repaired stale issue lock: no linked local worktree or open MR was detected.",
+            )
+    suffix = "(applied)" if args.apply else "(dry-run)"
+    print(f"Stale locks repaired: {len(repairs)} issue(s) {suffix}")
     return 0
 
 
@@ -2822,7 +2927,7 @@ def cmd_preflight(args: argparse.Namespace) -> int:
     try:
         repo = args.repo or origin_repo_slug(root)
     except CliError:
-        if parse_bool_env("ENFORCE_GH_ISSUE_LOOKUP", True):
+        if parse_bool_env("ENFORCE_TRACKER_ISSUE_LOOKUP", True):
             raise
     run_preflight(
         path=Path(args.path).resolve() if args.path else current_path(), root=root, repo=repo
@@ -3529,7 +3634,7 @@ def cmd_menu(args: argparse.Namespace) -> int:
         print("  7) Pre-validate current worktree (make validate-pre-push)")
         print("  8) Push current worktree branch (preflight + pre-validate enforced)")
         print("  9) Finish summary (current worktree)")
-        print("  10) Close issue done (current worktree, requires merged PR)")
+        print("  10) Close issue done (current worktree, requires merged MR)")
         print("  0) Exit")
         choice = input("Choice [1]: ").strip() or "1"
         try:
@@ -3650,7 +3755,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     common_repo = argparse.ArgumentParser(add_help=False)
     common_repo.add_argument(
-        "--repo", help="GitHub repo slug (owner/repo). Defaults to origin remote."
+        "--repo", help="GitLab project path (group/project). Defaults to gitlab remote."
     )
 
     queue_common = argparse.ArgumentParser(add_help=False)
@@ -3678,6 +3783,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", help="Also emit JSON payload after human-readable output"
     )
     q.set_defaults(func=cmd_issue_queue)
+
+    create = sub.add_parser(
+        "issue-create",
+        parents=[common_repo],
+        help="Create a canonical GitLab task issue",
+    )
+    create.add_argument("--title", required=True, help="Issue title, must start with TASK-###:")
+    create.add_argument("--seq", required=True, type=int, help="Queue sequence number")
+    create.add_argument(
+        "--depends",
+        default="none",
+        help="Dependency list, e.g. none, #123, TASK-123",
+    )
+    create.add_argument("--problem", default="", help="Optional initial problem statement")
+    create.add_argument("--ready", action="store_true", help="Add ready label after creation")
+    create.set_defaults(func=cmd_issue_create)
 
     ev = sub.add_parser(
         "issue-evidence",
@@ -3718,6 +3839,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     rec.add_argument("--dry-run", action="store_true", help="Show changes without editing issues")
     rec.set_defaults(func=cmd_issues_reconcile)
+
+    stale = sub.add_parser(
+        "issue-repair-stale-locks",
+        parents=[common_repo],
+        help="Repair in-progress task issues with no linked worktree or open MR",
+    )
+    stale.add_argument("--apply", action="store_true", help="Apply repairs (default is dry-run)")
+    stale.add_argument("--ready", action="store_true", help="Add ready when resetting stale locks")
+    stale.set_defaults(func=cmd_issue_repair_stale_locks)
 
     pf = sub.add_parser("preflight", parents=[common_repo], help="Run session preflight checks")
     pf.add_argument("--path", help="Path to check (default: current path)")
@@ -3843,7 +3973,7 @@ def build_parser() -> argparse.ArgumentParser:
     fc = sub.add_parser("finish-close", help="Close issue for worktree after merge")
     fc.add_argument("--path", help="Worktree path (default: current path)")
     fc.add_argument(
-        "--force", action="store_true", help="Close issue even without a detected merged PR"
+        "--force", action="store_true", help="Close issue even without a detected merged MR"
     )
     fc.add_argument(
         "--json",
