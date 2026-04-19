@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import time
-from pathlib import Path
+import uuid
+from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import boto3
@@ -12,119 +13,103 @@ import pytest
 import requests
 from moto import mock_aws
 
-# Add project root and data-access-lib to path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-access-lib" / "src"))
-
 from src.bridge.handler import handler
 
 
-@pytest.fixture(autouse=True)
-def mock_capabilities():
-    """Mock TenantCapabilityClient to allow all agents for testing."""
-    with patch("src.bridge.handler.get_capability_client") as mock:
-        mock_client = MagicMock()
-        mock.return_value = mock_client
-
-        # Policy that allows everything by default for tests
-        policy = MagicMock()
-        policy.is_enabled.return_value = True
-        mock_client.fetch_policy.return_value = policy
-        yield mock
-
-
 class FakeLambdaContext:
-    function_name = "bridge"
-    memory_limit_in_mb = 256
-    invoked_function_arn = "arn:aws:lambda:eu-west-2:111111111111:function:bridge"
-    aws_request_id = "req-123"
+    def __init__(self):
+        self.function_name = "bridge"
+        self.memory_limit_in_mb = 256
+        self.invoked_function_arn = "arn:aws:lambda:eu-west-2:111111111111:function:bridge"
+        self.aws_request_id = "req-123"
+
+
+_REGION = "eu-west-2"
 
 
 @pytest.fixture
-def aws_credentials():
-    """Mocked AWS Credentials for moto."""
-    os.environ["AWS_ACCESS_KEY_ID"] = "testing"  # pragma: allowlist secret
-    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"  # pragma: allowlist secret
-    os.environ["AWS_SECURITY_TOKEN"] = "testing"
-    os.environ["AWS_SESSION_TOKEN"] = "testing"
-    os.environ["AWS_DEFAULT_REGION"] = "eu-west-2"
-    os.environ["AWS_REGION"] = "eu-west-2"
-    os.environ["OPS_LOCKS_TABLE"] = "platform-ops-locks"
+def fixed_now_value() -> datetime:
+    return datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture
-def mock_aws_services(aws_credentials):
+def setup_data(fixed_now_value):
     with mock_aws():
-        yield
+        os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+        os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"  # pragma: allowlist secret
+        os.environ["AWS_SECURITY_TOKEN"] = "testing"
+        os.environ["AWS_SESSION_TOKEN"] = "testing"
+        os.environ["AWS_DEFAULT_REGION"] = _REGION
+        os.environ["AWS_REGION"] = _REGION
+        os.environ["PLATFORM_ENV"] = "local"
+        os.environ["POWERTOOLS_SERVICE_NAME"] = "bridge"
+        os.environ["MOCK_RUNTIME_URL"] = "http://mock-runtime:8080"
 
+        ddb = boto3.resource("dynamodb", region_name=_REGION)
+        
+        # Seed locks table
+        ddb.create_table(
+            TableName="platform-ops-locks",
+            KeySchema=[
+                {"AttributeName": "PK", "KeyType": "HASH"},
+                {"AttributeName": "SK", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "PK", "AttributeType": "S"},
+                {"AttributeName": "SK", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
 
-@pytest.fixture
-def setup_data(mock_aws_services):
-    ddb = boto3.resource("dynamodb", region_name="eu-west-2")
-    ssm = boto3.client("ssm", region_name="eu-west-2")
+        # Seed configuration table
+        ddb.create_table(
+            TableName="platform-config",
+            KeySchema=[{"AttributeName": "key", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "key", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        config_table = ddb.Table("platform-config")
+        config_table.put_item(Item={"key": "runtime_region", "value": "eu-west-2"})
+        config_table.put_item(Item={"key": "mock_runtime_url", "value": "http://mock-runtime:8080"})
 
-    # Create tables
-    ddb.create_table(
-        TableName="platform-agents",
-        KeySchema=[
-            {"AttributeName": "PK", "KeyType": "HASH"},
-            {"AttributeName": "SK", "KeyType": "RANGE"},
-        ],
-        AttributeDefinitions=[
-            {"AttributeName": "PK", "AttributeType": "S"},
-            {"AttributeName": "SK", "AttributeType": "S"},
-        ],
-        BillingMode="PAY_PER_REQUEST",
-    )
-    ddb.create_table(
-        TableName="platform-invocations",
-        KeySchema=[
-            {"AttributeName": "PK", "KeyType": "HASH"},
-            {"AttributeName": "SK", "KeyType": "RANGE"},
-        ],
-        AttributeDefinitions=[
-            {"AttributeName": "PK", "AttributeType": "S"},
-            {"AttributeName": "SK", "AttributeType": "S"},
-        ],
-        BillingMode="PAY_PER_REQUEST",
-    )
-    ddb.create_table(
-        TableName="platform-ops-locks",
-        KeySchema=[
-            {"AttributeName": "PK", "KeyType": "HASH"},
-            {"AttributeName": "SK", "KeyType": "RANGE"},
-        ],
-        AttributeDefinitions=[
-            {"AttributeName": "PK", "AttributeType": "S"},
-            {"AttributeName": "SK", "AttributeType": "S"},
-        ],
-        BillingMode="PAY_PER_REQUEST",
-    )
+        # Seed SSM in both regions
+        from src.tenant_api.constants import DEFAULT_RUNTIME_REGION_PARAM
+        for region in [_REGION, "eu-central-1"]:
+            ssm = boto3.client("ssm", region_name=region)
+            ssm.put_parameter(
+                Name=DEFAULT_RUNTIME_REGION_PARAM,
+                Value=_REGION,
+                Type="String",
+                Overwrite=True,
+            )
 
-    # Seed agent
-    agents_table = ddb.Table("platform-agents")
-    agents_table.put_item(
-        Item={
-            "PK": "AGENT#echo-agent",
-            "SK": "VERSION#1.0.0",
-            "agent_name": "echo-agent",
-            "version": "1.0.0",
-            "owner_team": "platform-test",
-            "tier_minimum": "basic",
-            "layer_hash": "0000",
-            "layer_s3_key": "k",
-            "script_s3_key": "s",
-            "deployed_at": "2026-01-01T00:00:00Z",
-            "invocation_mode": "sync",
-            "streaming_enabled": False,
-        }
-    )
+        # Seed agents table
+        ddb.create_table(
+            TableName="platform-agents",
+            KeySchema=[
+                {"AttributeName": "PK", "KeyType": "HASH"},
+                {"AttributeName": "SK", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "PK", "AttributeType": "S"},
+                {"AttributeName": "SK", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
 
-    # Seed SSM
-    ssm.put_parameter(Name="/platform/config/runtime-region", Value="eu-west-1", Type="String")
-    ssm.put_parameter(
-        Name="/platform/config/mock-runtime-url", Value="http://localhost:8765", Type="String"
-    )
+        # Seed agent
+        agents_table = ddb.Table("platform-agents")
+        agents_table.put_item(
+            Item={
+                "PK": "AGENT#echo-agent",
+                "SK": "VERSION#1.0.0",
+                "agent_name": "echo-agent",
+                "invocation_mode": "sync",
+                "enabled": True,
+            }
+        )
+
+        yield ddb
 
 
 def test_handler_failover_on_503(setup_data):
@@ -142,25 +127,27 @@ def test_handler_failover_on_503(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
-        mock_post = MagicMock()
-        mock_get_http_session.return_value.post = mock_post
-        # First call fails with 503
-        mock_response_503 = MagicMock()
-        mock_response_503.status_code = 503
-        mock_response_503.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            response=mock_response_503
-        )
+    with (
+        patch("src.bridge.handler.get_http_session"),
+        patch("src.tenant_api.bootstrap.required_ssm_parameter") as mock_ssm_param,
+        patch("src.bridge.handler.invoke_mock_runtime") as mock_invoke_mock,
+        patch("src.bridge.handler.invoke_real_runtime") as mock_invoke_real,
+    ):
+        # mock_ssm_param returns initial region, then fallback after failover
+        mock_ssm_param.side_effect = ["eu-west-2", "eu-central-1", "eu-west-2", "eu-central-1"]
+
+        # First call (mock runtime) fails with 503
+        mock_invoke_mock.return_value = {
+            "statusCode": 503,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"error": {"code": "SERVICE_UNAVAILABLE"}}),
+        }
 
         # Second call (after failover) succeeds
-        mock_response_success = MagicMock()
-        mock_response_success.status_code = 200
-        mock_response_success.iter_lines.return_value = [
-            b'data: {"type": "text", "content": "Success after failover"}',
-            b"data: [DONE]",
-        ]
-
-        mock_post.side_effect = [mock_response_503, mock_response_success]
+        mock_invoke_real.return_value = {
+            "statusCode": 200,
+            "body": json.dumps({"output": "Success after failover"}),
+        }
 
         response = handler(event, FakeLambdaContext())
 
@@ -170,7 +157,8 @@ def test_handler_failover_on_503(setup_data):
 
         # Verify SSM was updated to eu-central-1
         ssm = boto3.client("ssm", region_name="eu-west-2")
-        param = ssm.get_parameter(Name="/platform/config/runtime-region")
+        from src.tenant_api.constants import DEFAULT_RUNTIME_REGION_PARAM
+        param = ssm.get_parameter(Name=DEFAULT_RUNTIME_REGION_PARAM)
         assert param["Parameter"]["Value"] == "eu-central-1"
 
 
@@ -201,30 +189,34 @@ def test_handler_failover_already_in_progress(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
-        mock_post = MagicMock()
-        mock_get_http_session.return_value.post = mock_post
-        mock_response_503 = MagicMock()
-        mock_response_503.status_code = 503
-        mock_response_503.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            response=mock_response_503
-        )
+    with (
+        patch("src.bridge.handler.get_http_session"),
+        patch("src.tenant_api.bootstrap.required_ssm_parameter") as mock_ssm_param,
+        patch("src.bridge.handler.invoke_mock_runtime") as mock_invoke_mock,
+        patch("src.bridge.handler.invoke_real_runtime") as mock_invoke_real,
+    ):
+        mock_ssm_param.side_effect = ["eu-west-2", "eu-central-1", "eu-west-2", "eu-central-1"]
 
-        mock_response_success = MagicMock()
-        mock_response_success.status_code = 200
-        mock_response_success.iter_lines.return_value = [
-            b'data: {"type": "text", "content": "Success after wait"}',
-            b"data: [DONE]",
+        mock_invoke_mock.side_effect = [
+            {
+                "statusCode": 503,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": {"code": "SERVICE_UNAVAILABLE"}}),
+            }
         ]
-
-        mock_post.side_effect = [mock_response_503, mock_response_success]
+        
+        mock_invoke_real.return_value = {
+            "statusCode": 200,
+            "body": json.dumps({"output": "Success after wait"}),
+        }
 
         # In this case, our instance will see the lock, wait, and retry.
         # But for the retry to work, the SSM parameter must be updated by "someone else"
         # Since we are mocking everything, we'll manually update SSM while the lock is held.
         ssm = boto3.client("ssm", region_name="eu-west-2")
+        from src.tenant_api.constants import DEFAULT_RUNTIME_REGION_PARAM
         ssm.put_parameter(
-            Name="/platform/config/runtime-region",
+            Name=DEFAULT_RUNTIME_REGION_PARAM,
             Value="eu-central-1",
             Type="String",
             Overwrite=True,

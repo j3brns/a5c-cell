@@ -24,6 +24,10 @@ def tenant_key(tenant_id: str) -> dict[str, str]:
     return {"PK": tenant_pk(tenant_id), "SK": "METADATA"}
 
 
+def invite_key(tenant_id: str, invite_id: str) -> dict[str, str]:
+    return {"PK": tenant_pk(tenant_id), "SK": f"INVITE#{invite_id}"}
+
+
 def ddb_value(value: Any) -> Any:
     if isinstance(value, float):
         return Decimal(str(value))

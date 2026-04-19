@@ -165,6 +165,40 @@ def _dispatch_tenant_routes(
     deps: TenantApiDependencies,
     tenant_id: str | None,
 ) -> dict[str, Any] | None:
+    # 1. Try platform admin routes (platform-wide, no tenant context)
+    from src.tenant_api import ops_control
+
+    is_platform_route = path.startswith("/v1/platform") and not path.startswith("/v1/platform/agents")
+    if is_platform_route and not caller.is_platform_actor:
+        raise PermissionError("Platform tenant context required")
+
+    resp = ops_control.dispatch_platform_admin_routes(path, method, event, caller, deps)
+    if resp is not None:
+        return resp
+
+    # 2. Try generic ops routes (rollback, etc. - may be platform or tenant scoped)
+    resp = ops_control.dispatch_ops_routes(path, method, event, caller, deps)
+    if resp is not None:
+        return resp
+
+    # 3. Try agent registry routes
+    if path.startswith("/v1/platform/agents"):
+        try:
+            from . import agent_registry
+        except (ImportError, ValueError):
+            from src.tenant_api import agent_registry
+        return agent_registry.dispatch_routes(path, method, event, caller, deps)
+
+
+    # 4. Try webhook routes (can be platform or tenant scoped)
+    if "/webhooks" in path:
+        try:
+            from . import webhook_registry
+        except (ImportError, ValueError):
+            from src.tenant_api import webhook_registry
+        return webhook_registry.dispatch_routes(path, method, event, caller, deps, tenant_id)
+
+    # 5. Try tenant lifecycle routes
     try:
         from . import tenant_lifecycle
     except (ImportError, ValueError):
@@ -172,64 +206,48 @@ def _dispatch_tenant_routes(
     return tenant_lifecycle.dispatch_routes(path, method, event, caller, deps, tenant_id)
 
 
+
 @logger.inject_lambda_context(clear_state=True, log_event=False)
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     try:
         runtime = bootstrap.build_runtime(event, dependency_builder=lambda region: _dependencies())
         deps = runtime.deps
+
+        # 1. Dispatch routes (admin, ops, tenant) - HIGHEST priority
+        response = _dispatch_tenant_routes(
+            runtime.path, runtime.method, event, runtime.caller, deps, runtime.tenant_id
+        )
+        if response is not None:
+            return response
+
+        # 2. Handle provisioning events (if not already handled by dispatch)
         if runtime.detail_type and runtime.source == "platform.tenant_provisioner":
-            detail = runtime.detail or {}
-            tenant_id = utils.str_or_none(detail.get("tenantId"))
-            app_id = utils.str_or_none(detail.get("appId"))
-            logger.append_keys(appid=app_id or "unknown", tenantid=tenant_id or "unknown")
             try:
                 from . import tenant_lifecycle
             except (ImportError, ValueError):
                 from src.tenant_api import tenant_lifecycle
             return tenant_lifecycle.handle_tenant_provisioning_event(event, deps)
 
+        # 3. Setup logging context
         caller = runtime.caller
         logger.append_keys(appid=caller.app_id or "unknown", tenantid=caller.tenant_id or "unknown")
 
+        # 4. Handle built-in health/sessions (lower priority than specialized dispatch)
         if runtime.path == "/v1/health" and runtime.method == "GET":
             try:
                 from . import tenant_lifecycle
             except (ImportError, ValueError):
                 from src.tenant_api import tenant_lifecycle
             return tenant_lifecycle.handle_health(deps)
+        
         if runtime.path == "/v1/sessions" and runtime.method == "GET":
             try:
                 from . import tenant_lifecycle
             except (ImportError, ValueError):
                 from src.tenant_api import tenant_lifecycle
             return tenant_lifecycle.handle_sessions(event, caller)
-        if (
-            runtime.path.startswith("/v1/platform")
-            and not runtime.path.startswith("/v1/platform/agents")
-            and not caller.is_platform_actor
-        ):
-            raise PermissionError("Platform tenant context required")
 
-        # Dispatch route groups
-        response = _dispatch_platform_routes(runtime.path, runtime.method, event, caller, deps)
-        if response:
-            return response
-
-        response = _dispatch_ops_routes(runtime.path, runtime.method, event, caller, deps)
-        if response:
-            return response
-
-        response = _dispatch_webhook_routes(runtime.path, runtime.method, event, caller, deps)
-        if response:
-            return response
-
-        response = _dispatch_tenant_routes(
-            runtime.path, runtime.method, event, caller, deps, runtime.tenant_id
-        )
-        if response:
-            return response
-
-        return http_utils.error(405, "METHOD_NOT_ALLOWED", "Unsupported tenant API route")
+        return http_utils.error(404, "NOT_FOUND", f"Route not found: {runtime.method} {runtime.path}")
     except PermissionError as exc:
         return http_utils.error(403, "FORBIDDEN", str(exc))
     except ValueError as exc:

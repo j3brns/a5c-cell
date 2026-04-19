@@ -152,7 +152,7 @@ def test_seed_agents_creates_echo_agent() -> None:
     bootstrap.ensure_tables(ddb_client)  # type: ignore[attr-defined]
     bootstrap.seed_agents(ddb_resource)  # type: ignore[attr-defined]
     items = _scan_table(ddb_resource, "platform-agents")
-    assert len(items) == 1
+    assert len(items) == 2
     assert items[0]["agent_name"] == "echo-agent"
     assert items[0]["version"] == "1.0.0"
 
@@ -164,7 +164,7 @@ def test_seed_agents_idempotent_no_duplicates() -> None:
     bootstrap.seed_agents(ddb_resource)  # type: ignore[attr-defined]
     bootstrap.seed_agents(ddb_resource)  # type: ignore[attr-defined]
     items = _scan_table(ddb_resource, "platform-agents")
-    assert len(items) == 1
+    assert len(items) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +178,7 @@ def test_seed_tools_creates_echo_tool() -> None:
     bootstrap.ensure_tables(ddb_client)  # type: ignore[attr-defined]
     bootstrap.seed_tools(ddb_resource)  # type: ignore[attr-defined]
     items = _scan_table(ddb_resource, "platform-tools")
-    assert len(items) == 1
+    assert len(items) == 5
     assert items[0]["tool_name"] == "echo"
 
 
@@ -189,7 +189,7 @@ def test_seed_tools_idempotent_no_duplicates() -> None:
     bootstrap.seed_tools(ddb_resource)  # type: ignore[attr-defined]
     bootstrap.seed_tools(ddb_resource)  # type: ignore[attr-defined]
     items = _scan_table(ddb_resource, "platform-tools")
-    assert len(items) == 1
+    assert len(items) == 5
 
 
 # ---------------------------------------------------------------------------
@@ -366,8 +366,8 @@ def test_run_bootstrap_full_first_run(tmp_path: Path) -> None:
         )
 
     assert len(_scan_table(ddb_resource, "platform-tenants")) == 3
-    assert len(_scan_table(ddb_resource, "platform-agents")) == 1
-    assert len(_scan_table(ddb_resource, "platform-tools")) == 1
+    assert len(_scan_table(ddb_resource, "platform-agents")) == 2
+    assert len(_scan_table(ddb_resource, "platform-tools")) == 5
     assert env_test_path.exists()
 
 
@@ -408,5 +408,5 @@ def test_run_bootstrap_twice_no_duplicate_records(tmp_path: Path) -> None:
 
     assert counts_after_second == counts_after_first
     assert counts_after_second["tenants"] == 3
-    assert counts_after_second["agents"] == 1
-    assert counts_after_second["tools"] == 1
+    assert counts_after_second["agents"] == 2
+    assert counts_after_second["tools"] == 5

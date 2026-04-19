@@ -10,6 +10,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from moto import mock_aws
+
 from src.tenant_api import agent_registry, ops_control, tenant_lifecycle, webhook_registry
 from src.tenant_api import handler as tenant_api_handler
 from tests.unit.tenant_api_test_support import build_module_state, fixed_now_value
@@ -21,8 +23,9 @@ def fixed_now() -> datetime:
 
 
 @pytest.fixture
-def module_state(monkeypatch: pytest.MonkeyPatch, fixed_now: Any) -> dict[str, Any]:
-    return build_module_state(monkeypatch, fixed_now)
+def module_state(monkeypatch: pytest.MonkeyPatch, fixed_now: Any) -> Any:
+    with mock_aws():
+        yield build_module_state(monkeypatch, fixed_now)
 
 
 def _caller(
@@ -50,6 +53,7 @@ def _event(path: str, method: str = "GET", body: dict[str, Any] | None = None) -
     }
 
 
+@mock_aws
 def test_agent_registry_dispatch_registers_agent(module_state: dict[str, Any]) -> None:
     response = agent_registry.dispatch_routes(
         "/v1/platform/agents",
@@ -69,6 +73,7 @@ def test_agent_registry_dispatch_registers_agent(module_state: dict[str, Any]) -
     assert stored["status"] == "built"
 
 
+@mock_aws
 def test_ops_control_dispatches_platform_quota(module_state: dict[str, Any]) -> None:
     response = ops_control.dispatch_platform_admin_routes(
         "/v1/platform/quota",
@@ -83,6 +88,7 @@ def test_ops_control_dispatches_platform_quota(module_state: dict[str, Any]) -> 
     assert body["utilisation"][0]["region"] == "eu-west-1"
 
 
+@mock_aws
 def test_tenant_lifecycle_dispatch_creates_tenant(module_state: dict[str, Any]) -> None:
     response = tenant_lifecycle.dispatch_routes(
         "/v1/tenants",
@@ -111,6 +117,7 @@ def test_tenant_lifecycle_dispatch_creates_tenant(module_state: dict[str, Any]) 
     assert len(module_state["deps"].secretsmanager.policy_calls) == 1
 
 
+@mock_aws
 def test_webhook_registry_dispatch_registers_webhook(module_state: dict[str, Any]) -> None:
     module_state["db"].items[("TENANT#t-001", "METADATA")] = {
         "PK": "TENANT#t-001",

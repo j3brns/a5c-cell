@@ -354,23 +354,28 @@ def build_handler_state(monkeypatch: Any, fixed_now: datetime) -> dict[str, Any]
     db = FakeScopedDb()
     deps = build_tenant_api_dependencies()
     apply_common_tenant_api_env(monkeypatch)
+    
+    from src.tenant_api import db_factory, db_utils
     monkeypatch.setattr(tenant_api_handler, "_dependencies", lambda: deps)
-    monkeypatch.setattr(tenant_api_handler.db_factory, "db_for_tenant", lambda **_kwargs: db)
-    monkeypatch.setattr(
-        tenant_api_handler.db_factory, "control_plane_db", lambda *_args, **_kwargs: db
-    )
-    monkeypatch.setattr(tenant_api_db_utils, "db_for_tenant", lambda **_kwargs: db)
-    monkeypatch.setattr(tenant_api_db_utils, "control_plane_db", lambda *_args, **_kwargs: db)
+    monkeypatch.setattr(db_factory, "db_for_tenant", lambda **_kwargs: db)
+    monkeypatch.setattr(db_factory, "control_plane_db", lambda *_args, **_kwargs: db)
+    monkeypatch.setattr(db_utils, "db_for_tenant", lambda **_kwargs: db)
+    monkeypatch.setattr(db_utils, "control_plane_db", lambda *_args, **_kwargs: db)
+    
     monkeypatch.setattr(tenant_api_handler.utils, "_OVERRIDE_NOW", fixed_now)
     return {"db": db, "deps": deps}
 
 
 def build_module_state(monkeypatch: Any, fixed_now: datetime) -> dict[str, Any]:
+    from src.tenant_api import db_factory, db_utils
+
     db = FakeScopedDb()
     deps = build_tenant_api_dependencies()
     apply_common_tenant_api_env(monkeypatch, include_agents_table=True)
-    monkeypatch.setattr(tenant_api_handler, "_db_for_tenant", lambda **_kwargs: db)
-    monkeypatch.setattr(tenant_api_handler, "_now_utc", lambda: fixed_now)
+    monkeypatch.setattr(db_factory, "db_for_tenant", lambda **_kwargs: db)
+    monkeypatch.setattr(db_factory, "control_plane_db", lambda *_args, **_kwargs: db)
+    monkeypatch.setattr(db_utils, "db_for_tenant", lambda **_kwargs: db)
+    monkeypatch.setattr(db_utils, "control_plane_db", lambda *_args, **_kwargs: db)
     return {"db": db, "deps": deps}
 
 

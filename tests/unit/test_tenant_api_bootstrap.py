@@ -71,6 +71,7 @@ def test_build_runtime_preserves_eventbridge_tenant_provisioner_payload(monkeypa
     assert runtime.path == ""
 
 
-def test_build_runtime_requires_aws_region() -> None:
+def test_build_runtime_requires_aws_region(monkeypatch) -> None:
+    monkeypatch.delenv("AWS_REGION", raising=False)
     with pytest.raises(KeyError):
         bootstrap.build_runtime({}, dependency_builder=lambda _region: _deps())

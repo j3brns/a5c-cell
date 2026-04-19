@@ -9,7 +9,6 @@ try:
     from . import (
         agent_logic,
         auth,
-        bootstrap,
         db_factory,
         db_utils,
         events,
@@ -22,7 +21,6 @@ except (ImportError, ValueError):  # pragma: no cover
     from src.tenant_api import (
         agent_logic,
         auth,
-        bootstrap,
         db_factory,
         db_utils,
         events,
@@ -31,14 +29,6 @@ except (ImportError, ValueError):  # pragma: no cover
         utils,
         validation,
     )
-
-
-def _db_for_tenant(*, tenant_id: str, caller: models.CallerIdentity, app_id: str | None):
-    return bootstrap.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
-
-
-def _now_utc():
-    return bootstrap.now_utc()
 
 
 _REGISTER_MUTABLE_FIELDS = frozenset(
@@ -95,7 +85,7 @@ def handle_list_agents(
     _ = event
     _ = deps
     auth.require_admin(caller)
-    db = _db_for_tenant(
+    db = db_factory.db_for_tenant(
         tenant_id=caller.tenant_id or "platform",
         caller=caller,
         app_id=caller.app_id,
@@ -126,12 +116,12 @@ def handle_register_agent(
         allowed = ", ".join(s.value for s in sorted(REGISTERABLE_AGENT_STATUSES))
         raise ValueError(f"Initial status for registration must be one of: {allowed}")
 
-    db = _db_for_tenant(
+    db = db_factory.db_for_tenant(
         tenant_id=caller.tenant_id or "platform",
         caller=caller,
         app_id=caller.app_id,
     )
-    now = _now_utc()
+    now = utils.now_utc()
     now_iso = utils.iso(now)
 
     item = {
@@ -251,7 +241,7 @@ def _update_agent_status(
     auth.require_admin(caller)
     auth.require_platform_actor(caller)
 
-    db = _db_for_tenant(
+    db = db_factory.db_for_tenant(
         tenant_id=caller.tenant_id or "platform",
         caller=caller,
         app_id=caller.app_id,
@@ -266,7 +256,7 @@ def _update_agent_status(
     current_status = normalize_agent_status(existing.get("status"))
     agent_logic.validate_agent_status_transition(current_status, target_status)
 
-    now = _now_utc()
+    now = utils.now_utc()
     now_iso = utils.iso(now)
 
     updates: dict[str, Any] = {

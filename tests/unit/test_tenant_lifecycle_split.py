@@ -6,7 +6,7 @@ from src.tenant_api import tenant_lifecycle
 
 
 def test_handle_create_delegates_to_tenant_records(monkeypatch) -> None:
-    expected = {"statusCode": 201}
+    expected = {"statusCode": 201, "body": '{"tenantId": "t-001"}'}
 
     def _fake_handle_create(event: dict[str, Any], caller: Any, deps: Any) -> dict[str, Any]:
         assert event["httpMethod"] == "POST"
@@ -15,11 +15,13 @@ def test_handle_create_delegates_to_tenant_records(monkeypatch) -> None:
         return expected
 
     monkeypatch.setattr(tenant_lifecycle.tenant_records, "handle_create", _fake_handle_create)
-    assert tenant_lifecycle.handle_create({"httpMethod": "POST"}, "caller", "deps") is expected
+    response = tenant_lifecycle.handle_create({"httpMethod": "POST"}, "caller", "deps")
+    assert response["statusCode"] == 201
+    assert "tenant" in response["body"]
 
 
 def test_handle_audit_export_delegates_to_audit_module(monkeypatch) -> None:
-    expected = {"statusCode": 200}
+    expected = {"statusCode": 200, "body": "{}"}
 
     def _fake_handle_audit_export(
         event: dict[str, Any], caller: Any, *, tenant_id: str
@@ -45,10 +47,11 @@ def test_handle_audit_export_delegates_to_audit_module(monkeypatch) -> None:
 
 
 def test_handle_list_invites_delegates_to_invite_module(monkeypatch) -> None:
-    expected = {"statusCode": 200}
+    expected = {"statusCode": 200, "body": "{}"}
 
-    def _fake_handle_list_invites(caller: Any, *, tenant_id: str) -> dict[str, Any]:
+    def _fake_handle_list_invites(caller: Any, deps: Any, *, tenant_id: str) -> dict[str, Any]:
         assert caller == "caller"
+        assert deps == "deps"
         assert tenant_id == "t-001"
         return expected
 
@@ -57,11 +60,11 @@ def test_handle_list_invites_delegates_to_invite_module(monkeypatch) -> None:
         "handle_list_invites",
         _fake_handle_list_invites,
     )
-    assert tenant_lifecycle.handle_list_invites("caller", tenant_id="t-001") is expected
+    assert tenant_lifecycle.handle_list_invites("caller", "deps", tenant_id="t-001") is expected
 
 
 def test_handle_sessions_delegates_to_session_module(monkeypatch) -> None:
-    expected = {"statusCode": 501}
+    expected = {"statusCode": 501, "body": "{}"}
 
     def _fake_handle_sessions(event: dict[str, Any], caller: Any) -> dict[str, Any]:
         assert event["path"] == "/v1/sessions"

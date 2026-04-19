@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from boto3.dynamodb.conditions import Key
 
 try:
@@ -10,9 +12,11 @@ except (ImportError, ValueError):  # pragma: no cover
 
 def handle_list_invites(
     caller: models.CallerIdentity,
+    deps: models.TenantApiDependencies,
     *,
     tenant_id: str,
-) -> dict[str, object]:
+) -> dict[str, Any]:
+    _ = deps
     if not auth.can_read_tenant(caller, tenant_id) or not auth.can_manage_tenant_self_service(
         caller, tenant_id
     ):

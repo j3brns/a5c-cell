@@ -63,6 +63,7 @@ def handle_create(
     )
 
     attributes: dict[str, Any] = {
+        **db_utils.tenant_key(tenant_id),
         "tenantId": tenant_id,
         "appId": app_id,
         "displayName": str(body["displayName"]).strip(),
@@ -81,12 +82,15 @@ def handle_create(
         attributes["monthlyBudgetUsd"] = utils.as_float(
             body["monthlyBudgetUsd"], field="monthlyBudgetUsd"
         )
+    memory_store_arn = utils.str_or_none(memory_info.get("memoryStoreArn"))
+    if memory_store_arn is not None:
+        attributes["memoryStoreArn"] = memory_store_arn
 
     db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
     db.put_item(db_factory.tenants_table_name(), attributes)
     events.put_event(
         deps,
-        detail_type="platform.tenant.created",
+        detail_type="tenant.created",
         detail={
             "tenantId": tenant_id,
             "appId": app_id,
@@ -100,6 +104,7 @@ def handle_create(
 
 def handle_read(
     caller: models.CallerIdentity,
+    deps: models.TenantApiDependencies,
     *,
     tenant_id: str,
 ) -> dict[str, Any]:
@@ -110,7 +115,15 @@ def handle_read(
     if item is None:
         return http_utils.error(404, "NOT_FOUND", f"Tenant '{tenant_id}' not found")
 
-    return http_utils.response(200, serialization.serialize_tenant(item))
+    tenant = serialization.serialize_tenant(item)
+    usage = deps.usage_client.get_tenant_usage(
+        tenant_id=tenant_id,
+        app_id=utils.str_or_none(item.get("appId")),
+    )
+    tenant["usage"] = usage if isinstance(usage, dict) else {}
+    if caller.usage_identifier_key:
+        tenant["usage"]["usageIdentifierKey"] = caller.usage_identifier_key
+    return http_utils.response(200, tenant)
 
 
 def handle_update(
@@ -120,7 +133,6 @@ def handle_update(
     *,
     tenant_id: str,
 ) -> dict[str, Any]:
-    _ = deps
     auth.require_admin(caller)
     body = http_utils.require_json_body(event)
 
@@ -151,6 +163,17 @@ def handle_update(
         expression_attribute_names=names,
     )
     updated_item = db_utils.read_tenant_record(tenant_id=tenant_id, caller=caller)
+
+    old_tier = utils.str_or_none(item.get("tier"))
+    new_tier = utils.str_or_none((updated_item or item).get("tier"))
+    detail_type = "tenant.updated"
+    detail: dict[str, Any] = {"tenantId": tenant_id, "actorSub": caller.sub}
+    if old_tier != new_tier and new_tier is not None:
+        detail_type = "tenant.tier_changed"
+        detail["oldTier"] = old_tier
+        detail["newTier"] = new_tier
+    events.put_event(deps, detail_type=detail_type, detail=detail)
+
     return http_utils.response(200, serialization.serialize_tenant(updated_item or item))
 
 
@@ -184,5 +207,15 @@ def handle_delete(
         expression,
         values,
         expression_attribute_names=names,
+    )
+    events.put_event(
+        deps,
+        detail_type="tenant.deleted",
+        detail={
+            "tenantId": tenant_id,
+            "actorSub": caller.sub,
+            "retentionDays": constants.DELETE_RETENTION_DAYS,
+            "purgeAtEpochSeconds": updates["purgeAtEpochSeconds"],
+        },
     )
     return http_utils.response(204, {})
