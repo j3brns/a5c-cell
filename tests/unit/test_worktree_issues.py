@@ -1050,6 +1050,30 @@ def test_prepare_gitnexus_for_worktree_warns_when_npm_cache_path_unavailable(mon
     assert "rebuilding local index" in captured.out
 
 
+def test_prepare_gitnexus_preserves_existing_embeddings(monkeypatch, tmp_path):
+    repo = tmp_path / "repo"
+    (repo / ".gitnexus").mkdir(parents=True)
+    (repo / ".gitnexus" / "meta.json").write_text(
+        json.dumps({"stats": {"embeddings": 12}}),
+        encoding="utf-8",
+    )
+    calls: list[list[str]] = []
+
+    def _run_gitnexus_command(_path, args, *, check):
+        calls.append(args)
+        if args == ["status"]:
+            return subprocess.CompletedProcess(args, 1, "stale index", "")
+        return subprocess.CompletedProcess(args, 0, "analyzed", "")
+
+    monkeypatch.setattr(worktree_issues, "gitnexus_cli_path", lambda: Path("/usr/bin/gitnexus"))
+    monkeypatch.setattr(worktree_issues, "shutil_which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(worktree_issues, "run_gitnexus_command", _run_gitnexus_command)
+
+    worktree_issues.prepare_gitnexus_for_worktree(repo)
+
+    assert calls == [["status"], ["analyze", "--embeddings"]]
+
+
 def test_cmd_wt_batch_writes_manifest_and_launches_detached_agents(monkeypatch, capsys, tmp_path):
     repo = "owner/repo"
     issue_33 = _issue(

@@ -12,13 +12,15 @@ Keep this file as a stable pointer stub.
 Do not duplicate or fork generated GitNexus context here.
 
 <!-- gitnexus:end -->
-After committing code changes, the GitNexus index becomes stale. Re-run analyze to update it:
+After committing code changes, the GitNexus index becomes stale. Prefer the
+embedding-safe refresh target:
 
 ```bash
-npx gitnexus analyze
+make gitnexus-refresh
 ```
 
-If the index previously included embeddings, preserve them by adding `--embeddings`:
+If running manually and the index previously included embeddings, preserve them by adding
+`--embeddings`:
 
 ```bash
 npx gitnexus analyze --embeddings
@@ -38,5 +40,3 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-<!-- gitnexus:end -->

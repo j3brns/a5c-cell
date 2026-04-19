@@ -803,6 +803,21 @@ def gitnexus_npx_cache_corrupted(output: str) -> bool:
     return "enotempty" in lowered and "/_npx/" in lowered
 
 
+def gitnexus_embeddings_present(path: Path) -> bool:
+    meta_path = path / ".gitnexus" / "meta.json"
+    if not meta_path.exists():
+        return False
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    embeddings = meta.get("stats", {}).get("embeddings", 0)
+    try:
+        return int(embeddings) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def gitnexus_cli_path() -> Path | None:
     override = os.environ.get("WORKTREE_GITNEXUS_CLI")
     if override:
@@ -817,12 +832,21 @@ def gitnexus_cli_path() -> Path | None:
     return None
 
 
+def gitnexus_timeout_seconds() -> float:
+    raw = os.environ.get("WORKTREE_GITNEXUS_TIMEOUT_SECONDS", "300")
+    try:
+        value = float(raw)
+    except ValueError:
+        return 300.0
+    return max(value, 1.0)
+
+
 def run_gitnexus_command(
     path: Path,
     args: list[str],
     *,
     check: bool,
-    timeout_seconds: float = 30.0,
+    timeout_seconds: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     cli_path = gitnexus_cli_path()
     node = shutil_which("node")
@@ -843,7 +867,9 @@ def run_gitnexus_command(
                 capture_output=True,
                 text=True,
                 check=False,
-                timeout=timeout_seconds,
+                timeout=(
+                    timeout_seconds if timeout_seconds is not None else gitnexus_timeout_seconds()
+                ),
             )
         except subprocess.TimeoutExpired as exc:
             raise subprocess.CalledProcessError(
@@ -908,9 +934,13 @@ def prepare_gitnexus_for_worktree(path: Path) -> None:
         print("GitNexus: local index already fresh")
         return
 
-    print("GitNexus: rebuilding local index for this worktree")
+    analyze_args = ["analyze"]
+    if gitnexus_embeddings_present(path):
+        analyze_args.append("--embeddings")
+
+    print(f"GitNexus: rebuilding local index for this worktree ({' '.join(analyze_args)})")
     try:
-        run_gitnexus_command(path, ["analyze"], check=True)
+        run_gitnexus_command(path, analyze_args, check=True)
     except subprocess.CalledProcessError as exc:
         eprint(f"WARNING: GitNexus analyze failed in {path}: {exc}")
 
