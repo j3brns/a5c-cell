@@ -155,7 +155,7 @@ else
     CFN_FILE="cfn-guard-v3-$( [[ "$OS_ARCH" == "aarch64" ]] && echo "aarch64" || echo "x86_64" )-linux-latest.tar.gz"
     if curl -fsSL \
         "https://github.com/aws-cloudformation/cloudformation-guard/releases/download/${CFN_TAG}/${CFN_FILE}" \
-        | tar -xz -C "$INSTALL_DIR" cfn-guard 2>/dev/null \
+        | tar -xz -C "$INSTALL_DIR" --strip-components=1 */cfn-guard 2>/dev/null \
         && chmod +x "$INSTALL_DIR/cfn-guard"; then
         ok "cfn-guard $(cfn-guard --version 2>&1)"
     else
