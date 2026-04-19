@@ -35,10 +35,7 @@ eu-west-2 London (HOME — owns everything)
 ├── SQS (webhook delivery retry queue only, not async invocation routing)
 ├── Bridge Lambda
 ├── Authoriser Lambda
-├── Tenant management service Lambda
-├── Webhook registry service Lambda
-├── Agent registry service Lambda
-├── Admin ops service Lambda
+├── Tenant API Lambda (Modular: lifecycle, webhooks, agents, ops)
 ├── BFF Lambda
 ├── CloudWatch (aggregated)
 └── Platform identity and shared config
@@ -85,6 +82,29 @@ Dynamic tenant capability policy uses AppConfig in the home region. AppConfig is
 reserved for rollout-sensitive capability policy only; runtime parameters remain
 in SSM and tenant/resource metadata remains in DynamoDB. See
 [ADR-017](decisions/ADR-017-tenant-capability-configuration-model.md).
+
+### Tenant API Internal Structure
+
+The `src/tenant_api/` directory implements the control plane administrative API. While
+the infrastructure (CDK) currently provisions four separate Lambda functions for
+concurrency isolation and granular IAM permissions, they all share a common modular
+codebase:
+
+- **`handler.py`**: A unified entry point used for local development and unified
+  dispatching logic.
+- **`tenant_lifecycle.py`**: The central router for tenant-specific operations.
+- **`tenant_records.py`**, **`tenant_invites.py`**, **`tenant_sessions.py`**,
+  **`tenant_audit_exports.py`**: Specialised modules implementing the core
+  business logic for each functional area.
+- **`agent_registry.py`**: Handles spécialised agent metadata and versioning logic.
+- **`ops_control.py`**: Implements platform-wide administrative operations like
+  failover, service health, and quota management.
+- **`db_factory.py`** and **`db_utils.py`**: Abstract database access to enforce
+  tenant isolation boundaries.
+
+This modular design ensures that the business logic is independent of the physical
+Lambda deployment topology, allowing for easy consolidation or further splitting
+without major code changes.
 
 ## Request Lifecycle (Synchronous)
 
