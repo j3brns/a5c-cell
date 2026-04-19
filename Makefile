@@ -307,7 +307,7 @@ validate-secrets-diff:
 			git diff --name-only --diff-filter=ACMR; \
 			git diff --cached --name-only --diff-filter=ACMR; \
 			git ls-files -o --exclude-standard; \
-		} | sort -u | grep -Ev '(^|/)(package-lock\.json)$$|\.(lock|log)$$' || true \
+		} | sort -u | grep -Ev '(^|/)(package-lock\.json)$$|\.(lock|log)$$|(^|/)\.build/' || true \
 	)"; \
 	if [ -z "$$files" ]; then \
 		echo "==> detect-secrets: no changed files to scan"; \
@@ -331,7 +331,7 @@ validate-secrets-push:
 			git diff --name-only --diff-filter=ACMR HEAD~1...HEAD; \
 		fi; \
 	)"; \
-	files="$$(printf '%s\n' "$$files" | sort -u | grep -Ev '(^|/)(package-lock\.json)$$|\.(lock|log)$$' || true)"; \
+	files="$$(printf '%s\n' "$$files" | sort -u | grep -Ev '(^|/)(package-lock\.json)$$|\.(lock|log)$$|(^|/)\.build/' || true)"; \
 	if [ -z "$$files" ]; then \
 		echo "==> detect-secrets: no commits-to-push files detected; falling back to changed-files scan"; \
 		$(MAKE) --no-print-directory validate-secrets-diff; \
@@ -346,7 +346,7 @@ validate-secrets-push:
 validate-secrets-full:
 	@echo "==> detect-secrets (full repo)"
 	@(git ls-files -o --exclude-standard; git ls-files) | sort -u | \
-		grep -Ev '(^|/)(package-lock\.json)$$|\.(lock|log)$$' | \
+		grep -Ev '(^|/)(package-lock\.json)$$|\.(lock|log)$$|(^|/)\.build/' | \
 		while IFS= read -r f; do [ -f "$$f" ] && printf '%s\0' "$$f"; done | \
 		xargs -0 -r uv run detect-secrets-hook --baseline .secrets.baseline
 	@echo "==> detect-secrets full scan passed"
