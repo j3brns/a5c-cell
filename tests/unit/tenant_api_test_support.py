@@ -6,7 +6,6 @@ from typing import Any
 
 from data_access.models import PaginatedItems
 
-from src.tenant_api import db_utils as tenant_api_db_utils
 from src.tenant_api import handler as tenant_api_handler
 
 
@@ -354,14 +353,15 @@ def build_handler_state(monkeypatch: Any, fixed_now: datetime) -> dict[str, Any]
     db = FakeScopedDb()
     deps = build_tenant_api_dependencies()
     apply_common_tenant_api_env(monkeypatch)
-    
+
     from src.tenant_api import db_factory, db_utils
+
     monkeypatch.setattr(tenant_api_handler, "_dependencies", lambda: deps)
     monkeypatch.setattr(db_factory, "db_for_tenant", lambda **_kwargs: db)
     monkeypatch.setattr(db_factory, "control_plane_db", lambda *_args, **_kwargs: db)
     monkeypatch.setattr(db_utils, "db_for_tenant", lambda **_kwargs: db)
     monkeypatch.setattr(db_utils, "control_plane_db", lambda *_args, **_kwargs: db)
-    
+
     monkeypatch.setattr(tenant_api_handler.utils, "_OVERRIDE_NOW", fixed_now)
     return {"db": db, "deps": deps}
 

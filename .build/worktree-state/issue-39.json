@@ -1,0 +1,47 @@
+{
+  "branch": "wt/task/39-update-gitnexus-refresh-integration-for-generated-context-co",
+  "details": {
+    "source": "worktree-create"
+  },
+  "events": [
+    {
+      "branch": "wt/task/39-update-gitnexus-refresh-integration-for-generated-context-co",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "update-gitnexus-refresh-integration-for-generated-context-co"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:39:wt/task/39-update-gitnexus-refresh-integration-for-generated-context-co:/mnt/c/users/julia/worktrees/gitnexus-update",
+      "issue_number": 39,
+      "issue_title": "TASK-007: Update GitNexus refresh integration for generated-context controls",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-19T16:20:49.688304+00:00",
+      "worktree_path": "/mnt/c/users/julia/worktrees/gitnexus-update"
+    },
+    {
+      "branch": "wt/task/39-update-gitnexus-refresh-integration-for-generated-context-co",
+      "details": {
+        "source": "worktree-create"
+      },
+      "event_type": "shell-opened",
+      "idempotency_key": "shell:39:/mnt/c/users/julia/worktrees/gitnexus-update",
+      "issue_number": 39,
+      "issue_title": "TASK-007: Update GitNexus refresh integration for generated-context controls",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "shell-active",
+      "ts": "2026-04-19T16:20:49.705317+00:00",
+      "worktree_path": "/mnt/c/users/julia/worktrees/gitnexus-update"
+    }
+  ],
+  "issue_number": 39,
+  "issue_title": "TASK-007: Update GitNexus refresh integration for generated-context controls",
+  "last_event_type": "shell-opened",
+  "last_updated_at": "2026-04-19T16:20:49.705317+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "shell-active",
+  "worktree_path": "/mnt/c/users/julia/worktrees/gitnexus-update"
+}

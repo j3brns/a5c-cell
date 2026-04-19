@@ -10,16 +10,13 @@ from data_access.models import TenantStatus
 
 try:
     from . import (
-        agent_registry,
         auth,
         constants,
         db_factory,
         db_utils,
         events,
         http_utils,
-        lifecycle_logic,
         models,
-        ops_control,
         secrets_manager,
         serialization,
         tenant_audit_exports,
@@ -30,16 +27,14 @@ try:
     )
 except (ImportError, ValueError):  # pragma: no cover
     from src.tenant_api import (
-        agent_registry,
         auth,
         constants,
         db_factory,
         db_utils,
         events,
         http_utils,
-        lifecycle_logic,
         models,
-        ops_control,
+        secrets_manager,
         serialization,
         tenant_audit_exports,
         tenant_invites,
@@ -98,9 +93,7 @@ def handle_list_tenants(
     db = db_factory.control_plane_db(caller)
     items = db.scan_all(db_factory.tenants_table_name())
     records = [
-        serialization.serialize_tenant(item)
-        for item in items
-        if item.get("SK") == "METADATA"
+        serialization.serialize_tenant(item) for item in items if item.get("SK") == "METADATA"
     ]
     if status_filter:
         records = [r for r in records if r.get("status") == status_filter]
@@ -152,9 +145,17 @@ def handle_tenant_provisioning_event(
     if tenant_id is None:
         raise ValueError("tenantId is required")
 
+    detail_type = event.get("detail-type")
     status = utils.str_or_none(detail.get("provisioningStatus"))
     if status is None:
         status = utils.str_or_none(detail.get("status"))
+
+    if status is None:
+        if detail_type == "tenant.provisioning_failed":
+            status = "failed"
+        elif detail_type == "tenant.provisioned":
+            status = "ready"
+
     if status not in constants.TENANT_PROVISIONING_STATUSES:
         raise ValueError(f"Invalid provisioning status: {status}")
 
@@ -169,6 +170,18 @@ def handle_tenant_provisioning_event(
         execution_role_arn = detail.get("executionRoleArn") or detail.get("ExecutionRoleArn")
         if execution_role_arn:
             updates["executionRoleArn"] = str(execution_role_arn)
+        memory_store_arn = detail.get("memoryStoreArn") or detail.get("MemoryStoreArn")
+        if memory_store_arn:
+            updates["memoryStoreArn"] = str(memory_store_arn)
+
+    if status == "failed":
+        reason = (
+            detail.get("reason")
+            or detail.get("provisioningError")
+            or detail.get("ProvisioningError")
+        )
+        if reason:
+            updates["provisioningError"] = str(reason)
 
     system_caller = models.CallerIdentity(
         tenant_id=tenant_id,
@@ -205,7 +218,7 @@ def handle_tenant_provisioning_event(
             "status": status,
         },
     )
-    return {"status": "ok", "tenantId": tenant_id}
+    return http_utils.response(200, {"tenant": serialization.serialize_tenant(updated_item)})
 
 
 def handle_health(deps: models.TenantApiDependencies) -> dict[str, Any]:
@@ -241,11 +254,14 @@ def handle_rotate_api_key(
     if item is None:
         return http_utils.error(404, "NOT_FOUND", f"Tenant '{tenant_id}' not found")
 
-    app_id = utils.str_or_none(item.get("appId"))
-    new_arn = secrets_manager.create_api_key_secret(deps, tenant_id=tenant_id, app_id=app_id)
-    
+    app_id = str(item.get("appId", ""))
+    secret_arn = str(item.get("apiKeySecretArn", ""))
+    version_id = secrets_manager.rotate_api_key_secret(
+        deps, secret_arn=secret_arn, tenant_id=tenant_id, app_id=app_id
+    )
+
     now = utils.now_utc()
-    updates = {"apiKeySecretArn": new_arn, "updatedAt": utils.iso(now)}
+    updates = {"updatedAt": utils.iso(now)}
     expression, names, values = db_utils.build_update_expression(updates)
     db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=app_id)
     db.update_item(
@@ -262,7 +278,7 @@ def handle_rotate_api_key(
         detail={"tenantId": tenant_id, "actorSub": caller.sub},
     )
     # The tests expect versionId in the body
-    return http_utils.response(200, {"tenantId": tenant_id, "versionId": "ver-rotated-001"})
+    return http_utils.response(200, {"tenantId": tenant_id, "versionId": version_id})
 
 
 def handle_invite_user(
@@ -333,18 +349,12 @@ def dispatch_routes(
     deps: models.TenantApiDependencies,
     tenant_id: str | None,
 ) -> dict[str, Any] | None:
-    # 1. Platform-wide admin/ops routes
-    if path == "/v1/platform/ops/lambda-rollback" and method == "POST":
-        return ops_control.handle_lambda_rollback(event, caller, deps)
-    if path == "/v1/platform/agents/rollback" and method == "POST":
-        return agent_registry.handle_rollback_agent(event, caller, deps)
-
     # 2. Tenant routes
     if path == "/v1/tenants" and method == "POST":
         return handle_create(event, caller, deps)
     if path == "/v1/tenants" and method == "GET":
         return handle_list_tenants(event, caller, deps)
-    
+
     if tenant_id:
         if path == f"/v1/tenants/{tenant_id}" and method == "GET":
             return handle_read(caller, deps, tenant_id=tenant_id)

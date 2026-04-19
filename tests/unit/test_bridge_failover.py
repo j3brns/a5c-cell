@@ -3,14 +3,12 @@ from __future__ import annotations
 import json
 import os
 import time
-import uuid
 from datetime import UTC, datetime
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import boto3
 import pytest
-import requests
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from src.bridge.handler import handler
@@ -20,11 +18,11 @@ class FakeLambdaContext:
     def __init__(self):
         self.function_name = "bridge"
         self.memory_limit_in_mb = 256
-        self.invoked_function_arn = "arn:aws:lambda:eu-west-2:111111111111:function:bridge"
+        self.invoked_function_arn = f"arn:aws:lambda:{_REGION}:111111111111:function:bridge"
         self.aws_request_id = "req-123"
 
 
-_REGION = "eu-west-2"
+_REGION = "eu-west-1"
 
 
 @pytest.fixture
@@ -43,10 +41,9 @@ def setup_data(fixed_now_value):
         os.environ["AWS_REGION"] = _REGION
         os.environ["PLATFORM_ENV"] = "local"
         os.environ["POWERTOOLS_SERVICE_NAME"] = "bridge"
-        os.environ["MOCK_RUNTIME_URL"] = "http://mock-runtime:8080"
 
         ddb = boto3.resource("dynamodb", region_name=_REGION)
-        
+
         # Seed locks table
         ddb.create_table(
             TableName="platform-ops-locks",
@@ -69,11 +66,11 @@ def setup_data(fixed_now_value):
             BillingMode="PAY_PER_REQUEST",
         )
         config_table = ddb.Table("platform-config")
-        config_table.put_item(Item={"key": "runtime_region", "value": "eu-west-2"})
-        config_table.put_item(Item={"key": "mock_runtime_url", "value": "http://mock-runtime:8080"})
+        config_table.put_item(Item={"key": "runtime_region", "value": _REGION})
 
         # Seed SSM in both regions
         from src.tenant_api.constants import DEFAULT_RUNTIME_REGION_PARAM
+
         for region in [_REGION, "eu-central-1"]:
             ssm = boto3.client("ssm", region_name=region)
             ssm.put_parameter(
@@ -104,8 +101,14 @@ def setup_data(fixed_now_value):
                 "PK": "AGENT#echo-agent",
                 "SK": "VERSION#1.0.0",
                 "agent_name": "echo-agent",
+                "version": "1.0.0",
                 "invocation_mode": "sync",
-                "enabled": True,
+                "status": "promoted",
+                "deployed_at": "2026-01-01T00:00:00Z",
+                "owner_team": "platform",
+                "tier_minimum": "basic",
+                "layer_hash": "some-hash",
+                "layer_s3_key": "some-key",
             }
         )
 
@@ -129,25 +132,25 @@ def test_handler_failover_on_503(setup_data):
 
     with (
         patch("src.bridge.handler.get_http_session"),
-        patch("src.tenant_api.bootstrap.required_ssm_parameter") as mock_ssm_param,
-        patch("src.bridge.handler.invoke_mock_runtime") as mock_invoke_mock,
         patch("src.bridge.handler.invoke_real_runtime") as mock_invoke_real,
     ):
-        # mock_ssm_param returns initial region, then fallback after failover
-        mock_ssm_param.side_effect = ["eu-west-2", "eu-central-1", "eu-west-2", "eu-central-1"]
-
-        # First call (mock runtime) fails with 503
-        mock_invoke_mock.return_value = {
-            "statusCode": 503,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"error": {"code": "SERVICE_UNAVAILABLE"}}),
-        }
-
-        # Second call (after failover) succeeds
-        mock_invoke_real.return_value = {
-            "statusCode": 200,
-            "body": json.dumps({"output": "Success after failover"}),
-        }
+        # First call fails with ClientError(ServiceUnavailableException)
+        mock_invoke_real.side_effect = [
+            ClientError(
+                {
+                    "Error": {
+                        "Code": "ServiceUnavailableException",
+                        "Message": "Service unavailable",
+                    }
+                },
+                "InvokeAgent",
+            ),
+            # Second call (after failover) succeeds
+            {
+                "statusCode": 200,
+                "body": json.dumps({"output": "Success after failover"}),
+            },
+        ]
 
         response = handler(event, FakeLambdaContext())
 
@@ -156,15 +159,16 @@ def test_handler_failover_on_503(setup_data):
         assert body["output"] == "Success after failover"
 
         # Verify SSM was updated to eu-central-1
-        ssm = boto3.client("ssm", region_name="eu-west-2")
+        ssm = boto3.client("ssm", region_name=_REGION)
         from src.tenant_api.constants import DEFAULT_RUNTIME_REGION_PARAM
+
         param = ssm.get_parameter(Name=DEFAULT_RUNTIME_REGION_PARAM)
         assert param["Parameter"]["Value"] == "eu-central-1"
 
 
 def test_handler_failover_already_in_progress(setup_data):
     # Seed the lock to simulate another instance failing over
-    ddb = boto3.resource("dynamodb", region_name="eu-west-2")
+    ddb = boto3.resource("dynamodb", region_name=_REGION)
     lock_table = ddb.Table("platform-ops-locks")
     lock_table.put_item(
         Item={
@@ -191,30 +195,31 @@ def test_handler_failover_already_in_progress(setup_data):
 
     with (
         patch("src.bridge.handler.get_http_session"),
-        patch("src.tenant_api.bootstrap.required_ssm_parameter") as mock_ssm_param,
-        patch("src.bridge.handler.invoke_mock_runtime") as mock_invoke_mock,
         patch("src.bridge.handler.invoke_real_runtime") as mock_invoke_real,
     ):
-        mock_ssm_param.side_effect = ["eu-west-2", "eu-central-1", "eu-west-2", "eu-central-1"]
-
-        mock_invoke_mock.side_effect = [
+        mock_invoke_real.side_effect = [
+            ClientError(
+                {
+                    "Error": {
+                        "Code": "ServiceUnavailableException",
+                        "Message": "Service unavailable",
+                    }
+                },
+                "InvokeAgent",
+            ),
+            # Second call (after wait and re-fetch) succeeds
             {
-                "statusCode": 503,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": {"code": "SERVICE_UNAVAILABLE"}}),
-            }
+                "statusCode": 200,
+                "body": json.dumps({"output": "Success after wait"}),
+            },
         ]
-        
-        mock_invoke_real.return_value = {
-            "statusCode": 200,
-            "body": json.dumps({"output": "Success after wait"}),
-        }
 
         # In this case, our instance will see the lock, wait, and retry.
         # But for the retry to work, the SSM parameter must be updated by "someone else"
         # Since we are mocking everything, we'll manually update SSM while the lock is held.
-        ssm = boto3.client("ssm", region_name="eu-west-2")
+        ssm = boto3.client("ssm", region_name=_REGION)
         from src.tenant_api.constants import DEFAULT_RUNTIME_REGION_PARAM
+
         ssm.put_parameter(
             Name=DEFAULT_RUNTIME_REGION_PARAM,
             Value="eu-central-1",

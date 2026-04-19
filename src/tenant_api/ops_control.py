@@ -331,4 +331,8 @@ def dispatch_ops_routes(
 ) -> dict[str, Any] | None:
     if path == "/v1/platform/ops/lambda-rollback" and method == "POST":
         return handle_lambda_rollback(event, caller, deps)
+
+    if path.startswith("/v1/platform/ops"):
+        return http_utils.error(405, "METHOD_NOT_ALLOWED", "Method not allowed for this route")
+
     return None

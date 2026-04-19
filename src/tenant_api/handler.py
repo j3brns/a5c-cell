@@ -168,7 +168,9 @@ def _dispatch_tenant_routes(
     # 1. Try platform admin routes (platform-wide, no tenant context)
     from src.tenant_api import ops_control
 
-    is_platform_route = path.startswith("/v1/platform") and not path.startswith("/v1/platform/agents")
+    is_platform_route = path.startswith("/v1/platform") and not path.startswith(
+        "/v1/platform/agents"
+    )
     if is_platform_route and not caller.is_platform_actor:
         raise PermissionError("Platform tenant context required")
 
@@ -189,7 +191,6 @@ def _dispatch_tenant_routes(
             from src.tenant_api import agent_registry
         return agent_registry.dispatch_routes(path, method, event, caller, deps)
 
-
     # 4. Try webhook routes (can be platform or tenant scoped)
     if "/webhooks" in path:
         try:
@@ -204,7 +205,6 @@ def _dispatch_tenant_routes(
     except (ImportError, ValueError):
         from src.tenant_api import tenant_lifecycle
     return tenant_lifecycle.dispatch_routes(path, method, event, caller, deps, tenant_id)
-
 
 
 @logger.inject_lambda_context(clear_state=True, log_event=False)
@@ -239,7 +239,7 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
             except (ImportError, ValueError):
                 from src.tenant_api import tenant_lifecycle
             return tenant_lifecycle.handle_health(deps)
-        
+
         if runtime.path == "/v1/sessions" and runtime.method == "GET":
             try:
                 from . import tenant_lifecycle
@@ -247,7 +247,9 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
                 from src.tenant_api import tenant_lifecycle
             return tenant_lifecycle.handle_sessions(event, caller)
 
-        return http_utils.error(404, "NOT_FOUND", f"Route not found: {runtime.method} {runtime.path}")
+        return http_utils.error(
+            404, "NOT_FOUND", f"Route not found: {runtime.method} {runtime.path}"
+        )
     except PermissionError as exc:
         return http_utils.error(403, "FORBIDDEN", str(exc))
     except ValueError as exc:

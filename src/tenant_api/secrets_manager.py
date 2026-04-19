@@ -51,6 +51,28 @@ def create_api_key_secret(
     return str(response["ARN"])
 
 
+def rotate_api_key_secret(
+    deps: TenantApiDependencies,
+    *,
+    secret_arn: str,
+    tenant_id: str,
+    app_id: str,
+) -> str:
+    """Update existing secret with a new random API key."""
+    secret_string = json.dumps(
+        {
+            "tenantId": tenant_id,
+            "appId": app_id,
+            "apiKey": secrets.token_urlsafe(32),
+        }
+    )
+    response = deps.secretsmanager.put_secret_value(
+        SecretId=secret_arn,
+        SecretString=secret_string,
+    )
+    return str(response.get("VersionId", ""))
+
+
 def attach_tenant_api_key_secret_policy(
     deps: TenantApiDependencies,
     *,
