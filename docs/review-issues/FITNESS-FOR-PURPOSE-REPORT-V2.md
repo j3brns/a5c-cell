@@ -220,6 +220,11 @@ The entire codebase has zero deferred-work markers. Unusually disciplined.
 
 ## 6. GitNexus Utilisation Assessment
 
+**Update note (2026-04-19):** GitNexus has since been initialized for this clone.
+This section records the state observed during the 2026-04-10 review. Current index
+state should be read from `.gitnexus/meta.json`, and refreshes should preserve embeddings
+with `npx gitnexus analyze --embeddings` when `stats.embeddings` is greater than zero.
+
 ### Status: Installed but never run
 
 - 6 skill files present in `.claude/skills/gitnexus/` (exploring, impact-analysis, debugging, refactoring, guide, cli)

@@ -385,37 +385,46 @@ git worktree prune
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **wt389** (2825 symbols, 7315 relationships, 229 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+Use GitNexus as a staff-engineer risk tool: it is required for high-blast-radius or
+unfamiliar code changes, but optional for docs-only, issue-tracker, simple config,
+formatting, and narrow single-file changes.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+> If any GitNexus tool warns the index is stale, refresh with `make gitnexus-refresh`.
+> If `.gitnexus/meta.json` has `stats.embeddings > 0`, preserve embeddings with
+> `npx gitnexus analyze --embeddings`.
 
-## Always Do
+## Required Use
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+Run GitNexus context/impact before:
+- renaming, moving, or extracting functions/classes/modules
+- editing shared runtime paths or data-access-lib behavior
+- changing tenant isolation, authoriser, bridge, gateway, or IAM-sensitive flows
+- changing CDK stack boundaries or shared infrastructure contracts
+- touching multiple modules where call graph impact is not obvious
 
-## When Debugging
+Before committing non-trivial code changes, run GitNexus `detect_changes` or document why
+GitNexus was unavailable or not useful. Warn the user before continuing if impact analysis
+returns HIGH or CRITICAL risk.
 
-1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
-2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
-3. `READ gitnexus://repo/wt389/process/{processName}` — trace the full execution flow step by step
-4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
+## Optional Use
 
-## When Refactoring
+GitNexus is optional for:
+- docs-only changes
+- GitLab issue/backlog work
+- local workflow config
+- deleting temporary staging files
+- straightforward single-test changes
+- simple formatting/lint fixes
 
-- **Renaming**: MUST use `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` first. Review the preview — graph edits are safe, text_search edits need manual review. Then run with `dry_run: false`.
-- **Extracting/Splitting**: MUST run `gitnexus_context({name: "target"})` to see all incoming/outgoing refs, then `gitnexus_impact({target: "target", direction: "upstream"})` to find all external callers before moving code.
-- After any refactor: run `gitnexus_detect_changes({scope: "all"})` to verify only expected files changed.
+Use `rg`, direct file reads, and focused tests for these low-blast-radius changes.
 
-## Never Do
+## Recommended Flow
 
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+1. `gitnexus_query({query: "<concept or symptom>"})` for unfamiliar flows.
+2. `gitnexus_context({name: "<symbol>"})` for callers, callees, and process participation.
+3. `gitnexus_impact({target: "<symbol>", direction: "upstream"})` before risky edits.
+4. `gitnexus_detect_changes({scope: "all"})` before committing non-trivial code changes.
+5. Use `gitnexus_rename(..., dry_run=true)` before any coordinated rename.
 
 ## Tools Quick Reference
 
@@ -438,38 +447,24 @@ This project is indexed by GitNexus as **wt389** (2825 symbols, 7315 relationshi
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/wt389/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/wt389/clusters` | All functional areas |
-| `gitnexus://repo/wt389/processes` | All execution flows |
-| `gitnexus://repo/wt389/process/{name}` | Step-by-step execution trace |
-
-## Self-Check Before Finishing
-
-Before completing any code modification task, verify:
-1. `gitnexus_impact` was run for all modified symbols
-2. No HIGH/CRITICAL risk warnings were ignored
-3. `gitnexus_detect_changes()` confirms changes match expected scope
-4. All d=1 (WILL BREAK) dependents were updated
+Use `mcp__gitnexus__list_repos` or `.gitnexus/meta.json` for current repo/index identity.
+Do not hardcode stale generated repo names such as `wt389` or a worktree folder name.
 
 ## Keeping the Index Fresh
 
-After committing code changes, the GitNexus index becomes stale. Re-run analyze to update it:
+After committing code changes, the GitNexus index becomes stale. Prefer:
 
 ```bash
-npx gitnexus analyze
+make gitnexus-refresh
 ```
 
-If the index previously included embeddings, preserve them by adding `--embeddings`:
+If running manually, inspect `.gitnexus/meta.json`. When `stats.embeddings > 0`, run:
 
 ```bash
 npx gitnexus analyze --embeddings
 ```
 
-To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.embeddings` field shows the count (0 means no embeddings). **Running analyze without `--embeddings` will delete any previously generated embeddings.**
-
-> Claude Code users: A PostToolUse hook handles this automatically after `git commit` and `git merge`.
+Running analyze without `--embeddings` deletes previously generated embeddings.
 
 ## CLI
 
