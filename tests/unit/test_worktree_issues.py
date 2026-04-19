@@ -1044,10 +1044,30 @@ def test_prepare_gitnexus_for_worktree_warns_when_npm_cache_path_unavailable(mon
     captured = capsys.readouterr()
     assert calls == [
         ["npx", "--yes", "gitnexus", "status"],
+        ["npx", "--yes", "gitnexus", "analyze", "--help"],
+        ["npx", "--yes", "gitnexus", "analyze", "--help"],
         ["npx", "--yes", "gitnexus", "analyze"],
     ]
     assert "npm cache path unavailable" in captured.err
     assert "rebuilding local index" in captured.out
+
+
+def test_gitnexus_analyze_supports_detects_latest_flags(monkeypatch):
+    def _run_gitnexus_command(_path, args, *, check, timeout_seconds=None):
+        assert args == ["analyze", "--help"]
+        assert timeout_seconds == 30
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            "--embeddings\n--skip-agents-md\n--no-stats\n",
+            "",
+        )
+
+    monkeypatch.setattr(worktree_issues, "run_gitnexus_command", _run_gitnexus_command)
+
+    assert worktree_issues.gitnexus_analyze_supports("--skip-agents-md")
+    assert worktree_issues.gitnexus_analyze_supports("--no-stats")
+    assert not worktree_issues.gitnexus_analyze_supports("--missing-option")
 
 
 def test_prepare_gitnexus_preserves_existing_embeddings(monkeypatch, tmp_path):
@@ -1059,10 +1079,12 @@ def test_prepare_gitnexus_preserves_existing_embeddings(monkeypatch, tmp_path):
     )
     calls: list[list[str]] = []
 
-    def _run_gitnexus_command(_path, args, *, check):
+    def _run_gitnexus_command(_path, args, *, check, timeout_seconds=None):
         calls.append(args)
         if args == ["status"]:
             return subprocess.CompletedProcess(args, 1, "stale index", "")
+        if args == ["analyze", "--help"]:
+            return subprocess.CompletedProcess(args, 0, "--skip-agents-md\n--no-stats\n", "")
         return subprocess.CompletedProcess(args, 0, "analyzed", "")
 
     monkeypatch.setattr(worktree_issues, "gitnexus_cli_path", lambda: Path("/usr/bin/gitnexus"))
@@ -1071,7 +1093,12 @@ def test_prepare_gitnexus_preserves_existing_embeddings(monkeypatch, tmp_path):
 
     worktree_issues.prepare_gitnexus_for_worktree(repo)
 
-    assert calls == [["status"], ["analyze", "--embeddings"]]
+    assert calls == [
+        ["status"],
+        ["analyze", "--help"],
+        ["analyze", "--help"],
+        ["analyze", "--embeddings", "--skip-agents-md", "--no-stats"],
+    ]
 
 
 def test_cmd_wt_batch_writes_manifest_and_launches_detached_agents(monkeypatch, capsys, tmp_path):
