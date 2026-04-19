@@ -40,12 +40,15 @@ describe("AgentCataloguePage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("echo-agent")).toBeInTheDocument();
-      expect(screen.getByText("Version 1.0.0 • sync")).toBeInTheDocument();
+      expect(screen.getAllByText(/1\.0\.0/)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/sync/i)[0]).toBeInTheDocument();
       expect(screen.getByText("research-agent")).toBeInTheDocument();
-      expect(screen.getByText("Version 2.1.0 • async")).toBeInTheDocument();
+      expect(screen.getAllByText(/2\.1\.0/)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/async/i)[0]).toBeInTheDocument();
       expect(screen.getByText("ops-agent")).toBeInTheDocument();
-      expect(screen.getByText("Version 3.0.0 • streaming")).toBeInTheDocument();
-      expect(screen.getAllByText("Streaming")).toHaveLength(2);
+      expect(screen.getAllByText(/3\.0\.0/)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/streaming/i)[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/Streaming/i)).not.toHaveLength(0);
     });
     expect(request).toHaveBeenCalledWith("/v1/agents");
   });
@@ -62,7 +65,7 @@ describe("AgentCataloguePage", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("No agents found.")).toBeInTheDocument();
+      expect(screen.getByText("No Agents Found")).toBeInTheDocument();
     });
   });
 

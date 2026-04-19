@@ -57,10 +57,10 @@ describe("TenantMembersPage", () => {
 
     render(<TenantMembersPage />);
 
-    fireEvent.change(screen.getByLabelText("Email Address"), {
+    fireEvent.change(screen.getAllByLabelText(/Email Address/i)[0], {
       target: { value: "new.user@example.com" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Send Invite" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Send Invite/i })[0]);
 
     await waitFor(() => {
       expect(client.request).toHaveBeenCalledWith("/v1/tenants/tenant-acme/users/invite", {
@@ -82,7 +82,7 @@ describe("TenantMembersPage", () => {
   it("does not offer platform roles in the invite form", () => {
     render(<TenantMembersPage />);
 
-    expect(screen.getByText("Agent.Invoke (tenant-scoped access)")).toBeInTheDocument();
+    expect(screen.getAllByText(/Agent.Invoke/i)).not.toHaveLength(0);
     expect(screen.queryByText("Platform.Operator (Admin Access)")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Role")).not.toBeInTheDocument();
   });

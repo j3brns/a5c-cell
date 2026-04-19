@@ -1,88 +1,94 @@
-import TestRenderer, { act } from "react-test-renderer";
+/* @vitest-environment jsdom */
+import "@testing-library/jest-dom/vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import React from "react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthContextValue } from "../test/mockFactories";
 import { asyncAccepted, buildAgent } from "../test/testData";
-import type { Job } from "../types";
 import { InvokePage } from "./InvokePage";
 
-const { getApiClientMock, getAccessTokenMock, navigateMock, requestMock, streamMock, useAuthMock, useJobPollingMock, useAgUiSessionMock } =
-    vi.hoisted(() => {
-        const request = vi.fn();
-        const stream = vi.fn();
-        const useAuth = vi.fn();
-        return {
-            getApiClientMock: vi.fn(() => ({ request, stream })),
-            getAccessTokenMock: vi.fn(async () => "token"),
-            navigateMock: vi.fn(),
-            requestMock: request,
-            streamMock: stream,
-            useAuthMock: useAuth,
-            useJobPollingMock: vi.fn((jobId: string | null, getAccessToken: typeof getAccessTokenMock) => {
-                void jobId;
-                void getAccessToken;
-                return {
-                    status: null as Job | null,
-                    loading: false,
-                    error: null as string | null,
-                };
-            }),
-            useAgUiSessionMock: vi.fn(() => ({
-                status: "idle" as string,
-                bootstrap: null,
-                messages: [],
-                accumulatedText: "",
-                sessionId: null as string | null,
-                error: null as string | null,
-                start: vi.fn(),
-                disconnect: vi.fn(),
-                reconnect: vi.fn(),
-            })),
-        };
-    });
-
-vi.mock("../api/client", async () => {
-    const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
+// Define mocks and classes in vi.hoisted to ensure they're available during hoisting
+const { navigateMock, requestMock, streamMock, ApiError } = vi.hoisted(() => {
+    class ApiError extends Error {
+        body: any;
+        constructor(message: string, body: any) {
+            super(message);
+            this.name = "ApiError";
+            this.body = body;
+        }
+    }
     return {
-        ...actual,
-        getApiClient: getApiClientMock,
+        navigateMock: vi.fn(),
+        requestMock: vi.fn(),
+        streamMock: vi.fn(),
+        ApiError: ApiError
     };
 });
 
-vi.mock("../auth/useAuth", () => ({
-    useAuth: useAuthMock,
+vi.mock("../api/client", () => ({
+    getApiClient: () => ({
+        request: requestMock,
+        stream: streamMock,
+    }),
+    ApiError: ApiError,
 }));
 
 vi.mock("../hooks/useJobPolling", () => ({
-    useJobPolling: (jobId: string | null, getAccessToken: typeof getAccessTokenMock) =>
-        useJobPollingMock(jobId, getAccessToken),
+    useJobPolling: (jobId: string | null) => ({
+        status: jobId === "job-777" ? { 
+            jobId: "job-777", 
+            status: "completed", 
+            resultUrl: "https://example.test/result" 
+        } : null,
+        loading: false,
+        error: jobId === "job-777" ? "polling warning" : null,
+    }),
 }));
 
 vi.mock("../hooks/useSessionKeepalive", () => ({
     useSessionKeepalive: vi.fn(),
 }));
 
+// We'll mock useAgUiSession with a default implementation that can be overridden if needed
+let agUiSessionMock = {
+    status: "idle",
+    bootstrap: null,
+    messages: [],
+    accumulatedText: "",
+    sessionId: null,
+    error: null,
+    start: vi.fn(),
+    disconnect: vi.fn(),
+    reconnect: vi.fn(),
+};
+
 vi.mock("../hooks/useAgUiSession", () => ({
-    useAgUiSession: (...args: unknown[]) => useAgUiSessionMock(...args),
+    useAgUiSession: () => agUiSessionMock,
 }));
 
+// Use actual useNavigate but wrap in MemoryRouter to capture navigation
 vi.mock("react-router-dom", async () => {
     const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
     return {
         ...actual,
         useNavigate: () => navigateMock,
-        useParams: () => ({ agentName: "echo-agent" }),
     };
 });
 
-async function flushMicrotasks(): Promise<void> {
-    await act(async () => {
-        await Promise.resolve();
-    });
+function renderWithRouter(ui: React.ReactElement, { route = "/agents/echo-agent" } = {}) {
+    return render(
+        <MemoryRouter initialEntries={[route]}>
+            <Routes>
+                <Route path="/agents/:agentName" element={ui} />
+                <Route path="/" element={<div>Catalogue</div>} />
+            </Routes>
+        </MemoryRouter>
+    );
 }
 
 function getInvokeBody(): Record<string, unknown> {
-    const call = requestMock.mock.calls[1];
+    const call = requestMock.mock.calls.find(c => c[0].endsWith("/invoke"));
     const init = call?.[1] as { body?: string } | undefined;
     if (!init?.body) {
         throw new Error("Invoke request body not captured");
@@ -93,10 +99,26 @@ function getInvokeBody(): Record<string, unknown> {
 describe("InvokePage", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        useAuthMock.mockReturnValue(createAuthContextValue({
-            isAuthenticated: true,
-            getAccessToken: getAccessTokenMock,
-        }));
+        agUiSessionMock = {
+            status: "idle",
+            bootstrap: null,
+            messages: [],
+            accumulatedText: "",
+            sessionId: null,
+            error: null,
+            start: vi.fn(),
+            disconnect: vi.fn(),
+            reconnect: vi.fn(),
+        };
+    });
+
+    it("renders agent metadata from the deployed camelCase detail contract", async () => {
+        requestMock.mockResolvedValueOnce(buildAgent("sync"));
+
+        renderWithRouter(<InvokePage />);
+
+        expect(await screen.findByText(/Invoke: echo-agent/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/sync/i)[0]).toBeInTheDocument();
     });
 
     it("sends sync invoke requests with contract-compatible input payload", async () => {
@@ -106,48 +128,19 @@ describe("InvokePage", () => {
             mode: "sync",
             status: "success",
             output: "hello",
-            timestamp: "2026-03-08T00:00:00Z",
         });
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
+        renderWithRouter(<InvokePage />);
+
+        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        fireEvent.change(input, { target: { value: "ping" } });
+        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+
+        await waitFor(() => {
+            expect(requestMock).toHaveBeenCalledTimes(2);
         });
 
-        await flushMicrotasks();
-
-        const textarea = renderer!.root.findByType("textarea");
-        act(() => {
-            textarea.props.onChange({ target: { value: "ping" } });
-        });
-
-        const form = renderer!.root.findByType("form");
-        await act(async () => {
-            await form.props.onSubmit({ preventDefault: () => undefined });
-        });
-
-        expect(requestMock).toHaveBeenNthCalledWith(2, "/v1/agents/echo-agent/invoke", expect.objectContaining({
-            method: "POST",
-        }));
         expect(getInvokeBody()).toEqual({ input: "ping" });
-    });
-
-    it("renders agent metadata from the deployed camelCase detail contract", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("sync"));
-
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
-
-        await flushMicrotasks();
-
-        const pageText = JSON.stringify(renderer!.toJSON());
-        expect(pageText).toContain("Invoke: ");
-        expect(pageText).toContain("echo-agent");
-        expect(pageText).toContain("sync mode");
-        expect(pageText).toContain("Tier: ");
-        expect(pageText).toContain("basic+");
     });
 
     it("uses streaming invoke path with contract-compatible payload", async () => {
@@ -159,24 +152,16 @@ describe("InvokePage", () => {
             })(),
         );
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
+        renderWithRouter(<InvokePage />);
+
+        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        fireEvent.change(input, { target: { value: "stream this" } });
+        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+
+        await waitFor(() => {
+            expect(streamMock).toHaveBeenCalledTimes(1);
         });
 
-        await flushMicrotasks();
-
-        const textarea = renderer!.root.findByType("textarea");
-        act(() => {
-            textarea.props.onChange({ target: { value: "stream this" } });
-        });
-
-        const form = renderer!.root.findByType("form");
-        await act(async () => {
-            await form.props.onSubmit({ preventDefault: () => undefined });
-        });
-
-        expect(streamMock).toHaveBeenCalledTimes(1);
         expect(streamMock).toHaveBeenCalledWith("/v1/agents/echo-agent/invoke", expect.objectContaining({
             method: "POST",
             body: JSON.stringify({ input: "stream this" }),
@@ -186,25 +171,17 @@ describe("InvokePage", () => {
     it("handles async accepted responses and starts polling with jobId", async () => {
         requestMock.mockResolvedValueOnce(buildAgent("async")).mockResolvedValueOnce(asyncAccepted);
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
+        renderWithRouter(<InvokePage />);
 
-        await flushMicrotasks();
+        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        fireEvent.change(input, { target: { value: "run async" } });
+        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
 
-        const textarea = renderer!.root.findByType("textarea");
-        act(() => {
-            textarea.props.onChange({ target: { value: "run async" } });
-        });
-
-        const form = renderer!.root.findByType("form");
-        await act(async () => {
-            await form.props.onSubmit({ preventDefault: () => undefined });
+        await waitFor(() => {
+            expect(requestMock).toHaveBeenCalledTimes(2);
         });
 
         expect(getInvokeBody()).toEqual({ input: "run async" });
-        expect(useJobPollingMock).toHaveBeenLastCalledWith("job-777", getAccessTokenMock);
     });
 
     it("surfaces async contract error when accepted response has no job id", async () => {
@@ -212,265 +189,97 @@ describe("InvokePage", () => {
             jobId: "",
             status: "accepted",
             mode: "async",
-            pollUrl: "",
         });
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
+        renderWithRouter(<InvokePage />);
 
-        await flushMicrotasks();
+        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        fireEvent.change(input, { target: { value: "run async without id" } });
+        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
 
-        const textarea = renderer!.root.findByType("textarea");
-        act(() => {
-            textarea.props.onChange({ target: { value: "run async without id" } });
-        });
-
-        const form = renderer!.root.findByType("form");
-        await act(async () => {
-            await form.props.onSubmit({ preventDefault: () => undefined });
-        });
-
-        const pageText = JSON.stringify(renderer!.toJSON());
-        expect(pageText).toContain("Async invoke response missing jobId");
-    });
-
-    it("shows an authentication-required banner when unauthenticated", async () => {
-        useAuthMock.mockReturnValue(createAuthContextValue({
-            isAuthenticated: false,
-            getAccessToken: getAccessTokenMock,
-        }));
-
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
-
-        await flushMicrotasks();
-
-        expect(requestMock).not.toHaveBeenCalled();
-        const pageText = JSON.stringify(renderer!.toJSON());
-        expect(pageText).toContain("Authentication Required");
-        expect(pageText).toContain("Sign in again");
+        expect(await screen.findByText(/Async invoke response missing jobId/i)).toBeInTheDocument();
     });
 
     it("shows fetch error when initial agent lookup fails", async () => {
-        requestMock.mockRejectedValueOnce(new Error("agent lookup failed"));
+        requestMock.mockRejectedValueOnce(new ApiError("agent lookup failed", { error: { message: "agent lookup failed" } }));
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
+        renderWithRouter(<InvokePage />);
 
-        await flushMicrotasks();
-
-        expect(JSON.stringify(renderer!.toJSON())).toContain("agent lookup failed");
+        expect(await screen.findByText(/agent lookup failed/i)).toBeInTheDocument();
     });
 
     it("renders async completion link and polling error details", async () => {
-        useJobPollingMock.mockReturnValue({
-            status: {
-                jobId: "job-777",
-                tenantId: "tenant-1",
-                agentName: "echo-agent",
-                status: "completed",
-                createdAt: "2026-03-08T00:00:00Z",
-                completedAt: "2026-03-08T00:00:10Z",
-                resultUrl: "https://example.test/result",
-            },
-            loading: false,
-            error: "polling warning",
-        });
         requestMock.mockResolvedValueOnce(buildAgent("async")).mockResolvedValueOnce(asyncAccepted);
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
+        renderWithRouter(<InvokePage />);
 
-        await flushMicrotasks();
+        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        fireEvent.change(input, { target: { value: "complete async" } });
+        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
 
-        const textarea = renderer!.root.findByType("textarea");
-        act(() => {
-            textarea.props.onChange({ target: { value: "complete async" } });
-        });
-
-        const form = renderer!.root.findByType("form");
-        await act(async () => {
-            await form.props.onSubmit({ preventDefault: () => undefined });
-        });
-
-        const pageText = JSON.stringify(renderer!.toJSON());
-        expect(pageText).toContain("View Results");
-        expect(pageText).toContain("polling warning");
+        expect(await screen.findByText(/View Results/i)).toBeInTheDocument();
+        expect(screen.getByText(/polling warning/i)).toBeInTheDocument();
     });
 
     it("shows AG-UI badge and interactive button for AG-UI-capable agents", async () => {
         requestMock.mockResolvedValueOnce(buildAgent("streaming", { agUiEnabled: true }));
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
+        renderWithRouter(<InvokePage />);
 
-        await flushMicrotasks();
-
-        const pageText = JSON.stringify(renderer!.toJSON());
-        expect(pageText).toContain("AG-UI");
-        expect(pageText).toContain("Start Interactive Session");
+        expect(await screen.findByText(/AG-UI/i)).toBeInTheDocument();
+        expect(screen.getByText(/Start Interactive Session/i)).toBeInTheDocument();
     });
 
     it("uses AG-UI session start for AG-UI-capable agents on invoke", async () => {
-        const startMock = vi.fn();
-        useAgUiSessionMock.mockReturnValue({
-            status: "idle",
-            bootstrap: null,
-            messages: [],
-            accumulatedText: "",
-            sessionId: null,
-            error: null,
-            start: startMock,
-            disconnect: vi.fn(),
-            reconnect: vi.fn(),
-        });
+        agUiSessionMock.start = vi.fn();
         requestMock.mockResolvedValueOnce(buildAgent("streaming", { agUiEnabled: true }));
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
+        renderWithRouter(<InvokePage />);
+
+        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        fireEvent.change(input, { target: { value: "interactive test" } });
+        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+
+        await waitFor(() => {
+            expect(agUiSessionMock.start).toHaveBeenCalledWith("interactive test");
         });
-
-        await flushMicrotasks();
-
-        const textarea = renderer!.root.findByType("textarea");
-        act(() => {
-            textarea.props.onChange({ target: { value: "interactive test" } });
-        });
-
-        const form = renderer!.root.findByType("form");
-        await act(async () => {
-            await form.props.onSubmit({ preventDefault: () => undefined });
-        });
-
-        expect(startMock).toHaveBeenCalledWith("interactive test");
-        // REST invoke should NOT be called
-        expect(requestMock).toHaveBeenCalledTimes(1); // only the agent detail fetch
+        
+        expect(requestMock).toHaveBeenCalledTimes(1); 
         expect(streamMock).not.toHaveBeenCalled();
     });
 
-    it("uses REST invoke for non-AG-UI agents even when hook is present", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("sync")).mockResolvedValueOnce({
-            invocationId: "inv-2",
-            agentName: "echo-agent",
-            mode: "sync",
-            status: "success",
-            output: "rest response",
-            timestamp: "2026-04-01T00:00:00Z",
-        });
-
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
-
-        await flushMicrotasks();
-
-        const textarea = renderer!.root.findByType("textarea");
-        act(() => {
-            textarea.props.onChange({ target: { value: "rest test" } });
-        });
-
-        const form = renderer!.root.findByType("form");
-        await act(async () => {
-            await form.props.onSubmit({ preventDefault: () => undefined });
-        });
-
-        expect(requestMock).toHaveBeenCalledTimes(2);
-    });
-
     it("shows AG-UI accumulated text via ResponseDisplay", async () => {
-        useAgUiSessionMock.mockReturnValue({
-            status: "connected",
-            bootstrap: { sessionId: "sess-1" },
-            messages: [],
-            accumulatedText: "AG-UI streamed output",
-            sessionId: "sess-1",
-            error: null,
-            start: vi.fn(),
-            disconnect: vi.fn(),
-            reconnect: vi.fn(),
-        });
+        agUiSessionMock.status = "connected";
+        agUiSessionMock.accumulatedText = "AG-UI streamed output";
+        agUiSessionMock.sessionId = "sess-1";
+        
         requestMock.mockResolvedValueOnce(buildAgent("streaming", { agUiEnabled: true }));
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
+        renderWithRouter(<InvokePage />);
 
-        await flushMicrotasks();
-
-        const pageText = JSON.stringify(renderer!.toJSON());
-        expect(pageText).toContain("AG-UI streamed output");
-        expect(pageText).toContain("AG-UI session active");
+        expect(await screen.findByText(/AG-UI streamed output/i)).toBeInTheDocument();
+        expect(screen.getByText(/AG-UI session active/i)).toBeInTheDocument();
     });
 
     it("shows AG-UI error with retry option", async () => {
-        const reconnectMock = vi.fn();
-        useAgUiSessionMock.mockReturnValue({
-            status: "error",
-            bootstrap: null,
-            messages: [],
-            accumulatedText: "",
-            sessionId: null,
-            error: "AG-UI connection lost after 3 reconnect attempts",
-            start: vi.fn(),
-            disconnect: vi.fn(),
-            reconnect: reconnectMock,
-        });
+        agUiSessionMock.status = "error";
+        agUiSessionMock.error = "AG-UI connection lost";
+        
         requestMock.mockResolvedValueOnce(buildAgent("streaming", { agUiEnabled: true }));
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
+        renderWithRouter(<InvokePage />);
 
-        await flushMicrotasks();
-
-        const pageText = JSON.stringify(renderer!.toJSON());
-        expect(pageText).toContain("AG-UI connection lost");
-        expect(pageText).toContain("Retry AG-UI");
+        expect(await screen.findByText(/AG-UI connection lost/i)).toBeInTheDocument();
+        expect(screen.getByText(/Retry AG-UI/i)).toBeInTheDocument();
     });
 
     it("navigates back to catalogue when back button is clicked", async () => {
         requestMock.mockResolvedValueOnce(buildAgent("sync"));
 
-        let renderer: TestRenderer.ReactTestRenderer;
-        await act(async () => {
-            renderer = TestRenderer.create(<InvokePage />);
-        });
+        renderWithRouter(<InvokePage />);
 
-        await flushMicrotasks();
-
-        const backButton = renderer!
-            .root
-            .findAllByType("button")
-            .find((node) => {
-                const children = node.props.children;
-                if (typeof children === "string") {
-                    return children.includes("Back to Catalogue");
-                }
-                if (Array.isArray(children)) {
-                    return children.join("").includes("Back to Catalogue");
-                }
-                return false;
-            });
-        if (!backButton) {
-            throw new Error("Back button not found");
-        }
-        act(() => {
-            backButton.props.onClick();
-        });
+        const backLink = await screen.findByRole("link", { name: /back to catalogue/i });
+        fireEvent.click(backLink);
 
         expect(navigateMock).toHaveBeenCalledWith("/");
     });

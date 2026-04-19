@@ -31,7 +31,7 @@ export const TenantMembersPage: React.FC = () => {
             const response = await client.request<TenantUserInviteAcceptedResponseDto>(`/v1/tenants/${tenantId}/users/invite`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: inviteEmail.trim(), role: TENANT_INVITE_ROLE }),
+                body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
             });
             setInviteMessage({ type: 'success', text: `Invite sent to ${response.invite.email}.` });
             setInviteEmail("");
@@ -99,20 +99,22 @@ export const TenantMembersPage: React.FC = () => {
                     </div>
                     <form onSubmit={onInviteSubmit} className="p-6 space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                            <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">Email Address</label>
                             <input
+                                id="email-address"
                                 type="email"
-                                required
                                 value={inviteEmail}
-                                onChange={e => setInviteEmail(e.target.value)}
+                                onChange={(e) => setInviteEmail(e.target.value)}
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                 placeholder="name@example.com"
+                                required
                             />
                         </div>
+
                         <div>
                             <span className="block text-sm font-medium text-gray-700">Access Level</span>
                             <p className="mt-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                                {TENANT_INVITE_ROLE} (tenant-scoped access)
+                                {inviteRole} (tenant-scoped access)
                             </p>
                         </div>
                         <div className="pt-2">
