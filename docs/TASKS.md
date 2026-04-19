@@ -556,3 +556,31 @@ task. Result delivered via webhook and available via poll endpoint.
               Integrated AppConfig Lambda Extension for local config caching
               Eliminated hot-path SSM API calls and database scan lag
               Done: 2026-04-02
+
+---
+
+## Phase 9 — Tech Debt Elimination (Current)
+
+[ ] TASK-056  Implement Unified Python CLI with Typer (Issue #40)
+              Consolidate Makefile wrappers and scattered scripts into a single
+              platform-cli. Improve argument parsing and documentation.
+              ADRs: TBD | Tests: CLI coverage
+              Seq: 702
+
+[ ] TASK-057  Replace Imperative Tool Setup with Declarative Manifest (Issue #41)
+              Move away from fragile curl|tar logic in install-dev-tools.sh.
+              Use version-pinned manifest with checksum verification.
+              ADRs: TBD | Tests: setup idempotency
+              Seq: 703
+
+[ ] TASK-058  Implement Modular Pydantic Configuration Models (Issue #42)
+              Centralize environment variable loading and validation using
+              pydantic-settings. Remove os.environ calls from business logic.
+              ADRs: TBD | Tests: validation coverage
+              Seq: 704
+
+[ ] TASK-059  Standardize Granular Validation Targets (Issue #43)
+              Ensure 100% parity between local validation and CI pipeline.
+              Enable fast, independent suites for inner-loop productivity.
+              ADRs: TBD | Tests: CI parity verify
+              Seq: 705
