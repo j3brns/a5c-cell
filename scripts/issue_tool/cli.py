@@ -818,6 +818,22 @@ def gitnexus_embeddings_present(path: Path) -> bool:
         return False
 
 
+def gitnexus_analyze_supports(option: str) -> bool:
+    try:
+        proc = run_gitnexus_command(
+            Path.cwd(),
+            ["analyze", "--help"],
+            check=False,
+            timeout_seconds=30,
+        )
+    except subprocess.CalledProcessError:
+        return False
+    output = "\n".join(
+        part.strip() for part in (proc.stdout or "", proc.stderr or "") if part.strip()
+    )
+    return option in output
+
+
 def gitnexus_cli_path() -> Path | None:
     override = os.environ.get("WORKTREE_GITNEXUS_CLI")
     if override:
@@ -937,6 +953,10 @@ def prepare_gitnexus_for_worktree(path: Path) -> None:
     analyze_args = ["analyze"]
     if gitnexus_embeddings_present(path):
         analyze_args.append("--embeddings")
+    if gitnexus_analyze_supports("--skip-agents-md"):
+        analyze_args.append("--skip-agents-md")
+    if gitnexus_analyze_supports("--no-stats"):
+        analyze_args.append("--no-stats")
 
     print(f"GitNexus: rebuilding local index for this worktree ({' '.join(analyze_args)})")
     try:
