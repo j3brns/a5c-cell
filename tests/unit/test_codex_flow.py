@@ -100,7 +100,7 @@ def test_notes_path_is_scoped_under_local_state(tmp_path):
     assert path == root / ".codex-flow" / "notes" / "card-7.md"
 
 
-def test_import_github_issues_adds_only_missing_issue_cards():
+def test_import_gitlab_issues_adds_only_missing_issue_cards():
     board = codex_flow.default_board()
     codex_flow.append_card(
         board,
@@ -118,11 +118,11 @@ def test_import_github_issues_adds_only_missing_issue_cards():
         ),
     )
 
-    added = codex_flow.import_github_issues(
+    added = codex_flow.import_gitlab_issues(
         board,
         [
-            {"number": 388, "title": "existing"},
-            {"number": 389, "title": "new issue"},
+            {"iid": 388, "title": "existing"},
+            {"iid": 389, "title": "new issue"},
         ],
         lane="backlog",
     )

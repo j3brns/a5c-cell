@@ -28,7 +28,7 @@ def test_ci_test_matrix_covers_unit_integration_and_cdk() -> None:
     content = CI_FILE.read_text(encoding="utf-8")
     for name in ("test-unit", "test-integration", "test-cdk"):
         block = _job_block(name, content)
-        assert "extends: .test_job_base" in block
+        assert "extends: .test_job_base" in block or "extends: .aws_auth_base" in block
 
 
 def test_validate_pipeline_policy_runs_ci_contract_and_protection_script_tests() -> None:

@@ -9,7 +9,7 @@
 #   node   — pyright, tsc, cdk synth (any version; v20 preferred)
 #
 # Soft requirements (warn if missing, do not abort):
-#   aws CLI, gh, cfn-guard, claude
+#   aws CLI, glab, cfn-guard, claude
 #
 # In ephemeral environments (containers, Codespaces) where sudo has no
 # password, system packages are installed automatically.
@@ -121,25 +121,22 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. GitHub CLI (soft requirement — needed for task-finish PR creation)
+# 4. GitLab CLI (soft requirement — needed for issue and MR workflow)
 # ---------------------------------------------------------------------------
-if command -v gh &>/dev/null; then
-    skip "gh $(gh --version | head -1)"
+if command -v glab &>/dev/null; then
+    skip "glab $(glab --version | head -1)"
 elif $CAN_SUDO; then
-    info "Installing GitHub CLI..."
-    apt_install ca-certificates gnupg
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-        | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
-    sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-        | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-    if apt_install gh; then
-        ok "gh $(gh --version | head -1)"
+    info "Installing GitLab CLI..."
+    apt_install ca-certificates curl
+    curl -fsSL https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh \
+        | sudo bash 2>/dev/null || true
+    if command -v glab &>/dev/null; then
+        ok "glab $(glab --version | head -1)"
     else
-        fail "gh"
+        fail "glab"
     fi
 else
-    warn "gh not installed — needed for task-finish PR creation"
+    warn "glab not installed — needed for issue and MR workflow"
 fi
 
 # ---------------------------------------------------------------------------

@@ -7,9 +7,10 @@ Start here, then follow the links for your role.
 
 ## Source Of Truth Split
 
-- **GitHub** is the canonical system for issues, pull requests, and active work tracking.
-- **GitLab** remains the CI/CD and protected deployment target for this repository.
-- The docs below describe the product and operating model; they do not imply that collaboration and deployment live in the same system.
+- **GitLab** is the canonical system for issues, merge requests, CI/CD, protected
+  deployments, and active work tracking.
+- The docs below describe the product and operating model; use the GitLab issue
+  workflow in [CLAUDE.md](../CLAUDE.md) for delivery operations.
 
 ## Reading Guide (by Role)
 

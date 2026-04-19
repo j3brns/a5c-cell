@@ -2,6 +2,7 @@
 .scratch/
 .codex
 .codex-flow/
+.omx/
 
 # Python
 __pycache__/
