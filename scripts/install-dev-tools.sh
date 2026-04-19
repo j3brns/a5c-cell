@@ -151,9 +151,10 @@ else
     # Find latest release tag
     CFN_TAG="$(curl -fsSL https://api.github.com/repos/aws-cloudformation/cloudformation-guard/releases/latest \
         2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
-    CFN_TAG="${CFN_TAG:-3.1.1}"
+    CFN_TAG="${CFN_TAG:-3.2.0}"
+    CFN_FILE="cfn-guard-v3-$( [[ "$OS_ARCH" == "aarch64" ]] && echo "aarch64" || echo "x86_64" )-linux-latest.tar.gz"
     if curl -fsSL \
-        "https://github.com/aws-cloudformation/cloudformation-guard/releases/download/${CFN_TAG}/cfn-guard-v3-${CFN_ARCH}.tar.gz" \
+        "https://github.com/aws-cloudformation/cloudformation-guard/releases/download/${CFN_TAG}/${CFN_FILE}" \
         | tar -xz -C "$INSTALL_DIR" cfn-guard 2>/dev/null \
         && chmod +x "$INSTALL_DIR/cfn-guard"; then
         ok "cfn-guard $(cfn-guard --version 2>&1)"
