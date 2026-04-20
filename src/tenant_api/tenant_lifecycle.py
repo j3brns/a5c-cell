@@ -6,7 +6,7 @@ import secrets
 from datetime import timedelta
 from typing import Any
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from data_access.models import TenantStatus
 
 try:
@@ -292,6 +292,27 @@ def handle_invite_user(
     def _is_conditional_failure(exc: ClientError) -> bool:
         return exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"
 
+    def _invite_from_lookup(existing_lookup: dict[str, Any]) -> dict[str, Any]:
+        return {
+            **db_utils.invite_key(tenant_id, str(existing_lookup["inviteId"])),
+            "inviteId": str(existing_lookup["inviteId"]),
+            "tenantId": tenant_id,
+            "email": str(existing_lookup.get("email", normalized_email)),
+            "normalizedEmail": str(existing_lookup.get("normalizedEmail", normalized_email)),
+            "role": str(existing_lookup.get("role", "Agent.Invoke")),
+            "status": str(existing_lookup.get("status", "pending")),
+            "expiresAt": existing_lookup.get("expiresAt"),
+            "ttl": existing_lookup.get("ttl"),
+            "createdAt": existing_lookup.get("createdAt"),
+            "updatedAt": existing_lookup.get("updatedAt"),
+            "actorSub": existing_lookup.get("actorSub"),
+            "actorAppId": existing_lookup.get("actorAppId"),
+            "notificationStatus": str(existing_lookup.get("notificationStatus", "pending")),
+            "notificationError": existing_lookup.get("notificationError"),
+            "notificationFailedAt": existing_lookup.get("notificationFailedAt"),
+            "notifiedAt": existing_lookup.get("notifiedAt"),
+        }
+
     def _deliver_invite_notification(
         db: Any,
         invite: dict[str, Any],
@@ -310,11 +331,16 @@ def handle_invite_user(
                 )
                 or {}
             )
-        except ClientError as exc:
+        except (BotoCoreError, ClientError) as exc:
             return _notification_failure_response(
                 db,
                 invite,
-                exc.response.get("Error", {}).get("Code", "ClientError"),
+                getattr(exc, "response", {})
+                .get("Error", {})
+                .get(
+                    "Code",
+                    type(exc).__name__,
+                ),
             )
 
         if int(event_response.get("FailedEntryCount", 0)) > 0:
@@ -338,6 +364,21 @@ def handle_invite_user(
             },
             condition_expression="attribute_exists(PK)",
         )
+        db.update_item(
+            db_factory.tenants_table_name(),
+            lookup_key,
+            (
+                "SET notificationStatus = :status, notificationError = :error, "
+                "notifiedAt = :notified_at, updatedAt = :updated_at"
+            ),
+            {
+                ":status": "sent",
+                ":error": None,
+                ":notified_at": sent_time,
+                ":updated_at": sent_time,
+            },
+            condition_expression="attribute_exists(PK)",
+        )
         invite["notificationStatus"] = "sent"
         invite["notificationError"] = None
         invite.pop("notificationFailedAt", None)
@@ -348,11 +389,32 @@ def handle_invite_user(
     def _handle_existing_lookup(existing_lookup: dict[str, Any] | None) -> dict[str, Any] | None:
         if existing_lookup is None:
             return None
+        if str(existing_lookup.get("status", "")) != "pending":
+            db.delete_item(db_factory.tenants_table_name(), lookup_key)
+            return None
         existing_invite = db.get_item(
             db_factory.tenants_table_name(),
             db_utils.invite_key(tenant_id, str(existing_lookup.get("inviteId", ""))),
         )
-        if existing_invite is None or str(existing_invite.get("status", "")) != "pending":
+        if existing_invite is None:
+            existing_invite = _invite_from_lookup(existing_lookup)
+            try:
+                db.put_item(
+                    db_factory.tenants_table_name(),
+                    existing_invite,
+                    condition_expression="attribute_not_exists(PK)",
+                )
+            except ClientError as exc:
+                if not _is_conditional_failure(exc):
+                    raise
+                existing_invite = db.get_item(
+                    db_factory.tenants_table_name(),
+                    db_utils.invite_key(tenant_id, str(existing_lookup.get("inviteId", ""))),
+                )
+                if existing_invite is None:
+                    return http_utils.error(409, "CONFLICT", "Pending invite already exists")
+            return _deliver_invite_notification(db, existing_invite)
+        if str(existing_invite.get("status", "")) != "pending":
             db.delete_item(db_factory.tenants_table_name(), lookup_key)
             return None
         if str(existing_invite.get("notificationStatus", "")) == "failed":
@@ -368,6 +430,21 @@ def handle_invite_user(
         db.update_item(
             db_factory.tenants_table_name(),
             db_utils.invite_key(tenant_id, str(invite["inviteId"])),
+            (
+                "SET notificationStatus = :status, notificationError = :error, "
+                "notificationFailedAt = :failed_at, updatedAt = :updated_at"
+            ),
+            {
+                ":status": "failed",
+                ":error": error_code,
+                ":failed_at": failure_time,
+                ":updated_at": failure_time,
+            },
+            condition_expression="attribute_exists(PK)",
+        )
+        db.update_item(
+            db_factory.tenants_table_name(),
+            lookup_key,
             (
                 "SET notificationStatus = :status, notificationError = :error, "
                 "notificationFailedAt = :failed_at, updatedAt = :updated_at"
@@ -434,16 +511,8 @@ def handle_invite_user(
         "notificationError": None,
     }
     lookup_item = {
+        **invite,
         **lookup_key,
-        "tenantId": tenant_id,
-        "inviteId": invite_id,
-        "normalizedEmail": normalized_email,
-        "status": "pending",
-        "expiresAt": invite["expiresAt"],
-        "ttl": invite["ttl"],
-        "updatedAt": invite["updatedAt"],
-        "actorSub": caller.sub,
-        "actorAppId": caller.app_id,
     }
     try:
         db.put_item(
@@ -471,6 +540,15 @@ def handle_invite_user(
             invite,
             condition_expression="attribute_not_exists(PK)",
         )
+    except ClientError as exc:
+        if _is_conditional_failure(exc):
+            existing_response = _handle_existing_lookup(
+                db.get_item(db_factory.tenants_table_name(), lookup_key)
+            )
+            if existing_response is not None:
+                return existing_response
+        db.delete_item(db_factory.tenants_table_name(), lookup_key)
+        raise
     except Exception:
         db.delete_item(db_factory.tenants_table_name(), lookup_key)
         raise

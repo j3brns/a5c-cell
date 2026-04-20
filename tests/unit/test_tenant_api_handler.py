@@ -9,6 +9,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from botocore.exceptions import EndpointConnectionError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -1844,6 +1845,45 @@ def test_invite_user_records_notification_failure_after_persistence(
     assert invite_record["notificationError"] == "InternalFailure"
 
 
+def test_invite_user_records_botocore_notification_failure_after_persistence(
+    fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_state["db"].items[("TENANT#t-invite-endpoint-failure", "METADATA")] = {
+        "PK": "TENANT#t-invite-endpoint-failure",
+        "SK": "METADATA",
+        "tenantId": "t-invite-endpoint-failure",
+        "appId": "app-invite-endpoint-failure",
+        "status": "active",
+    }
+
+    def _endpoint_failure(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        raise EndpointConnectionError(endpoint_url="https://events.eu-west-2.amazonaws.com")
+
+    monkeypatch.setattr(tenant_lifecycle.events, "put_event", _endpoint_failure)
+    event = _event(
+        method="POST",
+        tenant_id="t-invite-endpoint-failure",
+        caller_tenant_id="t-invite-endpoint-failure",
+        roles=["Platform.Operator"],
+        app_id="app-invite-endpoint-failure",
+        body={"email": "endpoint.user@example.com", "role": "Agent.Invoke"},
+    )
+    event["path"] = "/v1/tenants/t-invite-endpoint-failure/users/invite"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 502
+    assert _body(response)["error"]["code"] == "EVENT_DELIVERY_FAILED"
+    invite_record = next(
+        item
+        for (pk, sk), item in fake_state["db"].items.items()
+        if pk == "TENANT#t-invite-endpoint-failure" and sk.startswith("INVITE#")
+    )
+    assert invite_record["notificationStatus"] == "failed"
+    assert invite_record["notificationError"] == "EndpointConnectionError"
+
+
 def test_invite_user_retries_failed_notification_on_repeat_request(
     fake_state: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
@@ -1889,6 +1929,71 @@ def test_invite_user_retries_failed_notification_on_repeat_request(
     invite_record = fake_state["db"].items[("TENANT#t-invite-retry", f"INVITE#{first_invite_id}")]
     assert invite_record["notificationStatus"] == "sent"
     assert invite_record["notificationError"] is None
+
+
+def test_invite_user_duplicate_race_materializes_single_pending_invite(
+    fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_state["db"].items[("TENANT#t-invite-race", "METADATA")] = {
+        "PK": "TENANT#t-invite-race",
+        "SK": "METADATA",
+        "tenantId": "t-invite-race",
+        "appId": "app-invite-race",
+        "status": "active",
+    }
+    original_put_item = fake_state["db"].put_item
+    race_state: dict[str, Any] = {"interleaved": False, "second_response": None}
+    second_event = _event(
+        method="POST",
+        tenant_id="t-invite-race",
+        caller_tenant_id="t-invite-race",
+        roles=["Platform.Operator"],
+        app_id="app-invite-race",
+        body={"email": "race.user@example.com", "role": "Agent.Invoke"},
+    )
+    second_event["path"] = "/v1/tenants/t-invite-race/users/invite"
+
+    def _interleave_second_request(
+        table_name: str,
+        item: dict[str, Any],
+        *,
+        condition_expression: str | None = None,
+    ) -> dict[str, Any]:
+        result = original_put_item(
+            table_name,
+            item,
+            condition_expression=condition_expression,
+        )
+        if str(item["SK"]).startswith("INVITEEMAIL#") and not race_state["interleaved"]:
+            race_state["interleaved"] = True
+            race_state["second_response"] = _invoke(second_event)
+        return result
+
+    monkeypatch.setattr(fake_state["db"], "put_item", _interleave_second_request)
+    first_event = _event(
+        method="POST",
+        tenant_id="t-invite-race",
+        caller_tenant_id="t-invite-race",
+        roles=["Platform.Operator"],
+        app_id="app-invite-race",
+        body={"email": "race.user@example.com", "role": "Agent.Invoke"},
+    )
+    first_event["path"] = "/v1/tenants/t-invite-race/users/invite"
+
+    first_response = _invoke(first_event)
+
+    assert first_response["statusCode"] == 202
+    assert race_state["second_response"]["statusCode"] == 202
+    invite_items = [
+        item
+        for (pk, sk), item in fake_state["db"].items.items()
+        if pk == "TENANT#t-invite-race" and sk.startswith("INVITE#")
+    ]
+    assert len(invite_items) == 1
+    assert len(fake_state["deps"].events.calls) == 1
+    assert _body(first_response)["invite"]["inviteId"] == invite_items[0]["inviteId"]
+    assert _body(race_state["second_response"])["invite"]["inviteId"] == invite_items[0]["inviteId"]
 
 
 def test_invite_user_rolls_back_lookup_when_invite_write_fails_once(
