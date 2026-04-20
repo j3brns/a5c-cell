@@ -310,6 +310,8 @@ def handle_invite_user(
         "status": "pending",
         "expiresAt": utils.iso(utils.now_utc() + timedelta(days=7)),
     }
+    db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=None)
+    db.put_item(db_factory.tenants_table_name(), invite)
     events.put_event(
         deps,
         detail_type="tenant.user_invited",

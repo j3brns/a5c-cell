@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 
 from src.tenant_api import handler as tenant_api_handler
-from src.tenant_api import ops_control
+from src.tenant_api import ops_control, tenant_lifecycle
 from tests.unit.tenant_api_test_support import (
     build_handler_state,
     fixed_now_value,
@@ -1525,6 +1525,7 @@ def test_invite_user_for_own_tenant_requires_self_service_admin_role(
 
 def test_invite_user_for_own_tenant_succeeds_for_platform_operator(
     fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_state["db"].items[("TENANT#t-invite", "METADATA")] = {
         "PK": "TENANT#t-invite",
@@ -1533,6 +1534,32 @@ def test_invite_user_for_own_tenant_succeeds_for_platform_operator(
         "appId": "app-invite",
         "status": "active",
     }
+    observed_invites: list[dict[str, Any]] = []
+
+    def _assert_invite_persisted_before_event(
+        deps: Any,
+        *,
+        detail_type: str,
+        detail: dict[str, Any],
+    ) -> None:
+        invite_key = ("TENANT#t-invite", f"INVITE#{detail['inviteId']}")
+        invite_record = fake_state["db"].items.get(invite_key)
+        assert invite_record is not None
+        observed_invites.append(dict(invite_record))
+        deps.events.put_events(
+            Entries=[
+                {
+                    "DetailType": detail_type,
+                    "Detail": json.dumps(detail),
+                }
+            ]
+        )
+
+    monkeypatch.setattr(
+        tenant_lifecycle.events,
+        "put_event",
+        _assert_invite_persisted_before_event,
+    )
     event = _event(
         method="POST",
         tenant_id="t-invite",
@@ -1553,6 +1580,9 @@ def test_invite_user_for_own_tenant_succeeds_for_platform_operator(
     detail_type, detail = _last_event_detail(fake_state)
     assert detail_type == "tenant.user_invited"
     assert detail["tenantId"] == "t-invite"
+    invite_record = fake_state["db"].items[("TENANT#t-invite", f"INVITE#{detail['inviteId']}")]
+    assert invite_record["email"] == invite["email"]
+    assert observed_invites == [invite_record]
 
 
 @pytest.mark.parametrize(
