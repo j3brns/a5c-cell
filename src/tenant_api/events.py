@@ -18,8 +18,8 @@ def put_event(
     *,
     detail_type: str,
     detail: dict[str, Any],
-) -> None:
-    deps.events.put_events(
+) -> dict[str, Any]:
+    return deps.events.put_events(
         Entries=[
             {
                 "Source": "platform.tenant_api",

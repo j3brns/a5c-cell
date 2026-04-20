@@ -1576,13 +1576,78 @@ def test_invite_user_for_own_tenant_succeeds_for_platform_operator(
     invite = _body(response)["invite"]
     assert invite["tenantId"] == "t-invite"
     assert invite["email"] == "new.user@example.com"
+    assert invite["normalizedEmail"] == "new.user@example.com"
     assert invite["status"] == "pending"
+    assert invite["notificationStatus"] == "sent"
     detail_type, detail = _last_event_detail(fake_state)
     assert detail_type == "tenant.user_invited"
     assert detail["tenantId"] == "t-invite"
     invite_record = fake_state["db"].items[("TENANT#t-invite", f"INVITE#{detail['inviteId']}")]
     assert invite_record["email"] == invite["email"]
-    assert observed_invites == [invite_record]
+    assert invite_record["actorSub"] == "user-123"
+    assert invite_record["actorAppId"] == "app-invite"
+    assert invite_record["notificationStatus"] == "sent"
+    lookup_record = fake_state["db"].items[("TENANT#t-invite", "INVITEEMAIL#new.user@example.com")]
+    assert lookup_record["inviteId"] == detail["inviteId"]
+    assert len(observed_invites) == 1
+    assert observed_invites[0]["inviteId"] == invite_record["inviteId"]
+    assert observed_invites[0]["notificationStatus"] == "pending"
+
+
+def test_invite_user_returns_existing_pending_invite_for_normalized_email(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-invite-existing", "METADATA")] = {
+        "PK": "TENANT#t-invite-existing",
+        "SK": "METADATA",
+        "tenantId": "t-invite-existing",
+        "appId": "app-invite-existing",
+        "status": "active",
+    }
+    fake_state["db"].items[("TENANT#t-invite-existing", "INVITE#inv-existing")] = {
+        "PK": "TENANT#t-invite-existing",
+        "SK": "INVITE#inv-existing",
+        "inviteId": "inv-existing",
+        "tenantId": "t-invite-existing",
+        "email": "existing.user@example.com",
+        "normalizedEmail": "existing.user@example.com",
+        "role": "Agent.Invoke",
+        "status": "pending",
+        "expiresAt": "2026-03-04T12:00:00+00:00",
+        "ttl": 1772625600,
+        "actorSub": "seed-user",
+        "actorAppId": "seed-app",
+        "notificationStatus": "sent",
+    }
+    fake_state["db"].items[
+        ("TENANT#t-invite-existing", "INVITEEMAIL#existing.user@example.com")
+    ] = {
+        "PK": "TENANT#t-invite-existing",
+        "SK": "INVITEEMAIL#existing.user@example.com",
+        "tenantId": "t-invite-existing",
+        "inviteId": "inv-existing",
+        "normalizedEmail": "existing.user@example.com",
+        "status": "pending",
+        "expiresAt": "2026-03-04T12:00:00+00:00",
+        "ttl": 1772625600,
+    }
+
+    event = _event(
+        method="POST",
+        tenant_id="t-invite-existing",
+        caller_tenant_id="t-invite-existing",
+        roles=["Platform.Operator"],
+        app_id="app-invite-existing",
+        body={"email": " Existing.User@Example.com ", "role": "Agent.Invoke"},
+    )
+    event["path"] = "/v1/tenants/t-invite-existing/users/invite"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 202
+    assert _body(response)["invite"]["inviteId"] == "inv-existing"
+    assert fake_state["deps"].events.calls == []
+    assert sum(1 for _, sk in fake_state["db"].items if sk.startswith("INVITE#")) == 1
 
 
 @pytest.mark.parametrize(
@@ -1716,6 +1781,222 @@ def test_invite_user_requires_valid_email(fake_state: dict[str, Any]) -> None:
 
     assert response["statusCode"] == 400
     assert _body(response)["error"]["code"] == "BAD_REQUEST"
+
+
+def test_invite_user_returns_not_found_when_tenant_metadata_is_missing(
+    fake_state: dict[str, Any],
+) -> None:
+    event = _event(
+        method="POST",
+        tenant_id="t-missing-invite",
+        caller_tenant_id="t-missing-invite",
+        roles=["Platform.Operator"],
+        app_id="app-missing-invite",
+        body={"email": "new.user@example.com", "role": "Agent.Invoke"},
+    )
+    event["path"] = "/v1/tenants/t-missing-invite/users/invite"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 404
+    assert _body(response)["error"]["code"] == "NOT_FOUND"
+    assert all(sk != "INVITEEMAIL#new.user@example.com" for _, sk in fake_state["db"].items)
+    assert all(not sk.startswith("INVITE#") for _, sk in fake_state["db"].items)
+    assert fake_state["deps"].events.calls == []
+
+
+def test_invite_user_records_notification_failure_after_persistence(
+    fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_state["db"].items[("TENANT#t-invite-failure", "METADATA")] = {
+        "PK": "TENANT#t-invite-failure",
+        "SK": "METADATA",
+        "tenantId": "t-invite-failure",
+        "appId": "app-invite-failure",
+        "status": "active",
+    }
+
+    def _failed_event(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        return {"FailedEntryCount": 1, "Entries": [{"ErrorCode": "InternalFailure"}]}
+
+    monkeypatch.setattr(tenant_lifecycle.events, "put_event", _failed_event)
+    event = _event(
+        method="POST",
+        tenant_id="t-invite-failure",
+        caller_tenant_id="t-invite-failure",
+        roles=["Platform.Operator"],
+        app_id="app-invite-failure",
+        body={"email": "failed.user@example.com", "role": "Agent.Invoke"},
+    )
+    event["path"] = "/v1/tenants/t-invite-failure/users/invite"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 502
+    assert _body(response)["error"]["code"] == "EVENT_DELIVERY_FAILED"
+    invite_record = next(
+        item
+        for (pk, sk), item in fake_state["db"].items.items()
+        if pk == "TENANT#t-invite-failure" and sk.startswith("INVITE#")
+    )
+    assert invite_record["notificationStatus"] == "failed"
+    assert invite_record["notificationError"] == "InternalFailure"
+
+
+def test_invite_user_retries_failed_notification_on_repeat_request(
+    fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_state["db"].items[("TENANT#t-invite-retry", "METADATA")] = {
+        "PK": "TENANT#t-invite-retry",
+        "SK": "METADATA",
+        "tenantId": "t-invite-retry",
+        "appId": "app-invite-retry",
+        "status": "active",
+    }
+    attempts = {"count": 0}
+
+    def _flaky_event(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            return {"FailedEntryCount": 1, "Entries": [{"ErrorCode": "InternalFailure"}]}
+        return {"FailedEntryCount": 0, "Entries": [{"EventId": "evt-1"}]}
+
+    monkeypatch.setattr(tenant_lifecycle.events, "put_event", _flaky_event)
+    event = _event(
+        method="POST",
+        tenant_id="t-invite-retry",
+        caller_tenant_id="t-invite-retry",
+        roles=["Platform.Operator"],
+        app_id="app-invite-retry",
+        body={"email": "retry.user@example.com", "role": "Agent.Invoke"},
+    )
+    event["path"] = "/v1/tenants/t-invite-retry/users/invite"
+
+    first_response = _invoke(event)
+    second_response = _invoke(event)
+
+    assert first_response["statusCode"] == 502
+    assert second_response["statusCode"] == 202
+    first_invite_id = next(
+        item["inviteId"]
+        for (pk, sk), item in fake_state["db"].items.items()
+        if pk == "TENANT#t-invite-retry" and sk.startswith("INVITE#")
+    )
+    assert _body(second_response)["invite"]["inviteId"] == first_invite_id
+    assert attempts["count"] == 2
+    invite_record = fake_state["db"].items[("TENANT#t-invite-retry", f"INVITE#{first_invite_id}")]
+    assert invite_record["notificationStatus"] == "sent"
+    assert invite_record["notificationError"] is None
+
+
+def test_invite_user_rolls_back_lookup_when_invite_write_fails_once(
+    fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_state["db"].items[("TENANT#t-invite-write-fail", "METADATA")] = {
+        "PK": "TENANT#t-invite-write-fail",
+        "SK": "METADATA",
+        "tenantId": "t-invite-write-fail",
+        "appId": "app-invite-write-fail",
+        "status": "active",
+    }
+    original_put_item = fake_state["db"].put_item
+    state = {"failed": False}
+
+    def _fail_first_invite_write(
+        table_name: str,
+        item: dict[str, Any],
+        *,
+        condition_expression: str | None = None,
+    ) -> dict[str, Any]:
+        if str(item["SK"]).startswith("INVITE#") and not state["failed"]:
+            state["failed"] = True
+            raise tenant_api_handler.ClientError(
+                {
+                    "Error": {
+                        "Code": "ProvisionedThroughputExceededException",
+                        "Message": "throttled",
+                    }
+                },
+                "PutItem",
+            )
+        return original_put_item(
+            table_name,
+            item,
+            condition_expression=condition_expression,
+        )
+
+    monkeypatch.setattr(fake_state["db"], "put_item", _fail_first_invite_write)
+    event = _event(
+        method="POST",
+        tenant_id="t-invite-write-fail",
+        caller_tenant_id="t-invite-write-fail",
+        roles=["Platform.Operator"],
+        app_id="app-invite-write-fail",
+        body={"email": "retryable.user@example.com", "role": "Agent.Invoke"},
+    )
+    event["path"] = "/v1/tenants/t-invite-write-fail/users/invite"
+
+    first_response = _invoke(event)
+    assert first_response["statusCode"] == 502
+    assert (
+        "TENANT#t-invite-write-fail",
+        "INVITEEMAIL#retryable.user@example.com",
+    ) not in fake_state["db"].items
+
+    second_response = _invoke(event)
+
+    assert second_response["statusCode"] == 202
+    assert (
+        "TENANT#t-invite-write-fail",
+        "INVITEEMAIL#retryable.user@example.com",
+    ) in fake_state["db"].items
+
+
+def test_invite_user_create_then_list_returns_persisted_invite(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-create-list", "METADATA")] = {
+        "PK": "TENANT#t-create-list",
+        "SK": "METADATA",
+        "tenantId": "t-create-list",
+        "appId": "app-create-list",
+        "status": "active",
+    }
+
+    create_event = _event(
+        method="POST",
+        tenant_id="t-create-list",
+        caller_tenant_id="t-create-list",
+        roles=["Platform.Operator"],
+        app_id="app-create-list",
+        body={"email": "Create.List@Example.com", "role": "Agent.Invoke"},
+    )
+    create_event["path"] = "/v1/tenants/t-create-list/users/invite"
+
+    create_response = _invoke(create_event)
+
+    assert create_response["statusCode"] == 202
+    invite = _body(create_response)["invite"]
+
+    list_event = _event(
+        method="GET",
+        tenant_id="t-create-list",
+        caller_tenant_id="t-create-list",
+        roles=["Platform.Operator"],
+        app_id="app-create-list",
+    )
+    list_event["path"] = "/v1/tenants/t-create-list/users/invites"
+
+    list_response = _invoke(list_event)
+
+    assert list_response["statusCode"] == 200
+    items = _body(list_response)["items"]
+    assert len(items) == 1
+    assert items[0]["inviteId"] == invite["inviteId"]
+    assert items[0]["email"] == "create.list@example.com"
 
 
 def test_webhook_management_requires_self_service_admin_role(

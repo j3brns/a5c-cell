@@ -6,6 +6,7 @@ import secrets
 from datetime import timedelta
 from typing import Any
 
+from botocore.exceptions import ClientError
 from data_access.models import TenantStatus
 
 try:
@@ -288,41 +289,193 @@ def handle_invite_user(
     *,
     tenant_id: str,
 ) -> dict[str, Any]:
+    def _is_conditional_failure(exc: ClientError) -> bool:
+        return exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"
+
+    def _deliver_invite_notification(
+        db: Any,
+        invite: dict[str, Any],
+    ) -> dict[str, Any]:
+        try:
+            event_response = (
+                events.put_event(
+                    deps,
+                    detail_type="tenant.user_invited",
+                    detail={
+                        "tenantId": tenant_id,
+                        "inviteId": str(invite["inviteId"]),
+                        "email": str(invite["email"]),
+                        "role": str(invite["role"]),
+                    },
+                )
+                or {}
+            )
+        except ClientError as exc:
+            return _notification_failure_response(
+                db,
+                invite,
+                exc.response.get("Error", {}).get("Code", "ClientError"),
+            )
+
+        if int(event_response.get("FailedEntryCount", 0)) > 0:
+            first_failed = (event_response.get("Entries") or [{}])[0]
+            error_code = str(first_failed.get("ErrorCode") or "EventBridgeDeliveryFailed")
+            return _notification_failure_response(db, invite, error_code)
+
+        sent_time = utils.iso(utils.now_utc())
+        db.update_item(
+            db_factory.tenants_table_name(),
+            db_utils.invite_key(tenant_id, str(invite["inviteId"])),
+            (
+                "SET notificationStatus = :status, notificationError = :error, "
+                "notifiedAt = :notified_at, updatedAt = :updated_at"
+            ),
+            {
+                ":status": "sent",
+                ":error": None,
+                ":notified_at": sent_time,
+                ":updated_at": sent_time,
+            },
+            condition_expression="attribute_exists(PK)",
+        )
+        invite["notificationStatus"] = "sent"
+        invite["notificationError"] = None
+        invite.pop("notificationFailedAt", None)
+        invite["notifiedAt"] = sent_time
+        invite["updatedAt"] = sent_time
+        return http_utils.response(202, {"invite": invite})
+
+    def _handle_existing_lookup(existing_lookup: dict[str, Any] | None) -> dict[str, Any] | None:
+        if existing_lookup is None:
+            return None
+        existing_invite = db.get_item(
+            db_factory.tenants_table_name(),
+            db_utils.invite_key(tenant_id, str(existing_lookup.get("inviteId", ""))),
+        )
+        if existing_invite is None or str(existing_invite.get("status", "")) != "pending":
+            db.delete_item(db_factory.tenants_table_name(), lookup_key)
+            return None
+        if str(existing_invite.get("notificationStatus", "")) == "failed":
+            return _deliver_invite_notification(db, existing_invite)
+        return http_utils.response(202, {"invite": existing_invite})
+
+    def _notification_failure_response(
+        db: Any,
+        invite: dict[str, Any],
+        error_code: str,
+    ) -> dict[str, Any]:
+        failure_time = utils.iso(utils.now_utc())
+        db.update_item(
+            db_factory.tenants_table_name(),
+            db_utils.invite_key(tenant_id, str(invite["inviteId"])),
+            (
+                "SET notificationStatus = :status, notificationError = :error, "
+                "notificationFailedAt = :failed_at, updatedAt = :updated_at"
+            ),
+            {
+                ":status": "failed",
+                ":error": error_code,
+                ":failed_at": failure_time,
+                ":updated_at": failure_time,
+            },
+            condition_expression="attribute_exists(PK)",
+        )
+        invite["notificationStatus"] = "failed"
+        invite["notificationError"] = error_code
+        invite["notificationFailedAt"] = failure_time
+        invite["updatedAt"] = failure_time
+        return http_utils.error(
+            502,
+            "EVENT_DELIVERY_FAILED",
+            "Invite notification failed after persistence",
+        )
+
     if not auth.can_manage_tenant_self_service(caller, tenant_id):
         raise PermissionError("Access denied")
 
     body = http_utils.require_json_body(event)
-    email = str(body.get("email", "")).strip()
-    if not email or "@" not in email:
+    normalized_email = str(body.get("email", "")).strip().lower()
+    if not normalized_email or "@" not in normalized_email:
         raise ValueError("Valid email is required")
 
     role = str(body.get("role") or "Agent.Invoke")
     if role not in constants.ALLOWED_TENANT_INVITE_ROLES:
         return http_utils.error(400, "BAD_REQUEST", "role must be one of: Agent.Invoke")
 
-    invite_id = f"inv-{utils.now_utc().strftime('%Y%m%d')}-{secrets.token_hex(4)}"
+    if db_utils.read_tenant_record(tenant_id=tenant_id, caller=caller, app_id=None) is None:
+        return http_utils.error(404, "NOT_FOUND", f"Tenant '{tenant_id}' not found")
+
+    db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=None)
+    lookup_key = db_utils.invite_email_lookup_key(tenant_id, normalized_email)
+    existing_response = _handle_existing_lookup(
+        db.get_item(db_factory.tenants_table_name(), lookup_key)
+    )
+    if existing_response is not None:
+        return existing_response
+
+    now = utils.now_utc()
+    expires_at = now + timedelta(days=7)
+    invite_id = f"inv-{now.strftime('%Y%m%d')}-{secrets.token_hex(4)}"
     invite = {
         **db_utils.invite_key(tenant_id, invite_id),
         "inviteId": invite_id,
         "tenantId": tenant_id,
-        "email": email,
+        "email": normalized_email,
+        "normalizedEmail": normalized_email,
         "role": role,
         "status": "pending",
-        "expiresAt": utils.iso(utils.now_utc() + timedelta(days=7)),
+        "expiresAt": utils.iso(expires_at),
+        "ttl": int(expires_at.timestamp()),
+        "createdAt": utils.iso(now),
+        "updatedAt": utils.iso(now),
+        "actorSub": caller.sub,
+        "actorAppId": caller.app_id,
+        "notificationStatus": "pending",
+        "notificationError": None,
     }
-    db = db_factory.db_for_tenant(tenant_id=tenant_id, caller=caller, app_id=None)
-    db.put_item(db_factory.tenants_table_name(), invite)
-    events.put_event(
-        deps,
-        detail_type="tenant.user_invited",
-        detail={
-            "tenantId": tenant_id,
-            "inviteId": invite_id,
-            "email": email,
-            "role": role,
-        },
-    )
-    return http_utils.response(202, {"invite": invite})
+    lookup_item = {
+        **lookup_key,
+        "tenantId": tenant_id,
+        "inviteId": invite_id,
+        "normalizedEmail": normalized_email,
+        "status": "pending",
+        "expiresAt": invite["expiresAt"],
+        "ttl": invite["ttl"],
+        "updatedAt": invite["updatedAt"],
+        "actorSub": caller.sub,
+        "actorAppId": caller.app_id,
+    }
+    try:
+        db.put_item(
+            db_factory.tenants_table_name(),
+            lookup_item,
+            condition_expression="attribute_not_exists(PK)",
+        )
+    except ClientError as exc:
+        if not _is_conditional_failure(exc):
+            raise
+        existing_response = _handle_existing_lookup(
+            db.get_item(db_factory.tenants_table_name(), lookup_key)
+        )
+        if existing_response is not None:
+            return existing_response
+        db.put_item(
+            db_factory.tenants_table_name(),
+            lookup_item,
+            condition_expression="attribute_not_exists(PK)",
+        )
+
+    try:
+        db.put_item(
+            db_factory.tenants_table_name(),
+            invite,
+            condition_expression="attribute_not_exists(PK)",
+        )
+    except Exception:
+        db.delete_item(db_factory.tenants_table_name(), lookup_key)
+        raise
+
+    return _deliver_invite_notification(db, invite)
 
 
 def handle_audit_export(

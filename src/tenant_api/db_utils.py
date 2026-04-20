@@ -28,6 +28,10 @@ def invite_key(tenant_id: str, invite_id: str) -> dict[str, str]:
     return {"PK": tenant_pk(tenant_id), "SK": f"INVITE#{invite_id}"}
 
 
+def invite_email_lookup_key(tenant_id: str, normalized_email: str) -> dict[str, str]:
+    return {"PK": tenant_pk(tenant_id), "SK": f"INVITEEMAIL#{normalized_email}"}
+
+
 def ddb_value(value: Any) -> Any:
     if isinstance(value, float):
         return Decimal(str(value))
