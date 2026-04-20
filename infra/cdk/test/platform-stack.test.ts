@@ -45,6 +45,46 @@ describe('PlatformStack (TASK-023)', () => {
   };
   const template = synthTemplate('dev');
 
+  const getIamPolicyStatements = (stackTemplate: Template): Array<Record<string, unknown>> => {
+    const policies = stackTemplate.findResources('AWS::IAM::Policy') as Record<
+      string,
+      { Properties?: { PolicyDocument?: { Statement?: Array<Record<string, unknown>> } } }
+    >;
+
+    return Object.values(policies).flatMap((resource) => resource.Properties?.PolicyDocument?.Statement ?? []);
+  };
+
+  const getScopedPutMetricStatements = (
+    stackTemplate: Template,
+    rolePattern?: string,
+  ): Array<Record<string, unknown>> => {
+    const policies = stackTemplate.findResources('AWS::IAM::Policy') as Record<
+      string,
+      {
+        Properties?: {
+          PolicyDocument?: { Statement?: Array<Record<string, unknown>> };
+          Roles?: Array<unknown>;
+        };
+      }
+    >;
+
+    return Object.values(policies)
+      .filter((resource) => {
+        if (!rolePattern) {
+          return true;
+        }
+
+        return (resource.Properties?.Roles ?? []).some((role) =>
+          JSON.stringify(role).match(new RegExp(rolePattern)),
+        );
+      })
+      .flatMap((resource) => resource.Properties?.PolicyDocument?.Statement ?? [])
+      .filter((statement) => {
+        const action = statement.Action;
+        return action === 'cloudwatch:PutMetricData';
+      });
+  };
+
   test('creates all required DynamoDB tables with PITR and encryption', () => {
     template.resourceCountIs('AWS::DynamoDB::Table', 8);
 
@@ -874,17 +914,56 @@ describe('PlatformStack (TASK-023)', () => {
     });
   });
 
-  test('grants billing lambda put-metric-data permissions', () => {
-    template.hasResourceProperties('AWS::IAM::Policy', {
-      PolicyDocument: {
-        Statement: Match.arrayWith([
-          Match.objectLike({
-            Action: 'cloudwatch:PutMetricData',
-            Resource: '*',
-          }),
-        ]),
-      },
-    });
+  test('grants bridge lambda namespace-scoped put-metric-data permissions', () => {
+    expect(getScopedPutMetricStatements(template, 'bridgeLambdaServiceRole')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Action: 'cloudwatch:PutMetricData',
+          Resource: '*',
+          Condition: {
+            StringEquals: {
+              'cloudwatch:namespace': 'Platform/Bridge',
+            },
+          },
+        }),
+      ]),
+    );
+  });
+
+  test('grants billing lambda namespace-scoped put-metric-data permissions', () => {
+    expect(getScopedPutMetricStatements(template, 'billingLambdaServiceRole')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Action: 'cloudwatch:PutMetricData',
+          Resource: '*',
+          Condition: {
+            StringEquals: {
+              'cloudwatch:namespace': 'Platform/Billing',
+            },
+          },
+        }),
+      ]),
+    );
+  });
+
+  test('does not synthesize unconditioned put-metric-data statements', () => {
+    const putMetricStatements = getIamPolicyStatements(template).filter(
+      (statement) => statement.Action === 'cloudwatch:PutMetricData',
+    );
+
+    expect(putMetricStatements.length).toBeGreaterThan(0);
+    for (const statement of putMetricStatements) {
+      expect(statement).toEqual(
+        expect.objectContaining({
+          Resource: '*',
+          Condition: {
+            StringEquals: {
+              'cloudwatch:namespace': expect.stringMatching(/^Platform\/(Bridge|Billing)$/),
+            },
+          },
+        }),
+      );
+    }
   });
 
   test('sets explicit TLS minimum protocol version on CloudFront even without custom domain', () => {

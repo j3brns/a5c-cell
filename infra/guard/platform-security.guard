@@ -52,23 +52,23 @@ rule no_wildcard_iam_resource {
     when %iam_roles exists {
         when %iam_roles.Properties.Policies exists {
             %iam_roles.Properties.Policies[*].PolicyDocument.Statement[*] {
-                check_resource_wildcard(Resource, Action)
+                check_resource_wildcard(Resource, Action, Condition)
             }
         }
     }
     when %iam_managed_policies exists {
         %iam_managed_policies.Properties.PolicyDocument.Statement[*] {
-            check_resource_wildcard(Resource, Action)
+            check_resource_wildcard(Resource, Action, Condition)
         }
     }
     when %iam_policies exists {
         %iam_policies.Properties.PolicyDocument.Statement[*] {
-            check_resource_wildcard(Resource, Action)
+            check_resource_wildcard(Resource, Action, Condition)
         }
     }
 }
 
-rule check_resource_wildcard(res, act) {
+rule check_resource_wildcard(res, act, cond) {
     let exempted_actions = [
         "cloudwatch:PutMetricData",
         "cloudwatch:GetMetricStatistics",
@@ -92,10 +92,16 @@ rule check_resource_wildcard(res, act) {
             # Allow wildcard resource ONLY for exempted actions (absolute necessity)
             when %act is_string {
                 %act in %exempted_actions
+                when %act == "cloudwatch:PutMetricData" {
+                    %cond.StringEquals."cloudwatch:namespace" exists
+                }
             }
             when %act is_list {
                 %act[*] {
                     this in %exempted_actions
+                    when this == "cloudwatch:PutMetricData" {
+                        %cond.StringEquals."cloudwatch:namespace" exists
+                    }
                 }
             }
         }
@@ -107,10 +113,16 @@ rule check_resource_wildcard(res, act) {
                     # Allow wildcard resource ONLY for exempted actions
                     when %act is_string {
                         %act in %exempted_actions
+                        when %act == "cloudwatch:PutMetricData" {
+                            %cond.StringEquals."cloudwatch:namespace" exists
+                        }
                     }
                     when %act is_list {
                         %act[*] {
                             this in %exempted_actions
+                            when this == "cloudwatch:PutMetricData" {
+                                %cond.StringEquals."cloudwatch:namespace" exists
+                            }
                         }
                     }
                 }
