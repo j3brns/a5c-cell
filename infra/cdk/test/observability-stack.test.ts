@@ -110,6 +110,71 @@ describe('ObservabilityStack (TASK-026)', () => {
     });
   });
 
+  test('creates authoriser hard-failure alarm with missing data treated as not breaching', () => {
+    const template = synthStack();
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'ObservabilityStack-Authoriser-HardFailures',
+      MetricName: 'Errors',
+      Namespace: 'AWS/Lambda',
+      Threshold: 1,
+      TreatMissingData: 'notBreaching',
+    });
+  });
+
+  test('creates authoriser failure metric filters for infrastructure-only deny paths', () => {
+    const template = synthStack();
+    const expectedFilters = [
+      {
+        pattern: '{ $.message = "Failed to fetch tenant status" }',
+        metricName: 'TenantStatusLookupFailureCount',
+      },
+      {
+        pattern: '{ $.message = "JWK client not initialized (ENTRA_JWKS_URL missing)" }',
+        metricName: 'JwksClientInitializationFailureCount',
+      },
+      {
+        pattern: '{ $.message = "Unexpected error during JWT validation" }',
+        metricName: 'UnexpectedJwtValidationExceptionCount',
+      },
+      {
+        pattern: '{ $.message = "Failed to resolve SigV4 tenant binding via GSI" }',
+        metricName: 'SigV4BindingResolutionFailureCount',
+      },
+    ];
+
+    for (const expectedFilter of expectedFilters) {
+      template.hasResourceProperties('AWS::Logs::MetricFilter', {
+        FilterPattern: expectedFilter.pattern,
+        MetricTransformations: [
+          Match.objectLike({
+            MetricNamespace: 'Platform/Authoriser',
+            MetricName: expectedFilter.metricName,
+            MetricValue: '1',
+          }),
+        ],
+      });
+    }
+  });
+
+  test('creates authoriser infrastructure failure alarms with missing data treated as not breaching', () => {
+    const template = synthStack();
+    const expectedAlarmNames = [
+      'ObservabilityStack-Authoriser-TenantStatusLookupFailure',
+      'ObservabilityStack-Authoriser-JwksClientInitializationFailure',
+      'ObservabilityStack-Authoriser-UnexpectedJwtValidationException',
+      'ObservabilityStack-Authoriser-SigV4BindingResolutionFailure',
+    ];
+
+    for (const alarmName of expectedAlarmNames) {
+      template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+        AlarmName: alarmName,
+        Namespace: 'Platform/Authoriser',
+        Threshold: 1,
+        TreatMissingData: 'notBreaching',
+      });
+    }
+  });
+
   test('creates FM-3 Secrets Manager Throttling alarm', () => {
     const template = synthStack();
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
