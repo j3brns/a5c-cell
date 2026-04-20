@@ -297,6 +297,18 @@ export function createPlatformCompute(
   );
   bridgeFn.addToRolePolicy(
     new iam.PolicyStatement({
+      // CloudWatch PutMetricData does not support resource ARNs; scope via the namespace condition instead.
+      actions: ['cloudwatch:PutMetricData'],
+      resources: ['*'],
+      conditions: {
+        StringEquals: {
+          'cloudwatch:namespace': 'Platform/Bridge',
+        },
+      },
+    }),
+  );
+  bridgeFn.addToRolePolicy(
+    new iam.PolicyStatement({
       actions: ['appconfig:GetLatestConfiguration', 'appconfig:StartConfigurationSession'],
       resources: [
         `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}`,
@@ -483,8 +495,14 @@ export function createPlatformCompute(
   );
   billingFn.addToRolePolicy(
     new iam.PolicyStatement({
+      // CloudWatch PutMetricData does not support resource ARNs; scope via the namespace condition instead.
       actions: ['cloudwatch:PutMetricData'],
       resources: ['*'],
+      conditions: {
+        StringEquals: {
+          'cloudwatch:namespace': 'Platform/Billing',
+        },
+      },
     }),
   );
   billingFn.addToRolePolicy(

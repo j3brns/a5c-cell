@@ -221,7 +221,7 @@ validate-openapi:
 
 ## validate-guardrails: Validate repo safety guardrails for critical modules
 validate-guardrails:
-	uv run pytest tests/unit/test_runtime_dynamodb_policy.py tests/unit/test_repo_guardrails.py
+	uv run pytest tests/unit/test_runtime_dynamodb_policy.py tests/unit/test_repo_guardrails.py tests/unit/test_cfn_guard_cloudwatch_metric_permissions.py
 
 ## validate-agent-manifest: Validate agent pyproject.toml [tool.agentcore] section
 validate-agent-manifest:
