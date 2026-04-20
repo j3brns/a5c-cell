@@ -4,6 +4,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as oam from 'aws-cdk-lib/aws-oam';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
@@ -34,7 +35,13 @@ export class ObservabilityStack extends cdk.Stack {
     super(scope, id, props);
     const alarmNamePrefix = this.stackName;
     const agentCoreMetricNamespace = 'AWS/BedrockAgentCore';
+    const authoriserMetricNamespace = 'Platform/Authoriser';
     const runtimeRegions = ['eu-west-1', 'eu-central-1'];
+    const authoriserLogGroup = logs.LogGroup.fromLogGroupName(
+      this,
+      'AuthoriserLogGroup',
+      `/aws/lambda/${props.authoriserFn.functionName}`,
+    );
 
     // --- 1. Platform Operations Dashboard ---
 
@@ -255,6 +262,76 @@ export class ObservabilityStack extends cdk.Stack {
       evaluationPeriods: 3,
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     });
+
+    new cloudwatch.Alarm(this, 'AuthoriserHardFailureAlarm', {
+      alarmName: `${alarmNamePrefix}-Authoriser-HardFailures`,
+      alarmDescription:
+        'Authoriser Lambda reported hard failures via Lambda Errors. Action: inspect Lambda runtime errors and restore service availability.',
+      metric: props.authoriserFn.metricErrors({
+        period: cdk.Duration.minutes(1),
+        statistic: 'Sum',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    const authoriserFailureModes = [
+      {
+        id: 'TenantStatusLookupFailure',
+        message: 'Failed to fetch tenant status',
+        metricName: 'TenantStatusLookupFailureCount',
+        description:
+          'Authoriser could not read tenant status from the control-plane table. Action: inspect authoriser logs and DynamoDB tenant metadata availability.',
+      },
+      {
+        id: 'JwksClientInitializationFailure',
+        message: 'JWK client not initialized (ENTRA_JWKS_URL missing)',
+        metricName: 'JwksClientInitializationFailureCount',
+        description:
+          'Authoriser could not initialize the Entra JWKS client. Action: verify JWKS configuration and deployment environment variables.',
+      },
+      {
+        id: 'UnexpectedJwtValidationException',
+        message: 'Unexpected error during JWT validation',
+        metricName: 'UnexpectedJwtValidationExceptionCount',
+        description:
+          'Authoriser hit an unexpected JWT validation exception. Action: inspect JWT validation logs and Entra/JWKS health.',
+      },
+      {
+        id: 'SigV4BindingResolutionFailure',
+        message: 'Failed to resolve SigV4 tenant binding via GSI',
+        metricName: 'SigV4BindingResolutionFailureCount',
+        description:
+          'Authoriser could not resolve a SigV4 tenant binding through the tenant-role GSI. Action: inspect authoriser logs and tenant execution-role metadata.',
+      },
+    ] as const;
+
+    for (const failureMode of authoriserFailureModes) {
+      new logs.MetricFilter(this, `Authoriser${failureMode.id}MetricFilter`, {
+        logGroup: authoriserLogGroup,
+        metricNamespace: authoriserMetricNamespace,
+        metricName: failureMode.metricName,
+        metricValue: '1',
+        filterPattern: logs.FilterPattern.stringValue('$.message', '=', failureMode.message),
+      });
+
+      new cloudwatch.Alarm(this, `Authoriser${failureMode.id}Alarm`, {
+        alarmName: `${alarmNamePrefix}-Authoriser-${failureMode.id}`,
+        alarmDescription: failureMode.description,
+        metric: new cloudwatch.Metric({
+          namespace: authoriserMetricNamespace,
+          metricName: failureMode.metricName,
+          period: cdk.Duration.minutes(1),
+          statistic: 'Sum',
+        }),
+        threshold: 1,
+        evaluationPeriods: 1,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      });
+    }
 
     // FM-4: DynamoDB hot partition (Throttle events)
     new cloudwatch.Alarm(this, 'Fm4DynamoDbHotPartitionAlarm', {
