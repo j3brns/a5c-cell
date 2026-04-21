@@ -67,6 +67,11 @@ default:
           export AWS_ROLE_ARN="${AWS_ROLE_ARN_FALLBACK}"
         fi
       fi
+      if [ "${AWS_AUTH_OPTIONAL:-0}" = "1" ] && [ -z "${AWS_ROLE_ARN:-}" ]; then
+        echo "Skipping AWS authentication: role ARN not configured and auth is optional for this job."
+        export AWS_AUTH_SKIPPED=1
+        exit 0
+      fi
       if [ -z "${AWS_ROLE_ARN:-}" ]; then
         echo "ERROR: AWS role ARN not set."
         echo "Set canonical PLATFORM_PIPELINE_*_ROLE_ARN variables (preferred)."
@@ -134,11 +139,12 @@ test-integration:
   extends: .aws_auth_base
   stage: test
   variables:
+    AWS_AUTH_OPTIONAL: "1"
     AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
     AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
   script:
     - |
-      if [ -z "${AWS_ROLE_ARN_PRIMARY:-}" ] && [ -z "${AWS_ROLE_ARN_FALLBACK:-}" ] && [ -z "${AWS_ROLE_ARN:-}" ]; then
+      if [ "${AWS_AUTH_SKIPPED:-0}" = "1" ]; then
         echo "Skipping integration tests: AWS role ARN not configured in CI."
         exit 0
       fi

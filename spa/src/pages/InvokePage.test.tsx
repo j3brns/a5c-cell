@@ -240,7 +240,11 @@ describe("InvokePage", () => {
         fireEvent.change(input, { target: { value: "run async without id" } });
         fireEvent.click(screen.getByRole("button", { name: /submit instruction/i }));
 
-        expect((await screen.findAllByText(/missing jobid/i))[0]).toBeInTheDocument();
+        expect(
+            await screen.findByText((_, element) =>
+                (element?.textContent || "").trim() === "Async invoke response missing jobId",
+            ),
+        ).toBeInTheDocument();
     });
 
     it("shows fetch error when initial agent lookup fails", async () => {
@@ -262,7 +266,7 @@ describe("InvokePage", () => {
         fireEvent.click(screen.getByRole("button", { name: /submit instruction/i }));
 
         expect((await screen.findAllByText(/Retrieve Execution Results/i))[0]).toBeInTheDocument();
-        expect(screen.getByText(/polling warning/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/polling warning/i)[0]).toBeInTheDocument();
     });
 
     it("shows AG-UI badge and interactive button for AG-UI-capable agents", async () => {
