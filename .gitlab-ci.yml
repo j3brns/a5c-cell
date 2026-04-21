@@ -137,6 +137,11 @@ test-integration:
     AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
     AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
   script:
+    - |
+      if [ -z "${AWS_ROLE_ARN_PRIMARY:-}" ] && [ -z "${AWS_ROLE_ARN_FALLBACK:-}" ] && [ -z "${AWS_ROLE_ARN:-}" ]; then
+        echo "Skipping integration tests: AWS role ARN not configured in CI."
+        exit 0
+      fi
     - make test-int
 
 test-cdk:
