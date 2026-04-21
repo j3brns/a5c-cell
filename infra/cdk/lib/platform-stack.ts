@@ -3,9 +3,8 @@
  *                 Authoriser Lambda, AgentCore Gateway.
  *
  * REST API (not HTTP API) with usage plans, per-method throttling, WAF association.
- * Public SPA CloudFront distribution currently has an explicit no-WebACL exception:
- * the platform has not yet introduced an approved global/us-east-1 edge security stack,
- * so only the regional API surface is WAF-protected in this stack.
+ * SPA CloudFront WAF is provisioned separately in us-east-1 and attached through
+ * the `spaWebAclArn` CDK context value at distribution synth time.
  * Authoriser Lambda: provisioned concurrency 10.
  * AgentCore Gateway with REQUEST and RESPONSE interceptors wired.
  *
@@ -152,6 +151,7 @@ export class PlatformStack extends cdk.Stack {
     // default *.cloudfront.net certificate — suitable for dev/test only.
     const spaDomainName = this.node.tryGetContext('spaDomainName') as string | undefined;
     const spaCertificateArn = this.node.tryGetContext('spaCertificateArn') as string | undefined;
+    const spaWebAclArn = this.node.tryGetContext('spaWebAclArn') as string | undefined;
     const apiDomainName = this.node.tryGetContext('apiDomainName') as string | undefined;
     const apiCertificateArn = this.node.tryGetContext('apiCertificateArn') as string | undefined;
 
@@ -282,6 +282,7 @@ export class PlatformStack extends cdk.Stack {
       envName: env,
       spaDomainName,
       spaCertificateArn,
+      spaWebAclArn,
     });
     this.spaDistribution = platformSpa.spaDistribution;
 
