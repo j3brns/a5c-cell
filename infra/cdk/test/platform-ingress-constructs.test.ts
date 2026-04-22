@@ -23,7 +23,13 @@ function createNodejsFunction(scope: cdk.Stack, id: string): lambda.Function {
   });
 }
 
-function synthSpa(extraProps: Partial<{ spaDomainName: string; spaCertificateArn: string }> = {}) {
+function synthSpa(
+  extraProps: Partial<{
+    spaDomainName: string;
+    spaCertificateArn: string;
+    spaWebAclArn: string;
+  }> = {},
+) {
   const app = new cdk.App();
   const stack = new cdk.Stack(app, 'PlatformSpaTestStack', { env: TEST_ENV });
   new PlatformSpa(stack, 'PlatformSpa', {
@@ -177,8 +183,21 @@ describe('PlatformSpa', () => {
       Properties?: { DistributionConfig?: Record<string, unknown> };
     }>;
 
-    expect(distribution.Properties?.DistributionConfig).not.toHaveProperty('WebACLId');
     expect(distribution.Properties?.DistributionConfig).not.toHaveProperty('CustomErrorResponses');
+  });
+
+  test('attaches the provided CloudFront web ACL ARN to the SPA distribution', () => {
+    const template = synthSpa({
+      spaWebAclArn:
+        'arn:aws:wafv2:us-east-1:123456789012:global/webacl/platform-edge-security-dev-spa-edge-waf/11111111-1111-1111-1111-111111111111',
+    });
+
+    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        WebACLId:
+          'arn:aws:wafv2:us-east-1:123456789012:global/webacl/platform-edge-security-dev-spa-edge-waf/11111111-1111-1111-1111-111111111111',
+      }),
+    });
   });
 
   test('preserves custom-domain TLS posture when domain inputs are provided', () => {

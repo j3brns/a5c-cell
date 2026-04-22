@@ -17,6 +17,7 @@ import { AgentCoreStack } from '../lib/agentcore-stack';
 import { IdentityStack } from '../lib/identity-stack';
 import { NetworkStack } from '../lib/network-stack';
 import { ObservabilityStack } from '../lib/observability-stack';
+import { PlatformEdgeSecurityStack } from '../lib/platform-edge-security-stack';
 import { PlatformStack } from '../lib/platform-stack';
 import { TenantStack } from '../lib/tenant-stack';
 
@@ -32,6 +33,7 @@ if (!env) {
 const HOME_REGION = 'eu-west-2';
 const PRIMARY_RUNTIME_REGION = 'eu-west-1';
 const FAILOVER_RUNTIME_REGION = 'eu-central-1';
+const EDGE_REGION = 'us-east-1';
 
 const awsEnv: cdk.Environment = {
   account: process.env['CDK_DEFAULT_ACCOUNT'],
@@ -40,6 +42,10 @@ const awsEnv: cdk.Environment = {
 const runtimeEnv: cdk.Environment = {
   account: process.env['CDK_DEFAULT_ACCOUNT'],
   region: PRIMARY_RUNTIME_REGION,
+};
+const edgeEnv: cdk.Environment = {
+  account: process.env['CDK_DEFAULT_ACCOUNT'],
+  region: EDGE_REGION,
 };
 
 // 1. NetworkStack
@@ -72,6 +78,15 @@ const platformStack = new PlatformStack(app, `platform-core-${env}`, {
   description: `Platform core services — ${env}`,
   vpc: networkStack.vpc,
   lambdaSecurityGroup: networkStack.lambdaSecurityGroup,
+});
+
+// CloudFront-scoped WAF resources must be created in us-east-1. This stack publishes
+// the SPA web ACL ARN; pass that ARN into PlatformStack via `-c spaWebAclArn=...`
+// when deploying the home-region stack so the CloudFront distribution can attach it.
+new PlatformEdgeSecurityStack(app, `platform-edge-security-${env}`, {
+  env: edgeEnv,
+  description: `Platform CloudFront edge security (${EDGE_REGION}) — ${env}`,
+  envName: env,
 });
 
 // 4. TenantStack (real deployments triggered by EventBridge per-tenant)

@@ -56,6 +56,7 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-016](decisions/ADR-016-platform-internal-tenant.md) | Reserved `platform` tenant for operator-controlled agents without super-tenant bypass |
 | [ADR-017](decisions/ADR-017-tenant-capability-configuration-model.md) | AppConfig for dynamic capability policy; SSM and DynamoDB retain operational parameters and tenant metadata |
 | [ADR-018](decisions/ADR-018-agentcore-ag-ui-integration.md) | Additive AG-UI bootstrap and per-agent interactive runtime boundary |
+| [ADR-019](decisions/ADR-019-tenant-execution-role-account-boundary.md) | Tenant execution roles are same-account only today; any future cross-account mode requires a successor allow-list design |
 | [ADR-701](decisions/ADR-701-tenant-agent-inference-chargeback-and-tagging.md) | Tenant inference chargeback and tagging model |
 | [ADR-702](decisions/ADR-702-bedrock-proxy-gateway-as-additive-internal-model-gateway.md) | Bedrock proxy gateway as additive internal model gateway |
 

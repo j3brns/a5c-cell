@@ -19,7 +19,10 @@ export function isAsyncInvokeAccepted(
     return response.mode === "async" && typeof (response as AgentInvokeAsyncAccepted).jobId === "string";
 }
 
-export function extractJobIdFromPollUrl(pollUrl: string): string | null {
+export function extractJobIdFromPollUrl(pollUrl?: string | null): string | null {
+    if (!pollUrl) {
+        return null;
+    }
     const trimmed = pollUrl.trim();
     if (!trimmed) {
         return null;

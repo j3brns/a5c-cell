@@ -66,6 +66,11 @@ export function AsyncJobStatus({ jobId, status, resultUrl, error, className }: A
                    Retrieve Execution Results
                 </a>
              </Button>
+             {error && (
+               <Typography variant="muted" className="mt-3 text-xs leading-relaxed text-amber-300">
+                 {error}
+               </Typography>
+             )}
           </div>
         )}
       </div>

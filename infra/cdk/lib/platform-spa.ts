@@ -9,6 +9,7 @@ export interface PlatformSpaProps {
   readonly envName: string;
   readonly spaDomainName?: string;
   readonly spaCertificateArn?: string;
+  readonly spaWebAclArn?: string;
 }
 
 function parseAcmCertificateArn(certificateArn: string): { region: string; account: string } | null {

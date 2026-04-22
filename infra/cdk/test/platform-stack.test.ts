@@ -142,6 +142,20 @@ describe('PlatformStack (TASK-023)', () => {
     });
   });
 
+  test('attaches the SPA CloudFront web ACL when spaWebAclArn context is provided', () => {
+    const template = synthTemplate('dev', {
+      spaWebAclArn:
+        'arn:aws:wafv2:us-east-1:123456789012:global/webacl/platform-edge-security-dev-spa-edge-waf/11111111-1111-1111-1111-111111111111',
+    });
+
+    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        WebACLId:
+          'arn:aws:wafv2:us-east-1:123456789012:global/webacl/platform-edge-security-dev-spa-edge-waf/11111111-1111-1111-1111-111111111111',
+      }),
+    });
+  });
+
   test('wires canonical invoke and jobs routes and removes legacy /v1/invoke', () => {
     const resources = template.findResources('AWS::ApiGateway::Resource');
     const pathParts = Object.values(resources).map((resource) => {
@@ -359,7 +373,7 @@ describe('PlatformStack (TASK-023)', () => {
     template.resourceCountIs('AWS::WAFv2::WebACLAssociation', 1);
   });
 
-  test('documents the current explicit SPA edge exception by omitting CloudFront WebACL wiring', () => {
+  test('keeps CloudFront WebACL wiring optional when no spaWebAclArn context is provided', () => {
     template.resourceCountIs('AWS::WAFv2::WebACL', 1);
 
     const distributions = template.findResources('AWS::CloudFront::Distribution');
