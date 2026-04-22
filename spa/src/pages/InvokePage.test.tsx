@@ -325,6 +325,37 @@ describe("InvokePage", () => {
         expect(screen.getByText(/Retry AG-UI/i)).toBeInTheDocument();
     });
 
+    it("retries a failed AG-UI session when requested", async () => {
+        agUiSessionMock.status = "error";
+        agUiSessionMock.error = "AG-UI connection lost";
+        agUiSessionMock.reconnect = vi.fn();
+
+        mockAgentLookup(buildAgent("streaming", { agUiEnabled: true }));
+
+        renderWithRouter(<InvokePage />);
+
+        fireEvent.click(await screen.findByRole("button", { name: /retry ag-ui/i }));
+
+        await waitFor(() => {
+            expect(agUiSessionMock.reconnect).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it("disconnects an active AG-UI session", async () => {
+        agUiSessionMock.status = "connected";
+        agUiSessionMock.accumulatedText = "interactive output";
+        agUiSessionMock.sessionId = "sess-1";
+        agUiSessionMock.disconnect = vi.fn();
+
+        mockAgentLookup(buildAgent("streaming", { agUiEnabled: true }));
+
+        renderWithRouter(<InvokePage />);
+
+        fireEvent.click(await screen.findByRole("button", { name: /disconnect/i }));
+
+        expect(agUiSessionMock.disconnect).toHaveBeenCalledTimes(1);
+    });
+
     it("navigates back to catalogue when back link is clicked", async () => {
         mockAgentLookup(buildAgent("sync"));
 
