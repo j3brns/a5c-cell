@@ -22,7 +22,7 @@ infrastructure releases. Platform operators monitor, scale, and respond to incid
 ```
 eu-west-2 London (HOME — owns everything)
 ├── REST API Gateway + WAF
-├── CloudFront + SPA (S3, no CloudFront WebACL by explicit exception)
+├── CloudFront + SPA (S3, CloudFront WebACL provisioned separately in us-east-1)
 ├── AgentCore Gateway (native)
 ├── AgentCore Memory (native)
 ├── AgentCore Identity (native)
@@ -112,7 +112,7 @@ without major code changes.
 
 ```
 Client
-  → CloudFront (CSP headers, edge caching, no CloudFront WebACL by explicit exception)
+  → CloudFront (CSP headers, edge caching, CloudFront WebACL via us-east-1 edge stack)
   → REST API Gateway (usage plan throttle, WAF)
   → Authoriser Lambda eu-west-2
       Validates Entra JWT (JWKS cached 5min in /tmp)
@@ -147,16 +147,26 @@ now split internally into `config_provider`, `discovery_service`,
 discovery, and failover logic can evolve independently without changing the
 public invoke contract.
 
-Current SPA edge exception: the public SPA distribution does not yet have its own
-CloudFront-scope WebACL. That is intentional for now, not an undocumented omission.
-The current approved region topology in [ADR-009](decisions/ADR-009-region-zigzag.md)
-keeps the platform home region in eu-west-2, while CloudFront-scope WAF resources
-require a dedicated global/us-east-1 management path. This repository does not yet
-contain an approved edge-security stack for that path, so the documented posture is:
-CloudFront provides TLS termination, OAC-backed S3 origin protection, and SPA security
-headers, while the WAF-enforced northbound boundary starts at REST API Gateway.
-Any future move to attach a CloudFront WebACL must be an explicit architecture change,
-not silent drift in stack code.
+Current SPA edge posture: the public SPA distribution is protected by a dedicated
+CloudFront-scope WebACL that must be provisioned in **us-east-1**. AWS WAF requires
+CloudFront-scoped web ACLs and their supporting resources to be created in the global
+CloudFront region, which is US East (N. Virginia). The repository therefore separates
+edge security from the eu-west-2 home-region platform stack:
+
+- `platform-edge-security-<env>` deploys in **us-east-1** and creates the SPA
+  `Scope=CLOUDFRONT` web ACL plus its alarms.
+- `platform-core-<env>` deploys in **eu-west-2** and attaches the web ACL to the SPA
+  distribution through the `spaWebAclArn` CDK context value.
+
+Deployment requirement:
+
+1. Deploy the edge-security stack in **us-east-1**.
+2. Capture the `SpaWebAclArn` output from that stack.
+3. Deploy or update the home-region core stack with
+   `-c spaWebAclArn=<edge-web-acl-arn>`.
+
+Without `spaWebAclArn`, the SPA distribution synthesizes without `WebACLId`, which is
+acceptable only for local/test synthesis and must not be the production posture.
 
 ### Public Ingress Domain and TLS Posture
 

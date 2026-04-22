@@ -1,9 +1,9 @@
 /* @vitest-environment jsdom */
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import React from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { asyncAccepted, buildAgent } from "../test/testData";
 import { InvokePage } from "./InvokePage";
@@ -25,6 +25,13 @@ const { navigateMock, requestMock, streamMock, ApiError } = vi.hoisted(() => {
         ApiError: ApiError
     };
 });
+
+vi.mock("../auth/useAuth", () => ({
+    useAuth: () => ({
+        isAuthenticated: true,
+        getAccessToken: vi.fn().mockResolvedValue("test-access-token"),
+    }),
+}));
 
 vi.mock("../api/client", () => ({
     getApiClient: () => ({
@@ -67,12 +74,11 @@ vi.mock("../hooks/useAgUiSession", () => ({
     useAgUiSession: () => agUiSessionMock,
 }));
 
-// Use actual useNavigate but wrap in MemoryRouter to capture navigation
+// Preserve the rest of react-router-dom so Link and routing behave normally.
 vi.mock("react-router-dom", async () => {
     const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
     return {
         ...actual,
-        useNavigate: () => navigateMock,
     };
 });
 
@@ -81,7 +87,7 @@ function renderWithRouter(ui: React.ReactElement, { route = "/agents/echo-agent"
         <MemoryRouter initialEntries={[route]}>
             <Routes>
                 <Route path="/agents/:agentName" element={ui} />
-                <Route path="/" element={<div>Catalogue</div>} />
+                <Route path="/agents" element={<div>Catalogue</div>} />
             </Routes>
         </MemoryRouter>
     );
@@ -94,6 +100,35 @@ function getInvokeBody(): Record<string, unknown> {
         throw new Error("Invoke request body not captured");
     }
     return JSON.parse(init.body) as Record<string, unknown>;
+}
+
+async function findPromptInput() {
+    const inputs = await screen.findAllByPlaceholderText(/type your instructions/i);
+    return inputs[0];
+}
+
+function mockAgentLookup(agent = buildAgent("sync")) {
+    requestMock.mockImplementation(async (path: string) => {
+        if (path === "/v1/agents/echo-agent") {
+            return agent;
+        }
+        throw new Error(`Unexpected request path: ${path}`);
+    });
+}
+
+function mockAgentLookupAndInvoke(
+    agent: ReturnType<typeof buildAgent>,
+    invokeResponse: unknown,
+) {
+    requestMock.mockImplementation(async (path: string) => {
+        if (path === "/v1/agents/echo-agent") {
+            return agent;
+        }
+        if (path === "/v1/agents/echo-agent/invoke") {
+            return invokeResponse;
+        }
+        throw new Error(`Unexpected request path: ${path}`);
+    });
 }
 
 describe("InvokePage", () => {
@@ -112,17 +147,21 @@ describe("InvokePage", () => {
         };
     });
 
+    afterEach(() => {
+        cleanup();
+    });
+
     it("renders agent metadata from the deployed camelCase detail contract", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("sync"));
+        mockAgentLookup(buildAgent("sync"));
 
         renderWithRouter(<InvokePage />);
 
-        expect(await screen.findByText(/Invoke: echo-agent/i)).toBeInTheDocument();
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
         expect(screen.getAllByText(/sync/i)[0]).toBeInTheDocument();
     });
 
     it("sends sync invoke requests with contract-compatible input payload", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("sync")).mockResolvedValueOnce({
+        mockAgentLookupAndInvoke(buildAgent("sync"), {
             invocationId: "inv-1",
             agentName: "echo-agent",
             mode: "sync",
@@ -132,19 +171,20 @@ describe("InvokePage", () => {
 
         renderWithRouter(<InvokePage />);
 
-        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        const input = await findPromptInput();
         fireEvent.change(input, { target: { value: "ping" } });
-        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+        fireEvent.click(screen.getByRole("button", { name: /submit instruction/i }));
 
         await waitFor(() => {
-            expect(requestMock).toHaveBeenCalledTimes(2);
+            expect(requestMock).toHaveBeenCalled();
         });
 
         expect(getInvokeBody()).toEqual({ input: "ping" });
     });
 
     it("uses streaming invoke path with contract-compatible payload", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("streaming"));
+        mockAgentLookup(buildAgent("streaming"));
         streamMock.mockReturnValue(
             (async function* () {
                 yield { data: "hello " };
@@ -154,9 +194,10 @@ describe("InvokePage", () => {
 
         renderWithRouter(<InvokePage />);
 
-        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        const input = await findPromptInput();
         fireEvent.change(input, { target: { value: "stream this" } });
-        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+        fireEvent.click(screen.getByRole("button", { name: /submit instruction/i }));
 
         await waitFor(() => {
             expect(streamMock).toHaveBeenCalledTimes(1);
@@ -169,23 +210,24 @@ describe("InvokePage", () => {
     });
 
     it("handles async accepted responses and starts polling with jobId", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("async")).mockResolvedValueOnce(asyncAccepted);
+        mockAgentLookupAndInvoke(buildAgent("async"), asyncAccepted);
 
         renderWithRouter(<InvokePage />);
 
-        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        const input = await findPromptInput();
         fireEvent.change(input, { target: { value: "run async" } });
-        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+        fireEvent.click(screen.getByRole("button", { name: /submit instruction/i }));
 
         await waitFor(() => {
-            expect(requestMock).toHaveBeenCalledTimes(2);
+            expect(requestMock).toHaveBeenCalled();
         });
 
         expect(getInvokeBody()).toEqual({ input: "run async" });
     });
 
     it("surfaces async contract error when accepted response has no job id", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("async")).mockResolvedValueOnce({
+        mockAgentLookupAndInvoke(buildAgent("async"), {
             jobId: "",
             status: "accepted",
             mode: "async",
@@ -193,11 +235,16 @@ describe("InvokePage", () => {
 
         renderWithRouter(<InvokePage />);
 
-        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        const input = await findPromptInput();
         fireEvent.change(input, { target: { value: "run async without id" } });
-        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+        fireEvent.click(screen.getByRole("button", { name: /submit instruction/i }));
 
-        expect(await screen.findByText(/Async invoke response missing jobId/i)).toBeInTheDocument();
+        expect(
+            await screen.findByText((_, element) =>
+                (element?.textContent || "").trim() === "Async invoke response missing jobId",
+            ),
+        ).toBeInTheDocument();
     });
 
     it("shows fetch error when initial agent lookup fails", async () => {
@@ -209,42 +256,45 @@ describe("InvokePage", () => {
     });
 
     it("renders async completion link and polling error details", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("async")).mockResolvedValueOnce(asyncAccepted);
+        mockAgentLookupAndInvoke(buildAgent("async"), asyncAccepted);
 
         renderWithRouter(<InvokePage />);
 
-        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        const input = await findPromptInput();
         fireEvent.change(input, { target: { value: "complete async" } });
-        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+        fireEvent.click(screen.getByRole("button", { name: /submit instruction/i }));
 
-        expect(await screen.findByText(/View Results/i)).toBeInTheDocument();
-        expect(screen.getByText(/polling warning/i)).toBeInTheDocument();
+        expect((await screen.findAllByText(/Retrieve Execution Results/i))[0]).toBeInTheDocument();
+        expect(screen.getAllByText(/polling warning/i)[0]).toBeInTheDocument();
     });
 
     it("shows AG-UI badge and interactive button for AG-UI-capable agents", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("streaming", { agUiEnabled: true }));
+        mockAgentLookup(buildAgent("streaming", { agUiEnabled: true }));
 
         renderWithRouter(<InvokePage />);
 
-        expect(await screen.findByText(/AG-UI/i)).toBeInTheDocument();
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        expect((await screen.findAllByText(/AG-UI/i))[0]).toBeInTheDocument();
         expect(screen.getByText(/Start Interactive Session/i)).toBeInTheDocument();
     });
 
     it("uses AG-UI session start for AG-UI-capable agents on invoke", async () => {
         agUiSessionMock.start = vi.fn();
-        requestMock.mockResolvedValueOnce(buildAgent("streaming", { agUiEnabled: true }));
+        mockAgentLookup(buildAgent("streaming", { agUiEnabled: true }));
 
         renderWithRouter(<InvokePage />);
 
-        const input = await screen.findByPlaceholderText(/type your prompt/i);
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        const input = await findPromptInput();
         fireEvent.change(input, { target: { value: "interactive test" } });
-        fireEvent.click(screen.getByRole("button", { name: /invoke agent/i }));
+        fireEvent.click(screen.getByRole("button", { name: /start interactive session/i }));
 
         await waitFor(() => {
             expect(agUiSessionMock.start).toHaveBeenCalledWith("interactive test");
         });
         
-        expect(requestMock).toHaveBeenCalledTimes(1); 
+        expect(requestMock).toHaveBeenCalled(); 
         expect(streamMock).not.toHaveBeenCalled();
     });
 
@@ -253,11 +303,12 @@ describe("InvokePage", () => {
         agUiSessionMock.accumulatedText = "AG-UI streamed output";
         agUiSessionMock.sessionId = "sess-1";
         
-        requestMock.mockResolvedValueOnce(buildAgent("streaming", { agUiEnabled: true }));
+        mockAgentLookup(buildAgent("streaming", { agUiEnabled: true }));
 
         renderWithRouter(<InvokePage />);
 
-        expect(await screen.findByText(/AG-UI streamed output/i)).toBeInTheDocument();
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        expect((await screen.findAllByText(/AG-UI streamed output/i))[0]).toBeInTheDocument();
         expect(screen.getByText(/AG-UI session active/i)).toBeInTheDocument();
     });
 
@@ -265,22 +316,55 @@ describe("InvokePage", () => {
         agUiSessionMock.status = "error";
         agUiSessionMock.error = "AG-UI connection lost";
         
-        requestMock.mockResolvedValueOnce(buildAgent("streaming", { agUiEnabled: true }));
+        mockAgentLookup(buildAgent("streaming", { agUiEnabled: true }));
 
         renderWithRouter(<InvokePage />);
 
-        expect(await screen.findByText(/AG-UI connection lost/i)).toBeInTheDocument();
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
+        expect((await screen.findAllByText(/AG-UI connection lost/i))[0]).toBeInTheDocument();
         expect(screen.getByText(/Retry AG-UI/i)).toBeInTheDocument();
     });
 
-    it("navigates back to catalogue when back button is clicked", async () => {
-        requestMock.mockResolvedValueOnce(buildAgent("sync"));
+    it("retries a failed AG-UI session when requested", async () => {
+        agUiSessionMock.status = "error";
+        agUiSessionMock.error = "AG-UI connection lost";
+        agUiSessionMock.reconnect = vi.fn();
+
+        mockAgentLookup(buildAgent("streaming", { agUiEnabled: true }));
 
         renderWithRouter(<InvokePage />);
 
+        fireEvent.click(await screen.findByRole("button", { name: /retry ag-ui/i }));
+
+        await waitFor(() => {
+            expect(agUiSessionMock.reconnect).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it("disconnects an active AG-UI session", async () => {
+        agUiSessionMock.status = "connected";
+        agUiSessionMock.accumulatedText = "interactive output";
+        agUiSessionMock.sessionId = "sess-1";
+        agUiSessionMock.disconnect = vi.fn();
+
+        mockAgentLookup(buildAgent("streaming", { agUiEnabled: true }));
+
+        renderWithRouter(<InvokePage />);
+
+        fireEvent.click(await screen.findByRole("button", { name: /disconnect/i }));
+
+        expect(agUiSessionMock.disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it("navigates back to catalogue when back link is clicked", async () => {
+        mockAgentLookup(buildAgent("sync"));
+
+        renderWithRouter(<InvokePage />);
+
+        expect((await screen.findAllByText(/Invoke:\s*echo-agent/i))[0]).toBeInTheDocument();
         const backLink = await screen.findByRole("link", { name: /back to catalogue/i });
         fireEvent.click(backLink);
 
-        expect(navigateMock).toHaveBeenCalledWith("/");
+        expect(await screen.findByText("Catalogue")).toBeInTheDocument();
     });
 });

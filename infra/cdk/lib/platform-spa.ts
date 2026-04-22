@@ -9,6 +9,7 @@ export interface PlatformSpaProps {
   readonly envName: string;
   readonly spaDomainName?: string;
   readonly spaCertificateArn?: string;
+  readonly spaWebAclArn?: string;
 }
 
 export class PlatformSpa extends Construct {
@@ -157,6 +158,11 @@ function handler(event) {
             restrictionType: 'none',
           },
         },
+        ...(props.spaWebAclArn
+          ? {
+              webAclId: props.spaWebAclArn,
+            }
+          : {}),
         ...(props.spaDomainName && props.spaCertificateArn
           ? {
               aliases: [props.spaDomainName],
