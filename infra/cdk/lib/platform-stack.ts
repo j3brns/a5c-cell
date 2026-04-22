@@ -61,6 +61,41 @@ type GatewayPolicyConfiguration = {
   readonly policyName: string;
 };
 
+function normalizeOrigin(value: string, contextName: string): string {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error();
+    }
+    return parsed.origin;
+  } catch {
+    throw new Error(`${contextName} must be an absolute http(s) URL: ${value}`);
+  }
+}
+
+function resolveAgUiAllowedOrigins(scope: Construct): string[] {
+  const rawValue = scope.node.tryGetContext('agUiEndpointOrigins');
+  if (rawValue === undefined) {
+    return [];
+  }
+
+  const values = Array.isArray(rawValue)
+    ? rawValue
+    : typeof rawValue === 'string'
+      ? rawValue.split(/[,\s]+/)
+      : [];
+
+  const normalizedOrigins = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== 'string' || value.trim() === '') {
+      continue;
+    }
+    normalizedOrigins.add(normalizeOrigin(value.trim(), 'agUiEndpointOrigins'));
+  }
+
+  return Array.from(normalizedOrigins);
+}
+
 export interface PlatformStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
   readonly lambdaSecurityGroup: ec2.ISecurityGroup;
@@ -154,6 +189,7 @@ export class PlatformStack extends cdk.Stack {
     const spaWebAclArn = this.node.tryGetContext('spaWebAclArn') as string | undefined;
     const apiDomainName = this.node.tryGetContext('apiDomainName') as string | undefined;
     const apiCertificateArn = this.node.tryGetContext('apiCertificateArn') as string | undefined;
+    const agUiAllowedOrigins = resolveAgUiAllowedOrigins(this);
 
     // --- Secrets ---
 
@@ -283,6 +319,9 @@ export class PlatformStack extends cdk.Stack {
       spaDomainName,
       spaCertificateArn,
       spaWebAclArn,
+      apiAllowedOrigin: apiDomainName ? `https://${apiDomainName}` : undefined,
+      entraAuthorityOrigin: normalizeOrigin(entra.issuer, 'entraIssuer'),
+      agUiAllowedOrigins,
     });
     this.spaDistribution = platformSpa.spaDistribution;
 
