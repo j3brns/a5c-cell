@@ -30,6 +30,8 @@ export class PlatformSpa extends Construct {
   constructor(scope: Construct, id: string, props: PlatformSpaProps) {
     super(scope, id);
 
+    const spaDomainNameProvided = props.spaDomainName !== undefined;
+    const spaCertificateArnProvided = props.spaCertificateArn !== undefined;
     const spaDomainName = props.spaDomainName?.trim();
     const spaCertificateArn = props.spaCertificateArn?.trim();
     const hasSpaDomainName = typeof spaDomainName === 'string' && spaDomainName.length > 0;
@@ -41,7 +43,7 @@ export class PlatformSpa extends Construct {
       );
     }
 
-    if ((props.spaDomainName && !hasSpaDomainName) || (props.spaCertificateArn && !hasSpaCertificateArn)) {
+    if ((spaDomainNameProvided && !hasSpaDomainName) || (spaCertificateArnProvided && !hasSpaCertificateArn)) {
       throw new Error('spaDomainName and spaCertificateArn must not be blank when provided.');
     }
 

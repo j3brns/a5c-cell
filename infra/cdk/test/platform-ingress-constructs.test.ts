@@ -256,6 +256,15 @@ describe('PlatformSpa', () => {
     ).toThrow('spaDomainName and spaCertificateArn must not be blank when provided');
   });
 
+  test('rejects empty-string SPA custom-domain inputs', () => {
+    expect(() =>
+      synthSpa({
+        spaDomainName: '',
+        spaCertificateArn: '',
+      }),
+    ).toThrow('spaDomainName and spaCertificateArn must not be blank when provided');
+  });
+
   test('rejects SPA certificate ARNs when the stack account is unresolved', () => {
     expect(() =>
       synthSpaWithoutEnv({
