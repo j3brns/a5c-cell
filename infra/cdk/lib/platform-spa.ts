@@ -11,12 +11,63 @@ export interface PlatformSpaProps {
   readonly spaCertificateArn?: string;
 }
 
+function parseAcmCertificateArn(certificateArn: string): { region: string; account: string } | null {
+  const match = /^arn:[^:]+:acm:([^:]+):([^:]+):certificate\/.+$/.exec(certificateArn);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    region: match[1],
+    account: match[2],
+  };
+}
+
 export class PlatformSpa extends Construct {
   public readonly spaDistribution: cloudfront.CfnDistribution;
   public readonly spaAllowedOrigin: string;
 
   constructor(scope: Construct, id: string, props: PlatformSpaProps) {
     super(scope, id);
+
+    const spaDomainName = props.spaDomainName?.trim();
+    const spaCertificateArn = props.spaCertificateArn?.trim();
+    const hasSpaDomainName = typeof spaDomainName === 'string' && spaDomainName.length > 0;
+    const hasSpaCertificateArn = typeof spaCertificateArn === 'string' && spaCertificateArn.length > 0;
+
+    if (hasSpaDomainName !== hasSpaCertificateArn) {
+      throw new Error(
+        'Custom SPA domain configuration requires both spaDomainName and spaCertificateArn to be set together.',
+      );
+    }
+
+    if ((props.spaDomainName && !hasSpaDomainName) || (props.spaCertificateArn && !hasSpaCertificateArn)) {
+      throw new Error('spaDomainName and spaCertificateArn must not be blank when provided.');
+    }
+
+    if (hasSpaCertificateArn && spaCertificateArn) {
+      const parsedCertificateArn = parseAcmCertificateArn(spaCertificateArn);
+      if (!parsedCertificateArn) {
+        throw new Error(
+          'spaCertificateArn must be an ACM certificate ARN in the form arn:aws:acm:us-east-1:<account>:certificate/<id>.',
+        );
+      }
+
+      if (parsedCertificateArn.region !== 'us-east-1') {
+        throw new Error('spaCertificateArn must reference an ACM certificate in us-east-1 for CloudFront.');
+      }
+
+      const stackAccount = cdk.Stack.of(this).account;
+      if (cdk.Token.isUnresolved(stackAccount)) {
+        throw new Error('spaCertificateArn requires a concrete stack account so same-account ownership can be enforced.');
+      }
+
+      if (parsedCertificateArn.account !== stackAccount) {
+        throw new Error(
+          `spaCertificateArn account ${parsedCertificateArn.account} must match the stack account ${stackAccount}.`,
+        );
+      }
+    }
 
     const spaBucket = new s3.Bucket(this, 'SpaBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -157,11 +208,11 @@ function handler(event) {
             restrictionType: 'none',
           },
         },
-        ...(props.spaDomainName && props.spaCertificateArn
+        ...(hasSpaDomainName && hasSpaCertificateArn && spaDomainName && spaCertificateArn
           ? {
-              aliases: [props.spaDomainName],
+              aliases: [spaDomainName],
               viewerCertificate: {
-                acmCertificateArn: props.spaCertificateArn,
+                acmCertificateArn: spaCertificateArn,
                 minimumProtocolVersion: 'TLSv1.2_2021',
                 sslSupportMethod: 'sni-only',
               },
@@ -221,22 +272,22 @@ function handler(event) {
     });
     spaDistributionIdOutput.overrideLogicalId('SpaDistributionId');
 
-    if (props.spaDomainName) {
+    if (hasSpaDomainName && spaDomainName) {
       new ssm.StringParameter(this, 'SpaDomainNameParam', {
         parameterName: `/platform/spa/${props.envName}/domain-name`,
-        stringValue: props.spaDomainName,
+        stringValue: spaDomainName,
         description: 'Custom domain name for the platform SPA CloudFront distribution',
       });
 
       const spaDomainNameOutput = new cdk.CfnOutput(this, 'SpaDomainName', {
-        value: props.spaDomainName,
+        value: spaDomainName,
         description: 'Custom domain name for the platform SPA',
       });
       spaDomainNameOutput.overrideLogicalId('SpaDomainName');
     }
 
-    this.spaAllowedOrigin = props.spaDomainName
-      ? `https://${props.spaDomainName}`
+    this.spaAllowedOrigin = hasSpaDomainName && spaDomainName
+      ? `https://${spaDomainName}`
       : cdk.Fn.join('', ['https://', this.spaDistribution.attrDomainName]);
   }
 }

@@ -200,6 +200,18 @@ The platform exposes two public endpoints to tenants and end users:
 - Both domain names and regional targets are published to SSM Parameter Store for
   operational reference.
 
+**Custom SPA certificate expectations:**
+- `spaDomainName` and `spaCertificateArn` are a required pair. The platform rejects
+  partial configuration at synth time instead of letting CloudFront fail later.
+- `spaCertificateArn` must reference an ACM certificate in **us-east-1** and, by
+  default, in the same AWS account as the stack being deployed.
+- The certificate subject alternative names must cover the exact custom SPA hostname
+  configured in `spaDomainName` (for example `app.example.com` or a wildcard that
+  validly covers it).
+- DNS cutover is the operator's responsibility: keep the ACM validation records in
+  place for renewal, and point the SPA hostname at the CloudFront distribution only
+  after the certificate is issued and covers the requested hostname.
+
 ## Invocation Modes
 
 Three modes, declared in agent `pyproject.toml` under `[tool.agentcore.invocation_mode]`.
