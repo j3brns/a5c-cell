@@ -1018,6 +1018,23 @@ describe('PlatformStack (TASK-023)', () => {
     });
   });
 
+  test('rejects incomplete SPA custom domain context before synthesizing CloudFront', () => {
+    expect(() =>
+      synthTemplate('prod', {
+        spaDomainName: 'app.example.com',
+      }),
+    ).toThrow('Custom SPA domain configuration requires both spaDomainName and spaCertificateArn');
+  });
+
+  test('rejects SPA certificate ARNs outside CloudFronts required region', () => {
+    expect(() =>
+      synthTemplate('prod', {
+        spaDomainName: 'app.example.com',
+        spaCertificateArn: 'arn:aws:acm:eu-west-2:123456789012:certificate/abcd-1234',
+      }),
+    ).toThrow('spaCertificateArn must reference an ACM certificate in us-east-1 for CloudFront');
+  });
+
   test('uses CloudFront generated domain for CORS when no custom domain is set', () => {
     const distributions = template.findResources('AWS::CloudFront::Distribution');
     expect(Object.keys(distributions)).toHaveLength(1);

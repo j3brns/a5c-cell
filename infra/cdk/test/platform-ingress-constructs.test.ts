@@ -39,6 +39,16 @@ function synthSpa(
   return Template.fromStack(stack);
 }
 
+function synthSpaWithoutEnv(extraProps: Partial<{ spaDomainName: string; spaCertificateArn: string }> = {}) {
+  const app = new cdk.App();
+  const stack = new cdk.Stack(app, 'PlatformSpaEnvAgnosticTestStack');
+  new PlatformSpa(stack, 'PlatformSpa', {
+    envName: 'dev',
+    ...extraProps,
+  });
+  return Template.fromStack(stack);
+}
+
 function synthApi(
   extraProps: Partial<{ apiDomainName: string; apiCertificateArn: string }> = {},
 ) {
@@ -208,6 +218,80 @@ describe('PlatformSpa', () => {
         }),
       }),
     });
+  });
+
+  test('rejects a custom SPA domain without a certificate ARN', () => {
+    expect(() =>
+      synthSpa({
+        spaDomainName: 'spa.example.com',
+      }),
+    ).toThrow('Custom SPA domain configuration requires both spaDomainName and spaCertificateArn');
+  });
+
+  test('rejects a certificate ARN without a custom SPA domain', () => {
+    expect(() =>
+      synthSpa({
+        spaCertificateArn:
+          'arn:aws:acm:us-east-1:123456789012:certificate/11111111-1111-1111-1111-111111111111',
+      }),
+    ).toThrow('Custom SPA domain configuration requires both spaDomainName and spaCertificateArn');
+  });
+
+  test('rejects non-ACM certificate ARNs for the SPA custom domain', () => {
+    expect(() =>
+      synthSpa({
+        spaDomainName: 'spa.example.com',
+        spaCertificateArn: 'arn:aws:iam::123456789012:server-certificate/example',
+      }),
+    ).toThrow('spaCertificateArn must be an ACM certificate ARN');
+  });
+
+  test('rejects ACM certificate ARNs outside us-east-1 for the SPA custom domain', () => {
+    expect(() =>
+      synthSpa({
+        spaDomainName: 'spa.example.com',
+        spaCertificateArn:
+          'arn:aws:acm:eu-west-2:123456789012:certificate/11111111-1111-1111-1111-111111111111',
+      }),
+    ).toThrow('spaCertificateArn must reference an ACM certificate in us-east-1 for CloudFront');
+  });
+
+  test('rejects cross-account ACM certificate ARNs for the SPA custom domain', () => {
+    expect(() =>
+      synthSpa({
+        spaDomainName: 'spa.example.com',
+        spaCertificateArn:
+          'arn:aws:acm:us-east-1:210987654321:certificate/11111111-1111-1111-1111-111111111111',
+      }),
+    ).toThrow('must match the stack account 123456789012');
+  });
+
+  test('rejects blank SPA custom-domain inputs', () => {
+    expect(() =>
+      synthSpa({
+        spaDomainName: '   ',
+        spaCertificateArn: '   ',
+      }),
+    ).toThrow('spaDomainName and spaCertificateArn must not be blank when provided');
+  });
+
+  test('rejects empty-string SPA custom-domain inputs', () => {
+    expect(() =>
+      synthSpa({
+        spaDomainName: '',
+        spaCertificateArn: '',
+      }),
+    ).toThrow('spaDomainName and spaCertificateArn must not be blank when provided');
+  });
+
+  test('rejects SPA certificate ARNs when the stack account is unresolved', () => {
+    expect(() =>
+      synthSpaWithoutEnv({
+        spaDomainName: 'spa.example.com',
+        spaCertificateArn:
+          'arn:aws:acm:us-east-1:210987654321:certificate/11111111-1111-1111-1111-111111111111',
+      }),
+    ).toThrow('spaCertificateArn requires a concrete stack account');
   });
 });
 
