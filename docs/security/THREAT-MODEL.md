@@ -86,6 +86,14 @@ routes still require explicit platform RBAC; target-tenant actions must go throu
 documented control-plane APIs or workflows; audit records must capture acting tenant,
 acting principal, target tenant, operation type, and outcome
 
+### 12. Execution-Role Account Boundary Drift
+Threat: Bridge assumes a tenant execution role in an arbitrary AWS account because
+the IAM resource pattern is broader than the approved tenant-account boundary
+Mitigation: ADR-019 defines the current model as `same-account only`; Bridge validates
+`executionRoleArn.account == tenant.accountId`; SigV4 machine binding resolves by exact
+`executionRoleArn`; the current wildcard IAM resource is treated as drift to remediate,
+not as approval for cross-account tenant execution
+
 ## Controls Summary
 
 | Control                        | Threat(s) Addressed          | Where Implemented         |

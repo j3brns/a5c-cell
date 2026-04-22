@@ -591,6 +591,14 @@ Out of scope for this backlog:
 
 ### Cross-Account Tenant Provisioning (Option B/C)
 
+Account-boundary rule: [ADR-019](decisions/ADR-019-tenant-execution-role-account-boundary.md)
+defines the current tenant execution-role model as **`same-account only`**.
+Option B/C account vending exists as a future quota-relief topology, but the
+current Bridge execution-role path does not yet support a cross-account tenant
+execution role end-to-end. A matching role name in another account is not
+sufficient, and any future cross-account mode requires a successor
+`cross-account allow-list` design.
+
 ```mermaid
 flowchart LR
   subgraph P["Platform Account (home/control plane)"]
