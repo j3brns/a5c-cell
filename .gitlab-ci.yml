@@ -136,7 +136,7 @@ test-unit:
       junit: junit-report.xml
 
 test-integration:
-  extends: .tools_base
+  extends: .test_job_base
   stage: test
   variables:
     AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
