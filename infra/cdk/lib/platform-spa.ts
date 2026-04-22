@@ -10,7 +10,17 @@ export interface PlatformSpaProps {
   readonly spaDomainName?: string;
   readonly spaCertificateArn?: string;
   readonly spaWebAclArn?: string;
+  readonly apiAllowedOrigin?: string;
+  readonly entraAuthorityOrigin: string;
+  readonly agUiAllowedOrigins?: string[];
 }
+
+const LOCAL_DEV_CONNECT_SRC_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:4566',
+  'http://localhost:8080',
+];
+const MAX_CONTENT_SECURITY_POLICY_LENGTH = 1783;
 
 function parseAcmCertificateArn(certificateArn: string): { region: string; account: string } | null {
   const match = /^arn:[^:]+:acm:([^:]+):([^:]+):certificate\/.+$/.exec(certificateArn);
@@ -22,6 +32,46 @@ function parseAcmCertificateArn(certificateArn: string): { region: string; accou
     region: match[1],
     account: match[2],
   };
+}
+
+function buildConnectSrcDirective(
+  props: PlatformSpaProps,
+): string {
+  const connectSrcOrigins = new Set<string>(["'self'", props.entraAuthorityOrigin]);
+
+  if (props.spaDomainName) {
+    connectSrcOrigins.add(`https://${props.spaDomainName}`);
+  }
+
+  if (props.apiAllowedOrigin) {
+    connectSrcOrigins.add(props.apiAllowedOrigin);
+  }
+
+  for (const origin of props.agUiAllowedOrigins ?? []) {
+    connectSrcOrigins.add(origin);
+  }
+
+  if (props.envName !== 'prod') {
+    for (const origin of LOCAL_DEV_CONNECT_SRC_ORIGINS) {
+      connectSrcOrigins.add(origin);
+    }
+  }
+
+  return `connect-src ${Array.from(connectSrcOrigins).join(' ')}`;
+}
+
+function buildContentSecurityPolicy(props: PlatformSpaProps): string {
+  const contentSecurityPolicy =
+    `default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; ${buildConnectSrcDirective(props)}; ` +
+    "img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self';";
+
+  if (contentSecurityPolicy.length > MAX_CONTENT_SECURITY_POLICY_LENGTH) {
+    throw new Error(
+      `SPA Content-Security-Policy exceeds the CloudFront response headers policy limit of ${MAX_CONTENT_SECURITY_POLICY_LENGTH} characters`,
+    );
+  }
+
+  return contentSecurityPolicy;
 }
 
 export class PlatformSpa extends Construct {
@@ -98,8 +148,7 @@ export class PlatformSpa extends Construct {
           comment: 'Security headers for platform SPA',
           securityHeadersConfig: {
             contentSecurityPolicy: {
-              contentSecurityPolicy:
-                "default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; connect-src 'self' https:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self';",
+              contentSecurityPolicy: buildContentSecurityPolicy(props),
               override: true,
             },
             frameOptions: {
@@ -211,6 +260,11 @@ function handler(event) {
             restrictionType: 'none',
           },
         },
+        ...(props.spaWebAclArn
+          ? {
+              webAclId: props.spaWebAclArn,
+            }
+          : {}),
         ...(hasSpaDomainName && hasSpaCertificateArn && spaDomainName && spaCertificateArn
           ? {
               aliases: [spaDomainName],

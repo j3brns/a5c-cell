@@ -45,6 +45,27 @@ describe('PlatformStack (TASK-023)', () => {
   };
   const template = synthTemplate('dev');
 
+  const getSpaContentSecurityPolicy = (stackTemplate: Template) => {
+    const policies = stackTemplate.findResources('AWS::CloudFront::ResponseHeadersPolicy') as Record<
+      string,
+      {
+        Properties?: {
+          ResponseHeadersPolicyConfig?: {
+            SecurityHeadersConfig?: {
+              ContentSecurityPolicy?: {
+                ContentSecurityPolicy?: unknown;
+              };
+            };
+          };
+        };
+      }
+    >;
+
+    const [policy] = Object.values(policies);
+    return policy?.Properties?.ResponseHeadersPolicyConfig?.SecurityHeadersConfig?.ContentSecurityPolicy
+      ?.ContentSecurityPolicy;
+  };
+
   const getIamPolicyStatements = (stackTemplate: Template): Array<Record<string, unknown>> => {
     const policies = stackTemplate.findResources('AWS::IAM::Policy') as Record<
       string,
@@ -421,6 +442,17 @@ describe('PlatformStack (TASK-023)', () => {
         }),
       }),
     });
+  });
+
+  test('builds CloudFront connect-src from explicit non-production origins for the default stack', () => {
+    const contentSecurityPolicy = JSON.stringify(getSpaContentSecurityPolicy(template));
+
+    expect(contentSecurityPolicy).toContain('login.microsoftonline.com');
+    expect(contentSecurityPolicy).toContain('localhost:3000');
+    expect(contentSecurityPolicy).toContain('localhost:4566');
+    expect(contentSecurityPolicy).toContain('localhost:8080');
+    expect(contentSecurityPolicy).not.toMatch(/connect-src\s+'self'\s+https:\s*;/);
+    expect(String(getSpaContentSecurityPolicy(template)).length).toBeLessThan(1784);
   });
 
   test('configures CloudFront route fallback without masking missing asset failures', () => {
@@ -1033,6 +1065,28 @@ describe('PlatformStack (TASK-023)', () => {
         spaCertificateArn: 'arn:aws:acm:eu-west-2:123456789012:certificate/abcd-1234',
       }),
     ).toThrow('spaCertificateArn must reference an ACM certificate in us-east-1 for CloudFront');
+  });
+
+  test('uses explicit custom-domain origins in prod connect-src and excludes localhost allowances', () => {
+    const customDomainTemplate = synthTemplate('prod', {
+      spaDomainName: 'app.example.com',
+      spaCertificateArn: 'arn:aws:acm:us-east-1:123456789012:certificate/abcd-1234',
+      apiDomainName: 'api.example.com',
+      apiCertificateArn: 'arn:aws:acm:eu-west-2:123456789012:certificate/efgh-5678',
+      agUiEndpointOrigins: 'https://ag-ui.example.com/connect',
+    });
+
+    const contentSecurityPolicy = JSON.stringify(getSpaContentSecurityPolicy(customDomainTemplate));
+
+    expect(contentSecurityPolicy).toContain('https://app.example.com');
+    expect(contentSecurityPolicy).toContain('https://api.example.com');
+    expect(contentSecurityPolicy).toContain('https://ag-ui.example.com');
+    expect(contentSecurityPolicy).toContain('https://login.microsoftonline.com');
+    expect(contentSecurityPolicy).not.toContain('localhost:3000');
+    expect(contentSecurityPolicy).not.toContain('localhost:4566');
+    expect(contentSecurityPolicy).not.toContain('localhost:8080');
+    expect(contentSecurityPolicy).not.toMatch(/connect-src\s+'self'\s+https:\s*;/);
+    expect(String(getSpaContentSecurityPolicy(customDomainTemplate)).length).toBeLessThan(1784);
   });
 
   test('uses CloudFront generated domain for CORS when no custom domain is set', () => {

@@ -25,15 +25,21 @@ function createNodejsFunction(scope: cdk.Stack, id: string): lambda.Function {
 
 function synthSpa(
   extraProps: Partial<{
+    envName: string;
     spaDomainName: string;
     spaCertificateArn: string;
     spaWebAclArn: string;
+    apiAllowedOrigin: string;
+    entraAuthorityOrigin: string;
+    agUiAllowedOrigins: string[];
   }> = {},
 ) {
   const app = new cdk.App();
   const stack = new cdk.Stack(app, 'PlatformSpaTestStack', { env: TEST_ENV });
   new PlatformSpa(stack, 'PlatformSpa', {
     envName: 'dev',
+    apiAllowedOrigin: 'https://api.example.com',
+    entraAuthorityOrigin: 'https://login.microsoftonline.com',
     ...extraProps,
   });
   return Template.fromStack(stack);
@@ -44,9 +50,36 @@ function synthSpaWithoutEnv(extraProps: Partial<{ spaDomainName: string; spaCert
   const stack = new cdk.Stack(app, 'PlatformSpaEnvAgnosticTestStack');
   new PlatformSpa(stack, 'PlatformSpa', {
     envName: 'dev',
+    apiAllowedOrigin: 'https://api.example.com',
+    entraAuthorityOrigin: 'https://login.microsoftonline.com',
     ...extraProps,
   });
   return Template.fromStack(stack);
+}
+
+function getSpaContentSecurityPolicy(template: Template): string {
+  const policies = template.findResources('AWS::CloudFront::ResponseHeadersPolicy') as Record<
+    string,
+    {
+      Properties?: {
+        ResponseHeadersPolicyConfig?: {
+          SecurityHeadersConfig?: {
+            ContentSecurityPolicy?: {
+              ContentSecurityPolicy?: string;
+            };
+          };
+        };
+      };
+    }
+  >;
+
+  const [policy] = Object.values(policies);
+  const contentSecurityPolicy =
+    policy?.Properties?.ResponseHeadersPolicyConfig?.SecurityHeadersConfig?.ContentSecurityPolicy
+      ?.ContentSecurityPolicy;
+
+  expect(contentSecurityPolicy).toBeDefined();
+  return contentSecurityPolicy!;
 }
 
 function synthApi(
@@ -198,6 +231,57 @@ describe('PlatformSpa', () => {
           'arn:aws:wafv2:us-east-1:123456789012:global/webacl/platform-edge-security-dev-spa-edge-waf/11111111-1111-1111-1111-111111111111',
       }),
     });
+  });
+
+  test('uses explicit connect-src origins and omits the https wildcard', () => {
+    const template = synthSpa({
+      spaDomainName: 'spa.example.com',
+      spaCertificateArn:
+        'arn:aws:acm:us-east-1:123456789012:certificate/11111111-1111-1111-1111-111111111111',
+      apiAllowedOrigin: 'https://api.example.com',
+      entraAuthorityOrigin: 'https://login.microsoftonline.com',
+      agUiAllowedOrigins: ['https://ag-ui.example.com'],
+    });
+
+    const contentSecurityPolicy = getSpaContentSecurityPolicy(template);
+
+    expect(contentSecurityPolicy).toContain("connect-src 'self'");
+    expect(contentSecurityPolicy).toContain('https://spa.example.com');
+    expect(contentSecurityPolicy).toContain('https://api.example.com');
+    expect(contentSecurityPolicy).toContain('https://login.microsoftonline.com');
+    expect(contentSecurityPolicy).toContain('https://ag-ui.example.com');
+    expect(contentSecurityPolicy).toContain('http://localhost:3000');
+    expect(contentSecurityPolicy).toContain('http://localhost:4566');
+    expect(contentSecurityPolicy).toContain('http://localhost:8080');
+    expect(contentSecurityPolicy).not.toMatch(/connect-src\s+'self'\s+https:\s*;/);
+  });
+
+  test('limits localhost connect-src allowances to non-production environments', () => {
+    const productionTemplate = synthSpa({
+      envName: 'prod',
+      spaDomainName: 'spa.example.com',
+      spaCertificateArn:
+        'arn:aws:acm:us-east-1:123456789012:certificate/11111111-1111-1111-1111-111111111111',
+    });
+
+    const contentSecurityPolicy = getSpaContentSecurityPolicy(productionTemplate);
+
+    expect(contentSecurityPolicy).not.toContain('http://localhost:3000');
+    expect(contentSecurityPolicy).not.toContain('http://localhost:4566');
+    expect(contentSecurityPolicy).not.toContain('http://localhost:8080');
+  });
+
+  test('fails synth when the serialized CSP would exceed the CloudFront limit', () => {
+    expect(() =>
+      synthSpa({
+        spaDomainName: 'spa.example.com',
+        spaCertificateArn:
+          'arn:aws:acm:us-east-1:123456789012:certificate/11111111-1111-1111-1111-111111111111',
+        agUiAllowedOrigins: Array.from({ length: 100 }, (_, index) => `https://ag-ui-${index}.example.com`),
+      }),
+    ).toThrow(
+      'SPA Content-Security-Policy exceeds the CloudFront response headers policy limit of 1783 characters',
+    );
   });
 
   test('preserves custom-domain TLS posture when domain inputs are provided', () => {
