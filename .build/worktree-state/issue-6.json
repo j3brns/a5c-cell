@@ -1,0 +1,59 @@
+{
+  "branch": "wt/task/6-fail-webhook-delivery-fast-when-dlq-url-is-missing",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/task/6-fail-webhook-delivery-fast-when-dlq-url-is-missing",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "fail-webhook-delivery-fast-when-dlq-url-is-missing"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:6:wt/task/6-fail-webhook-delivery-fast-when-dlq-url-is-missing:/mnt/c/Users/julia/worktrees/wt6",
+      "issue_number": 6,
+      "issue_title": "TASK-105: Fail webhook delivery fast when DLQ URL is missing",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-24T00:32:30.639687+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt6"
+    },
+    {
+      "branch": "wt/task/6-fail-webhook-delivery-fast-when-dlq-url-is-missing",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:6:/mnt/c/Users/julia/worktrees/wt6:codex:yolo:execute-now:tmux",
+      "issue_number": 6,
+      "issue_title": "TASK-105: Fail webhook delivery fast when DLQ URL is missing",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-24T00:32:30.664821+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt6"
+    }
+  ],
+  "issue_number": 6,
+  "issue_title": "TASK-105: Fail webhook delivery fast when DLQ URL is missing",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-24T00:32:30.664821+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt6"
+}

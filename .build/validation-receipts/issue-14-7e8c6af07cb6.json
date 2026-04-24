@@ -1,0 +1,9 @@
+{
+  "branch": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-24T00:05:09.980844+00:00",
+  "head_sha": "7e8c6af07cb6332d3ebab837ff9c1f55752f98cb",
+  "issue_number": 14,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt14"
+}

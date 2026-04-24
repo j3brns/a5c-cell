@@ -1,0 +1,112 @@
+{
+  "branch": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+  "details": {
+    "evidence_hash": "df32cac054e19f321c3a2f3e1549b22d552b28fbb7ef0eb6db173d1a4e351bba",
+    "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-14-wt_frontend_14-simplify-spa-token-refresh-and-sanitize-auth-logging.json"
+  },
+  "events": [
+    {
+      "branch": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "frontend",
+        "slug": "simplify-spa-token-refresh-and-sanitize-auth-logging"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:14:wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging:/mnt/c/Users/julia/worktrees/wt14",
+      "issue_number": 14,
+      "issue_title": "TASK-117: Simplify SPA token refresh and sanitize auth logging",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-23T23:37:58.514686+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt14"
+    },
+    {
+      "branch": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "no-mux",
+        "source": "agent-handoff"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:14:/mnt/c/Users/julia/worktrees/wt14:codex:yolo:execute-now:no-mux",
+      "issue_number": 14,
+      "issue_title": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-23T23:44:29.551322+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt14"
+    },
+    {
+      "branch": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "details": {
+        "force": false,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-14-wt_frontend_14-simplify-spa-token-refresh-and-sanitize-auth-logging.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:14:wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging:/mnt/c/Users/julia/worktrees/wt14",
+      "issue_number": 14,
+      "issue_title": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-24T00:17:00.970319+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt14"
+    },
+    {
+      "branch": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-14-wt_frontend_14-simplify-spa-token-refresh-and-sanitize-auth-logging.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:14:wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging:/mnt/c/Users/julia/worktrees/wt14",
+      "issue_number": 14,
+      "issue_title": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-24T00:20:27.546068+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt14"
+    },
+    {
+      "branch": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "details": {
+        "evidence_hash": "df32cac054e19f321c3a2f3e1549b22d552b28fbb7ef0eb6db173d1a4e351bba",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-14-wt_frontend_14-simplify-spa-token-refresh-and-sanitize-auth-logging.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:14:df32cac054e19f321c3a2f3e1549b22d552b28fbb7ef0eb6db173d1a4e351bba",
+      "issue_number": 14,
+      "issue_title": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-24T00:20:27.587167+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt14"
+    },
+    {
+      "branch": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "details": {
+        "evidence_hash": "df32cac054e19f321c3a2f3e1549b22d552b28fbb7ef0eb6db173d1a4e351bba",
+        "report_path": "/mnt/c/Users/julia/tf-acore-aas/.build/worktree-closeouts/issue-14-wt_frontend_14-simplify-spa-token-refresh-and-sanitize-auth-logging.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:14:df32cac054e19f321c3a2f3e1549b22d552b28fbb7ef0eb6db173d1a4e351bba",
+      "issue_number": 14,
+      "issue_title": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-24T00:20:33.201276+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt14"
+    }
+  ],
+  "issue_number": 14,
+  "issue_title": "wt/frontend/14-simplify-spa-token-refresh-and-sanitize-auth-logging",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-24T00:20:33.201276+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt14"
+}

@@ -1,0 +1,9 @@
+{
+  "branch": "wt/frontend/15-reuse-shared-spa-sse-client-for-ag-ui-sessions",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-24T00:21:21.856850+00:00",
+  "head_sha": "b397ec639dff7cd1a0a26c1c6bf07d15413d186c",
+  "issue_number": 15,
+  "result": "pass",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt15"
+}

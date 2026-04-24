@@ -1,0 +1,68 @@
+{
+  "branch": "wt/frontend/15-reuse-shared-spa-sse-client-for-ag-ui-sessions",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/frontend/15-reuse-shared-spa-sse-client-for-ag-ui-sessions",
+      "issue_id": 15,
+      "message": "closeout started",
+      "pid": 283921,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-24T00:26:04.025727+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt15"
+    },
+    {
+      "branch": "wt/frontend/15-reuse-shared-spa-sse-client-for-ag-ui-sessions",
+      "issue_id": 15,
+      "message": "merged MR lookup found",
+      "pid": 283921,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-24T00:26:05.554726+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt15"
+    },
+    {
+      "branch": "wt/frontend/15-reuse-shared-spa-sse-client-for-ag-ui-sessions",
+      "issue_id": 15,
+      "message": "issue closed via glab",
+      "pid": 283921,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-24T00:26:16.281626+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt15"
+    },
+    {
+      "branch": "wt/frontend/15-reuse-shared-spa-sse-client-for-ag-ui-sessions",
+      "issue_id": 15,
+      "message": "cleanup started",
+      "pid": 283921,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-24T00:26:16.294579+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt15"
+    },
+    {
+      "branch": "wt/frontend/15-reuse-shared-spa-sse-client-for-ag-ui-sessions",
+      "issue_id": 15,
+      "message": "cleanup verified",
+      "pid": 283921,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-24T00:29:19.649402+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt15"
+    }
+  ],
+  "generated_at": "2026-04-24T00:29:19.653630+00:00",
+  "issue_closed": true,
+  "issue_id": 15,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt15"
+}
