@@ -1723,28 +1723,43 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
         )
     prompt_lines.extend(
         [
-            "Scope: only this issue. Do not broaden scope.",
             (
-                "First step: inspect the current branch diff, relevant issue context, and the "
-                "smallest set of files that control the behavior before editing."
+                "Operating mode: you are the implementation owner for this issue worktree. "
+                "Proceed without asking for permission on clear, reversible next steps; ask "
+                "only for destructive actions, production access, or policy/security decisions "
+                "that the repo rules require escalating."
             ),
             (
-                "Use: prefer GitNexus when available. Query unfamiliar flows. "
-                "Use context/impact before editing shared symbols. "
-                "Run detect_changes before commit. "
-                "If GitNexus is unavailable, use rg and direct file reads."
+                "Scope: only this issue. Do not broaden scope, bundle opportunistic cleanup, "
+                "or repair unrelated failures in the same branch. If unrelated drift blocks "
+                "validation, document it as a separate follow-up and keep this branch focused."
             ),
             (
-                "Loop: inspect; plan; implement; run make preflight-session; fix; repeat; "
-                "continue until done. Do not stop at merge request creation, the first "
-                "passing test, or a partial implementation."
+                "First step: inspect the current branch diff, linked GitLab issue, issue "
+                "labels, dependencies, relevant ADRs/docs, and the smallest set of files that "
+                "control the behavior before editing."
+            ),
+            (
+                "Context lookup: prefer GitNexus for unfamiliar flows and blast-radius checks "
+                "when it is available. Use context/impact before editing shared symbols, then "
+                "run detect_changes before commit. If GitNexus is unavailable or stale, fall "
+                "back to rg, git diff/log, and direct file reads; do not block on GitNexus."
+            ),
+            (
+                "Execution loop: inspect; form the smallest defensible plan; add or update "
+                "tests before behavior changes when practical; implement; run the narrowest "
+                "useful checks; then run make preflight-session and make pre-validate-session "
+                "before push. Fix failures and repeat until the issue is actually complete."
             ),
             (
                 "Change shape: keep diffs small and reversible; prefer deletion over addition; "
                 "reuse existing patterns before introducing new abstractions; do not add "
                 "dependencies without explicit need."
             ),
-            "Push gate: make pre-validate-session must pass before push.",
+            (
+                "Do not stop at: MR creation, one passing test, a local commit, a pushed "
+                "branch, or a partial implementation. Those are intermediate states."
+            ),
             (
                 "Review gate: before claiming completion, run a senior-engineer review pass "
                 "focused on bugs, regressions, security/operability risks, and missing tests. "
@@ -1752,17 +1767,19 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
                 "review yourself with the same standard."
             ),
             (
-                "Done: only when the GitLab merge request is merged to the target branch; "
-                "the issue is closed and normalized; validation evidence is recorded; "
-                ".build hand-back evidence is finalized; and make finish-worktree-close "
-                "has completed successfully. Report any cleanup residue explicitly, but "
-                "do not treat worktree or branch deletion as part of semantic completion."
+                "Completion sequence: push through make worktree-push-issue or an equivalent "
+                "prevalidated push; create/update the MR; address review feedback; merge to "
+                "the target branch; close and normalize the issue; record validation evidence; "
+                "finalize .build hand-back evidence; then run make finish-worktree-close. "
+                "Report cleanup residue explicitly, but do not treat worktree or branch "
+                "deletion as semantic completion."
             ),
             (
-                "Pause only if: explicit policy or security blocker; "
-                "missing required permission; external decision cannot be inferred safely. "
-                "Otherwise estimate reasonably, keep moving, and only report a blocker with "
-                "the exact next command when truly blocked."
+                "Pause only if: repo rules mandate escalation, a security/policy decision is "
+                "unsafe to infer, required credentials or permissions are missing, or a "
+                "destructive operation is unavoidable. Otherwise make a reasonable local "
+                "decision, keep moving, and report blockers with the exact failed command, "
+                "evidence, and next command needed."
             ),
         ]
     )
