@@ -584,3 +584,15 @@ task. Result delivered via webhook and available via poll endpoint.
               Enable fast, independent suites for inner-loop productivity.
               ADRs: TBD | Tests: CI parity verify
               Seq: 705
+
+[ ] TASK-060  Implement Worktree Health Probes and Agent Verification (Issue #44)
+              Modify agent startup prompt to include environment verification.
+              Implement `make worktree-probe` to detect missing dependencies.
+              ADRs: TBD | Tests: probe accuracy
+              Seq: 706
+
+[ ] TASK-061  Automate Worktree Pre-Provisioning (Issue #45)
+              Enable `make worktree-create` to pre-install node_modules and .venv.
+              Implement readiness sentinels to eliminate agent cold-starts.
+              ADRs: TBD | Tests: setup speedup
+              Seq: 707
