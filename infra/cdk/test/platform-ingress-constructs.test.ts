@@ -164,6 +164,34 @@ function synthWaf() {
   return Template.fromStack(stack);
 }
 
+function getWebAclRules(template: Template): Array<{
+  Name: string;
+  Priority: number;
+  VisibilityConfig?: {
+    MetricName?: string;
+    SampledRequestsEnabled?: boolean;
+  };
+}> {
+  const webAcls = template.findResources('AWS::WAFv2::WebACL') as Record<
+    string,
+    {
+      Properties?: {
+        Rules?: Array<{
+          Name: string;
+          Priority: number;
+          VisibilityConfig?: {
+            MetricName?: string;
+            SampledRequestsEnabled?: boolean;
+          };
+        }>;
+      };
+    }
+  >;
+
+  const [webAcl] = Object.values(webAcls);
+  return webAcl.Properties?.Rules ?? [];
+}
+
 describe('PlatformSpa', () => {
   test('keeps OAC, CSP headers, SPA rewrite, and cache separation intact', () => {
     const template = synthSpa();
@@ -429,12 +457,64 @@ describe('PlatformApi', () => {
 describe('PlatformWaf', () => {
   test('keeps the API WebACL rules and association intact', () => {
     const template = synthWaf();
+    const rules = getWebAclRules(template);
+
+    expect(rules.map((rule) => rule.Name)).toEqual([
+      'AWSManagedRulesCommonRuleSet',
+      'AWSManagedRulesAmazonIpReputationList',
+      'AWSManagedRulesKnownBadInputsRuleSet',
+      'GlobalIpRateLimit',
+      'UkIpRateLimit',
+      'BlockSqlmapUserAgent',
+    ]);
+    expect(rules.map((rule) => rule.Priority)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(rules.map((rule) => rule.VisibilityConfig?.MetricName)).toEqual([
+      'aws-managed-common',
+      'aws-managed-amazon-ip-reputation-count',
+      'aws-managed-known-bad-inputs-count',
+      'global-ip-rate-limit',
+      'uk-ip-rate-limit',
+      'block-sqlmap-user-agent',
+    ]);
+    expect(rules.every((rule) => rule.VisibilityConfig?.SampledRequestsEnabled === true)).toBe(true);
 
     template.hasResourceProperties('AWS::WAFv2::WebACL', {
       Scope: 'REGIONAL',
+      VisibilityConfig: Match.objectLike({
+        SampledRequestsEnabled: true,
+      }),
       Rules: Match.arrayWith([
         Match.objectLike({
           Name: 'AWSManagedRulesCommonRuleSet',
+        }),
+        Match.objectLike({
+          Name: 'AWSManagedRulesAmazonIpReputationList',
+          OverrideAction: { Count: {} },
+          Statement: Match.objectLike({
+            ManagedRuleGroupStatement: {
+              VendorName: 'AWS',
+              Name: 'AWSManagedRulesAmazonIpReputationList',
+            },
+          }),
+        }),
+        Match.objectLike({
+          Name: 'AWSManagedRulesKnownBadInputsRuleSet',
+          OverrideAction: { Count: {} },
+          Statement: Match.objectLike({
+            ManagedRuleGroupStatement: {
+              VendorName: 'AWS',
+              Name: 'AWSManagedRulesKnownBadInputsRuleSet',
+            },
+          }),
+        }),
+        Match.objectLike({
+          Name: 'GlobalIpRateLimit',
+          Statement: Match.objectLike({
+            RateBasedStatement: Match.objectLike({
+              AggregateKeyType: 'IP',
+              Limit: 10000,
+            }),
+          }),
         }),
         Match.objectLike({
           Name: 'UkIpRateLimit',

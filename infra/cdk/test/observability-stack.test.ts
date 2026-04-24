@@ -276,6 +276,22 @@ describe('ObservabilityStack (TASK-026)', () => {
     });
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
       AlarmName: wafBlockedAlarmName,
+      Namespace: 'AWS/WAFV2',
+      MetricName: 'BlockedRequests',
+      Dimensions: Match.arrayWith([
+        Match.objectLike({
+          Name: 'Region',
+          Value: 'eu-west-2',
+        }),
+        Match.objectLike({
+          Name: 'Rule',
+          Value: 'ALL',
+        }),
+        Match.objectLike({
+          Name: 'WebACL',
+          Value: 'PlatformStack-api-waf',
+        }),
+      ]),
     });
   });
 
