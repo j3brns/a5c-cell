@@ -225,9 +225,10 @@ Parameters are purely by path and value; the owning stack changes but the path d
 
 | Resource | Risk | Reason | Mitigation |
 |----------|------|--------|-----------|
-| DynamoDB tables | **HIGH — data-bearing, deletion-protected** | Moving logical ownership from `platform-core-{env}` to `platform-storage-{env}` requires CloudFormation resource import. If done incorrectly, CloudFormation creates new tables (fail: names conflict) or deletes existing tables (fail: deletion protection). | Use CloudFormation resource import (`cdk import`) with a pre-mapped logical ID list. Do NOT remove from old stack first; use `retain-and-import` sequence. |
-| AppConfig app/env/profile | **MEDIUM** | Physical IDs are CloudFormation-generated. Moving stacks changes the physical IDs, which changes `APPCONFIG_APPLICATION_ID` env vars in all Lambda functions. | Two strategies: (A) Add explicit `name` overrides to ensure AppConfig resource names are predictable; then import by name in new stack. (B) Write AppConfig IDs to SSM (already done!) and patch Lambda env vars to read from SSM lookup at synth. The SSM path stays constant; only the physical ID behind it changes. All Lambda functions already read AppConfig IDs from SSM via AppConfig extension — no change needed at runtime. CDK synth-time injection of env vars is the gap. |
-| SSM parameters | **NONE** | Parameters are by path. New stack can write same paths with same values. | No action needed; paths are stable. |
+| DynamoDB tables | **HIGH — data-bearing, deletion-protected** | Moving logical ownership from `platform-core-{env}` to `platform-storage-{env}` requires CloudFormation resource import. If done incorrectly, CloudFormation creates new tables (fail: names conflict) or deletes existing tables (fail: deletion protection). | All tables already have `removalPolicy: RETAIN`. Correct sequence: remove from `platform-core-{env}` → deploy (tables retained) → `cdk import` into `platform-storage-{env}`. Use `overrideLogicalId()` to preserve construct logical IDs. |
+| DynamoDB jobs table stream ARN | **MEDIUM** | `webhookDeliveryFn` EventSourceMapping uses `jobsTable.tableStreamArn` — a CloudFormation `!GetAtt` that cannot be computed from the table name alone (stream labels are time-based). | Export `jobsTable.tableStreamArn` as a `CfnOutput` from `platform-storage-{env}`; import via `Fn.importValue()` in `platform-core-{env}`. This is a hard CFN export dependency and must be treated as stable (renaming the output key without coordination breaks the import reference). |
+| AppConfig app/env/profile + deployment resources | **MEDIUM** | Physical IDs are CloudFormation-generated. Moving stacks changes the physical IDs, which changes the `APPCONFIG_APPLICATION_ID` / `APPCONFIG_ENVIRONMENT_ID` / `APPCONFIG_PROFILE_ID` environment variables injected into bridgeFn, authoriserFn, and requestInterceptorFn at CDK synth time, and the IAM policy ARNs for those same functions. | Write AppConfig IDs to SSM (already done) and resolve them via `ssm.StringParameter.valueFromLookup()` in `platform-core-{env}`. **Ordering**: `platform-storage-{env}` must deploy before `platform-core-{env}` synths. First-deploy on a blank environment requires explicit CI pipeline ordering. |
+| SSM parameters | **NONE** | Parameters are by path. New stack writes same paths with same values. | No action needed; paths are stable. |
 
 ### Compute stays in `platform-core-{env}` — no extraction risk
 
@@ -246,20 +247,37 @@ This is a CDK/synth-time change only. No Lambda runtime environment variables ch
 
 ## Cross-Stack Reference Strategy
 
-| Dependency | Today | After split |
-|-----------|-------|------------|
-| Compute → DynamoDB table names | Direct construct ref (`.tableName`) | `dynamodb.Table.fromTableName()` using hardcoded table name constant |
-| Compute → DynamoDB table ARNs (for grants) | Direct construct ref (`.tableArn`) | `dynamodb.Table.fromTableArn()` using SSM lookup + stack.account/region |
-| Compute → AppConfig IDs | Direct construct ref (`.ref`) | `ssm.StringParameter.valueFromLookup()` from SSM path |
-| Compute → AppConfig extension ARN | Hardcoded in `platform-compute.ts` | Unchanged |
-| API → SPA allowed origin | Direct construct ref (`platformSpa.spaAllowedOrigin`) | `ssm.StringParameter.valueFromLookup('/platform/spa/{env}/domain-name')` fallback to CloudFront default domain |
-| Observability → all resources | CDK cross-stack CFN exports (auto-named) | Updated direct construct refs from new stacks in `app.ts` |
+| Dependency | Today | After split | Note |
+|-----------|-------|------------|------|
+| Compute → DynamoDB table names | Direct construct ref (`.tableName`) | `dynamodb.Table.fromTableName()` using hardcoded table name constant | Safe: names are stable constants |
+| Compute → DynamoDB table ARNs (for IAM grants) | Direct construct ref (`.tableArn`) | `dynamodb.Table.fromTableArn()` constructed from known table name, `stack.region`, `stack.account` | Safe: ARN is deterministic from the name |
+| Compute → AppConfig IDs (env vars + IAM ARNs) | Direct construct ref (`.ref`) injected at CDK synth | `ssm.StringParameter.valueFromLookup()` from existing SSM paths at CDK synth | **Ordering constraint**: `platform-storage-{env}` must be deployed before synthing `platform-core-{env}` so SSM holds the live IDs. CDK synth will fail on a blank environment if SSM is absent. |
+| Compute → jobsTable stream ARN (EventSourceMapping) | Direct construct ref (`.tableStreamArn`) — CloudFormation `!GetAtt` | CloudFormation export from `platform-storage-{env}` (`CfnOutput` for `jobsTable.tableStreamArn`); `platform-core-{env}` imports via `Fn.importValue()` | **Hard CFN export dependency**: stream ARN is not computable from table name alone (stream label is time-based). Only reliable path is CFN export + import. |
+| Compute → AppConfig extension ARN | Hardcoded in `platform-compute.ts` | Unchanged | — |
+| API → SPA allowed origin | Direct construct ref (`platformSpa.spaAllowedOrigin`) | `ssm.StringParameter.valueFromLookup('/platform/spa/{env}/domain-name')` | Ordering constraint: `platform-spa-{env}` must deploy before `platform-core-{env}` synth |
+| Observability → all resources | CDK cross-stack CFN exports (auto-named) | Updated direct construct refs from new stacks in `app.ts` | CDK manages export lifecycle automatically |
 
 ObservabilityStack props in `app.ts` will reference the new stack objects
 (`platformStorageStack`, `platformSpaStack`, `platformCoreStack`) instead of a single
 `platformStack`. Because these are direct CDK object references (resolved at synth),
 CDK generates new CloudFormation Export names pointing to the new stacks. The old
 `platform-core-{env}` exports are automatically removed.
+
+### Deployment ordering after split (mandatory)
+
+```
+1. platform-storage-{env}   deploy  ← writes AppConfig IDs to SSM
+2. platform-spa-{env}       deploy  ← writes SPA domain name to SSM
+3. platform-core-{env}      synth   ← reads SSM for AppConfig IDs + SPA domain
+                            deploy
+4. platform-observability-{env} deploy
+```
+
+For first-deploy on a blank environment, SSM parameters will be absent before
+step 1. CDK's `ssm.StringParameter.valueFromLookup()` returns a dummy token when
+the parameter is absent, causing `cdk synth` to succeed but producing incorrect
+Lambda env vars. Mitigation: enforce in CI that `platform-storage-{env}` and
+`platform-spa-{env}` deploy jobs gate `platform-core-{env}` deploy.
 
 ## Rollback Strategy Per Boundary
 
@@ -341,20 +359,40 @@ Follow-on issue: **`platform-spa-stack` extraction** (Phase 1).
 
 ### Phase 2: Storage extraction (highest care required)
 
-1. Create `platform-storage-{env}` CDK stack in `infra/cdk/lib/platform-storage-stack.ts`.
-   Move `createPlatformStorage()` to the new stack.
-2. Add `overrideLogicalId()` to all DynamoDB table constructs to match the logical IDs
-   currently in the `platform-core-{env}` CloudFormation template. This is critical for
-   `cdk import` to work correctly.
-3. Run `cdk diff --change-set` to verify that no resource replacements are proposed.
-4. Run `cdk import` to move table logical IDs from `platform-core-{env}` to
-   `platform-storage-{env}` without deletion or recreation.
-5. Update `platform-core-{env}` compute module to resolve tables via
-   `dynamodb.Table.fromTableName()` + `Table.fromTableArn()`.
-6. Remove the original `createPlatformStorage()` call from `PlatformStack`.
-7. Validate Lambda environment variables are unchanged (`make test-*`, `make validate-local`).
-8. Monitor DynamoDB table metrics for 15 minutes post-deployment to confirm no
-   throttling or access disruption.
+All DynamoDB tables already carry `removalPolicy: cdk.RemovalPolicy.RETAIN` in the
+current code. No pre-flight removal-policy update is needed.
+
+`cdk import` requires that a resource is NOT owned by any CloudFormation stack at the
+time of import. The correct sequence is: remove from old stack (retain) → deploy → then
+import into new stack. Steps 1–5 follow this ordering.
+
+1. Capture current DynamoDB logical IDs: run `cdk synth platform-core-{env}` and extract
+   the logical IDs for all eight `AWS::DynamoDB::Table` resources from the synthesized
+   template (`cdk.out/platform-core-{env}.template.json`).
+2. Create `platform-storage-{env}` CDK stack in `infra/cdk/lib/platform-storage-stack.ts`.
+   Move `createPlatformStorage()` to the new stack. Add `cfnTable.overrideLogicalId('...')`
+   to each table construct using the logical IDs captured in step 1. Add a `CfnOutput`
+   exporting `jobsTable.tableStreamArn` for the webhookDelivery EventSourceMapping.
+3. Remove the `createPlatformStorage()` call from `PlatformStack`. Update
+   `platform-core-{env}` compute module to resolve tables via
+   `dynamodb.Table.fromTableName()` + `dynamodb.Table.fromTableArn()`, AppConfig IDs via
+   `ssm.StringParameter.valueFromLookup()`, and the jobs table stream ARN via
+   `cdk.Fn.importValue('...')` from the `platform-storage-{env}` export.
+4. Run `cdk diff platform-core-{env}` — tables must show as **removed (retain)**, not
+   replaced or deleted. Abort and fix if any replacement is shown.
+5. Deploy `platform-core-{env}`. Tables are removed from CloudFormation ownership but
+   the physical DynamoDB resources are retained.
+6. Run `cdk import platform-storage-{env}` with the resource mapping derived from
+   step 1. CloudFormation imports the existing tables as new logical resources in the
+   new stack without deletion or recreation.
+7. Run `cdk deploy platform-storage-{env}` to finalize SSM parameter writes
+   (AppConfig IDs now published by new stack).
+8. Re-synth and re-deploy `platform-core-{env}` so Lambda env vars and IAM ARNs pick
+   up the live AppConfig IDs from SSM.
+9. Validate: `make test-*`, `make validate-local`. Confirm Lambda env vars unchanged
+   (table names stable; AppConfig IDs match new storage stack values).
+10. Monitor DynamoDB table metrics for 15 minutes post-deployment to confirm no
+    throttling or access disruption.
 
 Follow-on issue: **`platform-storage-stack` extraction** (Phase 2).
 
