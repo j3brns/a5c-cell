@@ -741,7 +741,7 @@ See [ADR-013](decisions/ADR-013-entra-rbac-roles-claim.md).
 
 | Constraint | Impact | Mitigation |
 |-----------|--------|------------|
-| Current platform policy keeps Runtime in eu-west-1 | ~12ms RTT zigzag to Dublin even though Runtime is now available in eu-west-2 | [ADR-009](decisions/ADR-009-region-zigzag.md); topology stays in place pending explicit review and migration |
+| Current platform policy keeps Runtime in eu-west-1 | ~12ms RTT zigzag to Dublin even though Runtime is now available in eu-west-2 | [ADR-009](decisions/ADR-009-region-zigzag.md) superseded by [ADR-020](decisions/ADR-020-eu-west-2-runtime-collapse.md); zigzag topology stays in force until ADR-020 go/no-go gates pass and migration completes |
 | AgentCore Gateway timeout: 5 min | Tools cannot exceed 5 min response | Design tools for fast response; long work uses async mode |
 | Code Interpreter: 25 concurrent sessions | Per-account per-region limit | Monitor via [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md) |
 | arm64 only in Runtime | All Python deps must be cross-compiled aarch64-manylinux2014 | See [ADR-001](decisions/ADR-001-agentcore-runtime.md) |

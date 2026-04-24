@@ -9,7 +9,9 @@ and enterprise security. Alternatives were: ECS Fargate per session, Kubernetes 
 custom orchestrator, Lambda (15-minute limit), or AgentCore Runtime.
 
 ## Decision
-Use Amazon Bedrock AgentCore Runtime in eu-west-1 as the agent execution environment.
+Use Amazon Bedrock AgentCore Runtime as the agent execution environment.
+Current primary region: eu-west-1 (Dublin). ADR-020 approves migration to eu-west-2
+(London) pending go/no-go gate validation; implementation is tracked separately.
 
 ## Consequences
 - arm64 Firecracker microVM isolation per session — no cross-tenant leakage
