@@ -901,7 +901,7 @@ worktree:
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),)
 
 ## wt-go: Start the next runnable issue worktree and launch an explicit or random agent in tmux
-## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo]
+## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo]
 wt-go:
 	$(MAKE) --no-print-directory worktree-next-issue \
 		HANDOFF=execute-now \
@@ -910,6 +910,8 @@ wt-go:
 		$(if $(STREAM),STREAM=$(STREAM),) \
 		$(if $(FROM_ISSUE),FROM_ISSUE=$(FROM_ISSUE),) \
 		AGENT=$(if $(AGENT),$(AGENT),random) \
+		$(if $(REVIEW_AGENT),REVIEW_AGENT=$(REVIEW_AGENT),) \
+		$(if $(REVIEW_AGENT_MODE),REVIEW_AGENT_MODE=$(REVIEW_AGENT_MODE),) \
 		AGENT_MODE=$(if $(AGENT_MODE),$(AGENT_MODE),yolo)
 
 ## worktree-next-issue: Create a worktree for the next runnable issue in the queue
@@ -927,6 +929,8 @@ worktree-next-issue:
 		$(if $(ALLOW_BLOCKED),--allow-blocked,) \
 		$(if $(AGENT),--agent "$(AGENT)",) \
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
+		$(if $(REVIEW_AGENT),--review-agent "$(REVIEW_AGENT)",) \
+		$(if $(REVIEW_AGENT_MODE),--review-agent-mode "$(REVIEW_AGENT_MODE)",) \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
@@ -962,6 +966,8 @@ worktree-create-issue:
 		$(if $(ALLOW_BLOCKED),--allow-blocked,) \
 		$(if $(AGENT),--agent "$(AGENT)",) \
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
+		$(if $(REVIEW_AGENT),--review-agent "$(REVIEW_AGENT)",) \
+		$(if $(REVIEW_AGENT_MODE),--review-agent-mode "$(REVIEW_AGENT_MODE)",) \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
@@ -983,6 +989,8 @@ worktree-resume-issue:
 		$(if $(OPEN_SHELL),--open-shell,) \
 		$(if $(AGENT),--agent "$(AGENT)",) \
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
+		$(if $(REVIEW_AGENT),--review-agent "$(REVIEW_AGENT)",) \
+		$(if $(REVIEW_AGENT_MODE),--review-agent-mode "$(REVIEW_AGENT_MODE)",) \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
@@ -1027,7 +1035,7 @@ finish-worktree-close-json:
 		--json
 
 ## agent-handoff: Launch the issue-worktree agent flow for the current path
-## Usage: make agent-handoff [AGENT=codex|gemini|claude|random] [AGENT_MODE=yolo] [HANDOFF=execute-now|print-only]
+## Usage: make agent-handoff [AGENT=codex|gemini|claude|random] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo] [HANDOFF=execute-now|print-only]
 agent-handoff:
 	uv run python -m scripts.issue_tool agent-handoff \
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \
@@ -1035,8 +1043,13 @@ agent-handoff:
 		$(if $(AGENT),, --agent "codex") \
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
 		$(if $(AGENT_MODE),, --agent-mode "yolo") \
+		$(if $(REVIEW_AGENT),--review-agent "$(REVIEW_AGENT)",) \
+		$(if $(REVIEW_AGENT_MODE),--review-agent-mode "$(REVIEW_AGENT_MODE)",) \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(HANDOFF),, --handoff "execute-now") \
+		$(if $(TMUX),--tmux,) \
+		$(if $(ZELLIJ),--zellij,) \
+		$(if $(NO_MUX),--no-mux,) \
 		$(if $(PRINT_ONLY),--print-only,)
 
 ## install-git-hooks: Install repo-local Git hooks (pre-push runs fast pre-validation)

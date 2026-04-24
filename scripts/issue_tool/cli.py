@@ -1581,20 +1581,32 @@ def resolve_cli_launch_request(
 def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) -> str:
     branch = run(["git", "branch", "--show-current"], cwd=path).stdout.strip() or "(detached)"
     issue_id = worktree_issue_id(path)
-    issue_ref = f"#{issue_id}" if issue_id is not None else "(no issue)"
+    issue_ref = f"GitLab issue #{issue_id}" if issue_id is not None else "no linked GitLab issue"
     issue_labels = fetch_issue_labels_for_prompt(root, repo, issue_id)
     labels_clause = issue_labels or "-"
-    return "\n".join(
+    prompt_lines = [
+        (
+            f"Context: {issue_ref}; project {repo or '(gitlab remote unavailable)'}; "
+            f"branch {branch}; worktree {path}; labels {labels_clause}."
+        ),
+        (
+            "Read: CLAUDE.md; docs/ARCHITECTURE.md; "
+            "issue-linked ADRs if easy to identify from repo or issue context."
+        ),
+    ]
+    if issue_id is None:
+        prompt_lines.append(
+            "Worktree policy: this path is not an issue worktree branch. Do not start new "
+            "implementation from main or another non-issue branch; create or resume the "
+            "correct issue worktree first unless the operator explicitly directs otherwise."
+        )
+    prompt_lines.extend(
         [
-            (
-                f"Context: issue {issue_ref}; repo {repo or '(origin unavailable)'}; "
-                f"branch {branch}; worktree {path}; labels {labels_clause}."
-            ),
-            (
-                "Read: CLAUDE.md; docs/ARCHITECTURE.md; "
-                "issue-linked ADRs if easy to identify from repo or issue context."
-            ),
             "Scope: only this issue. Do not broaden scope.",
+            (
+                "First step: inspect the current branch diff, relevant issue context, and the "
+                "smallest set of files that control the behavior before editing."
+            ),
             (
                 "Use: prefer GitNexus when available. Query unfamiliar flows. "
                 "Use context/impact before editing shared symbols. "
@@ -1603,16 +1615,27 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
             ),
             (
                 "Loop: inspect; plan; implement; run make preflight-session; fix; repeat; "
-                "continue until done. Do not stop at MR creation, the first passing test, "
-                "or a partial implementation."
+                "continue until done. Do not stop at merge request creation, the first "
+                "passing test, or a partial implementation."
+            ),
+            (
+                "Change shape: keep diffs small and reversible; prefer deletion over addition; "
+                "reuse existing patterns before introducing new abstractions; do not add "
+                "dependencies without explicit need."
             ),
             "Push gate: make pre-validate-session must pass before push.",
             (
-                "Done: only when the MR is merged to the target branch; the issue is closed "
-                "and normalized; validation evidence is recorded; .build hand-back evidence "
-                "is finalized; and make finish-worktree-close has completed successfully. "
-                "Report any cleanup residue explicitly, but do not treat worktree or branch "
-                "deletion as part of semantic completion."
+                "Review gate: before claiming completion, run a senior-engineer review pass "
+                "focused on bugs, regressions, security/operability risks, and missing tests. "
+                "If a second agent is available, use it for that review; otherwise perform the "
+                "review yourself with the same standard."
+            ),
+            (
+                "Done: only when the GitLab merge request is merged to the target branch; "
+                "the issue is closed and normalized; validation evidence is recorded; "
+                ".build hand-back evidence is finalized; and make finish-worktree-close "
+                "has completed successfully. Report any cleanup residue explicitly, but "
+                "do not treat worktree or branch deletion as part of semantic completion."
             ),
             (
                 "Pause only if: explicit policy or security blocker; "
@@ -1622,6 +1645,54 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
             ),
         ]
     )
+    return "\n".join(prompt_lines)
+
+
+def build_review_prompt_for_worktree(
+    path: Path,
+    root: Path,
+    repo: str | None,
+    *,
+    implementation_agent: str,
+) -> str:
+    branch = run(["git", "branch", "--show-current"], cwd=path).stdout.strip() or "(detached)"
+    issue_id = worktree_issue_id(path)
+    issue_ref = f"GitLab issue #{issue_id}" if issue_id is not None else "no linked GitLab issue"
+    issue_labels = fetch_issue_labels_for_prompt(root, repo, issue_id)
+    labels_clause = issue_labels or "-"
+    prompt_lines = [
+        (
+            f"Context: reviewer lane for {issue_ref}; "
+            f"project {repo or '(gitlab remote unavailable)'}; "
+            f"branch {branch}; worktree {path}; labels {labels_clause}; implementation agent "
+            f"{implementation_agent}."
+        ),
+        (
+            "Read: CLAUDE.md; docs/ARCHITECTURE.md; "
+            "issue-linked ADRs if easy to identify from repo or issue context."
+        ),
+        (
+            "Role: reviewer only. Do not take ownership of implementation unless the primary "
+            "agent is blocked or the operator explicitly redirects you."
+        ),
+        (
+            "Review focus: bugs, behavioral regressions, security/operability risks, contract "
+            "drift, cleanup gaps, and missing tests."
+        ),
+        (
+            "Method: inspect the current branch diff first, then read only the smallest set of "
+            "surrounding files needed to validate correctness."
+        ),
+        (
+            "Output: report concrete findings first with file references and the specific risk. "
+            "If no findings remain, say that explicitly and note any residual test gaps."
+        ),
+        (
+            "Do not approve based only on a passing test subset, an open merge request, or the "
+            "primary agent's summary."
+        ),
+    ]
+    return "\n".join(prompt_lines)
 
 
 def build_agent_command(agent: str, mode: str, prompt: str) -> str:
@@ -1638,6 +1709,15 @@ def build_agent_command(agent: str, mode: str, prompt: str) -> str:
     raise CliError(f"Unsupported agent '{agent}'")
 
 
+def worktree_env_preamble() -> str:
+    return (
+        "if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi; "
+        'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"; '
+        'case "$CODEX_HOME" in /*) ;; *) export CODEX_HOME="$PWD/$CODEX_HOME" ;; esac; '
+        'mkdir -p "$CODEX_HOME"'
+    )
+
+
 def handoff_to_agent_or_shell(
     *,
     path: Path,
@@ -1645,6 +1725,8 @@ def handoff_to_agent_or_shell(
     repo: str | None,
     agent: str | None = None,
     agent_mode: str | None = None,
+    review_agent: str | None = None,
+    review_agent_mode: str | None = None,
     handoff: str | None = None,
     print_only_override: bool = False,
     mux: str | None = None,
@@ -1652,12 +1734,29 @@ def handoff_to_agent_or_shell(
     ensure_uv_venv(path)
     agent_val = (agent or choose_agent_interactive()).lower()
     mode_val = (agent_mode or choose_agent_mode_interactive()).lower()
+    review_agent_val = review_agent.lower() if review_agent else None
+    review_mode_val = (review_agent_mode or "normal").lower() if review_agent_val else None
     handoff_val = (handoff or choose_handoff_action_interactive()).lower()
     if print_only_override:
         handoff_val = "print-only"
 
     prompt = build_agent_prompt_for_worktree(path, root, repo)
     command = build_agent_command(agent_val, mode_val, prompt)
+    review_prompt = (
+        build_review_prompt_for_worktree(
+            path,
+            root,
+            repo,
+            implementation_agent=agent_val,
+        )
+        if review_agent_val
+        else None
+    )
+    review_command = (
+        build_agent_command(review_agent_val, review_mode_val or "normal", review_prompt)
+        if review_agent_val and review_prompt
+        else None
+    )
 
     if mux is None:
         mux = auto_detect_mux() if handoff_val == "execute-now" else "none"
@@ -1665,9 +1764,52 @@ def handoff_to_agent_or_shell(
     print()
     print(f"Target: {path}")
     print(f"Agent:  {agent_val} ({mode_val})")
+    if review_agent_val:
+        print(f"Review: {review_agent_val} ({review_mode_val})")
     print(f"Mux:    {mux}")
     print(f"Prompt: {prompt}")
+    if review_prompt is not None:
+        print(f"Review prompt: {review_prompt}")
     sys.stdout.flush()
+
+    if review_agent_val and handoff_val == "execute-now" and mux == "none":
+        raise CliError(
+            "Review lane requires tmux/zellij or print-only handoff; rerun without --no-mux"
+        )
+
+    if review_agent_val and handoff_val == "execute-now" and mux == "zellij":
+        session = worktree_session_pair(path.name)
+        try:
+            launch_zellij_batch_session(
+                session_name=session.session_name,
+                launches=[
+                    ("implement", path, command),
+                    ("review", path, review_command or ""),
+                ],
+            )
+            return
+        except (subprocess.CalledProcessError, OSError) as exc:
+            raise CliError(
+                f"Review lane launch failed via zellij: {exc}. "
+                "Rerun with a working mux or use HANDOFF=print-only."
+            ) from exc
+
+    if review_agent_val and handoff_val == "execute-now" and mux == "tmux":
+        session = worktree_session_pair(path.name)
+        try:
+            launch_tmux_batch_session(
+                session_name=session.session_name,
+                launches=[
+                    ("implement", path, command),
+                    ("review", path, review_command or ""),
+                ],
+            )
+            return
+        except (subprocess.CalledProcessError, OSError) as exc:
+            raise CliError(
+                f"Review lane launch failed via tmux: {exc}. "
+                "Rerun with a working mux or use HANDOFF=print-only."
+            ) from exc
 
     if mux == "zellij" and handoff_val == "execute-now":
         try:
@@ -1687,11 +1829,7 @@ def handoff_to_agent_or_shell(
 
     if handoff_val == "execute-now":
         path_q = shell_quote(str(path))
-        cmd = (
-            f"cd {path_q} && "
-            "if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi; "
-            f"{command}"
-        )
+        cmd = f"cd {path_q} && {worktree_env_preamble()}; {command}"
         os.execvp("bash", ["bash", "-lc", cmd])
 
     if not sys.stdin.isatty():
@@ -1703,6 +1841,8 @@ def wants_agent_launch(args: argparse.Namespace) -> bool:
     return bool(
         getattr(args, "agent", None)
         or getattr(args, "agent_mode", None)
+        or getattr(args, "review_agent", None)
+        or getattr(args, "review_agent_mode", None)
         or getattr(args, "handoff", None)
         or getattr(args, "print_only", False)
         or getattr(args, "tmux", None)
@@ -1749,7 +1889,7 @@ def launch_tmux_session(
 ) -> None:
     name = session_name or tmux_session_name_for_worktree(path)
     path_str = str(path)
-    venv_preamble = "if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi"
+    venv_preamble = worktree_env_preamble()
 
     if tmux_session_exists(name):
         print(f"tmux session '{name}' already exists — attaching.")
@@ -1824,7 +1964,7 @@ def _launch_tmux_worktree_window(
     create_session: bool,
 ) -> None:
     path_str = str(path)
-    venv_preamble = "if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi"
+    venv_preamble = worktree_env_preamble()
     target = f"{session_name}:{window_name}"
 
     if create_session:
@@ -1917,7 +2057,7 @@ def _launch_tmux_viewer_window(
 ) -> None:
     path_str = str(path)
     target = f"{session_name}:{window_name}"
-    venv_preamble = "if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi"
+    venv_preamble = worktree_env_preamble()
     log_cmd = (
         f"touch {shell_quote(str(stdout_log_path))} && "
         f"tail -n 50 -f {shell_quote(str(stdout_log_path))}"
@@ -2171,7 +2311,7 @@ def _write_zellij_worktree_wrapper_script(
         "#!/usr/bin/env bash",
         "set -euo pipefail",
         f"cd {shlex.quote(path_str)}",
-        "if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi",
+        worktree_env_preamble().replace("; ", "\n"),
     ]
     if shell:
         body.append("exec bash -l")
@@ -3044,7 +3184,10 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
                 open_shell(existing_wt.path)
                 return 0
             if wants_agent_launch(args) and not args.dry_run:
-                agent, agent_mode, handoff, mux = resolve_cli_launch_request(args)
+                agent, agent_mode, handoff, _ = resolve_cli_launch_request(args)
+                mux = resolve_mux_flag(args)
+                review_agent = getattr(args, "review_agent", None)
+                review_agent_mode = getattr(args, "review_agent_mode", None)
                 record_issue_handoff_event(
                     root=root,
                     repo=repo,
@@ -3057,6 +3200,8 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
                         "source": "worktree-next",
                         "agent": agent,
                         "agent_mode": agent_mode,
+                        "review_agent": review_agent,
+                        "review_agent_mode": review_agent_mode,
                         "handoff": handoff,
                         "mux": mux,
                     },
@@ -3071,6 +3216,8 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
                     repo=repo,
                     agent=agent,
                     agent_mode=agent_mode,
+                    review_agent=review_agent,
+                    review_agent_mode=review_agent_mode,
                     handoff=handoff,
                     print_only_override=args.print_only,
                     mux=mux,
@@ -3121,7 +3268,10 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
         open_shell(wt_path)
         return 0
     if wants_agent_launch(args) and not args.dry_run:
-        agent, agent_mode, handoff, mux = resolve_cli_launch_request(args)
+        agent, agent_mode, handoff, _ = resolve_cli_launch_request(args)
+        mux = resolve_mux_flag(args)
+        review_agent = getattr(args, "review_agent", None)
+        review_agent_mode = getattr(args, "review_agent_mode", None)
         record_issue_handoff_event(
             root=root,
             repo=repo,
@@ -3137,6 +3287,8 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
                 "source": "worktree-next",
                 "agent": agent,
                 "agent_mode": agent_mode,
+                "review_agent": review_agent,
+                "review_agent_mode": review_agent_mode,
                 "handoff": handoff,
                 "mux": mux,
             },
@@ -3150,6 +3302,8 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
             repo=repo,
             agent=agent,
             agent_mode=agent_mode,
+            review_agent=review_agent,
+            review_agent_mode=review_agent_mode,
             handoff=handoff,
             print_only_override=args.print_only,
             mux=mux,
@@ -3194,7 +3348,10 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
             open_shell(existing_wt.path)
             return 0
         if wants_agent_launch(args) and not args.dry_run:
-            agent, agent_mode, handoff, mux = resolve_cli_launch_request(args)
+            agent, agent_mode, handoff, _ = resolve_cli_launch_request(args)
+            mux = resolve_mux_flag(args)
+            review_agent = getattr(args, "review_agent", None)
+            review_agent_mode = getattr(args, "review_agent_mode", None)
             record_issue_handoff_event(
                 root=root,
                 repo=repo,
@@ -3207,6 +3364,8 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
                     "source": "worktree-create",
                     "agent": agent,
                     "agent_mode": agent_mode,
+                    "review_agent": review_agent,
+                    "review_agent_mode": review_agent_mode,
                     "handoff": handoff,
                     "mux": mux,
                 },
@@ -3220,6 +3379,8 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
                 repo=repo,
                 agent=agent,
                 agent_mode=agent_mode,
+                review_agent=review_agent,
+                review_agent_mode=review_agent_mode,
                 handoff=handoff,
                 print_only_override=args.print_only,
                 mux=mux,
@@ -3276,7 +3437,10 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
             f"wt/{args.scope or infer_scope(issue)}/"
             f"{issue.number}-{args.slug or slugify_text(issue.title)}"
         )
-        agent, agent_mode, handoff, mux = resolve_cli_launch_request(args)
+        agent, agent_mode, handoff, _ = resolve_cli_launch_request(args)
+        mux = resolve_mux_flag(args)
+        review_agent = getattr(args, "review_agent", None)
+        review_agent_mode = getattr(args, "review_agent_mode", None)
         record_issue_handoff_event(
             root=root,
             repo=repo,
@@ -3289,6 +3453,8 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
                 "source": "worktree-create",
                 "agent": agent,
                 "agent_mode": agent_mode,
+                "review_agent": review_agent,
+                "review_agent_mode": review_agent_mode,
                 "handoff": handoff,
                 "mux": mux,
             },
@@ -3302,6 +3468,8 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
             repo=repo,
             agent=agent,
             agent_mode=agent_mode,
+            review_agent=review_agent,
+            review_agent_mode=review_agent_mode,
             handoff=handoff,
             print_only_override=args.print_only,
             mux=mux,
@@ -3365,7 +3533,10 @@ def cmd_worktree_resume(args: argparse.Namespace) -> int:
         )
         open_shell(target.path)
     elif wants_agent_launch(args):
-        agent, agent_mode, handoff, mux = resolve_cli_launch_request(args)
+        agent, agent_mode, handoff, _ = resolve_cli_launch_request(args)
+        mux = resolve_mux_flag(args)
+        review_agent = getattr(args, "review_agent", None)
+        review_agent_mode = getattr(args, "review_agent_mode", None)
         print_only = bool(getattr(args, "print_only", False))
         record_issue_handoff_event(
             root=root,
@@ -3380,6 +3551,8 @@ def cmd_worktree_resume(args: argparse.Namespace) -> int:
                 "source": "worktree-resume",
                 "agent": agent,
                 "agent_mode": agent_mode,
+                "review_agent": review_agent,
+                "review_agent_mode": review_agent_mode,
                 "handoff": handoff,
                 "mux": mux,
             },
@@ -3393,6 +3566,8 @@ def cmd_worktree_resume(args: argparse.Namespace) -> int:
             repo=repo,
             agent=agent,
             agent_mode=agent_mode,
+            review_agent=review_agent,
+            review_agent_mode=review_agent_mode,
             handoff=handoff,
             print_only_override=print_only,
             mux=mux,
@@ -3439,7 +3614,10 @@ def cmd_agent_handoff(args: argparse.Namespace) -> int:
     target_path = Path(args.path).resolve() if args.path else current_path()
     branch = current_branch(target_path)
     issue_id = extract_issue_id_from_branch(branch)
-    agent, agent_mode, handoff, mux = resolve_cli_launch_request(args, default_agent="codex")
+    agent, agent_mode, handoff, _ = resolve_cli_launch_request(args, default_agent="codex")
+    mux = resolve_mux_flag(args)
+    review_agent = getattr(args, "review_agent", None)
+    review_agent_mode = getattr(args, "review_agent_mode", None)
     record_issue_handoff_event(
         root=root,
         repo=repo,
@@ -3453,6 +3631,8 @@ def cmd_agent_handoff(args: argparse.Namespace) -> int:
             "source": "agent-handoff",
             "agent": agent,
             "agent_mode": agent_mode,
+            "review_agent": review_agent,
+            "review_agent_mode": review_agent_mode,
             "handoff": handoff,
             "mux": mux,
         },
@@ -3464,6 +3644,8 @@ def cmd_agent_handoff(args: argparse.Namespace) -> int:
         repo=repo,
         agent=agent,
         agent_mode=agent_mode,
+        review_agent=review_agent,
+        review_agent_mode=review_agent_mode,
         handoff=handoff,
         print_only_override=args.print_only or handoff == "print-only",
         mux=mux,
@@ -3950,6 +4132,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Agent mode for explicit agent-launch path",
     )
     wt_common.add_argument(
+        "--review-agent",
+        choices=["gemini", "claude", "codex"],
+        help="Launch a parallel reviewer agent after worktree creation",
+    )
+    wt_common.add_argument(
+        "--review-agent-mode",
+        choices=["normal", "yolo"],
+        help="Reviewer agent mode for explicit agent-launch path",
+    )
+    wt_common.add_argument(
         "--handoff",
         choices=["execute-now", "print-only"],
         help="Handoff behavior for explicit agent-launch path",
@@ -4004,6 +4196,8 @@ def build_parser() -> argparse.ArgumentParser:
     res.add_argument("--command", help="Run command in selected worktree")
     res.add_argument("--agent", choices=["gemini", "claude", "codex", "random"])
     res.add_argument("--agent-mode", choices=["normal", "yolo"])
+    res.add_argument("--review-agent", choices=["gemini", "claude", "codex"])
+    res.add_argument("--review-agent-mode", choices=["normal", "yolo"])
     res.add_argument("--handoff", choices=["execute-now", "print-only"])
     res.add_argument(
         "--print-only",
@@ -4048,6 +4242,8 @@ def build_parser() -> argparse.ArgumentParser:
     ah.add_argument("--path", help="Worktree path (default: current path)")
     ah.add_argument("--agent", choices=["gemini", "claude", "codex"])
     ah.add_argument("--agent-mode", choices=["normal", "yolo"])
+    ah.add_argument("--review-agent", choices=["gemini", "claude", "codex"])
+    ah.add_argument("--review-agent-mode", choices=["normal", "yolo"])
     ah.add_argument("--handoff", choices=["execute-now", "print-only"], default="print-only")
     ah.add_argument(
         "--print-only",
