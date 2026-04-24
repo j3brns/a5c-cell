@@ -13,13 +13,15 @@ export class PlatformWaf extends Construct {
   constructor(scope: Construct, id: string, props: PlatformWafProps) {
     super(scope, id);
 
+    const webAclMetricName = `${cdk.Stack.of(this).stackName}-api-waf`;
+
     this.apiWebAcl = new wafv2.CfnWebACL(this, 'ApiWebAcl', {
       name: `${cdk.Stack.of(this).stackName}-api-waf`,
       defaultAction: { allow: {} },
       scope: 'REGIONAL',
       visibilityConfig: {
         cloudWatchMetricsEnabled: true,
-        metricName: `${cdk.Stack.of(this).stackName}-api-waf`,
+        metricName: webAclMetricName,
         sampledRequestsEnabled: true,
       },
       rules: [
@@ -40,8 +42,56 @@ export class PlatformWaf extends Construct {
           },
         },
         {
-          name: 'UkIpRateLimit',
+          name: 'AWSManagedRulesAmazonIpReputationList',
           priority: 1,
+          overrideAction: { count: {} },
+          statement: {
+            managedRuleGroupStatement: {
+              vendorName: 'AWS',
+              name: 'AWSManagedRulesAmazonIpReputationList',
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: 'aws-managed-amazon-ip-reputation-count',
+            sampledRequestsEnabled: true,
+          },
+        },
+        {
+          name: 'AWSManagedRulesKnownBadInputsRuleSet',
+          priority: 2,
+          overrideAction: { count: {} },
+          statement: {
+            managedRuleGroupStatement: {
+              vendorName: 'AWS',
+              name: 'AWSManagedRulesKnownBadInputsRuleSet',
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: 'aws-managed-known-bad-inputs-count',
+            sampledRequestsEnabled: true,
+          },
+        },
+        {
+          name: 'GlobalIpRateLimit',
+          priority: 3,
+          action: { block: {} },
+          statement: {
+            rateBasedStatement: {
+              aggregateKeyType: 'IP',
+              limit: 10000,
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: 'global-ip-rate-limit',
+            sampledRequestsEnabled: true,
+          },
+        },
+        {
+          name: 'UkIpRateLimit',
+          priority: 4,
           action: { block: {} },
           statement: {
             rateBasedStatement: {
@@ -62,7 +112,7 @@ export class PlatformWaf extends Construct {
         },
         {
           name: 'BlockSqlmapUserAgent',
-          priority: 2,
+          priority: 5,
           action: { block: {} },
           statement: {
             byteMatchStatement: {

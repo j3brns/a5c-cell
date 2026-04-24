@@ -66,6 +66,34 @@ describe('PlatformStack (TASK-023)', () => {
       ?.ContentSecurityPolicy;
   };
 
+  const getWebAclRules = (stackTemplate: Template): Array<{
+    Name: string;
+    Priority: number;
+    VisibilityConfig?: {
+      MetricName?: string;
+      SampledRequestsEnabled?: boolean;
+    };
+  }> => {
+    const webAcls = stackTemplate.findResources('AWS::WAFv2::WebACL') as Record<
+      string,
+      {
+        Properties?: {
+          Rules?: Array<{
+            Name: string;
+            Priority: number;
+            VisibilityConfig?: {
+              MetricName?: string;
+              SampledRequestsEnabled?: boolean;
+            };
+          }>;
+        };
+      }
+    >;
+
+    const [webAcl] = Object.values(webAcls);
+    return webAcl.Properties?.Rules ?? [];
+  };
+
   const getIamPolicyStatements = (stackTemplate: Template): Array<Record<string, unknown>> => {
     const policies = stackTemplate.findResources('AWS::IAM::Policy') as Record<
       string,
@@ -359,9 +387,33 @@ describe('PlatformStack (TASK-023)', () => {
     devTemplate.resourceCountIs('AWS::AppConfig::Deployment', 1);
   });
 
-  test('creates WAF WebACL with managed rules, UK rate limit, and API association', () => {
+  test('creates WAF WebACL with managed baselines, rate limits, and API association', () => {
+    const rules = getWebAclRules(template);
+
+    expect(rules.map((rule) => rule.Name)).toEqual([
+      'AWSManagedRulesCommonRuleSet',
+      'AWSManagedRulesAmazonIpReputationList',
+      'AWSManagedRulesKnownBadInputsRuleSet',
+      'GlobalIpRateLimit',
+      'UkIpRateLimit',
+      'BlockSqlmapUserAgent',
+    ]);
+    expect(rules.map((rule) => rule.Priority)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(rules.map((rule) => rule.VisibilityConfig?.MetricName)).toEqual([
+      'aws-managed-common',
+      'aws-managed-amazon-ip-reputation-count',
+      'aws-managed-known-bad-inputs-count',
+      'global-ip-rate-limit',
+      'uk-ip-rate-limit',
+      'block-sqlmap-user-agent',
+    ]);
+    expect(rules.every((rule) => rule.VisibilityConfig?.SampledRequestsEnabled === true)).toBe(true);
+
     template.hasResourceProperties('AWS::WAFv2::WebACL', {
       Scope: 'REGIONAL',
+      VisibilityConfig: Match.objectLike({
+        SampledRequestsEnabled: true,
+      }),
       Rules: Match.arrayWith([
         Match.objectLike({
           Name: 'AWSManagedRulesCommonRuleSet',
@@ -373,10 +425,40 @@ describe('PlatformStack (TASK-023)', () => {
           }),
         }),
         Match.objectLike({
+          Name: 'AWSManagedRulesAmazonIpReputationList',
+          OverrideAction: { Count: {} },
+          Statement: Match.objectLike({
+            ManagedRuleGroupStatement: {
+              VendorName: 'AWS',
+              Name: 'AWSManagedRulesAmazonIpReputationList',
+            },
+          }),
+        }),
+        Match.objectLike({
+          Name: 'AWSManagedRulesKnownBadInputsRuleSet',
+          OverrideAction: { Count: {} },
+          Statement: Match.objectLike({
+            ManagedRuleGroupStatement: {
+              VendorName: 'AWS',
+              Name: 'AWSManagedRulesKnownBadInputsRuleSet',
+            },
+          }),
+        }),
+        Match.objectLike({
+          Name: 'GlobalIpRateLimit',
+          Statement: Match.objectLike({
+            RateBasedStatement: Match.objectLike({
+              AggregateKeyType: 'IP',
+              Limit: 10000,
+            }),
+          }),
+        }),
+        Match.objectLike({
           Name: 'UkIpRateLimit',
           Statement: Match.objectLike({
             RateBasedStatement: Match.objectLike({
               AggregateKeyType: 'IP',
+              Limit: 2000,
               ScopeDownStatement: Match.objectLike({
                 GeoMatchStatement: {
                   CountryCodes: ['GB'],
