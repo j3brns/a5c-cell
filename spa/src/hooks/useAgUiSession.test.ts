@@ -1,36 +1,29 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useAgUiSession } from "./useAgUiSession";
+import type { SseEvent } from "../api/client";
 import { agUiBootstrapResponse } from "../test/testData";
 
 const bootstrapMock = vi.fn();
+const streamMock = vi.fn();
 const getAccessTokenMock = vi.fn(async () => "token");
 
 vi.mock("../api/client", () => ({
   getApiClient: vi.fn(() => ({
     bootstrapAgUiSession: bootstrapMock,
+    stream: streamMock,
   })),
 }));
 
-function createSseStream(chunks: string[]): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  let index = 0;
-  return new ReadableStream({
-    pull(controller) {
-      if (index < chunks.length) {
-        controller.enqueue(encoder.encode(chunks[index]));
-        index++;
-      } else {
-        controller.close();
-      }
-    },
-  });
+async function* createSseStream(events: SseEvent[]): AsyncGenerator<SseEvent> {
+  for (const event of events) {
+    yield event;
+  }
 }
 
 describe("useAgUiSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal("fetch", vi.fn());
   });
 
   it("starts in idle status", () => {
@@ -45,18 +38,25 @@ describe("useAgUiSession", () => {
 
   it("bootstraps and connects to AG-UI SSE stream", async () => {
     bootstrapMock.mockResolvedValue(agUiBootstrapResponse);
-
-    const sseBody = createSseStream([
-      'data: {"type":"text","content":"hello "}\n\n',
-      'data: {"type":"text","content":"world"}\n\n',
-      "data: [DONE]\n\n",
-    ]);
-
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: sseBody,
-      headers: new Headers({ "content-type": "text/event-stream" }),
-    } as unknown as Response);
+    streamMock.mockReturnValue(
+      createSseStream([
+        {
+          event: "message",
+          data: '{"type":"text","content":"hello "}',
+          raw: 'data: {"type":"text","content":"hello "}',
+        },
+        {
+          event: "message",
+          data: '{"type":"text","content":"world"}',
+          raw: 'data: {"type":"text","content":"world"}',
+        },
+        {
+          event: "message",
+          data: "[DONE]",
+          raw: "data: [DONE]",
+        },
+      ]),
+    );
 
     const { result } = renderHook(() => useAgUiSession("echo-agent", getAccessTokenMock));
 
@@ -65,6 +65,12 @@ describe("useAgUiSession", () => {
     });
 
     expect(bootstrapMock).toHaveBeenCalledWith("echo-agent", {});
+    expect(streamMock).toHaveBeenCalledTimes(1);
+    expect(streamMock.mock.calls[0]?.[0]).toBe(agUiBootstrapResponse.connectUrl);
+    expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "GET",
+      signal: expect.any(AbortSignal),
+    });
     expect(result.current.bootstrap).toEqual(agUiBootstrapResponse);
     expect(result.current.sessionId).toBe("sess-agui-001");
     expect(result.current.accumulatedText).toBe("hello world");
@@ -86,11 +92,10 @@ describe("useAgUiSession", () => {
 
   it("sets error status when SSE connection returns non-ok", async () => {
     bootstrapMock.mockResolvedValue(agUiBootstrapResponse);
-    vi.mocked(fetch).mockResolvedValue({
-      ok: false,
-      status: 502,
-      body: null,
-    } as unknown as Response);
+    streamMock.mockImplementation(async function* () {
+      yield* [];
+      throw new Error("AG-UI connection failed with HTTP 502");
+    });
 
     const { result } = renderHook(() => useAgUiSession("echo-agent", getAccessTokenMock));
 
@@ -115,16 +120,20 @@ describe("useAgUiSession", () => {
 
   it("accumulates raw text data from non-JSON SSE events", async () => {
     bootstrapMock.mockResolvedValue(agUiBootstrapResponse);
-
-    const sseBody = createSseStream([
-      "event: text\ndata: raw chunk\n\n",
-      "data: [DONE]\n\n",
-    ]);
-
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: sseBody,
-    } as unknown as Response);
+    streamMock.mockReturnValue(
+      createSseStream([
+        {
+          event: "text",
+          data: "raw chunk",
+          raw: "event: text\ndata: raw chunk",
+        },
+        {
+          event: "message",
+          data: "[DONE]",
+          raw: "data: [DONE]",
+        },
+      ]),
+    );
 
     const { result } = renderHook(() => useAgUiSession("echo-agent", getAccessTokenMock));
 
@@ -138,40 +147,31 @@ describe("useAgUiSession", () => {
   it("disconnect aborts the stream and sets status to closed", async () => {
     bootstrapMock.mockResolvedValue(agUiBootstrapResponse);
 
-    // Create a stream that never closes on its own
-    let streamController: ReadableStreamDefaultController<Uint8Array>;
-    const hangingStream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        streamController = controller;
-        const encoder = new TextEncoder();
-        controller.enqueue(encoder.encode('data: {"type":"text","content":"start"}\n\n'));
-      },
-    });
+    streamMock.mockImplementation(async function* (_url: string, init?: RequestInit) {
+      const signal = init?.signal;
+      yield {
+        event: "message",
+        data: '{"type":"text","content":"start"}',
+        raw: 'data: {"type":"text","content":"start"}',
+      };
+      await new Promise<void>((resolve) => {
+        if (signal?.aborted) {
+          resolve();
+          return;
+        }
 
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      body: hangingStream,
-    } as unknown as Response);
+        signal?.addEventListener("abort", () => resolve(), { once: true });
+      });
+    });
 
     const { result } = renderHook(() => useAgUiSession("echo-agent", getAccessTokenMock));
 
-    // Start in background (don't await — it will hang)
-    const startPromise = act(async () => {
-      await result.current.start("test");
-    });
-
-    // Give it a tick to enter connected state
     await act(async () => {
+      const pendingStart = result.current.start("test");
       await new Promise((r) => setTimeout(r, 10));
-    });
-
-    act(() => {
       result.current.disconnect();
+      await pendingStart;
     });
-
-    // Clean up the hanging stream
-    streamController!.close();
-    await startPromise;
 
     expect(result.current.status).toBe("closed");
   });

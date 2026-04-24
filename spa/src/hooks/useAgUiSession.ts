@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getApiClient, type AccessTokenProvider, type SseEvent } from "../api/client";
+import { getApiClient, type AccessTokenProvider } from "../api/client";
 import type { AgentAgUiBootstrapResponseDto } from "../api/contracts";
 
 export type AgUiSessionStatus =
@@ -60,101 +60,53 @@ export function useAgUiSession(
 
   const consumeSseStream = useCallback(
     async (connectUrl: string, signal: AbortSignal) => {
-      const token = await getAccessToken();
-
-      const response = await fetch(connectUrl, {
-        method: "GET",
-        headers: {
-          Accept: "text/event-stream",
-          Authorization: `Bearer ${token}`,
-        },
-        signal,
-      });
-
-      if (!response.ok) {
-        throw new Error(`AG-UI connection failed with HTTP ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error("AG-UI response missing streaming body");
-      }
+      const client = getApiClient(getAccessToken);
 
       setStatus("connected");
       reconnectAttemptRef.current = 0;
 
-      const decoder = new TextDecoder();
-      const reader = response.body.getReader();
-      let buffer = "";
+      for await (const sseEvent of client.stream(connectUrl, {
+        method: "GET",
+        signal,
+      })) {
+        const message: AgUiMessage = {
+          id: sseEvent.id,
+          event: sseEvent.event,
+          data: sseEvent.data,
+          timestamp: Date.now(),
+        };
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        setMessages((prev) => [...prev, message]);
 
-        buffer += decoder.decode(value, { stream: true });
+        if (sseEvent.data === "[DONE]") {
+          setStatus("closed");
+          return;
+        }
 
-        // Parse SSE messages from buffer
-        while (true) {
-          const boundary = buffer.indexOf("\n\n");
-          if (boundary === -1) break;
-
-          const chunk = buffer.slice(0, boundary).trim();
-          buffer = buffer.slice(boundary + 2);
-
-          if (!chunk) continue;
-
-          const sseEvent = parseSseChunk(chunk);
-          if (!sseEvent) continue;
-
-          const message: AgUiMessage = {
-            id: sseEvent.id,
-            event: sseEvent.event,
-            data: sseEvent.data,
-            timestamp: Date.now(),
-          };
-
-          setMessages((prev) => [...prev, message]);
-
-          if (sseEvent.data === "[DONE]") {
-            setStatus("closed");
-            return;
+        try {
+          const payload = JSON.parse(sseEvent.data) as Record<string, unknown>;
+          if (payload.type === "text" && typeof payload.content === "string") {
+            setAccumulatedText((prev) => prev + payload.content);
+          } else if (typeof payload.content === "string") {
+            setAccumulatedText((prev) => prev + payload.content);
+          } else if (typeof payload.output === "string") {
+            setAccumulatedText((prev) => prev + payload.output);
           }
-
-          try {
-            const payload = JSON.parse(sseEvent.data) as Record<string, unknown>;
-            if (payload.type === "text" && typeof payload.content === "string") {
-              setAccumulatedText((prev) => prev + payload.content);
-            } else if (typeof payload.content === "string") {
-              setAccumulatedText((prev) => prev + payload.content);
-            } else if (typeof payload.output === "string") {
-              setAccumulatedText((prev) => prev + payload.output);
-            }
-          } catch {
-            // Non-JSON data — append raw
-            if (sseEvent.event === "message" || sseEvent.event === "text") {
-              setAccumulatedText((prev) => prev + sseEvent.data);
-            }
+        } catch {
+          // Non-JSON data — append raw
+          if (sseEvent.event === "message" || sseEvent.event === "text") {
+            setAccumulatedText((prev) => prev + sseEvent.data);
           }
         }
       }
 
-      // Stream ended normally
-      buffer += decoder.decode();
-      if (buffer.trim()) {
-        const finalEvent = parseSseChunk(buffer.trim());
-        if (finalEvent && finalEvent.data !== "[DONE]") {
-          setMessages((prev) => [
-            ...prev,
-            { event: finalEvent.event, data: finalEvent.data, timestamp: Date.now() },
-          ]);
-        }
-      }
       setStatus("closed");
     },
     [getAccessToken],
   );
 
   const attemptReconnect = useCallback(
-    async (bootstrapData: AgentAgUiBootstrapResponseDto) => {
+    async function reconnectWithBackoff(bootstrapData: AgentAgUiBootstrapResponseDto) {
       if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
         setStatus("error");
         setError(
@@ -177,7 +129,7 @@ export function useAgUiSession(
         await consumeSseStream(bootstrapData.connectUrl, abortController.signal);
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
-        await attemptReconnect(bootstrapData);
+        await reconnectWithBackoff(bootstrapData);
       }
     },
     [consumeSseStream],
@@ -259,32 +211,4 @@ export function useAgUiSession(
     disconnect,
     reconnect,
   };
-}
-
-function parseSseChunk(chunk: string): SseEvent | null {
-  const cleaned = chunk.replace(/\r/g, "").trim();
-  if (!cleaned) return null;
-
-  let event = "message";
-  const data: string[] = [];
-  let id: string | undefined;
-  let retry: number | undefined;
-
-  for (const line of cleaned.split("\n")) {
-    if (!line || line.startsWith(":")) continue;
-
-    const separator = line.indexOf(":");
-    const field = separator === -1 ? line : line.slice(0, separator);
-    const value = separator === -1 ? "" : line.slice(separator + 1).trimStart();
-
-    if (field === "event") event = value;
-    else if (field === "data") data.push(value);
-    else if (field === "id") id = value;
-    else if (field === "retry") {
-      const parsed = Number.parseInt(value, 10);
-      retry = Number.isFinite(parsed) ? parsed : undefined;
-    }
-  }
-
-  return { event, data: data.join("\n"), id, retry, raw: chunk };
 }
