@@ -114,8 +114,8 @@ def emit_invocation_metrics(
                 )
 
         cloudwatch.put_metric_data(Namespace="Platform/Bridge", MetricData=metric_data)
-    except Exception as e:
-        logger.warning(f"Failed to emit invocation metrics: {e}")
+    except Exception as exc:
+        logger.warning("Failed to emit invocation metrics", extra={"error": str(exc)})
 
 
 def emit_bedrock_throttle_metric(
@@ -142,7 +142,7 @@ def emit_bedrock_throttle_metric(
             ],
         )
     except Exception as exc:
-        logger.warning(f"Failed to emit Bedrock throttle metric: {exc}")
+        logger.warning("Failed to emit Bedrock throttle metric", extra={"error": str(exc)})
 
 
 def log_invocation(
