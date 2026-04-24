@@ -815,6 +815,81 @@ def test_cmd_worktree_next_with_random_agent_uses_random_default_agent(monkeypat
     assert launched["handoff"] == "execute-now"
 
 
+def test_cmd_worktree_next_passes_review_lane(monkeypatch):
+    root = Path("/tmp/repo")
+    repo = "owner/repo"
+    issue_33 = _issue(
+        number=33,
+        task_id="TASK-026",
+        seq=260,
+        labels=["type:task", "status:not-started", "ready"],
+    )
+    launched: dict[str, object] = {}
+
+    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
+    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(
+        worktree_issues,
+        "fetch_repo_issues",
+        lambda *_args, **_kwargs: [issue_33],
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "build_queue",
+        lambda _issues, **_kwargs: worktree_issues.QueueSelection(
+            source_mode="open-task",
+            items=[worktree_issues.QueueItem(issue=issue_33, runnable=True)],
+        ),
+    )
+    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(
+        worktree_issues,
+        "create_worktree_for_issue",
+        lambda **kwargs: Path("/tmp/worktrees/wt33"),
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "handoff_to_agent_or_shell",
+        lambda **kwargs: launched.update(kwargs),
+    )
+
+    args = argparse.Namespace(
+        repo=None,
+        stream_label=None,
+        from_issue=None,
+        mode="auto",
+        choose=False,
+        allow_blocked=False,
+        base_dir=None,
+        base_ref=None,
+        scope=None,
+        slug=None,
+        name=None,
+        no_claim=False,
+        no_preflight=False,
+        dry_run=False,
+        open_shell=False,
+        shell_only=False,
+        agent="codex",
+        agent_mode="yolo",
+        review_agent="gemini",
+        review_agent_mode="normal",
+        handoff="execute-now",
+        print_only=False,
+        tmux=True,
+        zellij=None,
+        no_mux=False,
+    )
+
+    rc = worktree_issues.cmd_worktree_next(args)
+
+    assert rc == 0
+    assert launched["agent"] == "codex"
+    assert launched["review_agent"] == "gemini"
+    assert launched["review_agent_mode"] == "normal"
+    assert launched["mux"] == "tmux"
+
+
 def test_create_worktree_for_issue_attaches_existing_local_branch(monkeypatch, tmp_path):
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
@@ -882,8 +957,8 @@ def test_build_agent_prompt_for_worktree_includes_explicit_dod_and_conflict_requ
 
     prompt = worktree_issues.build_agent_prompt_for_worktree(wt, root, "owner/repo")
 
-    assert "Context: issue #53;" in prompt
-    assert "repo owner/repo;" in prompt
+    assert "Context: GitLab issue #53;" in prompt
+    assert "project owner/repo;" in prompt
     assert "branch wt/infra/53-explicit-dod;" in prompt
     assert f"worktree {wt};" in prompt
     assert "labels type:task." in prompt
@@ -891,16 +966,21 @@ def test_build_agent_prompt_for_worktree_includes_explicit_dod_and_conflict_requ
     assert "CLAUDE.md" in prompt
     assert "docs/ARCHITECTURE.md" in prompt
     assert "Scope: only this issue. Do not broaden scope." in prompt
+    assert "First step: inspect the current branch diff" in prompt
     assert "Use: prefer GitNexus when available." in prompt
     assert "context/impact before editing shared symbols" in prompt
     assert "detect_changes before commit" in prompt
     assert "If GitNexus is unavailable, use rg and direct file reads." in prompt
     assert "Loop: inspect; plan; implement; run make preflight-session; fix; repeat;" in prompt
-    assert "Do not stop at MR creation" in prompt
+    assert "Do not stop at merge request creation" in prompt
+    assert "Change shape: keep diffs small and reversible" in prompt
     assert "make preflight-session" in prompt
     assert "Push gate: make pre-validate-session must pass before push." in prompt
+    assert "Review gate: before claiming completion, run a senior-engineer review pass" in prompt
+    assert "If a second agent is available, use it for that review" in prompt
     assert (
-        "Done: only when the MR is merged to the target branch; the issue is closed "
+        "Done: only when the GitLab merge request is merged to the target branch; "
+        "the issue is closed "
         "and normalized; validation evidence is recorded; .build hand-back evidence "
         "is finalized; and make finish-worktree-close has completed successfully." in prompt
     )
@@ -908,6 +988,60 @@ def test_build_agent_prompt_for_worktree_includes_explicit_dod_and_conflict_requ
     assert "Pause only if:" in prompt
     assert "Otherwise estimate reasonably, keep moving" in prompt
     assert "report a blocker with the exact next command" in prompt
+
+
+def test_build_agent_prompt_for_non_issue_branch_warns_against_mainline_implementation(
+    monkeypatch,
+):
+    root = Path("/tmp/repo")
+    wt = Path("/tmp/repo")
+
+    monkeypatch.setattr(
+        worktree_issues,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, "main\n", ""),
+    )
+    monkeypatch.setattr(worktree_issues, "worktree_issue_id", lambda _path: None)
+    monkeypatch.setattr(worktree_issues, "fetch_issue_labels_for_prompt", lambda *_args: "")
+
+    prompt = worktree_issues.build_agent_prompt_for_worktree(wt, root, "owner/repo")
+
+    assert "Context: no linked GitLab issue;" in prompt
+    assert "branch main;" in prompt
+    assert "Worktree policy: this path is not an issue worktree branch." in prompt
+    assert "Do not start new implementation from main" in prompt
+
+
+def test_build_review_prompt_for_worktree_sets_reviewer_role(monkeypatch, tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir(parents=True, exist_ok=True)
+    wt = tmp_path / "worktrees" / "wt53"
+    wt.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(
+        worktree_issues,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 0, "wt/infra/53-explicit-dod\n", ""
+        ),
+    )
+    monkeypatch.setattr(worktree_issues, "worktree_issue_id", lambda _path: 53)
+    monkeypatch.setattr(
+        worktree_issues, "fetch_issue_labels_for_prompt", lambda _root, _repo, _issue: "type:task"
+    )
+
+    prompt = worktree_issues.build_review_prompt_for_worktree(
+        wt,
+        root,
+        "owner/repo",
+        implementation_agent="codex",
+    )
+
+    assert "Context: reviewer lane for GitLab issue #53;" in prompt
+    assert "implementation agent codex." in prompt
+    assert "Role: reviewer only." in prompt
+    assert "Review focus: bugs, behavioral regressions" in prompt
+    assert "Output: report concrete findings first" in prompt
 
 
 def test_auto_detect_mux_prefers_tmux_over_zellij(monkeypatch):
@@ -1817,6 +1951,18 @@ def test_launch_tmux_session_uses_reported_initial_window_index(monkeypatch, cap
     assert ["tmux", "split-window", "-h", "-t", "wt318:1", "-c", "/tmp/worktrees/wt318"] in calls
     assert any(cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.1"] for cmd in calls)
     assert any(cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.0"] for cmd in calls)
+    shell_init = next(
+        cmd[4] for cmd in calls if cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.1"]
+    )
+    agent_launch = next(
+        cmd[4] for cmd in calls if cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.0"]
+    )
+    assert 'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"' in shell_init
+    assert (
+        'case "$CODEX_HOME" in /*) ;; *) export CODEX_HOME="$PWD/$CODEX_HOME" ;; esac' in shell_init
+    )
+    assert 'mkdir -p "$CODEX_HOME"' in shell_init
+    assert 'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"' in agent_launch
     assert attached["args"] == ["tmux", "attach-session", "-t", "wt318"]
 
 
@@ -1867,6 +2013,94 @@ def test_handoff_to_agent_or_shell_falls_back_when_tmux_launch_fails(monkeypatch
     assert "WARNING: tmux launch failed" in captured.err
     assert execvp_call["bin_path"] == "bash"
     assert execvp_call["args"][0:2] == ["bash", "-lc"]
+    assert 'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"' in execvp_call["args"][2]
+    assert (
+        'case "$CODEX_HOME" in /*) ;; *) export CODEX_HOME="$PWD/$CODEX_HOME" ;; esac'
+        in execvp_call["args"][2]
+    )
+
+
+def test_handoff_with_review_agent_launches_tmux_batch(monkeypatch, capsys):
+    root = Path("/tmp/repo")
+    wt = Path("/tmp/worktrees/wt381")
+    launches: dict[str, object] = {}
+
+    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
+    monkeypatch.setattr(
+        worktree_issues,
+        "build_agent_prompt_for_worktree",
+        lambda *_args: "implementation prompt",
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "build_review_prompt_for_worktree",
+        lambda *_args, **_kwargs: "review prompt",
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "build_agent_command",
+        lambda agent, mode, prompt: f"{agent}:{mode}:{prompt}",
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "worktree_session_pair",
+        lambda label: worktree_issues.SessionPair(label=label, session_name="wt381-review"),
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "launch_tmux_batch_session",
+        lambda **kwargs: launches.update(kwargs),
+    )
+
+    worktree_issues.handoff_to_agent_or_shell(
+        path=wt,
+        root=root,
+        repo="owner/repo",
+        agent="codex",
+        agent_mode="yolo",
+        review_agent="gemini",
+        review_agent_mode="normal",
+        handoff="execute-now",
+        mux="tmux",
+    )
+
+    out = capsys.readouterr().out
+    assert "Review: gemini (normal)" in out
+    assert launches == {
+        "session_name": "wt381-review",
+        "launches": [
+            ("implement", wt, "codex:yolo:implementation prompt"),
+            ("review", wt, "gemini:normal:review prompt"),
+        ],
+    }
+
+
+def test_handoff_with_review_agent_and_no_mux_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
+    monkeypatch.setattr(worktree_issues, "build_agent_prompt_for_worktree", lambda *_args: "impl")
+    monkeypatch.setattr(
+        worktree_issues,
+        "build_review_prompt_for_worktree",
+        lambda *_args, **_kwargs: "review",
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "build_agent_command",
+        lambda agent, mode, prompt: f"{agent}:{mode}:{prompt}",
+    )
+
+    with pytest.raises(worktree_issues.CliError, match="Review lane requires tmux/zellij"):
+        worktree_issues.handoff_to_agent_or_shell(
+            path=tmp_path,
+            root=tmp_path,
+            repo="owner/repo",
+            agent="codex",
+            agent_mode="yolo",
+            review_agent="claude",
+            review_agent_mode="normal",
+            handoff="execute-now",
+            mux="none",
+        )
 
 
 def test_launch_zellij_session_adds_layout_to_existing_session(monkeypatch, capsys):
@@ -2118,6 +2352,8 @@ def test_cmd_agent_handoff_defaults_to_codex_yolo_execute_now(monkeypatch):
             path=None,
             agent=None,
             agent_mode=None,
+            review_agent=None,
+            review_agent_mode=None,
             handoff=None,
             print_only=False,
             tmux=None,
@@ -2130,7 +2366,50 @@ def test_cmd_agent_handoff_defaults_to_codex_yolo_execute_now(monkeypatch):
     assert recorded["path"] == wt
     assert recorded["agent"] == "codex"
     assert recorded["agent_mode"] == "yolo"
+    assert recorded["review_agent"] is None
     assert recorded["handoff"] == "execute-now"
+    assert recorded["mux"] is None
+
+
+def test_cmd_agent_handoff_passes_review_lane_and_auto_mux(monkeypatch):
+    root = Path("/tmp/repo")
+    wt = Path("/tmp/worktrees/wt314")
+    recorded: dict[str, object] = {}
+
+    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
+    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: "owner/repo")
+    monkeypatch.setattr(worktree_issues, "current_path", lambda: wt)
+    monkeypatch.setattr(
+        worktree_issues,
+        "current_branch",
+        lambda _path: "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "handoff_to_agent_or_shell",
+        lambda **kwargs: recorded.update(kwargs),
+    )
+
+    rc = worktree_issues.cmd_agent_handoff(
+        argparse.Namespace(
+            repo=None,
+            path=None,
+            agent="codex",
+            agent_mode="yolo",
+            review_agent="gemini",
+            review_agent_mode="normal",
+            handoff="execute-now",
+            print_only=False,
+            tmux=None,
+            zellij=None,
+            no_mux=False,
+        )
+    )
+
+    assert rc == 0
+    assert recorded["review_agent"] == "gemini"
+    assert recorded["review_agent_mode"] == "normal"
+    assert recorded["mux"] is None
 
 
 def test_append_issue_handback_comment_skips_existing_hash(monkeypatch):
@@ -2346,6 +2625,12 @@ def test_launch_zellij_batch_session_starts_or_adds_with_layout(monkeypatch, tmp
     assert 'args "-lc"' not in layout
     assert f'pane command="{asset_dir / "wt123-agent.sh"}"' in layout
     assert f'pane command="{asset_dir / "wt123-shell.sh"}"' in layout
+    assert 'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"' in (
+        asset_dir / "wt123-agent.sh"
+    ).read_text(encoding="utf-8")
+    assert 'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"' in (
+        asset_dir / "wt123-shell.sh"
+    ).read_text(encoding="utf-8")
 
 
 def test_launch_zellij_batch_session_adds_to_existing_session(monkeypatch, tmp_path):
