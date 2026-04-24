@@ -679,7 +679,7 @@ code now synthesizes its storage/AppConfig resources and compute/orchestration
 resources through separate helper modules. That keeps deployment semantics
 stable while reducing edit risk inside the stack definition. A planned split into
 `platform-storage-{env}` (DynamoDB + AppConfig) and `platform-spa-{env}` (SPA +
-CloudFront) is designed in [ADR-021](decisions/ADR-021-platformstack-split-plan.md)
+CloudFront) is designed in [ADR-703](decisions/ADR-703-platformstack-split-plan.md)
 with follow-on implementation issues created upon plan acceptance.
 
 ObservabilityStack currently provisions the eu-west-2 monitoring-account OAM sink only.

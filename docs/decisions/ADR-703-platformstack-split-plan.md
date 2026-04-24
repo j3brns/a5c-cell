@@ -1,4 +1,4 @@
-# ADR-021: PlatformStack Split Plan — Storage, Compute, and SPA Extraction
+# ADR-703: PlatformStack Split Plan — Storage, Compute, and SPA Extraction
 
 ## Status: Proposed
 ## Date: 2026-04-24
