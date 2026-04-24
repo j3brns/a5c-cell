@@ -245,7 +245,7 @@ tf-acore-aas/
 │   ├── PLAN.md                Phased delivery plan with gates
 │   ├── ROADMAP.md             Vision, milestones M1–M7, V1.x backlog
 │   ├── decisions/             ADR-001..018
-│   ├── operations/            RUNBOOK-000..009
+│   ├── operations/            RUNBOOK-000..010
 │   ├── security/              Threat model, compliance checklist
 │   ├── development/           Local setup, agent developer guide
 │   └── images/                Diagrams and exported assets

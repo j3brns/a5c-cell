@@ -929,10 +929,19 @@ describe('PlatformStack (TASK-023)', () => {
     });
   });
 
-  test('configures CloudFront access logging for the SPA distribution', () => {
+  test('configures CloudFront access logging for the SPA distribution with 30-day retention in dev', () => {
     template.hasResourceProperties('AWS::S3::Bucket', {
       BucketName: 'platform-spa-logs-dev',
       AccessControl: 'LogDeliveryWrite',
+      LifecycleConfiguration: {
+        Rules: [
+          {
+            ExpirationInDays: 30,
+            Id: 'RetentionRule',
+            Status: 'Enabled',
+          },
+        ],
+      },
       OwnershipControls: {
         Rules: [
           {
@@ -950,6 +959,22 @@ describe('PlatformStack (TASK-023)', () => {
           Prefix: 'spa-cloudfront/',
         }),
       }),
+    });
+  });
+
+  test('configures CloudFront access logging for the SPA distribution with 365-day retention in prod', () => {
+    const prodTemplate = synthTemplate('prod');
+    prodTemplate.hasResourceProperties('AWS::S3::Bucket', {
+      BucketName: 'platform-spa-logs-prod',
+      LifecycleConfiguration: {
+        Rules: [
+          {
+            ExpirationInDays: 365,
+            Id: 'RetentionRule',
+            Status: 'Enabled',
+          },
+        ],
+      },
     });
   });
 

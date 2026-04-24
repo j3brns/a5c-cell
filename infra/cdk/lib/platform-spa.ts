@@ -129,6 +129,9 @@ export class PlatformSpa extends Construct {
       versioned: true,
     });
 
+    const isProd = props.envName === 'prod';
+    const retentionDays = isProd ? 365 : 30;
+
     const spaLogBucket = new s3.Bucket(this, 'SpaLogBucket', {
       bucketName: `platform-spa-logs-${props.envName}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -137,6 +140,12 @@ export class PlatformSpa extends Construct {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
       accessControl: s3.BucketAccessControl.LOG_DELIVERY_WRITE,
+      lifecycleRules: [
+        {
+          expiration: cdk.Duration.days(retentionDays),
+          id: 'RetentionRule',
+        },
+      ],
     });
 
     const spaResponseHeadersPolicy = new cloudfront.CfnResponseHeadersPolicy(
