@@ -1,12 +1,18 @@
 # ADR-009: eu-west-2 London Home, eu-west-1 Dublin Runtime
 
-## Status: Accepted
+## Status: Superseded by ADR-020
 ## Date: 2026-02-24
 
 ## Status Note (2026-03-10)
 AWS now offers AgentCore Runtime and Policy in eu-west-2 (London). This ADR remains
 the active platform deployment policy until a successor ADR explicitly approves a
 migration away from the current London-home / Dublin-runtime zigzag topology.
+
+## Status Note (2026-04-24)
+ADR-020 is the approved successor. It approves collapsing the runtime to eu-west-2
+and defines the go/no-go gates required before implementation begins. This ADR's
+London-home / Dublin-runtime policy remains in force until those gates pass and the
+implementation issue completes the migration.
 
 ## Context
 At the time of this decision, AgentCore Runtime was not available in eu-west-2
