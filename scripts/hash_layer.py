@@ -28,12 +28,13 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
+
+from platform_config import process_env_required
 
 logger = logging.getLogger("hash_layer")
 logging.basicConfig(
@@ -75,10 +76,7 @@ def get_ssm_hash(agent_name: str, env: str, aws_region: str) -> str | None:
 
 def require_aws_region() -> str:
     """Read AWS_REGION from environment and fail fast if missing."""
-    region = os.environ.get("AWS_REGION", "").strip()
-    if not region:
-        raise RuntimeError("AWS_REGION must be set")
-    return region
+    return process_env_required("AWS_REGION")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

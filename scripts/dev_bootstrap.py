@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sys
 import urllib.error
 import urllib.request
@@ -32,6 +31,8 @@ from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
+
+from platform_config import env_optional, get_settings
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -469,8 +470,8 @@ def run_bootstrap(
     When None, real boto3 clients are constructed pointing at localstack_endpoint.
     """
     # LocalStack accepts any credential values; read from env for CI compatibility.
-    _ls_key = os.environ.get("AWS_ACCESS_KEY_ID", "test")  # pragma: allowlist secret
-    _ls_secret = os.environ.get("AWS_SECRET_ACCESS_KEY", "test")  # pragma: allowlist secret
+    _ls_key = get_settings().aws.access_key_id or "test"  # pragma: allowlist secret
+    _ls_secret = get_settings().aws.secret_access_key or "test"  # pragma: allowlist secret
     boto_kwargs: dict[str, Any] = {
         "region_name": aws_region,
         "endpoint_url": localstack_endpoint,
@@ -512,10 +513,12 @@ def run_bootstrap(
 
 
 if __name__ == "__main__":
-    _localstack = os.environ.get("LOCALSTACK_ENDPOINT", _DEFAULT_LOCALSTACK_ENDPOINT)
-    _mock_jwks = os.environ.get("MOCK_JWKS_URL", _DEFAULT_MOCK_JWKS_URL)
-    _region = os.environ.get("AWS_REGION", _DEFAULT_REGION)
-    _env_test = Path(os.environ.get("ENV_TEST_PATH", str(_DEFAULT_ENV_TEST_PATH)))
+    _localstack = env_optional("LOCALSTACK_ENDPOINT", _DEFAULT_LOCALSTACK_ENDPOINT) or (
+        _DEFAULT_LOCALSTACK_ENDPOINT
+    )
+    _mock_jwks = env_optional("MOCK_JWKS_URL", _DEFAULT_MOCK_JWKS_URL) or _DEFAULT_MOCK_JWKS_URL
+    _region = env_optional("AWS_REGION", _DEFAULT_REGION) or _DEFAULT_REGION
+    _env_test = Path(env_optional("ENV_TEST_PATH", str(_DEFAULT_ENV_TEST_PATH)) or "")
     try:
         run_bootstrap(
             localstack_endpoint=_localstack,
