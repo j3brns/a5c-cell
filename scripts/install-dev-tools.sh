@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # install-dev-tools.sh — Idempotent pre-agent environment setup
 #
-# Called automatically by `make validate-local`, `make task-start`, and
-# `make task-resume`. Safe to run repeatedly — skips anything already present.
+# Called automatically by `make validate-local` and worktree provisioning.
+# Safe to run repeatedly — skips anything already present.
 #
 # Hard requirements for `make validate-local`:
 #   uv     — ruff, detect-secrets (installed to ~/.local/bin, no sudo)
@@ -165,7 +165,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 6. Claude Code (needed for task-start/task-resume to launch agent)
+# 6. Claude Code (needed for worktree launch)
 # ---------------------------------------------------------------------------
 if command -v claude &>/dev/null; then
     skip "claude already installed"

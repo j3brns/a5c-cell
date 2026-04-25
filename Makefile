@@ -27,7 +27,6 @@
 .PHONY: ops-update-tenant-budget ops-fail-job ops-audit-export ops-page-security ops-backfill-tenant-role-arn
 .PHONY: logs-bridge logs-authoriser logs-tenant-api logs-bff
 .PHONY: plan-dev
-.PHONY: task-next task-list task-start task-resume task-finish task-prompt
 .PHONY: worktree wt-go wt-batch issue-create issue-queue issue-evidence worktree-next-issue worktree-create-issue worktree-resume-issue
 .PHONY: preflight-session pre-validate-session worktree-push-issue finish-worktree-summary finish-worktree-close finish-worktree-close-json
 .PHONY: issues-audit issues-reconcile issue-repair-stale-locks agent-handoff install-git-hooks hooks-status gitnexus-refresh
@@ -792,42 +791,6 @@ logs-bff:
 plan-dev:
 	@test -n "$(TASK)" || (echo "ERROR: TASK required. Usage: make plan-dev TASK=\"describe your task\"" && exit 1)
 	uv run python scripts/plan_dev.py "$(TASK)"
-
-# =============================================================================
-# DEPRECATED TASK SNAPSHOT FLOW (use only when explicitly requested)
-# =============================================================================
-
-## task-next: Print the next not-started task from docs/TASKS.md
-task-next:
-	uv run python scripts/task.py next
-
-## task-list: List all tasks with their status
-task-list:
-	uv run python scripts/task.py list
-
-## task-start: Create worktree, mark [~], run validate-local, launch Claude Code
-## Usage: make task-start              # auto-selects next [ ] task
-##        make task-start TASK=TASK-011
-task-start:
-	uv run python scripts/task.py start $(TASK)
-
-## task-resume: Resume an existing worktree session for a task
-## Usage: make task-resume             # auto-selects first [~] task with worktree
-##        make task-resume TASK=TASK-011
-task-resume:
-	uv run python scripts/task.py resume $(TASK)
-
-## task-finish: Print finish checklist and git/glab commands for a task
-## Usage: make task-finish TASK=TASK-011
-task-finish:
-	@test -n "$(TASK)" || (echo "ERROR: TASK required. Usage: make task-finish TASK=TASK-011" && exit 1)
-	uv run python scripts/task.py finish $(TASK)
-
-## task-prompt: Print the agent prompt for a task without creating a worktree
-## Usage: make task-prompt TASK=TASK-011
-task-prompt:
-	@test -n "$(TASK)" || (echo "ERROR: TASK required. Usage: make task-prompt TASK=TASK-011" && exit 1)
-	uv run python scripts/task.py prompt $(TASK)
 
 # =============================================================================
 # ISSUE-DRIVEN WORKTREE FLOW (canonical GitLab Issues path)
