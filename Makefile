@@ -170,11 +170,11 @@ ensure-tools:
 ## validate-local: Run local validation checks before commit (fast path)
 ## Uses diff-only secret detection for speed. Run `make validate-local-full` for full repo secret scan.
 validate-local: validate-local-prereqs
-	uv run python scripts/validate_local.py fast
+	uv run platform-cli validate local fast
 
 ## validate-local-full: Full local validation including full-repo secret scan
 validate-local-full: validate-local-prereqs
-	uv run python scripts/validate_local.py full
+	uv run platform-cli validate local full
 
 ## docs-sync-audit: Check docs/code semver sync and drift heuristics
 ## Usage: make docs-sync-audit [JSON=1]
@@ -354,9 +354,9 @@ validate-secrets-full:
 dev:
 	@echo "==> Starting local development environment"
 	docker compose up -d
-	uv run python scripts/wait_for_local_services.py
-	uv run python scripts/dev-bootstrap.py
-	uv run python scripts/wait_for_local_services.py --check-seeded-state
+	uv run platform-cli dev wait-for-services
+	uv run platform-cli dev bootstrap
+	uv run platform-cli dev wait-for-services --check-seeded-state
 	@echo ""
 	@echo "==> Local environment ready"
 	@echo "    Try: make dev-invoke"
@@ -372,7 +372,7 @@ dev-logs:
 ## dev-invoke: Invoke echo agent locally with test tenant
 dev-invoke:
 	@TENANT=$$(grep BASIC_TENANT_ID .env.test 2>/dev/null | cut -d= -f2); \
-	uv run python scripts/dev-invoke.py \
+	uv run platform-cli dev invoke \
 		--agent echo-agent \
 		--tenant "$${TENANT:-t-test-001}" \
 		--prompt "$(or $(PROMPT),Hello from local environment)" \
@@ -520,29 +520,13 @@ tf-apply:
 ## Usage: make agent-evaluate AGENT=my-agent [ENV=staging]
 agent-evaluate:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agent-evaluate AGENT=my-agent" && exit 1)
-	@echo "==> Running evaluation gate for $(AGENT)"
-	uv run python scripts/evaluate_agent.py $(AGENT) --env $(ENV)
+	uv run platform-cli agent evaluate $(AGENT) --env $(ENV)
 
 ## agent-push: Package and deploy an agent
 ## Usage: make agent-push AGENT=my-agent [ENV=dev]
 agent-push:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agent-push AGENT=my-agent" && exit 1)
-	@echo "==> Checking dependency hash for $(AGENT)"
-	@if uv run python scripts/hash_layer.py $(AGENT) --env $(ENV); then \
-		echo "==> Dependencies unchanged (fast path ~15s)"; \
-	else \
-		echo "==> Dependencies changed (cold path ~90s)"; \
-		uv run python scripts/build_layer.py $(AGENT) --env $(ENV); \
-	fi
-	@echo "==> Packaging agent code"
-	uv run python scripts/package_agent.py $(AGENT)
-	@echo "==> Running agent tests"
-	$(MAKE) test-agent AGENT=$(AGENT)
-	@echo "==> Deploying to AgentCore Runtime"
-	uv run python scripts/deploy_agent.py $(AGENT) --env $(ENV)
-	@echo "==> Registering agent"
-	uv run python scripts/register_agent.py $(AGENT) --env $(ENV)
-	@echo "==> Agent $(AGENT) deployed successfully to $(ENV)"
+	uv run platform-cli agent push $(AGENT) --env $(ENV)
 
 ## agentcore-dev: Start AgentCore local dev server inside an agent project
 ## Usage: make agentcore-dev AGENT=my-agent
@@ -585,7 +569,7 @@ agentcore-destroy:
 agent-invoke:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required" && exit 1)
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
-	uv run python scripts/agent-invoke.py \
+	uv run platform-cli agent invoke \
 		--agent $(AGENT) \
 		--tenant $(TENANT) \
 		--env $(ENV) \
@@ -605,7 +589,7 @@ agent-test: test-agent
 ## Usage: make agent-rollback AGENT=my-agent [ENV=prod]
 agent-rollback:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required" && exit 1)
-	uv run python scripts/rollback_agent.py $(AGENT) --env $(ENV)
+	uv run platform-cli agent rollback $(AGENT) --env $(ENV)
 
 # =============================================================================
 # SPA FRONTEND
@@ -632,35 +616,35 @@ spa-push:
 
 ## ops-login: Authenticate as operator via Entra
 ops-login:
-	uv run python scripts/ops.py login --env $(ENV)
+	uv run platform-cli ops login --env $(ENV)
 
 ## ops-top-tenants: List top N tenants by token consumption
 ## Usage: make ops-top-tenants [ENV=prod] [N=10]
 ops-top-tenants:
-	uv run python scripts/ops.py top-tenants --env $(ENV) --n $(or $(N),10)
+	uv run platform-cli ops top-tenants --env $(ENV) --n $(or $(N),10)
 
 ## ops-tenant-sessions: Show active sessions for a tenant
 ## Usage: make ops-tenant-sessions TENANT=t-abc123 [ENV=prod]
 ops-tenant-sessions:
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
-	uv run python scripts/ops.py tenant-sessions --tenant $(TENANT) --env $(ENV)
+	uv run platform-cli ops run-api-command tenant-sessions --tenant $(TENANT) --env $(ENV)
 
 ## ops-suspend-tenant: Suspend a tenant immediately
 ## Usage: make ops-suspend-tenant TENANT=t-abc123 REASON="quota_protection" [ENV=prod]
 ops-suspend-tenant:
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
 	@test -n "$(REASON)" || (echo "ERROR: REASON required" && exit 1)
-	uv run python scripts/ops.py suspend-tenant --tenant $(TENANT) --reason "$(REASON)" --env $(ENV)
+	uv run platform-cli ops suspend-tenant --tenant $(TENANT) --reason "$(REASON)" --env $(ENV)
 
 ## ops-reinstate-tenant: Reinstate a suspended tenant
 ## Usage: make ops-reinstate-tenant TENANT=t-abc123 [ENV=prod]
 ops-reinstate-tenant:
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
-	uv run python scripts/ops.py reinstate-tenant --tenant $(TENANT) --env $(ENV)
+	uv run platform-cli ops reinstate-tenant --tenant $(TENANT) --env $(ENV)
 
 ## ops-quota-report: Show AgentCore quota utilisation
 ops-quota-report:
-	uv run python scripts/ops.py quota-report --env $(ENV)
+	uv run platform-cli ops quota-report --env $(ENV)
 
 ## ops-invocation-report: Show invocation report for a tenant
 ## Usage: make ops-invocation-report TENANT=t-abc123 [DAYS=7] [ENV=prod]

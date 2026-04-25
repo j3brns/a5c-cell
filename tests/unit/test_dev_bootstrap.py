@@ -1,5 +1,5 @@
 """
-tests/unit/test_dev_bootstrap.py — Tests for scripts/dev-bootstrap.py
+tests/unit/test_dev_bootstrap.py — Tests for scripts/dev_bootstrap.py
 
 Validates:
   - All DynamoDB tables are created on first run
@@ -25,10 +25,10 @@ from moto import mock_aws
 
 
 def _load_bootstrap_module() -> object:
-    """Load scripts/dev-bootstrap.py as a Python module via importlib."""
+    """Load scripts/dev_bootstrap.py as a Python module via importlib."""
     repo_root = Path(__file__).resolve().parents[2]
     spec = importlib.util.spec_from_file_location(
-        "dev_bootstrap", repo_root / "scripts" / "dev-bootstrap.py"
+        "dev_bootstrap", repo_root / "scripts" / "dev_bootstrap.py"
     )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

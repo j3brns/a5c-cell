@@ -494,5 +494,10 @@ def main(argv: list[str] | None = None) -> int:
     return run_validation_mode(mode=args.mode, repo_root=repo_root, benchmark=args.benchmark)
 
 
+def validate_local(mode: str, benchmark: bool = False) -> int:
+    repo_root = Path(__file__).resolve().parents[1]
+    return run_validation_mode(mode=mode, repo_root=repo_root, benchmark=benchmark)
+
+
 if __name__ == "__main__":
     sys.exit(main())

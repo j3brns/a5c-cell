@@ -1,4 +1,4 @@
-"""Unit tests for scripts/agent-invoke.py."""
+"""Unit tests for scripts/agent_invoke.py."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def _load_agent_invoke_module() -> Any:
     repo_root = Path(__file__).resolve().parents[2]
     spec = importlib.util.spec_from_file_location(
         "agent_invoke_script",
-        repo_root / "scripts" / "agent-invoke.py",
+        repo_root / "scripts" / "agent_invoke.py",
     )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -70,7 +70,13 @@ def test_build_event_matches_bridge_contract() -> None:
         ]
     )
 
-    event = agent_invoke.build_event(args)
+    event = agent_invoke.build_event(
+        agent=args.agent,
+        tenant=args.tenant,
+        prompt=args.prompt,
+        session_id=args.session_id,
+        webhook_id=args.webhook_id,
+    )
 
     assert event["httpMethod"] == "POST"
     assert event["path"] == "/v1/agents/echo-agent/invoke"

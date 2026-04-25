@@ -20,26 +20,34 @@ class AgentInvokeError(RuntimeError):
     """Domain error for CLI usage and invocation failures."""
 
 
-def _build_payload(args: argparse.Namespace) -> dict[str, Any]:
-    payload: dict[str, Any] = {"input": args.prompt}
-    if args.session_id:
-        payload["sessionId"] = args.session_id
-    if args.webhook_id:
-        payload["webhookId"] = args.webhook_id
+def build_payload(
+    prompt: str, session_id: str | None = None, webhook_id: str | None = None
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {"input": prompt}
+    if session_id:
+        payload["sessionId"] = session_id
+    if webhook_id:
+        payload["webhookId"] = webhook_id
     return payload
 
 
-def build_event(args: argparse.Namespace) -> dict[str, Any]:
+def build_event(
+    agent: str,
+    tenant: str,
+    prompt: str,
+    session_id: str | None = None,
+    webhook_id: str | None = None,
+) -> dict[str, Any]:
     """Construct a bridge-compatible API Gateway event payload."""
     return {
         "httpMethod": "POST",
-        "path": f"/v1/agents/{args.agent}/invoke",
-        "pathParameters": {"agentName": args.agent},
-        "body": json.dumps(_build_payload(args)),
+        "path": f"/v1/agents/{agent}/invoke",
+        "pathParameters": {"agentName": agent},
+        "body": json.dumps(build_payload(prompt, session_id, webhook_id)),
         "requestContext": {
             "authorizer": {
                 "lambda": {
-                    "tenantid": args.tenant,
+                    "tenantid": tenant,
                     "appid": DEFAULT_APP_ID,
                     "tier": DEFAULT_TIER,
                     "sub": DEFAULT_SUB,
@@ -79,19 +87,30 @@ def _print_payload(payload: Any) -> None:
     print(payload)
 
 
-def invoke_remote(args: argparse.Namespace) -> int:
+def invoke_remote(
+    agent: str,
+    tenant: str,
+    prompt: str = "Hello",
+    env: str = DEFAULT_ENV,
+    mode: str = "sync",
+    session_id: str | None = None,
+    webhook_id: str | None = None,
+) -> int:
     """Invoke the deployed Bridge Lambda on AWS."""
-    if args.env == "local":
+    if env == "local":
         raise AgentInvokeError("ENV=local is not supported here. Use `make dev-invoke` instead.")
 
-    function_name = f"platform-{args.env}-bridge"
+    function_name = f"platform-{env}-bridge"
     client = boto3.client("lambda")
 
     try:
+        payload_bytes = json.dumps(
+            build_event(agent, tenant, prompt, session_id, webhook_id)
+        ).encode("utf-8")
         response = client.invoke(
             FunctionName=function_name,
             InvocationType="RequestResponse",
-            Payload=json.dumps(build_event(args)).encode("utf-8"),
+            Payload=payload_bytes,
         )
     except ClientError as exc:
         raise AgentInvokeError(f"AWS Lambda invocation failed: {exc}") from exc
@@ -113,7 +132,15 @@ def invoke_remote(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     try:
         args = parse_args(argv)
-        return invoke_remote(args)
+        return invoke_remote(
+            agent=args.agent,
+            tenant=args.tenant,
+            prompt=args.prompt,
+            env=args.env,
+            mode=args.mode,
+            session_id=args.session_id,
+            webhook_id=args.webhook_id,
+        )
     except AgentInvokeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

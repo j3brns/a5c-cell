@@ -285,22 +285,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def cmd_acquire(args: argparse.Namespace) -> int:
+def run_acquire(
+    env: str = "dev",
+    owner: str | None = None,
+    ttl_seconds: int = DEFAULT_TTL_SECONDS,
+    table_name: str | None = None,
+) -> int:
     region = get_aws_region()
     ddb_client = boto3.client("dynamodb", region_name=region)
+    effective_owner = owner or default_owner()
+    effective_table = table_name or resolve_table_name()
     try:
         record = acquire_lock(
             ddb_client,
-            table_name=args.table_name,
+            table_name=effective_table,
             lock_name=DEFAULT_LOCK_NAME,
-            acquired_by=args.owner,
-            ttl_seconds=args.ttl_seconds,
+            acquired_by=effective_owner,
+            ttl_seconds=ttl_seconds,
         )
     except LockAlreadyHeldError as exc:
         print(str(exc), file=sys.stderr)
         return 1
     save_local_token(
-        LocalToken(lock_id=record.lock_id, table_name=args.table_name, lock_name=record.lock_name)
+        LocalToken(lock_id=record.lock_id, table_name=effective_table, lock_name=record.lock_name)
     )
     print(f"Lock acquired: {record.lock_name}")
     print(f"lock_id={record.lock_id}")
@@ -308,15 +315,21 @@ def cmd_acquire(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_release(args: argparse.Namespace) -> int:
+def run_release(
+    env: str = "dev",
+    lock_id: str | None = None,
+    table_name: str | None = None,
+    force: bool = False,
+) -> int:
     region = get_aws_region()
     ddb_client = boto3.client("dynamodb", region_name=region)
+    effective_table = table_name or resolve_table_name()
 
-    lock_id = args.lock_id
+    effective_lock_id = lock_id
     token = load_local_token()
-    if lock_id is None and token is not None:
-        lock_id = token.lock_id
-    if not lock_id and not args.force:
+    if effective_lock_id is None and token is not None:
+        effective_lock_id = token.lock_id
+    if not effective_lock_id and not force:
         print(
             "No lock token found. Provide --lock-id or use --force for unconditional release.",
             file=sys.stderr,
@@ -326,9 +339,9 @@ def cmd_release(args: argparse.Namespace) -> int:
     try:
         released = release_lock(
             ddb_client,
-            table_name=args.table_name,
+            table_name=effective_table,
             lock_name=DEFAULT_LOCK_NAME,
-            lock_id=None if args.force else lock_id,
+            lock_id=None if force else effective_lock_id,
         )
     except LockOwnershipError as exc:
         print(str(exc), file=sys.stderr)
@@ -345,9 +358,16 @@ def cmd_release(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if args.command == "acquire":
-        return cmd_acquire(args)
+        return run_acquire(
+            env=args.env,
+            owner=args.owner,
+            ttl_seconds=args.ttl_seconds,
+            table_name=args.table_name,
+        )
     if args.command == "release":
-        return cmd_release(args)
+        return run_release(
+            env=args.env, lock_id=args.lock_id, table_name=args.table_name, force=args.force
+        )
     return 2
 
 

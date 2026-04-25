@@ -1,4 +1,4 @@
-"""Unit tests for scripts/dev-invoke.py."""
+"""Unit tests for scripts/dev_invoke.py."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def _load_dev_invoke_module() -> Any:
     repo_root = Path(__file__).resolve().parents[2]
     spec = importlib.util.spec_from_file_location(
         "dev_invoke_script",
-        repo_root / "scripts" / "dev-invoke.py",
+        repo_root / "scripts" / "dev_invoke.py",
     )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
