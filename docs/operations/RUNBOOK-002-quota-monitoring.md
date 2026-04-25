@@ -15,8 +15,9 @@ make ops-quota-report ENV=prod
 
 ### 2. Identify if a single tenant is dominant
 ```bash
-# Use CloudWatch AgentCore concurrent-session metrics and tenant audit records to identify
-# whether one tenant dominates current session load.
+# Use CloudWatch AgentCore concurrent-session metrics, the parameterized tenant usage dashboard
+# with tenantId and tenantTier set explicitly, and tenant audit records to identify whether
+# one tenant dominates current session load.
 # If one tenant has >40% of sessions: likely a runaway agent.
 ```
 

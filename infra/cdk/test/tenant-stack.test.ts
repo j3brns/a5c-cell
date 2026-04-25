@@ -203,15 +203,10 @@ describe('TenantStack (TASK-025)', () => {
     ]);
   });
 
-  test('creates per-tenant CloudWatch dashboard and budget alarm', () => {
+  test('creates per-tenant budget alarm', () => {
     const template = synthTemplate({
       ...defaultContext,
       monthlyBudgetUsd: '500',
-    });
-
-    template.hasResourceProperties('AWS::CloudWatch::Dashboard', {
-      DashboardName: 'platform-tenant-t-test123',
-      DashboardBody: Match.anyValue(),
     });
 
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
