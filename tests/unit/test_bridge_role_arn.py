@@ -17,7 +17,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-acces
 
 from data_access.models import InvocationMode
 
-from src.bridge.handler import assume_tenant_role, invoke_agent, invoke_real_runtime
+from src.bridge.role_resolver import assume_tenant_role
+from src.bridge.route_adapter import invoke_agent
+from src.bridge.runtime_calls import invoke_real_runtime
 
 
 @pytest.fixture

@@ -131,8 +131,8 @@ def test_handler_failover_on_503(setup_data):
     }
 
     with (
-        patch("src.bridge.handler.get_http_session"),
-        patch("src.bridge.handler.invoke_real_runtime") as mock_invoke_real,
+        patch("src.bridge.route_adapter.get_http_session"),
+        patch("src.bridge.route_adapter.runtime_calls.invoke_real_runtime") as mock_invoke_real,
     ):
         # First call fails with ClientError(ServiceUnavailableException)
         mock_invoke_real.side_effect = [
@@ -194,8 +194,8 @@ def test_handler_failover_already_in_progress(setup_data):
     }
 
     with (
-        patch("src.bridge.handler.get_http_session"),
-        patch("src.bridge.handler.invoke_real_runtime") as mock_invoke_real,
+        patch("src.bridge.route_adapter.get_http_session"),
+        patch("src.bridge.route_adapter.runtime_calls.invoke_real_runtime") as mock_invoke_real,
     ):
         mock_invoke_real.side_effect = [
             ClientError(

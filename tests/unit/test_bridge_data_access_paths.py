@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -8,23 +7,24 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-access-lib" / "src"))
 
-from data_access.models import AgentStatus, TenantTier
+from data_access.models import AgentStatus, TenantContext, TenantTier
 
 from src.bridge import discovery_service, lock_manager
-from src.bridge import handler as bridge_handler
+from src.bridge import runtime_dependencies as runtime_deps
+from src.bridge.constants import AGENTS_TABLE
 
 
 def test_get_agent_record_uses_platform_control_plane_db() -> None:
     agent_record = MagicMock()
 
     with (
-        patch("src.bridge.handler.ControlPlaneDynamoDB") as mock_db_cls,
+        patch("src.bridge.runtime_dependencies.ControlPlaneDynamoDB") as mock_db_cls,
         patch(
-            "src.bridge.handler.discovery_resolve_agent_record",
+            "src.bridge.runtime_dependencies.discovery_resolve_agent_record",
             return_value=agent_record,
         ) as mock_resolve,
     ):
-        result = bridge_handler.get_agent_record("echo-agent", "1.0.0")
+        result = runtime_deps.get_agent_record("echo-agent", "1.0.0")
 
     assert result is agent_record
     ctx = mock_db_cls.call_args.args[0]
@@ -33,7 +33,7 @@ def test_get_agent_record_uses_platform_control_plane_db() -> None:
     assert ctx.tier == TenantTier.PREMIUM
     mock_resolve.assert_called_once_with(
         mock_db_cls.return_value,
-        agents_table=bridge_handler.AGENTS_TABLE,
+        agents_table=AGENTS_TABLE,
         agent_name="echo-agent",
         agent_version="1.0.0",
     )
@@ -145,27 +145,25 @@ def test_get_agent_detail_uses_platform_context_db_factory() -> None:
             "status": "promoted",
         }
     ]
-    db_factory = MagicMock(return_value=mock_db)
 
-    response = discovery_service.get_agent_detail(
-        {"agentName": "echo-agent"},
-        "req-123",
-        agents_table="platform-agents",
-        db_factory=db_factory,
-        error_response=lambda status, code, message, request_id: {
-            "statusCode": status,
-            "body": json.dumps(
-                {"error": {"code": code, "message": message, "requestId": request_id}}
-            ),
-        },
-    )
+    with (
+        patch("src.bridge.discovery_service.ControlPlaneDynamoDB", return_value=mock_db),
+        patch("src.bridge.runtime_dependencies.get_platform_context") as mock_get_ctx,
+    ):
+        mock_get_ctx.return_value = TenantContext(
+            tenant_id="platform",
+            app_id="bridge-discovery",
+            tier=TenantTier.PREMIUM,
+            sub="bridge-lambda",
+        )
+        response = discovery_service.get_agent_detail(
+            {"agentName": "echo-agent"},
+            "req-123",
+        )
 
     assert response["statusCode"] == 200
-    ctx = db_factory.call_args.args[0]
-    assert ctx.tenant_id == "platform"
-    assert ctx.app_id == "bridge-discovery"
-    assert ctx.tier == TenantTier.PREMIUM
-    mock_db.query.assert_called_once_with("platform-agents", pk_value="AGENT#echo-agent")
+    mock_get_ctx.assert_called_once()
+    mock_db.query.assert_called_once_with(AGENTS_TABLE, pk_value="AGENT#echo-agent")
 
 
 def test_trigger_failover_uses_control_plane_db_for_locking() -> None:
@@ -176,12 +174,10 @@ def test_trigger_failover_uses_control_plane_db_for_locking() -> None:
         patch("src.bridge.lock_manager.ControlPlaneDynamoDB") as mock_db_cls,
         patch("src.bridge.lock_manager.acquire_lock", return_value="lock-123") as mock_acquire,
         patch("src.bridge.lock_manager.release_lock") as mock_release,
+        patch("src.bridge.lock_manager.get_ssm", return_value=ssm),
     ):
         result = lock_manager.trigger_failover(
-            ssm=ssm,
             current_region="eu-west-1",
-            get_config_fn=MagicMock(return_value={"runtime_region": "eu-central-1"}),
-            runtime_region_param="/platform/config/runtime-region",
         )
 
     assert result == "eu-central-1"

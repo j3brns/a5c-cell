@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from data_access.models import TenantContext, TenantTier
+
+from src.bridge import route_adapter
+from src.bridge.runtime_dependencies import get_agent_record as default_get_agent_record
+from src.platform_utils import coerce_optional_string as _coerce_optional_string
 
 
 def handle_invoke_request(
@@ -13,39 +18,50 @@ def handle_invoke_request(
     path: str,
     path_params: dict[str, Any],
     response_stream: Any,
-    error_response: Any,
-    parse_body: Any,
-    coerce_optional_string: Any,
-    is_invoke_contract_path: Any,
-    get_agent_record: Any,
-    capability_policy: Any,
-    invoke_agent: Any,
+    error_response: Any | None = None,
+    parse_body: Any | None = None,
+    coerce_optional_string: Any | None = None,
+    is_invoke_contract_path: Any | None = None,
+    get_agent_record: Any | None = None,
+    capability_policy: Any = None,
+    invoke_agent: Any | None = None,
 ) -> Any:
-    agent_name = coerce_optional_string(path_params.get("agentName"))
-    if path and not is_invoke_contract_path(path, agent_name):
-        return error_response(404, "NOT_FOUND", "Route not found", request_id)
+    build_error_response = error_response or route_adapter.error_response
+    parse_request_body = parse_body or (lambda e: json.loads(e.get("body") or "{}"))
+    coerce = coerce_optional_string or _coerce_optional_string
+    is_contract_path = is_invoke_contract_path or route_adapter.is_invoke_contract_path
+    fetch_agent = get_agent_record or default_get_agent_record
+    call_agent = invoke_agent or route_adapter.invoke_agent
+
+    agent_name = coerce(path_params.get("agentName"))
+    if path and not is_contract_path(path, agent_name):
+        return build_error_response(404, "NOT_FOUND", "Route not found", request_id)
     if not agent_name:
-        return error_response(400, "INVALID_REQUEST", "Missing agentName in path", request_id)
+        return build_error_response(400, "INVALID_REQUEST", "Missing agentName in path", request_id)
 
     try:
-        body = parse_body(event)
+        body = parse_request_body(event)
     except ValueError:
-        return error_response(400, "INVALID_REQUEST", "Invalid JSON in request body", request_id)
+        return build_error_response(
+            400, "INVALID_REQUEST", "Invalid JSON in request body", request_id
+        )
 
-    prompt = coerce_optional_string(body.get("input"))
+    prompt = coerce(body.get("input"))
     if not prompt:
-        return error_response(400, "INVALID_REQUEST", "Missing 'input' in request body", request_id)
+        return build_error_response(
+            400, "INVALID_REQUEST", "Missing 'input' in request body", request_id
+        )
 
-    session_id = coerce_optional_string(body.get("sessionId"))
-    webhook_id = coerce_optional_string(body.get("webhookId"))
+    session_id = coerce(body.get("sessionId"))
+    webhook_id = coerce(body.get("webhookId"))
 
-    agent = get_agent_record(agent_name)
+    agent = fetch_agent(agent_name)
     if not agent:
-        return error_response(404, "NOT_FOUND", f"Agent '{agent_name}' not found", request_id)
+        return build_error_response(404, "NOT_FOUND", f"Agent '{agent_name}' not found", request_id)
 
     tier_order = {TenantTier.BASIC: 0, TenantTier.STANDARD: 1, TenantTier.PREMIUM: 2}
     if tier_order[tenant_context.tier] < tier_order[agent.tier_minimum]:
-        return error_response(
+        return build_error_response(
             403, "FORBIDDEN", "Tenant tier insufficient for this agent", request_id
         )
 
@@ -55,7 +71,7 @@ def handle_invoke_request(
             tenant_id=tenant_context.tenant_id,
             tenant_tier=tenant_context.tier,
         ):
-            return error_response(
+            return build_error_response(
                 403,
                 "FORBIDDEN",
                 "Agent invocation capability disabled",
@@ -67,13 +83,19 @@ def handle_invoke_request(
             tenant_id=tenant_context.tenant_id,
             tenant_tier=tenant_context.tier,
         ):
-            return error_response(
+            return build_error_response(
                 403,
                 "FORBIDDEN",
                 f"Access to agent '{agent_name}' is not enabled for this tenant",
                 request_id,
             )
 
-    return invoke_agent(
-        agent, tenant_context, prompt, session_id, webhook_id, request_id, response_stream
+    return call_agent(
+        agent,
+        tenant_context,
+        prompt,
+        session_id,
+        webhook_id,
+        request_id,
+        response_stream,
     )
