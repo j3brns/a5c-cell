@@ -150,6 +150,7 @@ def resolve_sigv4_tenant_binding(
                 )
                 if not item:
                     continue
+                # Legacy aliases remain read-only until existing tenant records are migrated.
                 tenant_id = str(item.get("tenantId") or item.get("tenant_id") or "").strip()
                 app_id = str(item.get("appId") or item.get("app_id") or "").strip()
                 tier = normalise_tier(str(item.get("tier") or "basic"))

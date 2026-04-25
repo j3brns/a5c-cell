@@ -149,77 +149,56 @@ TENANT_FIXTURES: list[dict[str, Any]] = [
     {
         "PK": "TENANT#platform",
         "SK": "METADATA",
-        "tenant_id": "platform",
-        "app_id": "platform-local",
-        "display_name": "Reserved Platform Tenant",
+        "tenantId": "platform",
+        "appId": "platform-local",
+        "displayName": "Reserved Platform Tenant",
         "tier": "premium",
         "status": "active",
-        "created_at": "2026-01-01T00:00:00+00:00",
-        "updated_at": "2026-01-01T00:00:00+00:00",
-        "owner_email": "platform@example.local",
-        "owner_team": "platform",
-        "account_id": "000000000000",
-        "execution_role_arn": "arn:aws:iam::000000000000:role/platform-internal-execution-role",
-        "monthly_budget_usd": Decimal("100000"),
+        "createdAt": "2026-01-01T00:00:00+00:00",
+        "updatedAt": "2026-01-01T00:00:00+00:00",
+        "ownerEmail": "platform@example.local",
+        "ownerTeam": "platform",
+        "accountId": "000000000000",
+        "executionRoleArn": "arn:aws:iam::000000000000:role/platform-internal-execution-role",
+        "monthlyBudgetUsd": Decimal("100000"),
     },
     {
         "PK": "TENANT#t-test-001",
         "SK": "METADATA",
-        "tenant_id": "t-test-001",
-        "app_id": "platform-local",
-        "display_name": "Test Tenant Basic",
+        "tenantId": "t-test-001",
+        "appId": "platform-local",
+        "displayName": "Test Tenant Basic",
         "tier": "basic",
         "status": "active",
-        "created_at": "2026-01-01T00:00:00+00:00",
-        "updated_at": "2026-01-01T00:00:00+00:00",
-        "owner_email": "basic-test@example.local",
-        "owner_team": "platform-test",
-        "account_id": "000000000000",
-        "execution_role_arn": (
+        "createdAt": "2026-01-01T00:00:00+00:00",
+        "updatedAt": "2026-01-01T00:00:00+00:00",
+        "ownerEmail": "basic-test@example.local",
+        "ownerTeam": "platform-test",
+        "accountId": "000000000000",
+        "executionRoleArn": (
             "arn:aws:iam::000000000000:role/platform-tenant-t-test-001-execution-role"
         ),
-        "monthly_budget_usd": Decimal("100"),
+        "monthlyBudgetUsd": Decimal("100"),
     },
     {
         "PK": "TENANT#t-test-002",
         "SK": "METADATA",
-        "tenant_id": "t-test-002",
-        "app_id": "platform-local",
-        "display_name": "Test Tenant Premium",
+        "tenantId": "t-test-002",
+        "appId": "platform-local",
+        "displayName": "Test Tenant Premium",
         "tier": "premium",
         "status": "active",
-        "created_at": "2026-01-01T00:00:00+00:00",
-        "updated_at": "2026-01-01T00:00:00+00:00",
-        "owner_email": "premium-test@example.local",
-        "owner_team": "platform-test",
-        "account_id": "000000000000",
-        "execution_role_arn": (
+        "createdAt": "2026-01-01T00:00:00+00:00",
+        "updatedAt": "2026-01-01T00:00:00+00:00",
+        "ownerEmail": "premium-test@example.local",
+        "ownerTeam": "platform-test",
+        "accountId": "000000000000",
+        "executionRoleArn": (
             "arn:aws:iam::000000000000:role/platform-tenant-t-test-002-execution-role"
         ),
-        "monthly_budget_usd": Decimal("1000"),
+        "monthlyBudgetUsd": Decimal("1000"),
     },
 ]
-
-
-def _with_tenant_aliases(item: dict[str, Any]) -> dict[str, Any]:
-    """Mirror the current production bootstrap tenant attribute aliases in local fixtures."""
-    aliased = dict(item)
-    aliases = {
-        "tenant_id": "tenantId",
-        "app_id": "appId",
-        "created_at": "createdAt",
-        "updated_at": "updatedAt",
-        "owner_email": "ownerEmail",
-        "owner_team": "ownerTeam",
-        "account_id": "accountId",
-        "execution_role_arn": "executionRoleArn",
-        "display_name": "displayName",
-        "monthly_budget_usd": "monthlyBudgetUsd",
-    }
-    for legacy_key, canonical_key in aliases.items():
-        if legacy_key in item:
-            aliased[canonical_key] = item[legacy_key]
-    return aliased
 
 
 AGENT_FIXTURES: list[dict[str, Any]] = [
@@ -367,11 +346,7 @@ def _seed_items(ddb_resource: Any, table_name: str, items: list[dict[str, Any]])
 
 def seed_tenants(ddb_resource: Any) -> None:
     """Upsert two test tenant records (basic-tier and premium-tier)."""
-    _seed_items(
-        ddb_resource,
-        "platform-tenants",
-        [_with_tenant_aliases(item) for item in TENANT_FIXTURES],
-    )
+    _seed_items(ddb_resource, "platform-tenants", TENANT_FIXTURES)
 
 
 def seed_agents(ddb_resource: Any) -> None:

@@ -26,6 +26,19 @@ def _load_bootstrap_module() -> object:
 
 bootstrap: Any = _load_bootstrap_module()
 _REGION = "eu-west-2"
+_TENANT_DUAL_KEY_PAIRS = {
+    "tenant_id": "tenantId",
+    "app_id": "appId",
+    "display_name": "displayName",
+    "created_at": "createdAt",
+    "updated_at": "updatedAt",
+    "owner_email": "ownerEmail",
+    "owner_team": "ownerTeam",
+    "account_id": "accountId",
+    "runtime_region": "runtimeRegion",
+    "fallback_region": "fallbackRegion",
+    "monthly_budget_usd": "monthlyBudgetUsd",
+}
 
 
 def _ctx() -> object:
@@ -150,6 +163,65 @@ def test_validate_first_deploy_checks_home_region_bootstrap_stacks_only(
         ("eu-west-2", "platform-tenant-stub-dev"),
         ("eu-west-2", "platform-observability-dev"),
     ]
+
+
+def test_step_post_deploy_writes_camel_case_tenant_metadata_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tables: dict[str, list[dict[str, Any]]] = {}
+    ssm_writes: dict[str, str] = {}
+
+    class FakeSsmClient:
+        def put_parameter(self, *, Name: str, Value: str, Type: str, Overwrite: bool) -> None:
+            assert Type == "String"
+            assert Overwrite is True
+            ssm_writes[Name] = Value
+
+    class FakeTable:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def put_item(self, *, Item: dict[str, Any]) -> None:
+            tables.setdefault(self.name, []).append(Item)
+
+    class FakeDynamoResource:
+        def Table(self, name: str) -> FakeTable:
+            return FakeTable(name)
+
+    def _fake_client(service_name: str, *, region_name: str) -> FakeSsmClient:
+        assert service_name == "ssm"
+        assert region_name == _REGION
+        return FakeSsmClient()
+
+    def _fake_resource(service_name: str, *, region_name: str) -> FakeDynamoResource:
+        assert service_name == "dynamodb"
+        assert region_name == _REGION
+        return FakeDynamoResource()
+
+    monkeypatch.setattr(bootstrap.boto3, "client", _fake_client)
+    monkeypatch.setattr(bootstrap.boto3, "resource", _fake_resource)
+
+    result = bootstrap.step_post_deploy(_ctx())
+
+    assert result["tenantId"] == "t-admin-001"
+    assert ssm_writes["/platform/config/runtime-region"] == "eu-west-1"
+
+    tenant_items = tables["platform-tenants"]
+    assert {item["tenantId"] for item in tenant_items} == {"platform", "t-admin-001"}
+    for item in tenant_items:
+        assert all(canonical in item for canonical in _TENANT_DUAL_KEY_PAIRS.values())
+        assert not any(legacy in item for legacy in _TENANT_DUAL_KEY_PAIRS)
+
+
+def test_bootstrap_source_does_not_reintroduce_known_dual_key_tenant_writes() -> None:
+    source = Path(bootstrap.__file__).read_text(encoding="utf-8")
+    tenant_seed_source = source.split("tenants_table = ddb_resource.Table", 1)[1].split(
+        "agents_table = ddb_resource.Table", 1
+    )[0]
+
+    for legacy, canonical in _TENANT_DUAL_KEY_PAIRS.items():
+        assert f'"{legacy}":' not in tenant_seed_source
+        assert f'"{canonical}":' in tenant_seed_source
 
 
 @mock_aws

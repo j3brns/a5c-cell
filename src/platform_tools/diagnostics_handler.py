@@ -137,11 +137,11 @@ def get_tenant_status(db: ControlPlaneDynamoDB, tenant_id: str) -> dict[str, Any
 
     return {
         "tenantId": tenant_id,
-        "displayName": tenant.get("display_name", "Unknown"),
+        "displayName": tenant.get("displayName") or tenant.get("display_name", "Unknown"),
         "status": tenant.get("status", "active"),
         "tier": tenant.get("tier", "basic"),
         "recentInvocations": len(recent_invocations.items),
-        "lastUpdated": tenant.get("updated_at"),
+        "lastUpdated": tenant.get("updatedAt") or tenant.get("updated_at"),
     }
 
 
