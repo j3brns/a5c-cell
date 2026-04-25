@@ -21,6 +21,9 @@ class TestTenantScopedDynamoDBInit:
             db = TenantScopedDynamoDB(ctx)
         assert db._tenant_id == TENANT_ID
 
+    def test_control_plane_client_is_not_tenant_scoped_subclass(self) -> None:
+        assert not issubclass(ControlPlaneDynamoDB, TenantScopedDynamoDB)
+
 
 class TestTenantScopedDynamoDBGetItem:
     def test_get_item_own_tenant_found(self, ctx, mock_cw: MagicMock) -> None:

@@ -98,6 +98,12 @@ def s3_for_tenant(
 
 
 def control_plane_db(caller: CallerIdentity) -> ControlPlaneDynamoDB:
+    """Return the explicit scan-capable client for audited platform/admin routes.
+
+    Tenant API code must use this factory rather than constructing
+    ControlPlaneDynamoDB directly, so scan-capable access stays visible and
+    reviewable at the service boundary.
+    """
     tenant_context = _tenant_context_for_scope(
         tenant_id=caller.tenant_id or "control-plane",
         caller=caller,
