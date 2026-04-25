@@ -422,6 +422,21 @@ See [ADR-012](decisions/ADR-012-dynamodb-capacity.md) for capacity mode rational
   - `platform` is reserved for internal control-plane use and must never be created
     through customer or self-service flows
 
+Reserved tenant ID access semantics:
+
+| Tenant ID | Create | Read | Update | Delete | Caller role requirement |
+|-----------|--------|------|--------|--------|-------------------------|
+| `platform` | Denied through tenant creation APIs; seeded only by controlled bootstrap/provisioning paths | Allowed for the seeded `platform` tenant record | Allowed for mutable metadata on the seeded `platform` tenant record | Denied; the platform tenant must remain addressable for audit and control-plane identity | `Platform.Admin` for direct `/v1/tenants/platform` read/update; platform-agent routes require the route-specific platform RBAC documented above |
+| `admin` | Denied | Denied | Denied | Denied | No tenant API caller role may operate on this ID |
+| `root` | Denied | Denied | Denied | Denied | No tenant API caller role may operate on this ID |
+| `system` | Denied | Denied | Denied | Denied | No tenant API caller role may operate on this ID |
+| `stub` | Denied | Denied | Denied | Denied | No tenant API caller role may operate on this ID |
+
+The non-`platform` reserved IDs are guard words only. They must not be backfilled as
+tenant records, exposed as first-class control-plane tenants, or made assignable by
+operator role. Any future change that allows reads or writes for one of these IDs
+requires an explicit ADR because it changes the tenant identity boundary.
+
 **platform-agents** — agent registry
 - PK: `AGENT#{agentName}`, SK: `VERSION#{semver}`
 - Attributes: agentName, version, ownerTeam, tierMinimum, layerHash,
