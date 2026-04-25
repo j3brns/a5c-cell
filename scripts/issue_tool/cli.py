@@ -1567,7 +1567,7 @@ def choose_default_launch_agent(pool: tuple[str, ...] = DEFAULT_INTERACTIVE_AGEN
 
 
 def resolve_cli_launch_request(
-    args: argparse.Namespace, *, default_agent: str = "gemini"
+    args: argparse.Namespace, *, default_agent: str = "codex"
 ) -> tuple[str, str, str, str]:
     agent, agent_mode, handoff, mux = resolve_launch_request(args)
     requested_agent = getattr(args, "agent", None)
