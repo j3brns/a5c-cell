@@ -4,7 +4,7 @@
 # =============================================================================
 
 .PHONY: help help-all bootstrap ensure-tools validate-local validate-local-full
-.PHONY: validate-local-prereqs validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
+.PHONY: validate-local-prereqs validate-lint validate-typecheck validate-unit validate-contract validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
 .PHONY: validate-pre-push validate-secrets-diff validate-secrets-push validate-secrets-full
 .PHONY: docs-sync-audit docs-sync-stamp rules-sync-audit
 .PHONY: dev dev-stop dev-logs dev-invoke
@@ -207,13 +207,29 @@ validate-local-prereqs:
 	@cd infra/cdk && npx --no-install pyright --version >/dev/null 2>&1 || \
 		(echo "ERROR: pyright not installed in infra/cdk. Run: make ensure-tools" && exit 1)
 
-## validate-python: Python lint/format/type checks
-validate-python:
+## validate-lint: Ruff lint and format checks
+validate-lint:
 	uv run ruff check .
 	uv run ruff format --check .
+
+## validate-typecheck: Full Pyright type check (matches CI validate stage)
+validate-typecheck:
 	cd infra/cdk && npx --no-install pyright --project ../../pyrightconfig.json
+
+## validate-contract: OpenAPI route contract and repo guardrail checks
+validate-contract:
 	@$(MAKE) --no-print-directory validate-openapi
 	@$(MAKE) --no-print-directory validate-guardrails
+
+## validate-unit: Run unit test suite
+validate-unit:
+	@$(MAKE) --no-print-directory test-unit
+
+## validate-python: Python lint/format/type checks (delegates to granular targets)
+validate-python:
+	@$(MAKE) --no-print-directory validate-lint
+	@$(MAKE) --no-print-directory validate-typecheck
+	@$(MAKE) --no-print-directory validate-contract
 
 ## validate-openapi: Validate canonical OpenAPI route contract
 validate-openapi:

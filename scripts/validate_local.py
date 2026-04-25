@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import re
 import subprocess
-import sys
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -11,8 +10,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from traceback import format_exception_only
-
-PYRIGHT_CONFIG_PATHS = frozenset({Path("pyrightconfig.json")})
 
 
 @dataclass(frozen=True)
@@ -38,29 +35,16 @@ class ValidationResult:
         return self.returncode == 0
 
 
-@dataclass(frozen=True)
-class PyrightLocalInputs:
-    python_files: tuple[Path, ...]
-    config_changed: bool
-    detection_failed: bool
-
-
 FAST_TASKS = (
     ValidationTask(
         "Rules sync", "rules-sync-audit", ("make", "--no-print-directory", "rules-sync-audit")
     ),
-    ValidationTask("Ruff lint", "ruff-check", ("uv", "run", "ruff", "check", ".")),
-    ValidationTask("Ruff format", "ruff-format", ("uv", "run", "ruff", "format", "--check", ".")),
-    ValidationTask("Pyright local", "pyright-local", ("pyright-local",)),
+    ValidationTask("Lint", "validate-lint", ("make", "--no-print-directory", "validate-lint")),
     ValidationTask(
-        "OpenAPI contract",
-        "validate-openapi",
-        ("make", "--no-print-directory", "validate-openapi"),
+        "Typecheck", "validate-typecheck", ("make", "--no-print-directory", "validate-typecheck")
     ),
     ValidationTask(
-        "Repo guardrails",
-        "validate-guardrails",
-        ("make", "--no-print-directory", "validate-guardrails"),
+        "Contract", "validate-contract", ("make", "--no-print-directory", "validate-contract")
     ),
     ValidationTask(
         "CDK TypeScript",
@@ -78,23 +62,12 @@ FULL_TASKS = (
     ValidationTask(
         "Rules sync", "rules-sync-audit", ("make", "--no-print-directory", "rules-sync-audit")
     ),
-    ValidationTask("Ruff lint", "ruff-check", ("uv", "run", "ruff", "check", ".")),
-    ValidationTask("Ruff format", "ruff-format", ("uv", "run", "ruff", "format", "--check", ".")),
+    ValidationTask("Lint", "validate-lint", ("make", "--no-print-directory", "validate-lint")),
     ValidationTask(
-        "Pyright",
-        "pyright",
-        ("npx", "--no-install", "pyright", "--project", "../../pyrightconfig.json"),
-        Path("infra/cdk"),
+        "Typecheck", "validate-typecheck", ("make", "--no-print-directory", "validate-typecheck")
     ),
     ValidationTask(
-        "OpenAPI contract",
-        "validate-openapi",
-        ("make", "--no-print-directory", "validate-openapi"),
-    ),
-    ValidationTask(
-        "Repo guardrails",
-        "validate-guardrails",
-        ("make", "--no-print-directory", "validate-guardrails"),
+        "Contract", "validate-contract", ("make", "--no-print-directory", "validate-contract")
     ),
     ValidationTask("CDK", "validate-cdk", ("make", "--no-print-directory", "validate-cdk")),
     ValidationTask(
@@ -147,97 +120,9 @@ def build_task_set(mode: str) -> tuple[ValidationTask, ...]:
     raise ValueError(f"Unsupported validation mode: {mode}")
 
 
-def changed_paths(
-    repo_root: Path,
-    *,
-    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
-) -> tuple[tuple[Path, ...], bool]:
-    commands = (
-        ("git", "diff", "--name-only", "--diff-filter=ACMR"),
-        ("git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"),
-        ("git", "ls-files", "--others", "--exclude-standard"),
-    )
-    paths: set[Path] = set()
-    detection_failed = False
-    for command in commands:
-        completed = runner(
-            command,
-            cwd=repo_root,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if completed.returncode != 0:
-            detection_failed = True
-            continue
-        for line in completed.stdout.splitlines():
-            path = Path(line)
-            if path.parts[:1] != (".build",):
-                paths.add(path)
-    return tuple(sorted(paths)), detection_failed
-
-
-def changed_pyright_inputs(
-    repo_root: Path,
-    *,
-    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
-) -> PyrightLocalInputs:
-    paths, detection_failed = changed_paths(repo_root, runner=runner)
-    return PyrightLocalInputs(
-        python_files=tuple(path for path in paths if path.suffix == ".py"),
-        config_changed=any(path in PYRIGHT_CONFIG_PATHS for path in paths),
-        detection_failed=detection_failed,
-    )
-
-
-def changed_python_files(
-    repo_root: Path,
-    *,
-    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
-) -> tuple[Path, ...]:
-    return changed_pyright_inputs(repo_root, runner=runner).python_files
-
-
-def build_pyright_local_task(
-    repo_root: Path,
-    *,
-    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
-) -> ValidationTask:
-    inputs = changed_pyright_inputs(repo_root, runner=runner)
-    if inputs.config_changed or inputs.detection_failed:
-        return ValidationTask(
-            "Pyright local",
-            "pyright-local",
-            ("npx", "--no-install", "pyright", "--project", "../../pyrightconfig.json"),
-            Path("infra/cdk"),
-        )
-    if not inputs.python_files:
-        return ValidationTask(
-            "Pyright local",
-            "pyright-local",
-            (
-                sys.executable,
-                "-c",
-                "print('==> pyright-local: skipped (no local Python changes)')",
-            ),
-        )
-    pyright_paths = tuple(f"../../{path.as_posix()}" for path in inputs.python_files)
-    return ValidationTask(
-        "Pyright local",
-        "pyright-local",
-        ("npx", "--no-install", "pyright", "--project", "../../pyrightconfig.json", *pyright_paths),
-        Path("infra/cdk"),
-    )
-
-
 def materialize_task_set(mode: str, repo_root: Path) -> tuple[ValidationTask, ...]:
-    tasks = build_task_set(mode)
-    if mode != "fast":
-        return tasks
-    return tuple(
-        build_pyright_local_task(repo_root) if task.target == "pyright-local" else task
-        for task in tasks
-    )
+    _ = repo_root
+    return build_task_set(mode)
 
 
 def build_legacy_benchmark_task_set(mode: str) -> tuple[ValidationTask, ...]:
@@ -500,4 +385,4 @@ def validate_local(mode: str, benchmark: bool = False) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

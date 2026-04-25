@@ -29,16 +29,6 @@ class _Completed:
         self.stderr = stderr
 
 
-def _changed_paths_runner(paths: list[str]):
-    calls = iter([paths, [], []])
-
-    def _runner(cmd, *, cwd, text, capture_output, check):
-        _ = cmd, cwd, text, capture_output, check
-        return _Completed(0, stdout="\n".join(next(calls)))
-
-    return _runner
-
-
 def test_build_task_set_fast_and_full() -> None:
     fast = validate_local.build_task_set("fast")
     full = validate_local.build_task_set("full")
@@ -46,21 +36,17 @@ def test_build_task_set_fast_and_full() -> None:
 
     assert [task.target for task in fast] == [
         "rules-sync-audit",
-        "ruff-check",
-        "ruff-format",
-        "pyright-local",
-        "validate-openapi",
-        "validate-guardrails",
+        "validate-lint",
+        "validate-typecheck",
+        "validate-contract",
         "validate-cdk-ts-local",
         "validate-secrets-diff",
     ]
     assert [task.target for task in full] == [
         "rules-sync-audit",
-        "ruff-check",
-        "ruff-format",
-        "pyright",
-        "validate-openapi",
-        "validate-guardrails",
+        "validate-lint",
+        "validate-typecheck",
+        "validate-contract",
         "validate-cdk",
         "validate-secrets-full",
     ]
@@ -70,86 +56,6 @@ def test_build_task_set_fast_and_full() -> None:
         "validate-cdk-ts-local",
         "validate-secrets-diff",
     ]
-
-
-def test_changed_python_files_uses_git_changed_paths(tmp_path: Path) -> None:
-    runner = _changed_paths_runner(
-        [
-            "scripts/validate_local.py",
-            "README.md",
-            ".build/validate-local/run/log.py",
-            "tests/unit/test_validate_local.py",
-        ]
-    )
-
-    assert validate_local.changed_python_files(tmp_path, runner=runner) == (
-        Path("scripts/validate_local.py"),
-        Path("tests/unit/test_validate_local.py"),
-    )
-
-
-def test_build_pyright_local_task_skips_without_python_or_config_changes(tmp_path: Path) -> None:
-    task = validate_local.build_pyright_local_task(
-        tmp_path, runner=_changed_paths_runner(["README.md"])
-    )
-
-    assert task.target == "pyright-local"
-    assert task.command[:2] == (sys.executable, "-c")
-    assert "skipped" in task.command[2]
-
-
-def test_build_pyright_local_task_targets_changed_python_files(tmp_path: Path) -> None:
-    task = validate_local.build_pyright_local_task(
-        tmp_path,
-        runner=_changed_paths_runner(
-            ["scripts/validate_local.py", "tests/unit/test_validate_local.py"]
-        ),
-    )
-
-    assert task.command == (
-        "npx",
-        "--no-install",
-        "pyright",
-        "--project",
-        "../../pyrightconfig.json",
-        "../../scripts/validate_local.py",
-        "../../tests/unit/test_validate_local.py",
-    )
-    assert task.cwd == Path("infra/cdk")
-
-
-def test_build_pyright_local_task_runs_full_project_for_config_changes(tmp_path: Path) -> None:
-    task = validate_local.build_pyright_local_task(
-        tmp_path, runner=_changed_paths_runner(["pyrightconfig.json"])
-    )
-
-    assert task.command == (
-        "npx",
-        "--no-install",
-        "pyright",
-        "--project",
-        "../../pyrightconfig.json",
-    )
-    assert task.cwd == Path("infra/cdk")
-
-
-def test_build_pyright_local_task_runs_full_project_when_change_detection_fails(
-    tmp_path: Path,
-) -> None:
-    def _runner(cmd, *, cwd, text, capture_output, check):
-        _ = cmd, cwd, text, capture_output, check
-        return _Completed(1, stderr="git failed")
-
-    task = validate_local.build_pyright_local_task(tmp_path, runner=_runner)
-
-    assert task.command == (
-        "npx",
-        "--no-install",
-        "pyright",
-        "--project",
-        "../../pyrightconfig.json",
-    )
-    assert task.cwd == Path("infra/cdk")
 
 
 def test_run_validation_mode_fails_when_one_subtask_fails(tmp_path: Path, capsys) -> None:
@@ -184,8 +90,8 @@ def test_run_validation_mode_reports_multiple_failures_with_log_paths(
     def _runner(cmd, *, cwd, text, capture_output, check):
         _ = cwd, text, capture_output, check
         target = cmd[-1]
-        if cmd[:4] == ["uv", "run", "ruff", "check"]:
-            return _Completed(1, stdout="ruff failed", stderr="ruff stderr")
+        if target == "validate-lint":
+            return _Completed(1, stdout="lint failed", stderr="lint stderr")
         if target == "validate-secrets-diff":
             return _Completed(1, stdout=f"{target} failed", stderr=f"{target} stderr")
         return _Completed(0, stdout=f"{target} ok")
@@ -194,15 +100,15 @@ def test_run_validation_mode_reports_multiple_failures_with_log_paths(
 
     assert exit_code == 1
     output = capsys.readouterr().out
-    assert "[FAIL] Ruff lint (ruff-check)" in output
+    assert "[FAIL] Lint (validate-lint)" in output
     assert "[FAIL] Secrets diff (validate-secrets-diff)" in output
-    assert "--- Ruff lint (ruff-check) failed with exit 1; log:" in output
+    assert "--- Lint (validate-lint) failed with exit 1; log:" in output
     assert "--- Secrets diff (validate-secrets-diff) failed with exit 1; log:" in output
-    assert "ruff-check.log" in output
+    assert "validate-lint.log" in output
     assert "validate-secrets-diff.log" in output
 
     log_root = tmp_path / ".build" / "validate-local"
-    assert len(list(log_root.glob("fast-*/ruff-check.log"))) == 1
+    assert len(list(log_root.glob("fast-*/validate-lint.log"))) == 1
     assert len(list(log_root.glob("fast-*/validate-secrets-diff.log"))) == 1
 
 
@@ -264,11 +170,9 @@ def test_run_validation_mode_normalizes_task_startup_exceptions(tmp_path: Path, 
 def test_build_task_set_fast_and_full_order_is_stable_for_public_targets() -> None:
     assert [task.target for task in validate_local.FAST_TASKS] == [
         "rules-sync-audit",
-        "ruff-check",
-        "ruff-format",
-        "pyright-local",
-        "validate-openapi",
-        "validate-guardrails",
+        "validate-lint",
+        "validate-typecheck",
+        "validate-contract",
         "validate-cdk-ts-local",
         "validate-secrets-diff",
     ]
