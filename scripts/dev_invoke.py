@@ -288,6 +288,34 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
+def dev_invoke(
+    agent: str,
+    tenant: str,
+    prompt: str = "Hello",
+    mode: str = "sync",
+    env: str = DEFAULT_ENV,
+    api_base_url: str | None = None,
+    token: str | None = None,
+    session_id: str | None = None,
+    webhook_id: str | None = None,
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+) -> int:
+    args_dict = {
+        "agent": agent,
+        "tenant": tenant,
+        "prompt": prompt,
+        "mode": mode,
+        "env": env,
+        "api_base_url": api_base_url,
+        "token": token,
+        "session_id": session_id,
+        "webhook_id": webhook_id,
+        "timeout_seconds": timeout_seconds,
+    }
+    args = argparse.Namespace(**args_dict)
+    return run(args)
+
+
 def main(argv: list[str] | None = None) -> int:
     try:
         args = parse_args(argv)

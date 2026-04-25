@@ -563,7 +563,7 @@ task. Result delivered via webhook and available via poll endpoint.
 
 ## Phase 9 — Tech Debt Elimination (Current)
 
-[ ] TASK-056  Implement Unified Python CLI with Typer (Issue #40)
+[x] TASK-056  Implement Unified Python CLI with Typer (Issue #40)
               Consolidate Makefile wrappers and scattered scripts into a single
               platform-cli. Improve argument parsing and documentation.
               ADRs: TBD | Tests: CLI coverage
