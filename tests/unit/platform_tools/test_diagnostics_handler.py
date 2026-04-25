@@ -53,6 +53,31 @@ def test_get_tenant_status(mock_db):
     mock_instance.get_item.assert_called_once()
 
 
+def test_get_tenant_status_reads_canonical_tenant_metadata(mock_db):
+    mock_instance = mock_db.return_value
+    mock_instance.get_item.return_value = {
+        "tenantId": "t-test-001",
+        "displayName": "Test Tenant",
+        "status": "active",
+        "tier": "basic",
+        "updatedAt": "2026-01-01T00:00:00+00:00",
+    }
+    mock_instance.query.return_value = MagicMock(items=[{"SK": "TIME#2026-01-01T00:00:00"}])
+
+    event = {
+        "method": "tools/call",
+        "params": {"name": "get_tenant_status", "arguments": {"tenant_id": "t-test-001"}},
+        "headers": {"x-tenant-id": "platform", "x-app-id": "admin-ui"},
+        "id": "2-canonical",
+    }
+
+    response = lambda_handler(event, None)
+
+    assert response["result"]["displayName"] == "Test Tenant"
+    assert response["result"]["lastUpdated"] == "2026-01-01T00:00:00+00:00"
+    assert response["result"]["recentInvocations"] == 1
+
+
 def test_get_runbook_guidance(mock_db):
     event = {
         "method": "tools/call",

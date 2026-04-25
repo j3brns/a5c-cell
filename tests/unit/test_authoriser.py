@@ -670,6 +670,29 @@ def test_resolve_sigv4_tenant_binding_invalid_tier_falls_back_to_basic(mock_db_c
 
 
 @patch("src.authoriser.handler.ControlPlaneDynamoDB")
+def test_resolve_sigv4_tenant_binding_keeps_legacy_read_aliases(mock_db_cls, mock_env):
+    from src.authoriser import handler as authoriser_handler
+    from src.authoriser.handler import resolve_sigv4_tenant_binding
+
+    authoriser_handler._sigv4_binding_cache.clear()
+    mock_db = MagicMock()
+    mock_db_cls.return_value = mock_db
+    mock_db.query.return_value.items = [{"PK": "TENANT#t-legacy-001", "SK": "METADATA"}]
+    mock_db.get_item.return_value = {
+        "tenant_id": "t-legacy-001",
+        "app_id": "app-legacy",
+        "tier": "premium",
+    }
+
+    binding = resolve_sigv4_tenant_binding(
+        "arn:aws:sts::123456789012:assumed-role/platform-tenant-t-legacy-001-execution-role/"
+        "machine-session"
+    )
+
+    assert binding == {"tenant_id": "t-legacy-001", "app_id": "app-legacy", "tier": "premium"}
+
+
+@patch("src.authoriser.handler.ControlPlaneDynamoDB")
 def test_resolve_sigv4_tenant_binding_uses_gsi_query(mock_db_cls, mock_env):
     from src.authoriser import handler as authoriser_handler
     from src.authoriser.handler import resolve_sigv4_tenant_binding

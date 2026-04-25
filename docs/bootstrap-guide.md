@@ -91,6 +91,14 @@ Each step writes to bootstrap-report.json (S3 bucket: platform-bootstrap-reports
 Each step in bootstrap.py is idempotent — safe to re-run if a step fails.
 The script checks what already exists before creating resources.
 
+Tenant metadata seeded by `bootstrap.py` and `scripts/dev-bootstrap.py` uses the
+same camelCase DynamoDB attribute names as the tenant API (`tenantId`, `appId`,
+`displayName`, `createdAt`, `updatedAt`, `ownerEmail`, `ownerTeam`, `accountId`,
+`executionRoleArn`, `monthlyBudgetUsd`). Runtime readers may keep read-only
+snake_case aliases only for compatibility with tenant records written before this
+canonical schema was enforced. Remove those aliases only after a separate
+migration verifies no live tenant metadata depends on them.
+
 To re-run a specific step using the corresponding make target:
 ```bash
 export BOOTSTRAP_IAM_USER=<bootstrap-iam-username>
