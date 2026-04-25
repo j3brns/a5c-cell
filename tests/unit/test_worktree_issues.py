@@ -1067,29 +1067,34 @@ def test_build_agent_prompt_for_worktree_includes_explicit_dod_and_conflict_requ
     assert "Read: CLAUDE.md; docs/ARCHITECTURE.md;" in prompt
     assert "CLAUDE.md" in prompt
     assert "docs/ARCHITECTURE.md" in prompt
-    assert "Scope: only this issue. Do not broaden scope." in prompt
-    assert "First step: inspect the current branch diff" in prompt
-    assert "Use: prefer GitNexus when available." in prompt
+    assert "Operating mode: you are the implementation owner for this issue worktree." in prompt
+    assert (
+        "ask only for destructive actions, production access, or policy/security decisions"
+        in prompt
+    )
+    assert "Scope: only this issue. Do not broaden scope" in prompt
+    assert "Do not broaden scope, bundle opportunistic cleanup" in prompt
+    assert "First step: inspect the current branch diff, linked GitLab issue" in prompt
+    assert "issue labels, dependencies, relevant ADRs/docs" in prompt
+    assert "Context lookup: prefer GitNexus for unfamiliar flows" in prompt
     assert "context/impact before editing shared symbols" in prompt
     assert "detect_changes before commit" in prompt
-    assert "If GitNexus is unavailable, use rg and direct file reads." in prompt
-    assert "Loop: inspect; plan; implement; run make preflight-session; fix; repeat;" in prompt
-    assert "Do not stop at merge request creation" in prompt
+    assert "fall back to rg, git diff/log, and direct file reads" in prompt
+    assert "Execution loop: inspect; form the smallest defensible plan" in prompt
+    assert "run make preflight-session and make pre-validate-session before push" in prompt
     assert "Change shape: keep diffs small and reversible" in prompt
     assert "make preflight-session" in prompt
-    assert "Push gate: make pre-validate-session must pass before push." in prompt
+    assert "Do not stop at: MR creation, one passing test, a local commit" in prompt
     assert "Review gate: before claiming completion, run a senior-engineer review pass" in prompt
     assert "If a second agent is available, use it for that review" in prompt
-    assert (
-        "Done: only when the GitLab merge request is merged to the target branch; "
-        "the issue is closed "
-        "and normalized; validation evidence is recorded; .build hand-back evidence "
-        "is finalized; and make finish-worktree-close has completed successfully." in prompt
-    )
-    assert "do not treat worktree or branch deletion as part of semantic completion" in prompt
+    assert "Completion sequence: push through make worktree-push-issue" in prompt
+    assert "merge to the target branch; close and normalize the issue" in prompt
+    assert "then run make finish-worktree-close" in prompt
+    assert "do not treat worktree or branch deletion as semantic completion" in prompt
     assert "Pause only if:" in prompt
-    assert "Otherwise estimate reasonably, keep moving" in prompt
-    assert "report a blocker with the exact next command" in prompt
+    assert "repo rules mandate escalation" in prompt
+    assert "required credentials or permissions are missing" in prompt
+    assert "report blockers with the exact failed command" in prompt
 
 
 def test_build_agent_prompt_for_non_issue_branch_warns_against_mainline_implementation(
