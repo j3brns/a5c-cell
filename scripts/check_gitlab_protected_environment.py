@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -29,6 +28,8 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
+
+from platform_config import get_settings
 
 DEFAULT_ENVIRONMENT_NAME = "prod"
 DEFAULT_MIN_APPROVALS = 2
@@ -219,10 +220,25 @@ def run(
     if min_approvals < 1:
         raise ProtectionCheckError("min_approvals must be at least 1")
 
-    env_map = env if env is not None else os.environ
-    resolved_api_url = api_url or require_env(env_map, "CI_API_V4_URL")
-    resolved_project_id = project_id or require_env(env_map, "CI_PROJECT_ID")
-    api_token = require_env(env_map, "GITLAB_PROTECTED_ENV_API_TOKEN")
+    if env is None:
+        gitlab = get_settings().gitlab
+        resolved_api_url = api_url or gitlab.ci_api_v4_url
+        resolved_project_id = project_id or gitlab.ci_project_id
+        api_token = gitlab.protected_env_api_token
+        for name, value in (
+            ("CI_API_V4_URL", resolved_api_url),
+            ("CI_PROJECT_ID", resolved_project_id),
+            ("GITLAB_PROTECTED_ENV_API_TOKEN", api_token),
+        ):
+            if not value:
+                raise ProtectionCheckError(f"Missing required environment variable: {name}")
+        assert resolved_api_url is not None
+        assert resolved_project_id is not None
+        assert api_token is not None
+    else:
+        resolved_api_url = api_url or require_env(env, "CI_API_V4_URL")
+        resolved_project_id = project_id or require_env(env, "CI_PROJECT_ID")
+        api_token = require_env(env, "GITLAB_PROTECTED_ENV_API_TOKEN")
 
     payload = fetcher(
         resolved_api_url,

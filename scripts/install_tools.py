@@ -7,7 +7,6 @@ Reads scripts/tools.json and ensures all tools are installed and version-verifie
 import argparse
 import hashlib
 import json
-import os
 import platform
 import shutil
 import subprocess
@@ -18,6 +17,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Any
+
+from platform_config import env_optional
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLS_JSON = REPO_ROOT / "scripts" / "tools.json"
@@ -102,7 +103,7 @@ def install_tool(tool: dict[str, Any], arch: str, force: bool = False) -> bool:
 
     if not sudo_available:
         local_bin.mkdir(parents=True, exist_ok=True)
-        if str(local_bin) not in os.environ.get("PATH", ""):
+        if str(local_bin) not in (env_optional("PATH", "") or ""):
             warn(f"{local_bin} not in PATH")
 
     if tool_type == "npm":
@@ -115,7 +116,7 @@ def install_tool(tool: dict[str, Any], arch: str, force: bool = False) -> bool:
             npm_global = Path.home() / ".npm-global"
             npm_global.mkdir(parents=True, exist_ok=True)
             cmd = ["npm", "install", "--prefix", str(npm_global), f"{package}@{version}", "--quiet"]
-            if f"{npm_global}/bin" not in os.environ.get("PATH", ""):
+            if f"{npm_global}/bin" not in (env_optional("PATH", "") or ""):
                 warn(f"{npm_global}/bin not in PATH")
 
         info(f"Installing {name} via npm...")

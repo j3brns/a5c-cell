@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
+
+from platform_config import env_optional, get_settings
 
 DEFAULT_API_BASE_URL = "http://localhost:8080"
 DEFAULT_ENV = "local"
@@ -64,7 +65,7 @@ def _load_credentials_store(path: Path) -> dict[str, Any]:
 
 
 def _credentials_path() -> Path:
-    override = os.environ.get("PLATFORM_CREDENTIALS_PATH", "").strip()
+    override = get_settings().ops.credentials_path or ""
     if override:
         return Path(override).expanduser()
     return DEFAULT_CREDENTIALS_PATH
@@ -83,7 +84,7 @@ def _resolve_api_base_url(explicit: str | None, env_name: str) -> str:
         return explicit.strip()
 
     for key in ("API_BASE_URL", "VITE_API_BASE_URL"):
-        value = os.environ.get(key, "").strip()
+        value = env_optional(key, "")
         if value:
             return value
 
@@ -135,7 +136,7 @@ def _resolve_token(explicit: str | None, tenant_id: str, env_name: str) -> str:
         return explicit.strip()
 
     for env_key in _TOKEN_ENV_NAMES:
-        candidate = os.environ.get(env_key, "").strip()
+        candidate = env_optional(env_key, "")
         if candidate:
             return candidate
 

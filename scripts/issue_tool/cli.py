@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, TypeAlias, cast
 
+from platform_config import env_optional
 from scripts.issue_tool.agent_launch import (
     AGENT_CAPABILITIES,
     DEFAULT_INTERACTIVE_AGENT_POOL,
@@ -625,7 +626,7 @@ def create_worktree_for_issue(
 
 
 def parse_bool_env(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
+    raw = env_optional(name)
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
@@ -888,7 +889,7 @@ def await_worktree_ready_if_provisioning(path: Path) -> None:
         print("Worktree readiness sentinel missing; continuing with cold environment")
         return
 
-    wait_seconds = int(os.environ.get("WORKTREE_READY_WAIT_SECONDS", "900"))
+    wait_seconds = int(env_optional("WORKTREE_READY_WAIT_SECONDS", "900") or "900")
     deadline = time.monotonic() + max(0, wait_seconds)
     print(f"Waiting for worktree pre-provisioning to finish (timeout={wait_seconds}s)")
     while time.monotonic() <= deadline:
@@ -956,7 +957,7 @@ def gitnexus_analyze_supports(option: str) -> bool:
 
 
 def gitnexus_cli_path() -> Path | None:
-    override = os.environ.get("WORKTREE_GITNEXUS_CLI")
+    override = env_optional("WORKTREE_GITNEXUS_CLI")
     if override:
         candidate = Path(override).expanduser()
         if candidate.exists():
@@ -970,7 +971,7 @@ def gitnexus_cli_path() -> Path | None:
 
 
 def gitnexus_timeout_seconds() -> float:
-    raw = os.environ.get("WORKTREE_GITNEXUS_TIMEOUT_SECONDS", "300")
+    raw = env_optional("WORKTREE_GITNEXUS_TIMEOUT_SECONDS", "300") or "300"
     try:
         value = float(raw)
     except ValueError:
@@ -1087,7 +1088,7 @@ def prepare_gitnexus_for_worktree(path: Path) -> None:
 
 
 def open_shell(path: Path) -> None:
-    shell = os.environ.get("SHELL") or "bash"
+    shell = env_optional("SHELL", "bash") or "bash"
     ensure_uv_venv(path)
     print(f"Opening shell in {path} (with .venv activation when available)")
     path_q = shell_quote(str(path))

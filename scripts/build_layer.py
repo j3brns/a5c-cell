@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import shutil
 import subprocess
 import sys
@@ -33,6 +32,8 @@ import zipfile
 from pathlib import Path
 
 import boto3
+
+from platform_config import env_optional, process_env_required
 
 logger = logging.getLogger("build_layer")
 logging.basicConfig(
@@ -67,10 +68,7 @@ BUCKET_PARAM_CANDIDATES = (
 
 def require_aws_region() -> str:
     """Read AWS_REGION from environment and fail fast if missing."""
-    region = os.environ.get("AWS_REGION", "").strip()
-    if not region:
-        raise RuntimeError("AWS_REGION must be set")
-    return region
+    return process_env_required("AWS_REGION")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -192,7 +190,7 @@ def verify_arm64_zip(zip_path: Path) -> None:
 def resolve_layer_bucket(env: str, aws_region: str) -> str:
     """Resolve layer artifact bucket from env var first, then SSM parameter."""
     for env_var in ("PLATFORM_LAYER_BUCKET", "AGENT_LAYER_BUCKET", "LAYER_ARTIFACT_BUCKET"):
-        value = os.environ.get(env_var, "").strip()
+        value = env_optional(env_var, "")
         if value:
             return value
 
