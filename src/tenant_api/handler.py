@@ -21,7 +21,6 @@ from aws_lambda_powertools.logging import correlation_paths
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 from data_access import (
-    ControlPlaneDynamoDB,
     TenantContext,
     TenantScopedDynamoDB,
     TenantScopedS3,

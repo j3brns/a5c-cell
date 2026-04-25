@@ -35,6 +35,23 @@ def _load_openapi() -> dict:
         return yaml.safe_load(handle)
 
 
+def test_tenant_api_uses_factory_for_scan_capable_control_plane_db() -> None:
+    tenant_api_dir = Path(__file__).resolve().parents[2] / "src" / "tenant_api"
+    allowed = {
+        tenant_api_dir / "db_factory.py",
+    }
+    offenders: list[str] = []
+
+    for path in tenant_api_dir.glob("*.py"):
+        if path in allowed:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "ControlPlaneDynamoDB" in text:
+            offenders.append(str(path.relative_to(tenant_api_dir.parent.parent)))
+
+    assert offenders == []
+
+
 def _method_arn(method: str, path: str) -> str:
     normalized = path.lstrip("/")
     return f"arn:aws:execute-api:eu-west-2:123456789012:api/dev/{method}/{normalized}"
