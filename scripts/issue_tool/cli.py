@@ -26,7 +26,7 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, TypeAlias, cast
 
 from scripts.issue_tool.agent_launch import (
     AGENT_CAPABILITIES,
@@ -1757,6 +1757,12 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
                 "dependencies without explicit need."
             ),
             (
+                "Documentation: reconcile implementation with relevant ADRs, runbooks, and "
+                "architecture docs. Adhere to the project's pithy, narrative technical style "
+                "without unduly dehydrating critical content; a feature is incomplete while "
+                "its documentation remains stale."
+            ),
+            (
                 "Do not stop at: MR creation, one passing test, a local commit, a pushed "
                 "branch, or a partial implementation. Those are intermediate states."
             ),
@@ -1815,7 +1821,7 @@ def build_review_prompt_for_worktree(
         ),
         (
             "Review focus: bugs, behavioral regressions, security/operability risks, contract "
-            "drift, cleanup gaps, and missing tests."
+            "drift, cleanup gaps, documentation staleness, and missing tests."
         ),
         (
             "Method: inspect the current branch diff first, then read only the smallest set of "
@@ -2532,6 +2538,166 @@ def issue_evidence_summary(root: Path, issue_id: int) -> dict[str, object]:
     )
 
 
+def local_issue_numbers(root: Path, *, active_only: bool = False) -> set[int]:
+    numbers: set[int] = set()
+    state_root = worktree_state_root(root)
+    terminal_states = {"done", "closed", "cleanup-failed", "handback-failed"}
+    if state_root.exists():
+        for path in state_root.glob("issue-*.json"):
+            match = re.match(r"issue-(\d+)\.json$", path.name)
+            if not match:
+                continue
+            payload = read_json_file(path) or {}
+            if active_only and payload.get("state") in terminal_states:
+                continue
+            numbers.add(int(match.group(1)))
+    for wt in list_resume_candidates(root):
+        issue_id = extract_issue_id_from_branch(wt.branch)
+        if issue_id is not None:
+            numbers.add(issue_id)
+    return numbers
+
+
+def issue_status_rows(
+    root: Path,
+    repo: str | None,
+    issues: list[Issue],
+    *,
+    issue_filter: int | None = None,
+    include_all: bool = False,
+) -> list[dict[str, object]]:
+    issue_map = {issue.number: issue for issue in queue_task_issues(issues)}
+    if issue_filter is not None:
+        numbers = {issue_filter}
+    elif include_all:
+        numbers = set(issue_map) | local_issue_numbers(root)
+    else:
+        active = {
+            issue.number
+            for issue in issue_map.values()
+            if issue.state == "open"
+            and (lifecycle_status(issue) == "in-progress" or "ready" in issue.labels)
+        }
+        numbers = active | local_issue_numbers(root, active_only=True)
+
+    rows: list[dict[str, object]] = []
+    for issue_number in sorted(
+        numbers,
+        key=lambda number: (
+            issue_map[number].seq
+            if number in issue_map and issue_map[number].seq is not None
+            else 10**9,
+            number,
+        ),
+    ):
+        issue = issue_map.get(issue_number)
+        evidence = issue_evidence_summary(root, issue_number)
+        state = cast(
+            dict[str, Any],
+            evidence.get("state") if isinstance(evidence.get("state"), dict) else {},
+        )
+        closeout = cast(
+            dict[str, Any],
+            evidence.get("closeout") if isinstance(evidence.get("closeout"), dict) else {},
+        )
+        validation = cast(
+            dict[str, Any],
+            evidence.get("validation_receipt")
+            if isinstance(evidence.get("validation_receipt"), dict)
+            else {},
+        )
+        linked_worktree = evidence.get("linked_worktree") or state.get("worktree_path")
+        wt_path = Path(str(linked_worktree)) if linked_worktree else None
+        agent_status = worktree_agent_status(wt_path) if wt_path and wt_path.exists() else None
+        details = cast(
+            dict[str, Any],
+            state.get("details") if isinstance(state.get("details"), dict) else {},
+        )
+        agent = (
+            agent_status.get("agent")
+            if isinstance(agent_status, dict)
+            else details.get("agent")
+            if isinstance(details, dict)
+            else None
+        )
+        backend = agent_status.get("backend") if isinstance(agent_status, dict) else None
+        runtime_state = agent_status.get("state") if isinstance(agent_status, dict) else None
+        session_name = agent_status.get("session_name") if isinstance(agent_status, dict) else None
+        live = "-"
+        if wt_path and isinstance(agent_status, dict):
+            live = "yes" if worktree_agent_running(wt_path) else "no"
+        validation_text = "-"
+        if validation:
+            validation_text = f"{validation.get('check', 'check')}:pass"
+        closeout_text = "-"
+        if closeout:
+            stage = closeout.get("stage") or "present"
+            cleanup = closeout.get("cleanup_verified")
+            closeout_text = f"{stage}:{cleanup}" if cleanup is not None else str(stage)
+        rows.append(
+            {
+                "issue": issue_number,
+                "seq": issue.seq if issue is not None else None,
+                "title": issue.title if issue is not None else str(state.get("issue_title") or "-"),
+                "issue_status": lifecycle_status(issue) if issue is not None else "-",
+                "issue_state": issue.state if issue is not None else "-",
+                "worktree": str(linked_worktree or "-"),
+                "branch": (
+                    evidence.get("linked_branch")
+                    or state.get("branch")
+                    or (agent_status.get("branch") if isinstance(agent_status, dict) else None)
+                    or "-"
+                ),
+                "agent": str(agent or "-"),
+                "runtime": ":".join(
+                    part
+                    for part in (
+                        str(backend or ""),
+                        str(runtime_state or ""),
+                        str(session_name or ""),
+                    )
+                    if part
+                )
+                or "-",
+                "live": live,
+                "validation": validation_text,
+                "closeout": closeout_text,
+                "last_event": str(state.get("last_event_type") or "-"),
+            }
+        )
+    return rows
+
+
+def _clip(value: object, width: int) -> str:
+    text = "-" if value is None else str(value)
+    if len(text) <= width:
+        return text
+    return text[: max(0, width - 1)] + "…"
+
+
+def print_issue_status_rows(rows: list[dict[str, object]]) -> None:
+    columns = [
+        ("issue", "Issue", 7),
+        ("seq", "Seq", 5),
+        ("issue_status", "Status", 12),
+        ("worktree", "Worktree", 34),
+        ("agent", "Agent", 8),
+        ("runtime", "Runtime", 24),
+        ("live", "Live", 5),
+        ("validation", "Validation", 24),
+        ("closeout", "Closeout", 16),
+        ("last_event", "Last event", 24),
+    ]
+    if not rows:
+        print("No issue/worktree/agent status rows found.")
+        return
+    header = "  ".join(label.ljust(width) for _, label, width in columns)
+    print(header)
+    print("  ".join("-" * width for _, _, width in columns))
+    for row in rows:
+        print("  ".join(_clip(row.get(key), width).ljust(width) for key, _, width in columns))
+
+
 def evidence_drift_findings(root: Path, issues: list[Issue]) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
     for issue in queue_task_issues(issues):
@@ -3133,6 +3299,28 @@ def cmd_issue_evidence(args: argparse.Namespace) -> int:
         log_matches = historical.get("log_matches")
         if isinstance(log_matches, list):
             print(f"  log_matches:     {len(log_matches)}")
+    return 0
+
+
+def cmd_issue_status(args: argparse.Namespace) -> int:
+    root = repo_root()
+    try:
+        repo = args.repo or origin_repo_slug(root)
+        issues = fetch_repo_issues(root, repo, state="all")
+    except CliError:
+        repo = None
+        issues = []
+    rows = issue_status_rows(
+        root,
+        repo,
+        issues,
+        issue_filter=args.issue,
+        include_all=args.all,
+    )
+    if args.json:
+        print(json.dumps(rows, indent=2, sort_keys=True))
+        return 0
+    print_issue_status_rows(rows)
     return 0
 
 
@@ -4183,6 +4371,16 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--path", help="Path to infer issue number from (default: current path)")
     ev.add_argument("--json", action="store_true", help="Emit JSON output")
     ev.set_defaults(func=cmd_issue_evidence)
+
+    status = sub.add_parser(
+        "issue-status",
+        parents=[common_repo],
+        help="Show joined issue/worktree/agent launch status",
+    )
+    status.add_argument("--issue", type=int, help="Show one issue number")
+    status.add_argument("--all", action="store_true", help="Include all known task issues")
+    status.add_argument("--json", action="store_true", help="Emit JSON output")
+    status.set_defaults(func=cmd_issue_status)
 
     vr = sub.add_parser(
         "write-validation-receipt",

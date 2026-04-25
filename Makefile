@@ -71,6 +71,7 @@ help:
 		ex "worktree-create-issue" "create a worktree for a specific issue"; \
 		ex "worktree-resume-issue [OPEN_SHELL=off] [CMD='make test-unit']" "resume a linked issue worktree"; \
 		ex "worktree-push-issue" "push the current issue worktree branch"; \
+		ex "dev-status [ISSUE=45]" "show joined issue/worktree/agent status"; \
 		ex "issue-queue" "show the issue queue"; \
 		ex "issues-audit" "check issue lifecycle and queue invariants"; \
 		ex "issues-reconcile" "repair task issue labels"; \
@@ -979,6 +980,22 @@ worktree-push-issue:
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \
 		$(if $(DRY_RUN),--dry-run,)
 
+## dev-status: Show joined issue/worktree/agent launch status
+## Usage: make dev-status [ISSUE=45] [ALL=1] [JSON=1]
+dev-status:
+	uv run python -m scripts.issue_tool issue-status \
+		$(if $(ISSUE),--issue $(ISSUE),) \
+		$(if $(ALL),--all,) \
+		$(if $(JSON),--json,)
+
+## issue-status: Alias for dev-status
+## Usage: make issue-status [ISSUE=45] [ALL=1] [JSON=1]
+issue-status:
+	$(MAKE) --no-print-directory dev-status \
+		$(if $(ISSUE),ISSUE=$(ISSUE),) \
+		$(if $(ALL),ALL=$(ALL),) \
+		$(if $(JSON),JSON=$(JSON),)
+
 ## finish-worktree-summary: Show guided finish summary for current worktree
 ## Usage: make finish-worktree-summary [WT_PATH=../worktrees/wt23]
 finish-worktree-summary:
@@ -1001,7 +1018,7 @@ finish-worktree-close-json:
 		--json
 
 ## agent-handoff: Launch the issue-worktree agent flow for the current path
-## Usage: make agent-handoff [AGENT=codex|gemini|claude|random] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo] [HANDOFF=execute-now|print-only]
+## Usage: make agent-handoff [AGENT=codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo] [HANDOFF=execute-now|print-only]
 agent-handoff:
 	uv run python -m scripts.issue_tool agent-handoff \
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \

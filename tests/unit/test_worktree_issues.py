@@ -2778,3 +2778,105 @@ def test_launch_zellij_batch_session_adds_to_existing_session(monkeypatch, tmp_p
     assert "--session worktrees" in calls[0][2]
     layout = (asset_dir / "layout.kdl").read_text(encoding="utf-8")
     assert f'pane command="{asset_dir / "wt123-agent.sh"}"' in layout
+
+
+def test_issue_status_rows_join_issue_worktree_agent_and_validation(monkeypatch, tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    wt = tmp_path / "worktrees" / "wt33"
+    wt.mkdir(parents=True)
+    issue = _issue(
+        number=33,
+        task_id="TASK-033",
+        seq=330,
+        labels=["type:task", "status:in-progress"],
+    )
+
+    monkeypatch.setattr(worktree_issues, "local_issue_numbers", lambda _root, **_kwargs: {33})
+    monkeypatch.setattr(
+        worktree_issues,
+        "issue_evidence_summary",
+        lambda _root, _issue_number: {
+            "linked_worktree": str(wt),
+            "linked_branch": "wt/task/33-test",
+            "state": {
+                "last_event_type": "agent-launch-requested",
+                "details": {"agent": "codex"},
+            },
+            "closeout": None,
+            "validation_receipt": {"check": "validate-pre-push"},
+        },
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "worktree_agent_status",
+        lambda _path: {
+            "agent": "codex",
+            "backend": "tmux",
+            "state": "interactive",
+            "session_name": "wt33",
+        },
+    )
+    monkeypatch.setattr(worktree_issues, "worktree_agent_running", lambda _path: True)
+
+    rows = worktree_issues.issue_status_rows(root, "owner/repo", [issue])
+
+    assert rows == [
+        {
+            "issue": 33,
+            "seq": 330,
+            "title": "TASK-033: Test issue 33",
+            "issue_status": "in-progress",
+            "issue_state": "open",
+            "worktree": str(wt),
+            "branch": "wt/task/33-test",
+            "agent": "codex",
+            "runtime": "tmux:interactive:wt33",
+            "live": "yes",
+            "validation": "validate-pre-push:pass",
+            "closeout": "-",
+            "last_event": "agent-launch-requested",
+        }
+    ]
+
+
+def test_cmd_issue_status_prints_joined_dashboard(monkeypatch, capsys, tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    issue = _issue(
+        number=44,
+        task_id="TASK-044",
+        seq=440,
+        labels=["type:task", "status:not-started", "ready"],
+    )
+
+    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
+    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: "owner/repo")
+    monkeypatch.setattr(
+        worktree_issues,
+        "fetch_repo_issues",
+        lambda *_args, **_kwargs: [issue],
+    )
+    monkeypatch.setattr(worktree_issues, "local_issue_numbers", lambda _root, **_kwargs: set())
+    monkeypatch.setattr(
+        worktree_issues,
+        "issue_evidence_summary",
+        lambda _root, _issue_number: {
+            "linked_worktree": None,
+            "linked_branch": None,
+            "state": None,
+            "closeout": None,
+            "validation_receipt": None,
+        },
+    )
+
+    rc = worktree_issues.cmd_issue_status(
+        argparse.Namespace(repo=None, issue=None, all=False, json=False)
+    )
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Issue" in out
+    assert "Status" in out
+    assert "44" in out
+    assert "not-started" in out
