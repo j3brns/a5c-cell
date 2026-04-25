@@ -48,6 +48,8 @@ type PythonLambdaProps = {
   timeout: cdk.Duration;
   memorySize: number;
   environment?: Record<string, string>;
+  vpc?: ec2.IVpc;
+  securityGroups?: ec2.ISecurityGroup[];
 };
 
 type BridgeCanaryPolicy = {
@@ -247,6 +249,8 @@ export class PlatformStack extends cdk.Stack {
       entra,
       scopedTokenSigningKeySecret,
       tenantStackTemplateAsset,
+      vpc: this.vpc,
+      lambdaSecurityGroup: this.lambdaSecurityGroup,
       createPythonLambda: (lambdaProps) => this.createPythonLambda(lambdaProps),
     });
     this.tenantMgmtFn = compute.tenantMgmtFn;
@@ -383,9 +387,9 @@ export class PlatformStack extends cdk.Stack {
       deadLetterQueue: dlq,
       timeout: props.timeout,
       memorySize: props.memorySize,
-      vpc: this.vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [this.lambdaSecurityGroup],
+      vpc: props.vpc,
+      vpcSubnets: props.vpc ? { subnetType: ec2.SubnetType.PRIVATE_ISOLATED } : undefined,
+      securityGroups: props.securityGroups,
       environment: {
         LOG_LEVEL: 'INFO',
         ...props.environment,

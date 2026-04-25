@@ -291,7 +291,7 @@ describe('PlatformStack (TASK-023)', () => {
     );
   });
 
-  test('attaches VPC Lambdas to the endpoint-trusted Lambda security group', () => {
+  test('deploys control-plane Lambdas outside the VPC by default as per ADR-014', () => {
     const template = synthTemplate('dev');
 
     const lambdaFunctions = template.findResources('AWS::Lambda::Function') as Record<
@@ -299,20 +299,16 @@ describe('PlatformStack (TASK-023)', () => {
       {
         Properties?: {
           FunctionName?: string;
-          VpcConfig?: { SecurityGroupIds?: unknown[] };
+          VpcConfig?: unknown;
         };
       }
     >;
 
-    const securityGroupIdTokens = new Set<string>();
-
     for (const resource of Object.values(lambdaFunctions)) {
-      const securityGroupIds = resource.Properties?.VpcConfig?.SecurityGroupIds;
-      expect(securityGroupIds).toHaveLength(1);
-      securityGroupIdTokens.add(JSON.stringify(securityGroupIds?.[0]));
+      // All control-plane Lambdas should now be non-VPC by default.
+      // Exception class would have VpcConfig, but none are currently in that class.
+      expect(resource.Properties?.VpcConfig).toBeUndefined();
     }
-
-    expect(securityGroupIdTokens.size).toBe(1);
   });
 
   test('creates environment-aware bridge rollout policy with auto-rollback alarm', () => {
@@ -851,7 +847,7 @@ describe('PlatformStack (TASK-023)', () => {
           Match.objectLike({
             Action: 'sts:AssumeRole',
             Effect: 'Allow',
-            Resource: 'arn:aws:iam::*:role/platform-tenant-*-execution-role',
+            Resource: 'arn:aws:iam::123456789012:role/platform-tenant-*-execution-role',
           }),
         ]),
       },
