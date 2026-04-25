@@ -142,6 +142,12 @@ from scripts.issue_tool.tracker_client import (
     update_issue_labels,
 )
 
+WORKTREE_READY_SENTINEL = ".ready"
+WORKTREE_PREPROVISION_DIR = Path(".build") / "worktree-provision"
+WORKTREE_PREPROVISION_FAILED = "failed"
+WORKTREE_PREPROVISION_LOG = "provision.log"
+WORKTREE_PREPROVISION_PID = "pid"
+
 
 def print_queue(
     selection: QueueSelection, *, limit: int | None = None, show_blocked: bool = True
@@ -529,6 +535,7 @@ def create_worktree_for_issue(
     auto_claim: bool,
     preflight: bool,
     dry_run: bool,
+    pre_provision: bool = False,
 ) -> Path:
     scope_val = scope or infer_scope(issue)
     slug_val = slug or slugify_text(issue.title)
@@ -580,6 +587,8 @@ def create_worktree_for_issue(
         print(f"Created worktree at {wt_path}")
         ensure_uv_venv(wt_path)
         prepare_gitnexus_for_worktree(wt_path)
+        if pre_provision:
+            start_worktree_pre_provision(wt_path)
     except Exception:
         if claimed:
             try:
@@ -608,6 +617,7 @@ def create_worktree_for_issue(
             "slug": slug_val,
             "auto_claim": auto_claim,
             "preflight": preflight,
+            "pre_provision": pre_provision,
         },
         idempotency_key=f"create:{issue.number}:{branch}:{wt_path}",
     )
@@ -780,6 +790,117 @@ def ensure_uv_venv(path: Path) -> None:
         print("Created .venv with `uv venv`")
     except subprocess.CalledProcessError as exc:
         eprint(f"WARNING: failed to create .venv with uv: {exc}")
+
+
+def worktree_ready_sentinel(path: Path) -> Path:
+    return path / WORKTREE_READY_SENTINEL
+
+
+def worktree_preprovision_dir(path: Path) -> Path:
+    return path / WORKTREE_PREPROVISION_DIR
+
+
+def worktree_preprovision_log(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_LOG
+
+
+def worktree_preprovision_failed(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_FAILED
+
+
+def worktree_preprovision_pid(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_PID
+
+
+def start_worktree_pre_provision(path: Path) -> None:
+    provision_dir = worktree_preprovision_dir(path)
+    provision_dir.mkdir(parents=True, exist_ok=True)
+    ready_path = worktree_ready_sentinel(path)
+    failed_path = worktree_preprovision_failed(path)
+    log_path = worktree_preprovision_log(path)
+    pid_path = worktree_preprovision_pid(path)
+    for marker in (ready_path, failed_path, pid_path):
+        marker.unlink(missing_ok=True)
+
+    script = "\n".join(
+        [
+            "set -e",
+            f'trap "touch {shlex.quote(str(failed_path))}" ERR',
+            "echo '[worktree-pre-provision] start '$(date -Is)",
+            "uv sync",
+            "npm install --prefix infra/cdk",
+            "npm install --prefix spa",
+            f"touch {shlex.quote(str(ready_path))}",
+            f"rm -f {shlex.quote(str(failed_path))}",
+            "echo '[worktree-pre-provision] ready '$(date -Is)",
+        ]
+    )
+    with log_path.open("w", encoding="utf-8") as log_file:
+        try:
+            proc = subprocess.Popen(
+                ["bash", "-lc", script],
+                cwd=path,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            failed_path.write_text(str(exc), encoding="utf-8")
+            raise CliError(f"Failed to start worktree pre-provisioning: {exc}") from exc
+    pid_path.write_text(str(proc.pid), encoding="utf-8")
+    print(f"Started worktree pre-provisioning in background (pid={proc.pid})")
+    print(f"  ready: {ready_path}")
+    print(f"  log:   {log_path}")
+
+
+def process_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def worktree_preprovision_pid_running(path: Path) -> bool:
+    pid_path = worktree_preprovision_pid(path)
+    if not pid_path.exists():
+        return False
+    try:
+        pid = int(pid_path.read_text(encoding="utf-8").strip())
+    except ValueError:
+        return False
+    return process_running(pid)
+
+
+def await_worktree_ready_if_provisioning(path: Path) -> None:
+    ready_path = worktree_ready_sentinel(path)
+    failed_path = worktree_preprovision_failed(path)
+    pid_path = worktree_preprovision_pid(path)
+    log_path = worktree_preprovision_log(path)
+    if ready_path.exists():
+        print(f"Worktree environment ready: {ready_path}")
+        return
+    if failed_path.exists():
+        raise CliError(f"Worktree pre-provisioning failed; see {log_path}")
+    if not pid_path.exists():
+        print("Worktree readiness sentinel missing; continuing with cold environment")
+        return
+
+    wait_seconds = int(os.environ.get("WORKTREE_READY_WAIT_SECONDS", "900"))
+    deadline = time.monotonic() + max(0, wait_seconds)
+    print(f"Waiting for worktree pre-provisioning to finish (timeout={wait_seconds}s)")
+    while time.monotonic() <= deadline:
+        if ready_path.exists():
+            print(f"Worktree environment ready: {ready_path}")
+            return
+        if failed_path.exists():
+            raise CliError(f"Worktree pre-provisioning failed; see {log_path}")
+        if not worktree_preprovision_pid_running(path):
+            break
+        time.sleep(2)
+    raise CliError(f"Worktree is not ready; see {log_path}")
 
 
 def gitnexus_refresh_enabled() -> bool:
@@ -1731,6 +1852,7 @@ def handoff_to_agent_or_shell(
     print_only_override: bool = False,
     mux: str | None = None,
 ) -> None:
+    await_worktree_ready_if_provisioning(path)
     ensure_uv_venv(path)
     agent_val = (agent or choose_agent_interactive()).lower()
     mode_val = (agent_mode or choose_agent_mode_interactive()).lower()
@@ -3249,6 +3371,7 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
         auto_claim=auto_claim,
         preflight=(not args.no_preflight),
         dry_run=args.dry_run,
+        pre_provision=bool(getattr(args, "pre_provision", False)),
     )
     if args.open_shell and not args.dry_run:
         record_issue_handoff_event(
@@ -3413,6 +3536,7 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
         auto_claim=auto_claim,
         preflight=(not args.no_preflight),
         dry_run=args.dry_run,
+        pre_provision=bool(getattr(args, "pre_provision", False)),
     )
     if args.open_shell and not args.dry_run:
         branch = (
@@ -3732,6 +3856,7 @@ def cmd_wt_batch(args: argparse.Namespace) -> int:
                     auto_claim=True,
                     preflight=False,
                     dry_run=args.dry_run,
+                    pre_provision=False,
                 )
 
         if args.dry_run:
@@ -4114,6 +4239,11 @@ def build_parser() -> argparse.ArgumentParser:
     wt_common.add_argument("--no-preflight", action="store_true", help="Skip post-create preflight")
     wt_common.add_argument(
         "--dry-run", action="store_true", help="Print create plan without changes"
+    )
+    wt_common.add_argument(
+        "--pre-provision",
+        action="store_true",
+        help="Start background dependency install and write .ready when complete",
     )
     wt_common.add_argument(
         "--open-shell", action="store_true", help="Open a shell in the created worktree"

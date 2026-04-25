@@ -938,6 +938,108 @@ def test_create_worktree_for_issue_attaches_existing_local_branch(monkeypatch, t
     ] in executed
 
 
+def test_create_worktree_for_issue_can_start_background_pre_provision(monkeypatch, tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir(parents=True, exist_ok=True)
+    base_dir = tmp_path / "worktrees"
+    issue = _issue(
+        number=45,
+        task_id="TASK-045",
+        seq=450,
+        labels=["type:task", "status:not-started"],
+    )
+    started: list[Path] = []
+
+    def _run(cmd, **_kwargs):
+        if cmd[:3] == ["git", "show-ref", "--verify"]:
+            return subprocess.CompletedProcess(cmd, 1, "", "")
+        if cmd[:3] == ["git", "worktree", "add"]:
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(worktree_issues, "run", _run)
+    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
+    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
+    monkeypatch.setattr(
+        worktree_issues, "start_worktree_pre_provision", lambda path: started.append(path)
+    )
+
+    wt_path = worktree_issues.create_worktree_for_issue(
+        root=root,
+        repo="owner/repo",
+        issue=issue,
+        base_dir=base_dir,
+        base_ref="origin/main",
+        scope="task",
+        slug="pre-provision",
+        folder_name="wt45",
+        auto_claim=False,
+        preflight=False,
+        dry_run=False,
+        pre_provision=True,
+    )
+
+    assert started == [wt_path]
+
+
+def test_start_worktree_pre_provision_launches_dependency_install(monkeypatch, tmp_path):
+    calls: list[dict[str, object]] = []
+
+    class FakePopen:
+        pid = 4242
+
+        def __init__(self, cmd, **kwargs):
+            calls.append({"cmd": cmd, **kwargs})
+
+    monkeypatch.setattr(worktree_issues.subprocess, "Popen", FakePopen)
+
+    worktree_issues.start_worktree_pre_provision(tmp_path)
+
+    call = calls[0]
+    assert call["cmd"][:2] == ["bash", "-lc"]
+    script = call["cmd"][2]
+    assert "uv sync" in script
+    assert "npm install --prefix infra/cdk" in script
+    assert "npm install --prefix spa" in script
+    assert (tmp_path / ".build" / "worktree-provision" / "pid").read_text(
+        encoding="utf-8"
+    ) == "4242"
+
+
+def test_handoff_waits_for_in_progress_pre_provision(monkeypatch, tmp_path):
+    waited: list[Path] = []
+    prompted: list[Path] = []
+
+    monkeypatch.setattr(
+        worktree_issues, "await_worktree_ready_if_provisioning", lambda path: waited.append(path)
+    )
+    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
+    monkeypatch.setattr(worktree_issues, "choose_agent_interactive", lambda: "codex")
+    monkeypatch.setattr(worktree_issues, "choose_agent_mode_interactive", lambda: "normal")
+    monkeypatch.setattr(worktree_issues, "choose_handoff_action_interactive", lambda: "print-only")
+    monkeypatch.setattr(
+        worktree_issues,
+        "build_agent_prompt_for_worktree",
+        lambda path, *_args: prompted.append(path) or "prompt",
+    )
+    monkeypatch.setattr(worktree_issues, "build_agent_command", lambda *_args: "codex prompt")
+
+    worktree_issues.handoff_to_agent_or_shell(path=tmp_path, root=tmp_path, repo="owner/repo")
+
+    assert waited == [tmp_path]
+    assert prompted == [tmp_path]
+
+
+def test_await_worktree_ready_raises_when_background_provision_failed(tmp_path):
+    provision_dir = tmp_path / ".build" / "worktree-provision"
+    provision_dir.mkdir(parents=True)
+    (provision_dir / "pid").write_text("99999", encoding="utf-8")
+    (provision_dir / "failed").write_text("", encoding="utf-8")
+
+    with pytest.raises(worktree_issues.CliError, match="pre-provisioning failed"):
+        worktree_issues.await_worktree_ready_if_provisioning(tmp_path)
+
+
 def test_build_agent_prompt_for_worktree_includes_explicit_dod_and_conflict_requirements(
     monkeypatch, tmp_path
 ):
