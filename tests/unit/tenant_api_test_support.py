@@ -8,6 +8,8 @@ from data_access.models import PaginatedItems
 
 from src.tenant_api import handler as tenant_api_handler
 
+_CURRENT_HANDLER_DEPS: tenant_api_handler.TenantApiDependencies | None = None
+
 
 class FakeScopedDb:
     def __init__(self) -> None:
@@ -351,13 +353,15 @@ def build_tenant_api_dependencies() -> tenant_api_handler.TenantApiDependencies:
 
 
 def build_handler_state(monkeypatch: Any, fixed_now: datetime) -> dict[str, Any]:
+    global _CURRENT_HANDLER_DEPS
+
     db = FakeScopedDb()
     deps = build_tenant_api_dependencies()
+    _CURRENT_HANDLER_DEPS = deps
     apply_common_tenant_api_env(monkeypatch)
 
     from src.tenant_api import db_factory, db_utils
 
-    monkeypatch.setattr(tenant_api_handler, "_dependencies", lambda: deps)
     monkeypatch.setattr(db_factory, "db_for_tenant", lambda **_kwargs: db)
     monkeypatch.setattr(db_factory, "control_plane_db", lambda *_args, **_kwargs: db)
     monkeypatch.setattr(db_utils, "db_for_tenant", lambda **_kwargs: db)
@@ -384,5 +388,12 @@ def response_body(response: dict[str, Any]) -> dict[str, Any]:
     return json.loads(response["body"])
 
 
-def invoke_handler(event: dict[str, Any]) -> dict[str, Any]:
-    return tenant_api_handler.lambda_handler(event, FakeLambdaContext())
+def invoke_handler(
+    event: dict[str, Any],
+    *,
+    dependencies: tenant_api_handler.TenantApiDependencies | None = None,
+) -> dict[str, Any]:
+    deps = dependencies if dependencies is not None else _CURRENT_HANDLER_DEPS
+    if deps is None:
+        raise AssertionError("build_handler_state must run before invoke_handler")
+    return tenant_api_handler.handle_event(event, dependencies=deps)

@@ -11,7 +11,6 @@ ADRs: ADR-012
 from __future__ import annotations
 
 import json
-import os
 import secrets
 from datetime import UTC, datetime
 from typing import Any
@@ -36,6 +35,7 @@ from src.tenant_api import (
     agent_logic,
     auth,
     bootstrap,
+    composition,
     constants,
     db_factory,
     db_utils,
@@ -60,10 +60,6 @@ logger = Logger(service="tenant-api")
 _NoopUsageClient = dependency_factories._NoopUsageClient
 _NoopMemoryProvisioner = dependency_factories._NoopMemoryProvisioner
 _AwsPlatformQuotaClient = dependency_factories._AwsPlatformQuotaClient
-
-
-def _dependencies() -> TenantApiDependencies:
-    return dependency_factories.build_tenant_api_dependencies(region=os.environ["AWS_REGION"])
 
 
 _parse_roles = http_utils.parse_roles
@@ -208,8 +204,16 @@ def _dispatch_tenant_routes(
 
 @logger.inject_lambda_context(clear_state=True, log_event=False)
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    return handle_event(event)
+
+
+def handle_event(
+    event: dict[str, Any],
+    *,
+    dependencies: TenantApiDependencies | None = None,
+) -> dict[str, Any]:
     try:
-        runtime = bootstrap.build_runtime(event, dependency_builder=lambda region: _dependencies())
+        runtime = composition.build_runtime(event, dependencies=dependencies)
         deps = runtime.deps
 
         # 1. Dispatch routes (admin, ops, tenant) - HIGHEST priority

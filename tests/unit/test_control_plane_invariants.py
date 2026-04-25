@@ -84,7 +84,6 @@ def fake_state(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     monkeypatch.setenv("OPS_LOCKS_TABLE", "platform-ops-locks")
     monkeypatch.setenv("RUNTIME_REGION_PARAM", "/platform/config/runtime-region")
     monkeypatch.setenv("FALLBACK_REGION_PARAM", "/platform/config/fallback-region")
-    monkeypatch.setattr(tenant_api_handler, "_dependencies", lambda: deps)
     monkeypatch.setattr(tenant_api_handler.db_factory, "db_for_tenant", lambda **_kwargs: db)
     monkeypatch.setattr(
         tenant_api_handler.db_factory, "control_plane_db", lambda *_args, **_kwargs: db
@@ -117,8 +116,6 @@ def test_platform_read_only_surface_is_declared_and_admin_protected() -> None:
 def test_non_platform_tenants_cannot_access_platform_diagnostic_surface(
     fake_state: dict[str, object],
 ) -> None:
-    del fake_state
-
     for path in ("/v1/platform/quota", "/v1/platform/billing/status", "/v1/platform/agents"):
         response = invoke_handler(
             _ops_event(
@@ -127,7 +124,8 @@ def test_non_platform_tenants_cannot_access_platform_diagnostic_surface(
                 roles="Tenant.Admin",
                 tenant_id="t-test-001",
                 sub="tenant-admin",
-            )
+            ),
+            dependencies=fake_state["deps"],  # type: ignore[arg-type]
         )
         assert response["statusCode"] == 403
         assert response_body(response)["error"]["code"] == "FORBIDDEN"

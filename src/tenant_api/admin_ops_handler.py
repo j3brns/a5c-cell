@@ -6,9 +6,10 @@ from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 try:
-    from . import bootstrap, http_utils
+    from . import composition, http_utils
 except (ImportError, ValueError):  # pragma: no cover
-    from src.tenant_api import bootstrap, http_utils
+    from src.tenant_api import composition, http_utils
+from src.tenant_api.models import TenantApiDependencies
 
 logger = Logger(service="tenant-api-admin-ops")
 
@@ -16,9 +17,16 @@ logger = Logger(service="tenant-api-admin-ops")
 @logger.inject_lambda_context(clear_state=True, log_event=False)
 def lambda_handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
     _ = context
+    return handle_event(event)
 
+
+def handle_event(
+    event: dict[str, Any],
+    *,
+    dependencies: TenantApiDependencies | None = None,
+) -> dict[str, Any]:
     try:
-        runtime = bootstrap.build_runtime(event)
+        runtime = composition.build_runtime(event, dependencies=dependencies)
         deps = runtime.deps
         caller = runtime.caller
         logger.append_keys(appid=caller.app_id or "unknown", tenantid=caller.tenant_id or "unknown")

@@ -3,8 +3,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.tenant_api import bootstrap
@@ -38,7 +36,7 @@ def test_build_runtime_assembles_http_request_context(monkeypatch) -> None:
                 }
             },
         },
-        dependency_builder=lambda _region: _deps(),
+        dependencies=_deps(),
     )
 
     assert runtime.method == "GET"
@@ -62,7 +60,7 @@ def test_build_runtime_preserves_eventbridge_tenant_provisioner_payload(monkeypa
         "detail": {"tenantId": "tenant-001", "appId": "app-001"},
     }
 
-    runtime = bootstrap.build_runtime(event, dependency_builder=lambda _region: _deps())
+    runtime = bootstrap.build_runtime(event, dependencies=_deps())
 
     assert runtime.detail_type == "tenant.provisioned"
     assert runtime.source == "platform.tenant_provisioner"
@@ -71,7 +69,8 @@ def test_build_runtime_preserves_eventbridge_tenant_provisioner_payload(monkeypa
     assert runtime.path == ""
 
 
-def test_build_runtime_requires_aws_region(monkeypatch) -> None:
-    monkeypatch.delenv("AWS_REGION", raising=False)
-    with pytest.raises(KeyError):
-        bootstrap.build_runtime({}, dependency_builder=lambda _region: _deps())
+def test_build_runtime_uses_injected_dependencies() -> None:
+    deps = _deps()
+    runtime = bootstrap.build_runtime({}, dependencies=deps)
+
+    assert runtime.deps is deps
