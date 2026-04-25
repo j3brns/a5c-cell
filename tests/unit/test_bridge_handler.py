@@ -16,10 +16,12 @@ from moto import mock_aws
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-access-lib" / "src"))
 
+from botocore.exceptions import ClientError
 from data_access.models import AgentRecord, InvocationMode, TenantContext, TenantTier
 
-from src.bridge import handler as bridge_handler
 from src.bridge.handler import handler
+from src.bridge.runtime_calls import runtime_failure_response
+from src.bridge.runtime_dependencies import get_ssm, get_sts
 
 
 @pytest.fixture(autouse=True)
@@ -183,7 +185,7 @@ def test_handler_sync_success(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
         mock_post = MagicMock()
         mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
@@ -265,7 +267,7 @@ def test_list_agents_handles_multiple_scan_pages(setup_data):
         },
     ]
 
-    with patch("src.bridge.handler.ControlPlaneDynamoDB", return_value=mock_db):
+    with patch("src.bridge.discovery_service.ControlPlaneDynamoDB", return_value=mock_db):
         event = {
             "httpMethod": "GET",
             "path": "/v1/agents",
@@ -407,7 +409,7 @@ def test_agent_bootstrap_returns_connection_contract_and_persists_session(
             "ag_ui_endpoint": "https://ag-ui.example.com/connect",
         }
     )
-    monkeypatch.setattr(bridge_handler, "ENTRA_AUDIENCE", "api://platform-dev")
+    monkeypatch.setattr("src.bridge.route_adapter.ENTRA_AUDIENCE", "api://platform-dev")
 
     event = {
         "httpMethod": "POST",
@@ -702,7 +704,7 @@ def test_handler_async_accepted(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
         mock_get_http_session.return_value.post = MagicMock()
         response = handler(event, FakeLambdaContext())
 
@@ -756,7 +758,7 @@ def test_handler_streaming(setup_data):
 
     mock_stream = MagicMock()
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
         mock_post = MagicMock()
         mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
@@ -819,7 +821,7 @@ def test_handler_session_id_propagation(setup_data):
         "body": json.dumps({"input": "Hello", "sessionId": "provided-session-123"}),
     }
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
         mock_post = MagicMock()
         mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
@@ -860,7 +862,7 @@ def test_handler_session_id_from_runtime(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
         mock_post = MagicMock()
         mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
@@ -1038,7 +1040,7 @@ def test_get_job_status_generates_presigned_result_url_with_expected_expiry(setu
     }
 
     with (
-        patch("src.bridge.handler.JOB_RESULTS_BUCKET", "platform-job-results"),
+        patch("src.bridge.discovery_service.JOB_RESULTS_BUCKET", "platform-job-results"),
         patch("src.bridge.handler.JOB_RESULT_URL_EXPIRY_SECONDS", 900),
     ):
         response = handler(event, FakeLambdaContext())
@@ -1068,8 +1070,8 @@ def test_handler_emits_bridge_metrics(setup_data):
     }
 
     with (
-        patch("src.bridge.handler.get_http_session") as mock_get_http_session,
-        patch("src.bridge.handler.get_cloudwatch") as mock_get_cw,
+        patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session,
+        patch("src.bridge.route_adapter.get_cloudwatch") as mock_get_cw,
     ):
         mock_post = MagicMock()
         mock_get_http_session.return_value.post = mock_post
@@ -1137,7 +1139,7 @@ def test_runtime_failure_response_emits_bedrock_throttle_metric(
         invocation_mode=InvocationMode.SYNC,
         streaming_enabled=False,
     )
-    exc = bridge_handler.ClientError(
+    exc = ClientError(
         {
             "Error": {"Code": "ThrottlingException", "Message": "too many"},
             "ResponseMetadata": {"HTTPStatusCode": 429},
@@ -1145,11 +1147,11 @@ def test_runtime_failure_response_emits_bedrock_throttle_metric(
         "InvokeAgentRuntime",
     )
 
-    with patch("src.bridge.handler.get_cloudwatch") as mock_get_cw:
+    with patch("src.bridge.route_adapter.get_cloudwatch") as mock_get_cw:
         mock_cw = MagicMock()
         mock_get_cw.return_value = mock_cw
 
-        response = bridge_handler._runtime_failure_response(
+        response = runtime_failure_response(
             tenant_context,
             agent,
             "inv-001",
@@ -1158,6 +1160,7 @@ def test_runtime_failure_response_emits_bedrock_throttle_metric(
             "eu-west-1",
             "req-001",
             exc,
+            session_id=None,
         )
 
     assert response["statusCode"] == 429
@@ -1209,18 +1212,13 @@ def test_runtime_failure_response_emits_bedrock_throttle_metric(
 
 
 def test_client_initializers_require_aws_region(monkeypatch):
-    import src.bridge.handler as bridge_module
 
     monkeypatch.delenv("AWS_REGION", raising=False)
 
-    with (
-        patch("src.bridge.handler._ssm_client", None),
-        patch("src.bridge.handler._sts_client", None),
-    ):
-        with pytest.raises(KeyError, match="AWS_REGION"):
-            bridge_module.get_ssm()
-        with pytest.raises(KeyError, match="AWS_REGION"):
-            bridge_module.get_sts()
+    with pytest.raises(KeyError, match="AWS_REGION"):
+        get_ssm()
+    with pytest.raises(KeyError, match="AWS_REGION"):
+        get_sts()
 
 
 def test_handler_async_uses_registered_webhook_callback(setup_data):
@@ -1273,7 +1271,7 @@ def test_handler_async_uses_registered_webhook_callback(setup_data):
         "body": json.dumps({"input": "hello", "webhookId": "webhook-001"}),
     }
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
         mock_get_http_session.return_value.post = MagicMock()
         response = handler(event, FakeLambdaContext())
 
@@ -1322,7 +1320,7 @@ def test_handler_async_rejects_unknown_webhook_id(setup_data):
         "body": json.dumps({"input": "hello", "webhookId": "does-not-exist"}),
     }
 
-    with patch("src.bridge.handler.get_http_session") as mock_get_http_session:
+    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
         mock_get_http_session.return_value.post = MagicMock()
         response = handler(event, FakeLambdaContext())
 

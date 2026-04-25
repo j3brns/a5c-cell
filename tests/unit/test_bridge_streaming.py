@@ -10,7 +10,13 @@ from data_access.models import AgentRecord, InvocationMode, TenantContext
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-access-lib" / "src"))
 
-from src.bridge.handler import _send_streaming_response, handle_streaming_invocation, handler
+from src.bridge.handler import handler
+from src.bridge.route_adapter import (
+    handle_streaming_invocation,
+)
+from src.bridge.route_adapter import (
+    send_streaming_response as _send_streaming_response,
+)
 
 
 class FakeLambdaContext:
