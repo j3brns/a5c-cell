@@ -23,6 +23,8 @@ from tests.unit.tenant_api_test_support import (
     response_body,
 )
 
+RESERVED_TENANT_IDS = ("platform", "admin", "root", "system", "stub")
+
 
 class _FailingPlatformQuotaClient:
     def __init__(self, error: Exception) -> None:
@@ -449,8 +451,7 @@ def test_create_tenant_normalizes_tenant_id_to_lowercase(fake_state: dict[str, A
         ("a" * 33, "tenantId must be 3-32 characters"),
         ("tenant--one", "tenantId must not contain consecutive hyphens"),
         ("tenant_one", "tenantId must match ^[a-z](?:[a-z0-9-]{1,30}[a-z0-9])$"),
-        ("stub", "tenantId is reserved"),
-        ("platform", "tenantId is reserved"),
+        *[(tenant_id, "tenantId is reserved") for tenant_id in RESERVED_TENANT_IDS],
     ],
 )
 def test_create_tenant_rejects_invalid_tenant_id_values(
@@ -477,7 +478,7 @@ def test_create_tenant_rejects_invalid_tenant_id_values(
     assert error["message"] == expected_error
 
 
-def test_admin_can_read_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+def _seed_platform_tenant(fake_state: dict[str, Any]) -> None:
     fake_state["db"].items[("TENANT#platform", "METADATA")] = {
         "PK": "TENANT#platform",
         "SK": "METADATA",
@@ -489,11 +490,106 @@ def test_admin_can_read_reserved_platform_tenant(fake_state: dict[str, Any]) -> 
         "status": "active",
     }
 
+
+def test_admin_can_read_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+    _seed_platform_tenant(fake_state)
+
     response = _invoke(_event(method="GET", tenant_id="platform"))
 
     assert response["statusCode"] == 200
     tenant = _body(response)["tenant"]
     assert tenant["tenantId"] == "platform"
+
+
+@pytest.mark.parametrize("roles", [[], ["Platform.Operator"]])
+def test_non_admin_cannot_read_reserved_platform_tenant(
+    fake_state: dict[str, Any], roles: list[str]
+) -> None:
+    _seed_platform_tenant(fake_state)
+
+    response = _invoke(
+        _event(
+            method="GET",
+            tenant_id="platform",
+            caller_tenant_id="platform",
+            roles=roles,
+            app_id="platform-agent",
+        )
+    )
+
+    assert response["statusCode"] == 400
+    error = _body(response)["error"]
+    assert error["code"] == "BAD_REQUEST"
+    assert error["message"] == "tenantId is reserved"
+
+
+def test_admin_can_update_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+    _seed_platform_tenant(fake_state)
+
+    response = _invoke(
+        _event(
+            method="PATCH",
+            tenant_id="platform",
+            body={"displayName": "Platform Internal Updated"},
+        )
+    )
+
+    assert response["statusCode"] == 200
+    tenant = _body(response)["tenant"]
+    assert tenant["tenantId"] == "platform"
+    assert tenant["displayName"] == "Platform Internal Updated"
+
+
+@pytest.mark.parametrize("roles", [[], ["Platform.Operator"]])
+def test_non_admin_cannot_update_reserved_platform_tenant(
+    fake_state: dict[str, Any], roles: list[str]
+) -> None:
+    _seed_platform_tenant(fake_state)
+
+    response = _invoke(
+        _event(
+            method="PATCH",
+            tenant_id="platform",
+            body={"displayName": "Platform Internal Updated"},
+            caller_tenant_id="platform",
+            roles=roles,
+            app_id="platform-agent",
+        )
+    )
+
+    assert response["statusCode"] == 400
+    error = _body(response)["error"]
+    assert error["code"] == "BAD_REQUEST"
+    assert error["message"] == "tenantId is reserved"
+
+
+def test_admin_cannot_delete_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+    _seed_platform_tenant(fake_state)
+
+    response = _invoke(_event(method="DELETE", tenant_id="platform"))
+
+    assert response["statusCode"] == 403
+    error = _body(response)["error"]
+    assert error["code"] == "FORBIDDEN"
+    assert error["message"] == "Reserved tenant IDs cannot be deleted"
+    assert fake_state["db"].items[("TENANT#platform", "METADATA")]["status"] == "active"
+
+
+@pytest.mark.parametrize("method", ["GET", "PATCH", "DELETE"])
+@pytest.mark.parametrize("tenant_id", ["admin", "root", "system", "stub"])
+def test_admin_cannot_use_non_platform_reserved_tenant_ids(
+    fake_state: dict[str, Any],
+    method: str,
+    tenant_id: str,
+) -> None:
+    body = {"displayName": "Reserved"} if method == "PATCH" else None
+
+    response = _invoke(_event(method=method, tenant_id=tenant_id, body=body))
+
+    assert response["statusCode"] == 400
+    error = _body(response)["error"]
+    assert error["code"] == "BAD_REQUEST"
+    assert error["message"] == "tenantId is reserved"
 
 
 def test_create_tenant_detects_collision_after_tenant_id_normalization(

@@ -185,6 +185,8 @@ def handle_delete(
 ) -> dict[str, Any]:
     _ = deps
     auth.require_admin(caller)
+    if tenant_id in constants.RESERVED_TENANT_IDS:
+        raise PermissionError("Reserved tenant IDs cannot be deleted")
 
     item = db_utils.read_tenant_record(tenant_id=tenant_id, caller=caller)
     if item is None:
