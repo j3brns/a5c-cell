@@ -6,9 +6,11 @@
 |--------------|------------|--------------------------------------------------|
 | uv           | latest     | curl -Ls https://astral.sh/uv/install.sh | sh    |
 | Docker       | 24+        | https://docs.docker.com/get-docker/              |
-| AWS CLI      | v2         | https://docs.aws.amazon.com/cli/latest/userguide |
-| Node         | 20 LTS     | https://nodejs.org/ or nvm                       |
 | Git          | 2.30+      | system package manager                           |
+| Node         | 20 LTS     | Handled by `make bootstrap` (or nvm)             |
+| AWS CLI      | v2         | Handled by `make bootstrap` (manifest-based)     |
+| glab         | latest     | Handled by `make bootstrap` (manifest-based)     |
+| cfn-guard    | v3         | Handled by `make bootstrap` (manifest-based)     |
 
 ## .env.local Values
 

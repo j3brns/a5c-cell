@@ -107,7 +107,7 @@ def _run_text(cmd: list[str], *, root: Path) -> str:
 
 
 def _api(endpoint: str, *, root: Path, paginate: bool = False) -> object:
-    args = ["api", endpoint, "--output", "json"]
+    args = ["api", endpoint]
     if paginate:
         args.append("--paginate")
     return _run_json(args, root=root)
