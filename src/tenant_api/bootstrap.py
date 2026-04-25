@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import os
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from botocore.exceptions import ClientError
 
-from src.tenant_api import db_factory, dependency_factories, http_utils, utils, validation
+from src.tenant_api import db_factory, http_utils, utils, validation
 from src.tenant_api.models import CallerIdentity, TenantApiDependencies
 
 
@@ -55,17 +53,8 @@ def required_ssm_parameter(ssm: Any, name: str) -> str:
 def build_runtime(
     event: dict[str, Any],
     *,
-    dependency_builder: Callable[[str], TenantApiDependencies] | None = None,
+    dependencies: TenantApiDependencies,
 ) -> TenantApiRuntime:
-    region = os.environ["AWS_REGION"]
-    builder = (
-        dependency_builder
-        if dependency_builder is not None
-        else lambda current_region: dependency_factories.build_tenant_api_dependencies(
-            region=current_region
-        )
-    )
-    deps = builder(region)
     caller = http_utils.caller_identity(event)
     method = str(
         event.get("httpMethod")
@@ -91,7 +80,7 @@ def build_runtime(
             path = path.replace(str(raw_tenant_id), tenant_id)
 
     return TenantApiRuntime(
-        deps=deps,
+        deps=dependencies,
         caller=caller,
         method=method,
         path=path,

@@ -6,7 +6,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from botocore.exceptions import EndpointConnectionError
@@ -311,12 +310,7 @@ def test_tenant_provisioned_event_updates_tenant_record(fake_state: dict[str, An
         "accountId": "123456789012",
     }
 
-    context = MagicMock()
-    context.function_name = "tenant-api"
-    context.memory_limit_in_mb = 512
-    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
-    context.aws_request_id = "req-1"
-    response = tenant_api_handler.lambda_handler(
+    response = tenant_api_handler.handle_event(
         {
             "source": "platform.tenant_provisioner",
             "detail-type": "tenant.provisioned",
@@ -327,7 +321,7 @@ def test_tenant_provisioned_event_updates_tenant_record(fake_state: dict[str, An
                 "MemoryStoreArn": "arn:mem",
             },
         },
-        context,
+        dependencies=fake_state["deps"],
     )
 
     assert response["statusCode"] == 200
@@ -354,12 +348,7 @@ def test_tenant_provisioning_failed_event_updates_tenant_record(fake_state: dict
         "accountId": "123456789012",
     }
 
-    context = MagicMock()
-    context.function_name = "tenant-api"
-    context.memory_limit_in_mb = 512
-    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
-    context.aws_request_id = "req-2"
-    response = tenant_api_handler.lambda_handler(
+    response = tenant_api_handler.handle_event(
         {
             "source": "platform.tenant_provisioner",
             "detail-type": "tenant.provisioning_failed",
@@ -369,7 +358,7 @@ def test_tenant_provisioning_failed_event_updates_tenant_record(fake_state: dict
                 "reason": "ROLLBACK_COMPLETE",
             },
         },
-        context,
+        dependencies=fake_state["deps"],
     )
 
     assert response["statusCode"] == 200
@@ -395,12 +384,7 @@ def test_reserved_platform_provisioning_event_is_accepted(fake_state: dict[str, 
         "accountId": "123456789012",
     }
 
-    context = MagicMock()
-    context.function_name = "tenant-api"
-    context.memory_limit_in_mb = 512
-    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
-    context.aws_request_id = "req-platform"
-    response = tenant_api_handler.lambda_handler(
+    response = tenant_api_handler.handle_event(
         {
             "source": "platform.tenant_provisioner",
             "detail-type": "tenant.provisioned",
@@ -410,7 +394,7 @@ def test_reserved_platform_provisioning_event_is_accepted(fake_state: dict[str, 
                 "ExecutionRoleArn": "arn:platform-role",
             },
         },
-        context,
+        dependencies=fake_state["deps"],
     )
 
     assert response["statusCode"] == 200

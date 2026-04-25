@@ -66,7 +66,10 @@ def test_ops_billing_status_returns_real_summary_shape(fake_state: dict[str, Any
         "updatedAt": "2026-02-25T11:00:00Z",
     }
 
-    response = invoke_handler(_ops_event("GET", "/v1/platform/billing/status"))
+    response = invoke_handler(
+        _ops_event("GET", "/v1/platform/billing/status"),
+        dependencies=fake_state["deps"],
+    )
 
     assert response["statusCode"] == 200
     assert response_body(response) == {
@@ -98,9 +101,7 @@ def test_ops_billing_status_returns_real_summary_shape(fake_state: dict[str, Any
 def test_de_scoped_ops_routes_do_not_expose_placeholder_success(
     fake_state: dict[str, Any], path: str, method: str
 ) -> None:
-    del fake_state
-
-    response = invoke_handler(_ops_event(method, path))
+    response = invoke_handler(_ops_event(method, path), dependencies=fake_state["deps"])
 
     assert response["statusCode"] == 405
     assert response_body(response)["error"]["code"] == "METHOD_NOT_ALLOWED"
