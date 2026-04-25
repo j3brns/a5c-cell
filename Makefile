@@ -901,7 +901,7 @@ worktree:
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),)
 
 ## wt-go: Start the next runnable issue worktree and launch an explicit or random agent in tmux
-## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo]
+## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [PRE_PROVISION=1] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo]
 wt-go:
 	$(MAKE) --no-print-directory worktree-next-issue \
 		HANDOFF=execute-now \
@@ -912,10 +912,11 @@ wt-go:
 		AGENT=$(if $(AGENT),$(AGENT),random) \
 		$(if $(REVIEW_AGENT),REVIEW_AGENT=$(REVIEW_AGENT),) \
 		$(if $(REVIEW_AGENT_MODE),REVIEW_AGENT_MODE=$(REVIEW_AGENT_MODE),) \
+		$(if $(PRE_PROVISION),PRE_PROVISION=$(PRE_PROVISION),) \
 		AGENT_MODE=$(if $(AGENT_MODE),$(AGENT_MODE),yolo)
 
 ## worktree-next-issue: Create a worktree for the next runnable issue in the queue
-## Usage: make worktree-next-issue [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [DRY_RUN=1] [OPEN_SHELL=1]
+## Usage: make worktree-next-issue [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [PRE_PROVISION=1] [DRY_RUN=1] [OPEN_SHELL=1]
 ## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-next-issue:
 	uv run python -m scripts.issue_tool worktree-next \
@@ -931,6 +932,7 @@ worktree-next-issue:
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
 		$(if $(REVIEW_AGENT),--review-agent "$(REVIEW_AGENT)",) \
 		$(if $(REVIEW_AGENT_MODE),--review-agent-mode "$(REVIEW_AGENT_MODE)",) \
+		$(if $(PRE_PROVISION),--pre-provision,) \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
@@ -951,7 +953,7 @@ wt-batch:
 		$(if $(DRY_RUN),--dry-run,)
 
 ## worktree-create-issue: Create a worktree for a specific issue number
-## Usage: make worktree-create-issue ISSUE=23 [DRY_RUN=1] [OPEN_SHELL=1]
+## Usage: make worktree-create-issue ISSUE=23 [PRE_PROVISION=1] [DRY_RUN=1] [OPEN_SHELL=1]
 ## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-create-issue:
 	@test -n "$(ISSUE)" || (echo "ERROR: ISSUE required. Usage: make worktree-create-issue ISSUE=23" && exit 1)
@@ -968,6 +970,7 @@ worktree-create-issue:
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
 		$(if $(REVIEW_AGENT),--review-agent "$(REVIEW_AGENT)",) \
 		$(if $(REVIEW_AGENT_MODE),--review-agent-mode "$(REVIEW_AGENT_MODE)",) \
+		$(if $(PRE_PROVISION),--pre-provision,) \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
