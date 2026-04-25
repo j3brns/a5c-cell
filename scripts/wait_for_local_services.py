@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
 from collections.abc import Callable
@@ -12,6 +11,8 @@ from pathlib import Path
 from urllib.request import urlopen
 
 import boto3
+
+from platform_config import get_settings
 
 
 @dataclass(frozen=True)
@@ -113,15 +114,15 @@ def verify_seeded_state(
         "dynamodb",
         region_name=aws_region,
         endpoint_url=localstack_endpoint,
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "testing"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "testing"),
+        aws_access_key_id=get_settings().aws.access_key_id or "testing",
+        aws_secret_access_key=get_settings().aws.secret_access_key or "testing",
     )
     ssm = boto3.client(
         "ssm",
         region_name=aws_region,
         endpoint_url=localstack_endpoint,
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "testing"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "testing"),
+        aws_access_key_id=get_settings().aws.access_key_id or "testing",
+        aws_secret_access_key=get_settings().aws.secret_access_key or "testing",
     )
 
     table_names = set(ddb.list_tables().get("TableNames", []))

@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import socket
 import sys
 from collections.abc import Iterator
@@ -37,6 +36,8 @@ from uuid import uuid4
 
 import boto3
 from botocore.exceptions import ClientError
+
+from platform_config import env_optional, get_settings, process_env_required
 
 DEFAULT_TABLE_NAME = "platform-ops-locks"
 DEFAULT_LOCK_NAME = "platform-runtime-failover"
@@ -89,22 +90,19 @@ def iso8601_utc(dt: datetime) -> str:
 
 
 def get_aws_region() -> str:
-    region = os.environ.get("AWS_REGION", "").strip()
-    if not region:
-        raise RuntimeError("AWS_REGION environment variable not set")
-    return region
+    return process_env_required("AWS_REGION")
 
 
 def resolve_table_name() -> str:
-    return os.environ.get("PLATFORM_OPS_LOCKS_TABLE", DEFAULT_TABLE_NAME)
+    return env_optional("PLATFORM_OPS_LOCKS_TABLE", DEFAULT_TABLE_NAME) or DEFAULT_TABLE_NAME
 
 
 def resolve_token_path() -> Path:
-    return Path(os.environ.get("FAILOVER_LOCK_TOKEN_PATH", DEFAULT_TOKEN_PATH))
+    return Path(env_optional("FAILOVER_LOCK_TOKEN_PATH", DEFAULT_TOKEN_PATH) or DEFAULT_TOKEN_PATH)
 
 
 def default_owner() -> str:
-    user = os.environ.get("USER") or os.environ.get("USERNAME") or "unknown"
+    user = get_settings().ops.user or get_settings().ops.username or "unknown"
     host = socket.gethostname() or "unknown-host"
     return f"ops/failover_lock.py:{user}@{host}"
 

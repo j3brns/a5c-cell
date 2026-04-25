@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import subprocess
 from pathlib import Path
 
 import boto3
-import yaml
+import yaml  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError
+
+from platform_config import get_settings, process_env_required
 
 try:
     from agent_manifest import ManifestValidationError, load_agent_manifest
@@ -31,10 +32,7 @@ TOOLKIT_CONFIG = ".bedrock_agentcore.yaml"
 
 
 def require_aws_region() -> str:
-    region = os.environ.get("AWS_REGION", "").strip()
-    if not region:
-        raise RuntimeError("AWS_REGION must be set")
-    return region
+    return process_env_required("AWS_REGION")
 
 
 def parse_args() -> argparse.Namespace:
@@ -118,11 +116,11 @@ def _deploy_container_runtime(agent_name: str, manifest, aws_region: str) -> str
         "--non-interactive",
     )
 
-    execution_role_arn = os.environ.get("BEDROCK_AGENTCORE_EXECUTION_ROLE_ARN", "").strip()
+    execution_role_arn = get_settings().agents.execution_role_arn or ""
     if execution_role_arn:
         configure_cmd.extend(["--execution-role", execution_role_arn])
 
-    ecr_repository_uri = os.environ.get("BEDROCK_AGENTCORE_ECR_REPOSITORY_URI", "").strip()
+    ecr_repository_uri = get_settings().agents.ecr_repository_uri or ""
     if ecr_repository_uri:
         configure_cmd.extend(["--ecr", ecr_repository_uri])
 

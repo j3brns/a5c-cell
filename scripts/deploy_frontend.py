@@ -22,6 +22,8 @@ from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError
 
+from platform_config import process_env_required
+
 logger = logging.getLogger("deploy_frontend")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -31,11 +33,7 @@ SPA_DIST = REPO_ROOT / "spa" / "dist"
 
 def require_aws_region() -> str:
     """Read AWS_REGION from environment and fail fast if missing."""
-    region = os.environ.get("AWS_REGION", "").strip()
-    if not region:
-        # Fallback for local development or non-standard environments
-        return "eu-west-2"
-    return region
+    return process_env_required("AWS_REGION")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

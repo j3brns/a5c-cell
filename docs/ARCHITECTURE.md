@@ -371,6 +371,7 @@ team preference:
 | **AppConfig** | Dynamic tenant capability policy: tier feature enablement, capability flags, kill switches, model/tool availability, rollout controls. **Runtime parameters:** active runtime region, mock service URLs. | Tenant state, resource inventory, execution-role ARNs, memory-store ARNs |
 | **SSM Parameter Store** | Operational bootstrap identifiers: AppConfig application/environment/profile IDs. Legacy/fallback platform parameters. | Tenant feature policy, invocation state, hot-path runtime settings |
 | **DynamoDB** | Tenant metadata and transactional state: status, budgets, execution-role ARN, memory-store ARN, audit/job/session records | Rollout-managed capability toggles |
+| **`.env.example` + `platform_config`** | Local script and developer-tool settings validated by Pydantic before use. | Runtime tenant state, secrets storage, rollout policy |
 
 Control-plane Lambdas (Bridge, Authoriser, Admin APIs) leverage the **AWS AppConfig Lambda Extension**
 to cache all policy and runtime configuration locally. This eliminates the high-latency network

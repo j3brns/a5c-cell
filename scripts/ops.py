@@ -22,7 +22,6 @@ import argparse
 import base64
 import json
 import logging
-import os
 import sys
 import time
 from dataclasses import dataclass
@@ -31,6 +30,8 @@ from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from platform_config import get_settings
 
 DEFAULT_ENV = "dev"
 DEFAULT_TIMEOUT_SECONDS = 30
@@ -83,8 +84,7 @@ class ApiResponse:
 
 def _credentials_path() -> Path:
     return Path(
-        os.environ.get("PLATFORM_CREDENTIALS_PATH")
-        or str(Path.home() / ".platform" / "credentials")
+        get_settings().ops.credentials_path or str(Path.home() / ".platform" / "credentials")
     )
 
 
@@ -140,7 +140,11 @@ def _handle_login(args: argparse.Namespace) -> int:
 
 
 def _resolve_api_base_url(explicit: str | None, profile: OperatorProfile | None) -> str:
-    url = explicit or (profile.api_base_url if profile else None) or os.environ.get("API_BASE_URL")
+    url = (
+        explicit
+        or (profile.api_base_url if profile else None)
+        or get_settings().agents.api_base_url
+    )
     if not url:
         raise OpsCliError("API base URL not set")
     return url.rstrip("/")
@@ -150,7 +154,7 @@ def _resolve_token(explicit: str | None, profile: OperatorProfile | None) -> str
     token = (
         explicit
         or (profile.access_token if profile else None)
-        or os.environ.get("PLATFORM_ACCESS_TOKEN")
+        or get_settings().agents.platform_access_token
     )
     if not token:
         raise OpsCliError("No access token provided")
@@ -193,11 +197,11 @@ def _build_url(base_url: str, path: str, query_params: dict[str, str] | None) ->
 def _command_to_operation(args: argparse.Namespace) -> ApiOperation:
     match args.command:
         case "top-tenants":
-            if not os.environ.get("PLATFORM_OPS_CAN_LIST_TOP_TENANTS"):
+            if not get_settings().ops.can_list_top_tenants:
                 raise OpsCliError("Command `top-tenants` is disabled")
             return ApiOperation(method="GET", path="/v1/platform/reports/top-tenants")
         case "tenant-sessions":
-            if not os.environ.get("PLATFORM_OPS_CAN_LIST_SESSIONS"):
+            if not get_settings().ops.can_list_sessions:
                 raise OpsCliError("Command `tenant-sessions` is disabled")
             return ApiOperation(method="GET", path=f"/v1/platform/tenants/{args.tenant}/sessions")
         case "suspend-tenant":
@@ -215,29 +219,29 @@ def _command_to_operation(args: argparse.Namespace) -> ApiOperation:
         case "quota-report":
             return ApiOperation(method="GET", path="/v1/platform/reports/quota-utilisation")
         case "invocation-report":
-            if not os.environ.get("PLATFORM_OPS_CAN_GET_INVOCATION_REPORT"):
+            if not get_settings().ops.can_get_invocation_report:
                 raise OpsCliError("Command `invocation-report` is disabled")
             return ApiOperation(
                 method="GET", path=f"/v1/platform/reports/invocations/tenants/{args.tenant}"
             )
         case "security-events":
-            if not os.environ.get("PLATFORM_OPS_CAN_LIST_SECURITY_EVENTS"):
+            if not get_settings().ops.can_list_security_events:
                 raise OpsCliError("Command `security-events` is disabled")
             return ApiOperation(method="GET", path="/v1/platform/security/events")
         case "dlq-inspect":
-            if not os.environ.get("PLATFORM_OPS_CAN_INSPECT_DLQ"):
+            if not get_settings().ops.can_inspect_dlq:
                 raise OpsCliError("Command `dlq-inspect` is disabled")
             return ApiOperation(method="GET", path=f"/v1/platform/ops/queues/{args.queue}/dlq")
         case "dlq-redrive":
-            if not os.environ.get("PLATFORM_OPS_CAN_REDRIVE_DLQ"):
+            if not get_settings().ops.can_redrive_dlq:
                 raise OpsCliError("Command `dlq-redrive` is disabled")
             return ApiOperation(method="POST", path=f"/v1/platform/ops/queues/{args.queue}/redrive")
         case "error-rate":
-            if not os.environ.get("PLATFORM_OPS_CAN_GET_ERROR_RATE"):
+            if not get_settings().ops.can_get_error_rate:
                 raise OpsCliError("Command `error-rate` is disabled")
             return ApiOperation(method="GET", path="/v1/platform/ops/health/errors")
         case "set-runtime-region":
-            if not os.environ.get("FAILOVER_LOCK_TOKEN_PATH"):
+            if not get_settings().ops.failover_lock_token_path:
                 # Simulation for the test expectation "Failover lock id required"
                 if not args.lock_id:
                     raise OpsCliError("Failover lock id required")
@@ -252,7 +256,7 @@ def _command_to_operation(args: argparse.Namespace) -> ApiOperation:
                 body={"template": args.template},
             )
         case "service-health":
-            if not os.environ.get("PLATFORM_OPS_CAN_GET_SERVICE_HEALTH"):
+            if not get_settings().ops.can_get_service_health:
                 raise OpsCliError("Command `service-health` is disabled")
             return ApiOperation(method="GET", path="/v1/platform/ops/health/services")
         case "billing-status":

@@ -16,7 +16,6 @@ import argparse
 import getpass
 import json
 import logging
-import os
 import subprocess
 import sys
 import urllib.error
@@ -30,6 +29,8 @@ from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
+
+from platform_config import env_optional, process_env_required
 
 logger = logging.getLogger("bootstrap")
 logging.basicConfig(
@@ -105,15 +106,12 @@ def utc_now_iso() -> str:
 
 def require_aws_region() -> str:
     """Read AWS_REGION from environment and fail fast if missing."""
-    region = os.environ.get("AWS_REGION", "").strip()
-    if not region:
-        raise RuntimeError("AWS_REGION must be set")
-    return region
+    return process_env_required("AWS_REGION")
 
 
 def require_bootstrap_account_id() -> str:
     """Read the intended bootstrap AWS account from environment and fail closed if missing."""
-    account_id = os.environ.get("BOOTSTRAP_ACCOUNT_ID", "").strip()
+    account_id = env_optional("BOOTSTRAP_ACCOUNT_ID", "")
     if not account_id:
         raise RuntimeError("BOOTSTRAP_ACCOUNT_ID must be set")
     return account_id
@@ -121,7 +119,7 @@ def require_bootstrap_account_id() -> str:
 
 def _input_value(env_name: str, prompt: str, *, secret: bool) -> str:
     """Read from env first; fall back to interactive prompt."""
-    from_env = os.environ.get(env_name)
+    from_env = env_optional(env_name)
     if from_env:
         return from_env.strip()
 
@@ -169,14 +167,21 @@ def build_context(env_name: str) -> BootstrapContext:
     """Create runtime context from environment + caller identity."""
     aws_region = require_aws_region()
     intended_account_id = require_bootstrap_account_id()
-    home_region = os.environ.get("PLATFORM_HOME_REGION", DEFAULT_HOME_REGION)
-    runtime_region = os.environ.get("PLATFORM_RUNTIME_REGION", DEFAULT_RUNTIME_REGION)
-    fallback_region = os.environ.get("PLATFORM_FALLBACK_REGION", DEFAULT_FALLBACK_REGION)
-    report_bucket = os.environ.get(
-        "BOOTSTRAP_REPORT_BUCKET",
-        f"platform-bootstrap-reports-{env_name}",
+    home_region = env_optional("PLATFORM_HOME_REGION", DEFAULT_HOME_REGION) or DEFAULT_HOME_REGION
+    runtime_region = (
+        env_optional("PLATFORM_RUNTIME_REGION", DEFAULT_RUNTIME_REGION) or DEFAULT_RUNTIME_REGION
     )
-    report_key = os.environ.get("BOOTSTRAP_REPORT_KEY", REPORT_KEY_DEFAULT)
+    fallback_region = (
+        env_optional("PLATFORM_FALLBACK_REGION", DEFAULT_FALLBACK_REGION) or DEFAULT_FALLBACK_REGION
+    )
+    report_bucket = (
+        env_optional(
+            "BOOTSTRAP_REPORT_BUCKET",
+            f"platform-bootstrap-reports-{env_name}",
+        )
+        or f"platform-bootstrap-reports-{env_name}"
+    )
+    report_key = env_optional("BOOTSTRAP_REPORT_KEY", REPORT_KEY_DEFAULT) or REPORT_KEY_DEFAULT
 
     sts = boto3.client("sts", region_name=aws_region)
     identity = sts.get_caller_identity()
@@ -585,10 +590,10 @@ def step_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
     ssm_client = boto3.client("ssm", region_name=ctx.home_region)
     ddb_resource = boto3.resource("dynamodb", region_name=ctx.home_region)
 
-    admin_tenant_id = os.environ.get("BOOTSTRAP_ADMIN_TENANT_ID", "t-admin-001")
-    app_id = os.environ.get("BOOTSTRAP_ADMIN_APP_ID", f"platform-{ctx.env}")
-    owner_email = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "platform-admin@example.invalid")
-    owner_team = os.environ.get("BOOTSTRAP_ADMIN_TEAM", "platform")
+    admin_tenant_id = env_optional("BOOTSTRAP_ADMIN_TENANT_ID", "t-admin-001")
+    app_id = env_optional("BOOTSTRAP_ADMIN_APP_ID", f"platform-{ctx.env}")
+    owner_email = env_optional("BOOTSTRAP_ADMIN_EMAIL", "platform-admin@example.invalid")
+    owner_team = env_optional("BOOTSTRAP_ADMIN_TEAM", "platform")
     now = utc_now_iso()
 
     ssm_params = {
@@ -656,16 +661,16 @@ def step_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
             "version": "1.0.0",
             "owner_team": owner_team,
             "tier_minimum": "basic",
-            "layer_hash": os.environ.get("BOOTSTRAP_ECHO_LAYER_HASH", "bootstrap-seeded"),
-            "layer_s3_key": os.environ.get(
+            "layer_hash": env_optional("BOOTSTRAP_ECHO_LAYER_HASH", "bootstrap-seeded"),
+            "layer_s3_key": env_optional(
                 "BOOTSTRAP_ECHO_LAYER_S3_KEY",
                 "layers/echo-agent/1.0.0-bootstrap-seeded.zip",
             ),
-            "script_s3_key": os.environ.get(
+            "script_s3_key": env_optional(
                 "BOOTSTRAP_ECHO_SCRIPT_S3_KEY",
                 "scripts/echo-agent/1.0.0.zip",
             ),
-            "runtime_arn": os.environ.get("BOOTSTRAP_ECHO_RUNTIME_ARN", ""),
+            "runtime_arn": env_optional("BOOTSTRAP_ECHO_RUNTIME_ARN", ""),
             "deployed_at": now,
             "invocation_mode": "sync",
             "streaming_enabled": True,
@@ -684,7 +689,7 @@ def validate_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
     """Validate seeded config + records are present."""
     ssm_client = boto3.client("ssm", region_name=ctx.home_region)
     ddb_resource = boto3.resource("dynamodb", region_name=ctx.home_region)
-    admin_tenant_id = os.environ.get("BOOTSTRAP_ADMIN_TENANT_ID", "t-admin-001")
+    admin_tenant_id = env_optional("BOOTSTRAP_ADMIN_TENANT_ID", "t-admin-001")
 
     param_names = [
         "/platform/config/runtime-region",
@@ -736,7 +741,7 @@ def _try_smoke_invoke(ctx: BootstrapContext) -> dict[str, Any]:
     This is optional because some environments may not have Entra/JWT setup at
     the moment verify is run.
     """
-    token = os.environ.get("BOOTSTRAP_ADMIN_JWT", "").strip()
+    token = env_optional("BOOTSTRAP_ADMIN_JWT", "")
     if not token:
         return {
             "status": "skipped",
@@ -809,7 +814,7 @@ def validate_verify(ctx: BootstrapContext) -> dict[str, Any]:
 
 def _resolve_bootstrap_user(ctx: BootstrapContext) -> str:
     """Resolve bootstrap IAM username from explicit environment only."""
-    explicit = os.environ.get("BOOTSTRAP_IAM_USER", "").strip()
+    explicit = env_optional("BOOTSTRAP_IAM_USER", "")
     if explicit:
         return explicit
 

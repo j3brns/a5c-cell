@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -13,6 +12,8 @@ from typing import Any
 import boto3
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
+
+from platform_config import process_env_optional
 
 ROLE_ARN_PATTERN = re.compile(
     r"^arn:(?:aws|aws-us-gov|aws-cn):iam::(?P<account_id>\d{12}):role/(?P<role_name>[\w+=,.@\-_/]+)$"
@@ -218,7 +219,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Backfill and verify executionRoleArn for tenant records."
     )
-    parser.add_argument("--region", default=os.environ.get("AWS_REGION"), help="AWS region")
+    parser.add_argument("--region", default=process_env_optional("AWS_REGION"), help="AWS region")
     parser.add_argument("--table-name", default=DEFAULT_TABLE_NAME, help="Tenant table name")
     parser.add_argument(
         "--param-template",

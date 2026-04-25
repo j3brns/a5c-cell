@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import argparse
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import boto3
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
+
+from platform_config import process_env_optional
 
 DEFAULT_TABLE_NAME = "platform-agents"
 
@@ -51,7 +52,7 @@ def _apply_backfill(table: Any, *, item: dict[str, Any]) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    region = args.region or os.environ.get("AWS_REGION")
+    region = args.region or process_env_optional("AWS_REGION")
     if not region:
         print("AWS region is required. Set AWS_REGION or pass --region.")
         return 2

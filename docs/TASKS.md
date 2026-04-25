@@ -577,7 +577,8 @@ task. Result delivered via webhook and available via poll endpoint.
 
 [ ] TASK-058  Implement Modular Pydantic Configuration Models (Issue #42)
               Centralize environment variable loading and validation using
-              pydantic-settings. Remove os.environ calls from business logic.
+              pydantic-settings. Remove direct os.environ reads from scripts while
+              preserving fail-closed process-env checks for AWS-mutating commands.
               ADRs: TBD | Tests: validation coverage
               Seq: 704
 
