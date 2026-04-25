@@ -12,7 +12,9 @@
 
 ### 1. Investigate if spike is expected
 ```bash
-# Use billing exports and tenant usage records for the last 7 days.
+# Use the parameterized CloudWatch tenant usage dashboard, setting tenantId
+# and tenantTier explicitly, plus billing exports and tenant usage records
+# for the last 7 days.
 # Do not rely on the deprecated ops invocation report.
 ```
 

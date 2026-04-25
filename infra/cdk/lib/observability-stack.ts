@@ -507,6 +507,231 @@ export class ObservabilityStack extends cdk.Stack {
       evaluationPeriods: 1,
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     });
+
+    // --- 4. Parameterized Tenant Usage Dashboard (TASK-027) ---
+
+    const tenantIdPlaceholder = 'TENANT_ID_PLACEHOLDER';
+    const tenantTierPlaceholder = 'TENANT_TIER_PLACEHOLDER';
+    const tenantIdVariable = new cloudwatch.DashboardVariable({
+      id: 'tenantId',
+      type: cloudwatch.VariableType.PATTERN,
+      label: 'TenantId',
+      inputType: cloudwatch.VariableInputType.INPUT,
+      value: tenantIdPlaceholder,
+      defaultValue: cloudwatch.DefaultValue.value('TENANT_ID'),
+    });
+    const tenantTierVariable = new cloudwatch.DashboardVariable({
+      id: 'tenantTier',
+      type: cloudwatch.VariableType.PATTERN,
+      label: 'Tier',
+      inputType: cloudwatch.VariableInputType.SELECT,
+      value: tenantTierPlaceholder,
+      defaultValue: cloudwatch.DefaultValue.value('basic'),
+      values: cloudwatch.Values.fromValues(
+        { value: 'basic', label: 'basic' },
+        { value: 'standard', label: 'standard' },
+        { value: 'premium', label: 'premium' },
+      ),
+    });
+
+    const tenantUsageDashboardName = `platform-tenant-usage-${this.stackName}`;
+    const tenantUsageDashboard = new cloudwatch.Dashboard(this, 'TenantUsageDashboard', {
+      dashboardName: tenantUsageDashboardName,
+      variables: [tenantIdVariable, tenantTierVariable],
+    });
+
+    const varTenantDimensions = { TenantId: tenantIdPlaceholder };
+    const varTenantBillingDimensions = {
+      TenantId: tenantIdPlaceholder,
+      Tier: tenantTierPlaceholder,
+    };
+
+    tenantUsageDashboard.addWidgets(
+      new cloudwatch.TextWidget({
+        markdown: `# Tenant Usage: ${tenantIdPlaceholder} (${tenantTierPlaceholder})`,
+        width: 24,
+        height: 1,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'API Request Count',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/API',
+            metricName: 'RequestCount',
+            dimensionsMap: varTenantDimensions,
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(5),
+          }),
+        ],
+        width: 8,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'API Latency (p99)',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/API',
+            metricName: 'Latency',
+            dimensionsMap: varTenantDimensions,
+            statistic: 'p99',
+            period: cdk.Duration.minutes(5),
+          }),
+        ],
+        width: 8,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'API Errors (4xx/5xx)',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/API',
+            metricName: 'ErrorCount',
+            dimensionsMap: varTenantDimensions,
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(5),
+          }),
+        ],
+        width: 8,
+      }),
+    );
+
+    tenantUsageDashboard.addWidgets(
+      new cloudwatch.TextWidget({
+        markdown: '# Agent Performance (Bridge Real-time)',
+        width: 24,
+        height: 1,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Invocations (Count)',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/Bridge',
+            metricName: 'Invocations',
+            dimensionsMap: varTenantDimensions,
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(5),
+          }),
+        ],
+        width: 8,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Bridge Latency (Avg)',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/Bridge',
+            metricName: 'Latency',
+            dimensionsMap: varTenantDimensions,
+            statistic: 'Average',
+            period: cdk.Duration.minutes(5),
+          }),
+        ],
+        width: 8,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Bridge Errors (Count)',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/Bridge',
+            metricName: 'Errors',
+            dimensionsMap: varTenantDimensions,
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(5),
+          }),
+        ],
+        width: 8,
+      }),
+    );
+
+    tenantUsageDashboard.addWidgets(
+      new cloudwatch.TextWidget({
+        markdown: '# Token Usage',
+        width: 24,
+        height: 1,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Daily Token Usage (Cumulative Monthly)',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/Billing',
+            metricName: 'InputTokens',
+            dimensionsMap: varTenantBillingDimensions,
+            statistic: 'Maximum',
+            period: cdk.Duration.days(1),
+            label: 'Input Tokens',
+          }),
+          new cloudwatch.Metric({
+            namespace: 'Platform/Billing',
+            metricName: 'OutputTokens',
+            dimensionsMap: varTenantBillingDimensions,
+            statistic: 'Maximum',
+            period: cdk.Duration.days(1),
+            label: 'Output Tokens',
+          }),
+        ],
+        width: 12,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Real-time Token Throughput',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/Bridge',
+            metricName: 'InputTokens',
+            dimensionsMap: varTenantDimensions,
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(5),
+            label: 'Input (5m Sum)',
+          }),
+          new cloudwatch.Metric({
+            namespace: 'Platform/Bridge',
+            metricName: 'OutputTokens',
+            dimensionsMap: varTenantDimensions,
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(5),
+            label: 'Output (5m Sum)',
+          }),
+        ],
+        width: 12,
+      }),
+    );
+
+    tenantUsageDashboard.addWidgets(
+      new cloudwatch.TextWidget({
+        markdown: '# Billing & Budget',
+        width: 24,
+        height: 1,
+      }),
+      new cloudwatch.SingleValueWidget({
+        title: 'Current Monthly Cost (USD)',
+        metrics: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/Billing',
+            metricName: 'MonthlyCost',
+            dimensionsMap: varTenantBillingDimensions,
+            statistic: 'Maximum',
+            period: cdk.Duration.days(1),
+            label: 'Monthly Cost',
+          }),
+        ],
+        width: 12,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Daily Cost Trend (USD)',
+        left: [
+          new cloudwatch.Metric({
+            namespace: 'Platform/Billing',
+            metricName: 'DailyCost',
+            dimensionsMap: varTenantBillingDimensions,
+            statistic: 'Sum',
+            period: cdk.Duration.days(1),
+            label: 'Daily Cost',
+          }),
+        ],
+        width: 12,
+      }),
+    );
+
+    new cdk.CfnOutput(this, 'TenantUsageDashboardName', {
+      value: tenantUsageDashboardName,
+      description: 'Shared parameterized tenant usage CloudWatch dashboard name',
+    });
   }
 
   private createLambdaMetricWidget(title: string, fn: lambda.IFunction): cloudwatch.GraphWidget {

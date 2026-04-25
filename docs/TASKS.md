@@ -278,8 +278,10 @@ Echo agent invocable end-to-end in local environment in all three modes.
               Done: 2026-03-01
 
 [x] TASK-026  ObservabilityStack
-              Per-tenant CloudWatch dashboard (provisioned in TenantStack)
+              Parameterized tenant usage CloudWatch dashboard (provisioned once in ObservabilityStack)
               Platform operations dashboard
+              Shared tenant dashboard name exported by ObservabilityStack; TenantStack no longer
+              exports per-tenant DashboardName
               All 10 FM alarms (see ARCHITECTURE.md failure modes table)
               Budget alarm per tenant against monthlyBudgetUsd
               Metric streams AgentCore Observability eu-west-1 → CloudWatch eu-west-2
