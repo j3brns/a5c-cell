@@ -214,8 +214,6 @@ def merge_request_for_branch(root: Path, repo: str, branch: str, state: str) -> 
         branch,
         "--per-page",
         "1",
-        "--output",
-        "json",
     ]
     if state == "merged":
         cmd.append("--merged")
