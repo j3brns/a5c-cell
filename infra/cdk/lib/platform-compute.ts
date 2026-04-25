@@ -574,6 +574,13 @@ export function createPlatformCompute(
     }),
     payloadResponseOnly: true,
   });
+  startTenantProvisioning.addRetry({
+    errors: ['TenantProvisionerRetryableError', 'Lambda.TooManyRequestsException', 'Lambda.ServiceException'],
+    interval: cdk.Duration.seconds(2),
+    maxAttempts: 6,
+    backoffRate: 2,
+  });
+
   const waitForTenantProvisioning = new sfn.Wait(scope, 'WaitForTenantProvisioning', {
     time: sfn.WaitTime.duration(cdk.Duration.seconds(10)),
   });
@@ -588,6 +595,12 @@ export function createPlatformCompute(
       stackName: sfn.JsonPath.stringAt('$.stackName'),
     }),
     payloadResponseOnly: true,
+  });
+  pollTenantProvisioning.addRetry({
+    errors: ['TenantProvisionerRetryableError', 'Lambda.TooManyRequestsException', 'Lambda.ServiceException'],
+    interval: cdk.Duration.seconds(2),
+    maxAttempts: 6,
+    backoffRate: 2,
   });
   const emitTenantProvisioned = new tasks.LambdaInvoke(scope, 'EmitTenantProvisioned', {
     lambdaFunction: tenantProvisionerFn,
@@ -604,6 +617,13 @@ export function createPlatformCompute(
     }),
     payloadResponseOnly: true,
   });
+  emitTenantProvisioned.addRetry({
+    errors: ['TenantProvisionerRetryableError', 'Lambda.TooManyRequestsException', 'Lambda.ServiceException'],
+    interval: cdk.Duration.seconds(2),
+    maxAttempts: 6,
+    backoffRate: 2,
+  });
+
   const emitTenantProvisioningFailed = new tasks.LambdaInvoke(scope, 'EmitTenantProvisioningFailed', {
     lambdaFunction: tenantProvisionerFn,
     payload: sfn.TaskInput.fromObject({
@@ -619,6 +639,12 @@ export function createPlatformCompute(
       outputs: sfn.JsonPath.objectAt('$.outputs'),
     }),
     payloadResponseOnly: true,
+  });
+  emitTenantProvisioningFailed.addRetry({
+    errors: ['TenantProvisionerRetryableError', 'Lambda.TooManyRequestsException', 'Lambda.ServiceException'],
+    interval: cdk.Duration.seconds(2),
+    maxAttempts: 6,
+    backoffRate: 2,
   });
   const tenantProvisioningStateMachine = new sfn.StateMachine(scope, 'TenantProvisioningStateMachine', {
     stateMachineName: `platform-tenant-provisioning-${envName}`,
