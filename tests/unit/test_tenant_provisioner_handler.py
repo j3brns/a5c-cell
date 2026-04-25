@@ -186,6 +186,44 @@ class TestTenantProvisioner(unittest.TestCase):
         }
         self.assertEqual(params["accountId"], "999888777666")
 
+    @patch("src.tenant_provisioner.handler.get_cloudformation")
+    def test_start_throttling_raises_retryable_error(self, mock_get_cloudformation):
+        from src.tenant_provisioner.handler import TenantProvisionerRetryableError
+
+        mock_cfn = MagicMock()
+        mock_get_cloudformation.return_value = mock_cfn
+        mock_cfn.describe_stacks.side_effect = ClientError(
+            {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}},
+            "DescribeStacks",
+        )
+
+        event = {"detail": {"tenantId": "t-throttle-001"}}
+        context = MagicMock()
+        context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:prov"
+
+        with self.assertRaises(TenantProvisionerRetryableError) as cm:
+            lambda_handler(event, context)
+
+        self.assertIn("Throttling", str(cm.exception))
+
+    @patch("src.tenant_provisioner.handler.get_cloudformation")
+    def test_start_terminal_error_returns_failed_state(self, mock_get_cloudformation):
+        mock_cfn = MagicMock()
+        mock_get_cloudformation.return_value = mock_cfn
+        mock_cfn.describe_stacks.side_effect = ClientError(
+            {"Error": {"Code": "AccessDenied", "Message": "Not authorized"}},
+            "DescribeStacks",
+        )
+
+        event = {"detail": {"tenantId": "t-deny-001"}}
+        context = MagicMock()
+        context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:prov"
+
+        result = lambda_handler(event, context)
+
+        self.assertEqual(result["provisioningState"], "FAILED")
+        self.assertIn("AccessDenied", result["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()
