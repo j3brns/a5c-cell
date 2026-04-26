@@ -39,6 +39,14 @@ FAST_TASKS = (
     ValidationTask(
         "Rules sync", "rules-sync-audit", ("make", "--no-print-directory", "rules-sync-audit")
     ),
+    ValidationTask(
+        "Generated state",
+        "generated-state-audit",
+        ("make", "--no-print-directory", "generated-state-audit"),
+    ),
+    ValidationTask(
+        "Docs sync", "docs-sync-audit", ("make", "--no-print-directory", "docs-sync-audit")
+    ),
     ValidationTask("Lint", "validate-lint", ("make", "--no-print-directory", "validate-lint")),
     ValidationTask(
         "Typecheck", "validate-typecheck", ("make", "--no-print-directory", "validate-typecheck")
@@ -62,6 +70,14 @@ FULL_TASKS = (
     ValidationTask(
         "Rules sync", "rules-sync-audit", ("make", "--no-print-directory", "rules-sync-audit")
     ),
+    ValidationTask(
+        "Generated state",
+        "generated-state-audit",
+        ("make", "--no-print-directory", "generated-state-audit"),
+    ),
+    ValidationTask(
+        "Docs sync", "docs-sync-audit", ("make", "--no-print-directory", "docs-sync-audit")
+    ),
     ValidationTask("Lint", "validate-lint", ("make", "--no-print-directory", "validate-lint")),
     ValidationTask(
         "Typecheck", "validate-typecheck", ("make", "--no-print-directory", "validate-typecheck")
@@ -82,6 +98,14 @@ LEGACY_FAST_BENCHMARK_TASKS = (
         "Rules sync", "rules-sync-audit", ("make", "--no-print-directory", "rules-sync-audit")
     ),
     ValidationTask(
+        "Generated state",
+        "generated-state-audit",
+        ("make", "--no-print-directory", "generated-state-audit"),
+    ),
+    ValidationTask(
+        "Docs sync", "docs-sync-audit", ("make", "--no-print-directory", "docs-sync-audit")
+    ),
+    ValidationTask(
         "Python", "validate-python", ("make", "--no-print-directory", "validate-python")
     ),
     ValidationTask(
@@ -99,6 +123,14 @@ LEGACY_FAST_BENCHMARK_TASKS = (
 LEGACY_FULL_BENCHMARK_TASKS = (
     ValidationTask(
         "Rules sync", "rules-sync-audit", ("make", "--no-print-directory", "rules-sync-audit")
+    ),
+    ValidationTask(
+        "Generated state",
+        "generated-state-audit",
+        ("make", "--no-print-directory", "generated-state-audit"),
+    ),
+    ValidationTask(
+        "Docs sync", "docs-sync-audit", ("make", "--no-print-directory", "docs-sync-audit")
     ),
     ValidationTask(
         "Python", "validate-python", ("make", "--no-print-directory", "validate-python")

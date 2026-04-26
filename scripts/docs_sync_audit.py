@@ -26,8 +26,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT = ROOT / "pyproject.toml"
 CDK_PACKAGE = ROOT / "infra" / "cdk" / "package.json"
+CDK_PACKAGE_LOCK = ROOT / "infra" / "cdk" / "package-lock.json"
 SPA_PACKAGE = ROOT / "spa" / "package.json"
+SPA_PACKAGE_LOCK = ROOT / "spa" / "package-lock.json"
 TASKS_MD = ROOT / "docs" / "TASKS.md"
+OPENAPI_FILE = ROOT / "docs" / "openapi.yaml"
 OPS_PY = ROOT / "scripts" / "ops.py"
 MAKEFILE = ROOT / "Makefile"
 DEV_BOOTSTRAP_PY = ROOT / "scripts" / "dev_bootstrap.py"
@@ -39,6 +42,9 @@ STAMP_FILE = ROOT / "docs" / "DOCS_SYNC.json"
 
 
 SEMVER_RE = re.compile(r'^version\s*=\s*"([^"]+)"\s*$', re.MULTILINE)
+OPENAPI_INFO_VERSION_RE = re.compile(
+    r"(?m)^info:\s*(?:\n[ \t]+[^\n]*)*?\n[ \t]+version:\s*['\"]?([^'\"\s#]+)"
+)
 TASK_PATH_RE = re.compile(r"\b(src/[A-Za-z0-9._/-]+/handler\.py)\b")
 DOC_TENANT_ID_RE = re.compile(r"\bt-test-\d+\b")
 BOOTSTRAP_TENANT_ID_RE = re.compile(r"\bt-(?:basic|premium)-\d+\b")
@@ -67,6 +73,28 @@ def read_package_version(path: Path) -> str:
     return version
 
 
+def read_package_lock_version(path: Path) -> str:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    version = data.get("version")
+    root_package = data.get("packages", {}).get("", {})
+    root_version = root_package.get("version") if isinstance(root_package, dict) else None
+    if not isinstance(version, str) or not version:
+        raise RuntimeError(f"Could not parse version from {path}")
+    if root_version is not None and root_version != version:
+        raise RuntimeError(
+            f"Package lock version mismatch in {path}: top-level {version} != root {root_version}"
+        )
+    return version
+
+
+def read_openapi_version(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    match = OPENAPI_INFO_VERSION_RE.search(text)
+    if not match:
+        raise RuntimeError(f"Could not parse info.version from {path}")
+    return match.group(1)
+
+
 def current_head() -> str:
     return _run(["git", "rev-parse", "HEAD"])
 
@@ -79,7 +107,10 @@ def collect_versions() -> dict[str, str]:
     return {
         "python": read_pyproject_version(),
         "cdk": read_package_version(CDK_PACKAGE),
+        "cdk_lock": read_package_lock_version(CDK_PACKAGE_LOCK),
         "spa": read_package_version(SPA_PACKAGE),
+        "spa_lock": read_package_lock_version(SPA_PACKAGE_LOCK),
+        "openapi": read_openapi_version(OPENAPI_FILE),
     }
 
 

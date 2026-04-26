@@ -46,7 +46,7 @@ def test_docs_sync_filter_is_not_registered_in_shared_baseline() -> None:
     assert all(item.get("path") != DOCS_SYNC_FILTER for item in baseline["filters_used"])
 
 
-def test_docs_sync_filter_is_scoped_to_full_secret_scan_target() -> None:
+def test_docs_sync_filter_is_registered_on_all_secret_scan_targets() -> None:
     makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
 
     target_blocks = dict(
@@ -59,5 +59,5 @@ def test_docs_sync_filter_is_scoped_to_full_secret_scan_target() -> None:
     )
 
     assert DOCS_SYNC_FILTER in target_blocks["validate-secrets-full"]
-    assert DOCS_SYNC_FILTER not in target_blocks["validate-secrets-diff"]
-    assert DOCS_SYNC_FILTER not in target_blocks["validate-secrets-push"]
+    assert DOCS_SYNC_FILTER in target_blocks["validate-secrets-diff"]
+    assert DOCS_SYNC_FILTER in target_blocks["validate-secrets-push"]
