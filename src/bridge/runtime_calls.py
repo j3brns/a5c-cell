@@ -428,7 +428,7 @@ def invoke_real_runtime(
         body_text = body_bytes.decode("utf-8") if isinstance(body_bytes, (bytes, bytearray)) else ""
         token_usage = tpm_limiter.extract_token_usage(body_text)
         latency_ms = int((time.time() - start_time) * 1000)
-        log_result(
+        tpm_result = log_result(
             tenant_context,
             agent,
             invocation_id,
@@ -447,13 +447,14 @@ def invoke_real_runtime(
         runtime_session_id = coerce(runtime_response.get("runtimeSessionId"))
         if runtime_session_id:
             headers["x-runtime-session-id"] = runtime_session_id
+        headers.update(tpm_limiter.build_rate_limit_headers(tpm_result=tpm_result, now=start_time))
         return {
             "statusCode": int(runtime_response.get("statusCode", 200)),
             "headers": headers,
             "body": body_text,
         }
     except Exception as exc:
-        return failure_response(
+        error_resp = failure_response(
             tenant_context,
             agent,
             invocation_id,
@@ -464,6 +465,10 @@ def invoke_real_runtime(
             exc,
             session_id=session_id,
         )
+        error_resp.setdefault("headers", {}).update(
+            tpm_limiter.build_rate_limit_headers(tpm_result=None, now=start_time)
+        )
+        return error_resp
 
 
 def invoke_mock_runtime(
@@ -512,7 +517,7 @@ def invoke_mock_runtime(
         status = InvocationStatus.SUCCESS if response.ok else InvocationStatus.ERROR
         response_text, resolved_session_id = mock_runtime_response_body(response, session_id)
         token_usage = tpm_limiter.extract_token_usage(response_text)
-        log_result(
+        tpm_result = log_result(
             tenant_context,
             agent,
             invocation_id,
@@ -526,13 +531,17 @@ def invoke_mock_runtime(
             estimated_tokens=estimate or tpm_limiter.estimate_tokens_from_prompt(prompt),
             model_id=token_usage.model_id,
         )
+        resp_headers = {"Content-Type": response.headers.get("Content-Type", "application/json")}
+        resp_headers.update(
+            tpm_limiter.build_rate_limit_headers(tpm_result=tpm_result, now=start_time)
+        )
         return {
             "statusCode": response.status_code,
-            "headers": {"Content-Type": response.headers.get("Content-Type", "application/json")},
+            "headers": resp_headers,
             "body": response_text,
         }
     except Exception as exc:
-        return failure_response(
+        error_resp = failure_response(
             tenant_context,
             agent,
             invocation_id,
@@ -543,3 +552,7 @@ def invoke_mock_runtime(
             exc,
             session_id=session_id,
         )
+        error_resp.setdefault("headers", {}).update(
+            tpm_limiter.build_rate_limit_headers(tpm_result=None, now=start_time)
+        )
+        return error_resp
