@@ -14,6 +14,7 @@ import argparse
 import datetime
 import json
 import logging
+import re
 import sys
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -33,6 +34,15 @@ logger = logging.getLogger("register_agent")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+_RUNTIME_ARN_PATTERN = re.compile(
+    r"^arn:(?P<partition>aws|aws-us-gov|aws-cn):bedrock-agentcore:(?P<region>[a-z0-9-]+):"
+    r"(?P<account_id>\d{12}):runtime/(?P<runtime_id>[\w+=,.@\-_/]+)$"
+)
+_RUNTIME_ENDPOINT_ARN_PATTERN = re.compile(
+    r"^arn:(?P<partition>aws|aws-us-gov|aws-cn):bedrock-agentcore:(?P<region>[a-z0-9-]+):"
+    r"(?P<account_id>\d{12}):runtime/(?P<runtime_id>[A-Za-z][A-Za-z0-9_]{0,99}-[A-Za-z0-9]{10})"
+    r"/runtime-endpoint/(?P<endpoint_id>[A-Za-z][A-Za-z0-9_]{0,47}-[A-Za-z0-9]{10})$"
+)
 
 
 def require_aws_region() -> str:
@@ -57,6 +67,50 @@ def get_ssm_param(ssm, name: str) -> str | None:
         if error.get("Code") == "ParameterNotFound":
             return None
         raise
+
+
+def _runtime_endpoint_metadata(ssm, env: str) -> dict[str, str]:
+    names = {
+        "runtimeEndpointArn": f"/platform/{env}/agentcore/runtime-endpoint-arn",
+        "runtimeEndpointName": f"/platform/{env}/agentcore/runtime-endpoint-name",
+        "runtimeEndpointVersion": f"/platform/{env}/agentcore/runtime-endpoint-version",
+    }
+    metadata: dict[str, str] = {}
+    missing: list[str] = []
+    for key, name in names.items():
+        try:
+            value = get_ssm_param(ssm, name)
+        except LookupError:
+            value = None
+        if value:
+            metadata[key] = value
+        else:
+            missing.append(key)
+    if missing:
+        joined = ", ".join(sorted(missing))
+        raise RuntimeError(f"Incomplete runtime endpoint metadata in SSM: missing {joined}")
+    return metadata
+
+
+def _validate_runtime_endpoint_metadata(runtime_arn: str, metadata: dict[str, str]) -> None:
+    if not metadata:
+        return
+
+    runtime_match = _RUNTIME_ARN_PATTERN.fullmatch(runtime_arn)
+    if not runtime_match:
+        raise RuntimeError("Runtime endpoint metadata requires a valid runtime ARN")
+
+    endpoint_match = _RUNTIME_ENDPOINT_ARN_PATTERN.fullmatch(metadata["runtimeEndpointArn"])
+    if not endpoint_match:
+        raise RuntimeError("Runtime endpoint ARN from SSM is malformed")
+
+    for field in ("partition", "region", "account_id", "runtime_id"):
+        if endpoint_match.group(field) != runtime_match.group(field):
+            raise RuntimeError("Runtime endpoint ARN from SSM does not match runtime ARN")
+
+    endpoint_name = metadata["runtimeEndpointName"]
+    if not endpoint_match.group("endpoint_id").startswith(f"{endpoint_name}-"):
+        raise RuntimeError("Runtime endpoint ARN from SSM does not match runtime endpoint name")
 
 
 def _request_api(
@@ -106,6 +160,16 @@ def register_agent(agent_name: str, env: str, api_base_url: str | None, token: s
             "Run deploy_agent first."
         )
         return False
+    try:
+        canonical_runtime_arn = get_ssm_param(ssm, f"/platform/{env}/agentcore/runtime-arn")
+    except LookupError:
+        canonical_runtime_arn = None
+    if canonical_runtime_arn and canonical_runtime_arn != runtime_arn:
+        logger.error(
+            "Agent runtime ARN does not match canonical AgentCore runtime ARN for env '%s'",
+            env,
+        )
+        return False
 
     deployment_type = manifest.deployment.type
     if deployment_type == "container":
@@ -130,6 +194,15 @@ def register_agent(agent_name: str, env: str, api_base_url: str | None, token: s
         script_s3_key = resolved_script_s3_key
 
     deployed_at = datetime.datetime.now(datetime.UTC).isoformat()
+    try:
+        runtime_endpoint_metadata = _runtime_endpoint_metadata(ssm, env)
+        if not canonical_runtime_arn:
+            logger.error("Canonical AgentCore runtime ARN is required with endpoint metadata")
+            return False
+        _validate_runtime_endpoint_metadata(runtime_arn, runtime_endpoint_metadata)
+    except RuntimeError as exc:
+        logger.error(str(exc))
+        return False
 
     body = {
         "agentName": agent_name,
@@ -144,6 +217,7 @@ def register_agent(agent_name: str, env: str, api_base_url: str | None, token: s
         "streamingEnabled": manifest.streaming_enabled,
         "status": "built",
         "runtimeArn": runtime_arn,
+        **runtime_endpoint_metadata,
         "modelId": manifest.llm.model_id,
         "estimatedDurationSeconds": manifest.estimated_duration_seconds,
         "commitSha": get_settings().gitlab.commit_sha,

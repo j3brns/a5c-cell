@@ -404,7 +404,20 @@ endpoint = "https://ag-ui.example.com/connect"
             f"/platform/layers/{env}/{agent_name}/hash": "hash123",
             f"/platform/layers/{env}/{agent_name}/s3-key": "layers/key.zip",
             f"/platform/agents/{env}/{agent_name}/script-s3-key": "scripts/custom-key.zip",
-            f"/platform/agents/{env}/{agent_name}/runtime-arn": "arn:runtime:echo-agent",
+            f"/platform/agents/{env}/{agent_name}/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-endpoint-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+            ),
+            f"/platform/{env}/agentcore/runtime-endpoint-name": "PlatformdevEndpoint",
+            f"/platform/{env}/agentcore/runtime-endpoint-version": "7",
         }[name],
     )
 
@@ -423,7 +436,14 @@ endpoint = "https://ag-ui.example.com/connect"
         "transport": "sse",
         "endpoint": "https://ag-ui.example.com/connect",
     }
-    assert item["runtimeArn"] == "arn:runtime:echo-agent"
+    assert item["runtimeArn"] == (
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/PlatformdevRuntime-aaaaaaaaaa"
+    )
+    assert item["runtimeEndpointArn"].endswith(
+        "runtime/PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+    )
+    assert item["runtimeEndpointName"] == "PlatformdevEndpoint"
+    assert item["runtimeEndpointVersion"] == "7"
     assert seen_request == {
         "url": "http://localhost/v1/platform/agents",
         "method": "POST",
@@ -475,8 +495,130 @@ invocation_mode = "sync"
             f"/platform/layers/{env}/{agent_name}/hash": "hash123",
             f"/platform/layers/{env}/{agent_name}/s3-key": "layers/key.zip",
             f"/platform/agents/{env}/{agent_name}/script-s3-key": "scripts/custom-key.zip",
-            f"/platform/agents/{env}/{agent_name}/runtime-arn": "arn:runtime:echo-agent",
-        }[name],
+            f"/platform/agents/{env}/{agent_name}/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-endpoint-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+            ),
+            f"/platform/{env}/agentcore/runtime-endpoint-name": "PlatformdevEndpoint",
+            f"/platform/{env}/agentcore/runtime-endpoint-version": "7",
+        }.get(name),
+    )
+
+    assert register_agent.register_agent(agent_name, env, None, None) is False
+
+
+def test_register_agent_rejects_runtime_endpoint_drift(tmp_path, monkeypatch):
+    monkeypatch.setenv("AWS_REGION", _REGION)
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setattr(register_agent, "REPO_ROOT", tmp_path)
+
+    agent_name = "echo-agent"
+    env = "dev"
+    agent_dir = tmp_path / "agents" / agent_name
+    agent_dir.mkdir(parents=True)
+    (agent_dir / "pyproject.toml").write_text("""
+[project]
+name = "echo-agent"
+version = "1.2.3"
+
+[tool.agentcore]
+name = "echo-agent"
+owner_team = "platform"
+tier_minimum = "basic"
+handler = "handler:invoke"
+invocation_mode = "sync"
+
+[tool.agentcore.deployment]
+type = "container"
+""")
+    fake_ssm = types.SimpleNamespace()
+
+    monkeypatch.setattr(
+        register_agent,
+        "boto3",
+        types.SimpleNamespace(client=lambda service_name, **kwargs: fake_ssm),
+    )
+    monkeypatch.setenv("API_BASE_URL", "http://localhost")
+    monkeypatch.setenv("PLATFORM_ACCESS_TOKEN", "fake-token")
+    monkeypatch.setattr(register_agent, "_request_api", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        register_agent,
+        "get_ssm_param",
+        lambda ssm, name: {
+            f"/platform/agents/{env}/{agent_name}/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/OtherRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-endpoint-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "OtherRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+            ),
+            f"/platform/{env}/agentcore/runtime-endpoint-name": "PlatformdevEndpoint",
+            f"/platform/{env}/agentcore/runtime-endpoint-version": "7",
+        }.get(name),
+    )
+
+    assert register_agent.register_agent(agent_name, env, None, None) is False
+
+
+def test_register_agent_requires_runtime_endpoint_metadata(tmp_path, monkeypatch):
+    monkeypatch.setenv("AWS_REGION", _REGION)
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setattr(register_agent, "REPO_ROOT", tmp_path)
+
+    agent_name = "echo-agent"
+    env = "dev"
+    agent_dir = tmp_path / "agents" / agent_name
+    agent_dir.mkdir(parents=True)
+    (agent_dir / "pyproject.toml").write_text("""
+[project]
+name = "echo-agent"
+version = "1.2.3"
+
+[tool.agentcore]
+name = "echo-agent"
+owner_team = "platform"
+tier_minimum = "basic"
+handler = "handler:invoke"
+invocation_mode = "sync"
+
+[tool.agentcore.deployment]
+type = "container"
+""")
+    fake_ssm = types.SimpleNamespace()
+
+    monkeypatch.setattr(
+        register_agent,
+        "boto3",
+        types.SimpleNamespace(client=lambda service_name, **kwargs: fake_ssm),
+    )
+    monkeypatch.setenv("API_BASE_URL", "http://localhost")
+    monkeypatch.setenv("PLATFORM_ACCESS_TOKEN", "fake-token")
+    monkeypatch.setattr(register_agent, "_request_api", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        register_agent,
+        "get_ssm_param",
+        lambda ssm, name: {
+            f"/platform/agents/{env}/{agent_name}/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+        }.get(name),
     )
 
     assert register_agent.register_agent(agent_name, env, None, None) is False
@@ -519,8 +661,21 @@ invocation_mode = "sync"
             f"/platform/layers/{env}/{agent_name}/hash": "hash123",
             f"/platform/layers/{env}/{agent_name}/s3-key": "layers/key.zip",
             f"/platform/agents/{env}/{agent_name}/script-s3-key": "scripts/custom-key.zip",
-            f"/platform/agents/{env}/{agent_name}/runtime-arn": "arn:runtime:echo-agent",
-        }[name],
+            f"/platform/agents/{env}/{agent_name}/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            f"/platform/{env}/agentcore/runtime-endpoint-arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+            ),
+            f"/platform/{env}/agentcore/runtime-endpoint-name": "PlatformdevEndpoint",
+            f"/platform/{env}/agentcore/runtime-endpoint-version": "7",
+        }.get(name),
     )
 
     monkeypatch.setattr(
@@ -585,14 +740,9 @@ port = 8080
         }.get(name),
     )
 
-    assert register_agent.register_agent(agent_name, env, None, None) is True
+    assert register_agent.register_agent(agent_name, env, None, None) is False
 
-    assert len(stored_items) == 1
-    item = stored_items[0]
-    assert item["layerHash"] == ""
-    assert item["layerS3Key"] == ""
-    assert item["scriptS3Key"] == ""
-    assert item["runtimeArn"] == "arn:runtime:echo-agent"
+    assert stored_items == []
 
 
 def test_register_agent_returns_false_when_manifest_invalid_before_aws(tmp_path, monkeypatch):

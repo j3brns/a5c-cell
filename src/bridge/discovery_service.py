@@ -232,6 +232,9 @@ def _agent_record_from_item(item: dict[str, Any]) -> AgentRecord:
         streaming_enabled=bool(item.get("streaming_enabled", False)),
         status=AgentStatus(str(item.get("status", AgentStatus.PROMOTED.value))),
         runtime_arn=runtime_arn,
+        runtime_endpoint_arn=_coerce_optional_string(item.get("runtime_endpoint_arn")),
+        runtime_endpoint_name=_coerce_optional_string(item.get("runtime_endpoint_name")),
+        runtime_endpoint_version=_coerce_optional_string(item.get("runtime_endpoint_version")),
         estimated_duration_seconds=item.get("estimated_duration_seconds"),
         ag_ui=AgentAgUiConfig(
             enabled=bool(ag_ui_item.get("enabled", False)),

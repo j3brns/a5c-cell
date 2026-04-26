@@ -483,10 +483,17 @@ requires an explicit ADR because it changes the tenant identity boundary.
 **platform-agents** — agent registry
 - PK: `AGENT#{agentName}`, SK: `VERSION#{semver}`
 - Attributes: agentName, version, ownerTeam, tierMinimum, layerHash,
-  layerS3Key, scriptS3Key, runtimeArn, deployedAt, invocationMode,
+  layerS3Key, scriptS3Key, runtimeArn, runtimeEndpointArn,
+  runtimeEndpointName, runtimeEndpointVersion, deployedAt, invocationMode,
   streamingEnabled, estimatedDurationSeconds, status, approvedBy,
   approvedAt, releaseNotes
 - Capacity: on-demand
+
+The runtime endpoint fields bind a promoted agent version to the v0.2
+`AWS::BedrockAgentCore::RuntimeEndpoint` selected during registration. Bridge
+validates that the endpoint ARN belongs to the recorded runtime ARN before
+invocation, then passes the endpoint name as the AgentCore `qualifier` and the
+platform session ID as `runtimeSessionId` when one is supplied.
 
 ### Agent Release State Source Of Truth
 

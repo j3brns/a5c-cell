@@ -2470,7 +2470,6 @@ def test_platform_register_agent_allows_container_without_zip_layer_metadata(
             "layerHash": "",
             "layerS3Key": "",
             "scriptS3Key": "",
-            "runtimeArn": "arn:runtime:echo-agent",
             "invocationMode": "sync",
         },
         roles=["Platform.Admin"],
@@ -2482,9 +2481,146 @@ def test_platform_register_agent_allows_container_without_zip_layer_metadata(
 
     assert response["statusCode"] == 201
     item = fake_state["db"].items[("AGENT#echo-agent", "VERSION#1.2.6")]
-    assert item["runtime_arn"] == "arn:runtime:echo-agent"
     assert item["layer_hash"] == ""
     assert item["layer_s3_key"] == ""
+
+
+def test_platform_register_agent_persists_runtime_endpoint_metadata(
+    fake_state: dict[str, Any],
+) -> None:
+    event = _event(
+        method="POST",
+        body={
+            "agentName": "echo-agent",
+            "version": "1.2.7",
+            "ownerTeam": "platform",
+            "tierMinimum": "basic",
+            "layerHash": "",
+            "layerS3Key": "",
+            "scriptS3Key": "",
+            "runtimeArn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            "runtimeEndpointArn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+            ),
+            "runtimeEndpointName": "PlatformdevEndpoint",
+            "runtimeEndpointVersion": "7",
+            "invocationMode": "sync",
+        },
+        roles=["Platform.Admin"],
+        caller_tenant_id="platform",
+    )
+    event["path"] = "/v1/platform/agents"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 201
+    item = fake_state["db"].items[("AGENT#echo-agent", "VERSION#1.2.7")]
+    assert item["runtime_endpoint_arn"].endswith(
+        "runtime/PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+    )
+    assert item["runtime_endpoint_name"] == "PlatformdevEndpoint"
+    assert item["runtime_endpoint_version"] == "7"
+
+
+def test_platform_register_agent_rejects_partial_runtime_endpoint_metadata(
+    fake_state: dict[str, Any],
+) -> None:
+    event = _event(
+        method="POST",
+        body={
+            "agentName": "echo-agent",
+            "version": "1.2.8",
+            "ownerTeam": "platform",
+            "tierMinimum": "basic",
+            "layerHash": "",
+            "layerS3Key": "",
+            "scriptS3Key": "",
+            "runtimeArn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            "runtimeEndpointName": "PlatformdevEndpoint",
+            "invocationMode": "sync",
+        },
+        roles=["Platform.Admin"],
+        caller_tenant_id="platform",
+    )
+    event["path"] = "/v1/platform/agents"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 400
+    assert ("AGENT#echo-agent", "VERSION#1.2.8") not in fake_state["db"].items
+
+
+def test_platform_register_agent_requires_runtime_endpoint_metadata_with_runtime_arn(
+    fake_state: dict[str, Any],
+) -> None:
+    event = _event(
+        method="POST",
+        body={
+            "agentName": "echo-agent",
+            "version": "1.2.10",
+            "ownerTeam": "platform",
+            "tierMinimum": "basic",
+            "layerHash": "",
+            "layerS3Key": "",
+            "scriptS3Key": "",
+            "runtimeArn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            "invocationMode": "sync",
+        },
+        roles=["Platform.Admin"],
+        caller_tenant_id="platform",
+    )
+    event["path"] = "/v1/platform/agents"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 400
+    assert ("AGENT#echo-agent", "VERSION#1.2.10") not in fake_state["db"].items
+
+
+def test_platform_register_agent_rejects_runtime_endpoint_drift(
+    fake_state: dict[str, Any],
+) -> None:
+    event = _event(
+        method="POST",
+        body={
+            "agentName": "echo-agent",
+            "version": "1.2.9",
+            "ownerTeam": "platform",
+            "tierMinimum": "basic",
+            "layerHash": "",
+            "layerS3Key": "",
+            "scriptS3Key": "",
+            "runtimeArn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            "runtimeEndpointArn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "OtherRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+            ),
+            "runtimeEndpointName": "PlatformdevEndpoint",
+            "runtimeEndpointVersion": "7",
+            "invocationMode": "sync",
+        },
+        roles=["Platform.Admin"],
+        caller_tenant_id="platform",
+    )
+    event["path"] = "/v1/platform/agents"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 400
+    assert ("AGENT#echo-agent", "VERSION#1.2.9") not in fake_state["db"].items
 
 
 def test_platform_promote_agent_updates_metadata_and_emits_event(

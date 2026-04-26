@@ -161,6 +161,90 @@ def test_invoke_real_runtime_uses_arn_from_record(
 @patch("src.bridge.handler.get_runtime_client")
 @patch("src.bridge.handler.get_tenant_record")
 @patch("src.bridge.handler.assume_tenant_role")
+def test_invoke_real_runtime_targets_registered_endpoint_and_runtime_session(
+    mock_assume, mock_get_record, mock_get_runtime_client, mock_aws_services
+):
+    tenant_context = _tenant_context()
+    agent = _agent()
+    agent.runtime_arn = (
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/PlatformdevRuntime-aaaaaaaaaa"
+    )
+    agent.runtime_endpoint_arn = (
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+        "PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+    )
+    agent.runtime_endpoint_name = "PlatformdevEndpoint"
+    runtime_client = MagicMock()
+    runtime_client.invoke_agent_runtime.return_value = _runtime_response(b'{"echo":"Echo: prompt"}')
+    mock_get_runtime_client.return_value = runtime_client
+    mock_assume.return_value = {
+        "AccessKeyId": "assumed-akid",
+        "SecretAccessKey": "assumed-secret",  # pragma: allowlist secret
+        "SessionToken": "assumed-token",
+    }
+    mock_get_record.return_value = {
+        "account_id": "123456789012",
+        "executionRoleArn": "arn:aws:iam::123456789012:role/record-role",
+    }
+
+    response = invoke_real_runtime(
+        "eu-west-2",
+        agent,
+        tenant_context,
+        "prompt",
+        "session-123",
+        None,
+        "req-1",
+        None,
+        "inv-1",
+        0.0,
+    )
+
+    assert response["statusCode"] == 200
+    _, kwargs = runtime_client.invoke_agent_runtime.call_args
+    assert kwargs["agentRuntimeArn"] == agent.runtime_arn
+    assert kwargs["qualifier"] == "PlatformdevEndpoint"
+    assert kwargs["runtimeSessionId"] == "session-123"
+    assert json.loads(kwargs["payload"].decode("utf-8"))["sessionId"] == "session-123"
+
+
+@patch("src.bridge.handler.get_tenant_record")
+def test_invoke_real_runtime_rejects_endpoint_runtime_drift(mock_get_record, mock_aws_services):
+    tenant_context = _tenant_context()
+    agent = _agent()
+    agent.runtime_arn = (
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/PlatformdevRuntime-aaaaaaaaaa"
+    )
+    agent.runtime_endpoint_arn = (
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+        "OtherRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+    )
+    agent.runtime_endpoint_name = "PlatformdevEndpoint"
+    mock_get_record.return_value = {
+        "account_id": "123456789012",
+        "executionRoleArn": "arn:aws:iam::123456789012:role/record-role",
+    }
+
+    response = invoke_real_runtime(
+        "eu-west-2",
+        agent,
+        tenant_context,
+        "prompt",
+        None,
+        None,
+        "req-1",
+        None,
+        "inv-1",
+        0.0,
+    )
+
+    assert response["statusCode"] == 500
+    assert _error_message(response) == "Agent runtime endpoint ARN does not match runtime ARN"
+
+
+@patch("src.bridge.handler.get_runtime_client")
+@patch("src.bridge.handler.get_tenant_record")
+@patch("src.bridge.handler.assume_tenant_role")
 def test_invoke_real_runtime_logs_actual_and_estimated_tokens(
     mock_assume, mock_get_record, mock_get_runtime_client, mock_aws_services
 ):
@@ -372,6 +456,38 @@ def test_invoke_real_runtime_rewrites_runtime_arn_to_active_region(
     _, kwargs = runtime_client.invoke_agent_runtime.call_args
     assert kwargs["agentRuntimeArn"] == (
         "arn:aws:bedrock-agentcore:eu-central-1:210987654321:runtime/echo-agent"
+    )
+
+
+def test_invoke_real_runtime_rejects_endpoint_when_active_region_drifted(mock_aws_services):
+    tenant_context = _tenant_context()
+    agent = _agent()
+    agent.runtime_arn = (
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/PlatformdevRuntime-aaaaaaaaaa"
+    )
+    agent.runtime_endpoint_arn = (
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+        "PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+    )
+    agent.runtime_endpoint_name = "PlatformdevEndpoint"
+
+    response = invoke_real_runtime(
+        "eu-central-1",
+        agent,
+        tenant_context,
+        "prompt",
+        None,
+        None,
+        "req-1",
+        None,
+        "inv-1",
+        0.0,
+    )
+
+    assert response["statusCode"] == 500
+    assert (
+        _error_message(response)
+        == "Agent runtime endpoint region does not match active runtime region"
     )
 
 

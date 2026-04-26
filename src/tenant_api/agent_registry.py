@@ -49,6 +49,9 @@ _REGISTER_MUTABLE_FIELDS = frozenset(
         "modelId",
         "estimatedDurationSeconds",
         "runtimeArn",
+        "runtimeEndpointArn",
+        "runtimeEndpointName",
+        "runtimeEndpointVersion",
         "agUiEnabled",
         "agUiTransport",
         "agUiEndpoint",
@@ -57,6 +60,18 @@ _REGISTER_MUTABLE_FIELDS = frozenset(
 
 _SUPPORTED_V0_2_INVOCATION_MODES = frozenset(
     {InvocationMode.SYNC.value, InvocationMode.STREAMING.value}
+)
+_RUNTIME_ARN_PATTERN = re.compile(
+    r"^arn:(?P<partition>aws|aws-us-gov|aws-cn):bedrock-agentcore:(?P<region>[a-z0-9-]+):"
+    r"(?P<account_id>\d{12}):runtime/(?P<runtime_id>[\w+=,.@\-_/]+)$"
+)
+_RUNTIME_ENDPOINT_ARN_PATTERN = re.compile(
+    r"^arn:(?P<partition>aws|aws-us-gov|aws-cn):bedrock-agentcore:(?P<region>[a-z0-9-]+):"
+    r"(?P<account_id>\d{12}):runtime/(?P<runtime_id>[A-Za-z][A-Za-z0-9_]{0,99}-[A-Za-z0-9]{10})"
+    r"/runtime-endpoint/(?P<endpoint_id>[A-Za-z][A-Za-z0-9_]{0,47}-[A-Za-z0-9]{10})$"
+)
+_RUNTIME_ENDPOINT_FIELDS = frozenset(
+    {"runtime_endpoint_arn", "runtime_endpoint_name", "runtime_endpoint_version"}
 )
 
 
@@ -85,6 +100,49 @@ def _validate_layer_metadata_invariants(item: dict[str, Any]) -> None:
     if missing_fields:
         joined = ", ".join(missing_fields)
         raise ValueError(f"Zip-agent registration requires non-empty {joined}")
+
+
+def _validate_runtime_endpoint_invariants(item: dict[str, Any]) -> None:
+    runtime_arn = str(item.get("runtime_arn", "")).strip()
+    configured = {field for field in _RUNTIME_ENDPOINT_FIELDS if str(item.get(field, "")).strip()}
+    if runtime_arn and not configured:
+        raise ValueError(
+            "Runtime registration requires runtimeEndpointArn, runtimeEndpointName, "
+            "runtimeEndpointVersion"
+        )
+    if not configured:
+        return
+    if configured != _RUNTIME_ENDPOINT_FIELDS:
+        missing = ", ".join(
+            sorted(
+                {
+                    "runtimeEndpointArn"
+                    if field == "runtime_endpoint_arn"
+                    else "runtimeEndpointName"
+                    if field == "runtime_endpoint_name"
+                    else "runtimeEndpointVersion"
+                    for field in _RUNTIME_ENDPOINT_FIELDS - configured
+                }
+            )
+        )
+        raise ValueError(f"Runtime endpoint registration requires non-empty {missing}")
+
+    runtime_match = _RUNTIME_ARN_PATTERN.fullmatch(runtime_arn)
+    if not runtime_match:
+        raise ValueError("Runtime endpoint registration requires a valid runtimeArn")
+
+    endpoint_arn = str(item.get("runtime_endpoint_arn", "")).strip()
+    endpoint_match = _RUNTIME_ENDPOINT_ARN_PATTERN.fullmatch(endpoint_arn)
+    if not endpoint_match:
+        raise ValueError("runtimeEndpointArn is malformed")
+
+    for field in ("partition", "region", "account_id", "runtime_id"):
+        if endpoint_match.group(field) != runtime_match.group(field):
+            raise ValueError("runtimeEndpointArn does not match runtimeArn")
+
+    endpoint_name = str(item.get("runtime_endpoint_name", "")).strip()
+    if not endpoint_match.group("endpoint_id").startswith(f"{endpoint_name}-"):
+        raise ValueError("runtimeEndpointArn does not match runtimeEndpointName")
 
 
 def handle_list_agents(
@@ -165,6 +223,12 @@ def handle_register_agent(
         item["estimated_duration_seconds"] = int(body["estimatedDurationSeconds"])
     if "runtimeArn" in body:
         item["runtime_arn"] = str(body["runtimeArn"]).strip()
+    if "runtimeEndpointArn" in body:
+        item["runtime_endpoint_arn"] = str(body["runtimeEndpointArn"]).strip()
+    if "runtimeEndpointName" in body:
+        item["runtime_endpoint_name"] = str(body["runtimeEndpointName"]).strip()
+    if "runtimeEndpointVersion" in body:
+        item["runtime_endpoint_version"] = str(body["runtimeEndpointVersion"]).strip()
 
     # AG-UI Config
     raw_ag_ui_value = body.get("agUi")
@@ -183,6 +247,7 @@ def handle_register_agent(
     item["ag_ui_endpoint"] = ag_ui_endpoint
 
     _validate_layer_metadata_invariants(item)
+    _validate_runtime_endpoint_invariants(item)
 
     db.put_item(db_factory.agents_table_name(), item)
 

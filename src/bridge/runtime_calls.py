@@ -10,7 +10,11 @@ from botocore.exceptions import ClientError
 from data_access.models import AgentRecord, InvocationMode, InvocationStatus, TenantContext
 
 from src.bridge import role_resolver, telemetry, tpm_limiter
-from src.bridge.constants import IAM_ROLE_ARN_PATTERN, RUNTIME_ARN_PATTERN
+from src.bridge.constants import (
+    IAM_ROLE_ARN_PATTERN,
+    RUNTIME_ARN_PATTERN,
+    RUNTIME_ENDPOINT_ARN_PATTERN,
+)
 from src.bridge.runtime_dependencies import (
     get_cloudwatch,
 )
@@ -95,6 +99,38 @@ def validate_runtime_arn(runtime_arn: str) -> Any:
     if not match:
         raise ValueError("Agent runtime ARN is malformed")
     return match
+
+
+def validate_runtime_endpoint(
+    *,
+    runtime_arn_match: Any,
+    runtime_endpoint_arn: str | None,
+    runtime_endpoint_name: str | None,
+) -> str | None:
+    if runtime_endpoint_arn is None and runtime_endpoint_name is None:
+        return None
+    if runtime_endpoint_arn is None or runtime_endpoint_name is None:
+        raise ValueError("Agent runtime endpoint ARN and name must both be configured")
+
+    endpoint_match = RUNTIME_ENDPOINT_ARN_PATTERN.fullmatch(runtime_endpoint_arn)
+    if not endpoint_match:
+        raise ValueError("Agent runtime endpoint ARN is malformed")
+
+    for field in ("partition", "region", "account_id", "runtime_id"):
+        if endpoint_match.group(field) != runtime_arn_match.group(field):
+            raise ValueError("Agent runtime endpoint ARN does not match runtime ARN")
+
+    endpoint_id = endpoint_match.group("endpoint_id")
+    expected_prefix = f"{runtime_endpoint_name}-"
+    if not endpoint_id.startswith(expected_prefix):
+        raise ValueError("Agent runtime endpoint ARN does not match endpoint name")
+
+    return runtime_endpoint_name
+
+
+def _agent_optional_string(agent: AgentRecord, name: str) -> str | None:
+    value = getattr(agent, name, None)
+    return _coerce_optional_string(value) if isinstance(value, str) else None
 
 
 def runtime_failure_response(
@@ -313,7 +349,23 @@ def invoke_real_runtime(
     runtime_arn_match = validate_arn(runtime_arn)
     runtime_arn_region = runtime_arn_match.group("region")
     if runtime_arn_region != region:
+        if _agent_optional_string(agent, "runtime_endpoint_arn") is not None:
+            return build_error_response(
+                500,
+                "INVALID_RUNTIME",
+                "Agent runtime endpoint region does not match active runtime region",
+                request_id,
+            )
         runtime_arn = runtime_arn.replace(f":{runtime_arn_region}:", f":{region}:", 1)
+        runtime_arn_match = validate_arn(runtime_arn)
+    try:
+        runtime_endpoint_qualifier = validate_runtime_endpoint(
+            runtime_arn_match=runtime_arn_match,
+            runtime_endpoint_arn=_agent_optional_string(agent, "runtime_endpoint_arn"),
+            runtime_endpoint_name=_agent_optional_string(agent, "runtime_endpoint_name"),
+        )
+    except ValueError as exc:
+        return build_error_response(500, "INVALID_RUNTIME", str(exc), request_id)
     invocation_id = invocation_id or str(uuid.uuid4())
     start_time = start_time or time.time()
 
@@ -349,12 +401,17 @@ def invoke_real_runtime(
 
     try:
         runtime_client = runtime_client_factory(region, credentials=runtime_credentials)
-        runtime_response = runtime_client.invoke_agent_runtime(
-            agentRuntimeArn=runtime_arn,
-            payload=json.dumps(
+        invoke_kwargs: dict[str, Any] = {
+            "agentRuntimeArn": runtime_arn,
+            "payload": json.dumps(
                 build_payload(agent, tenant_context, prompt, session_id=session_id)
             ).encode("utf-8"),
-        )
+        }
+        if session_id:
+            invoke_kwargs["runtimeSessionId"] = session_id
+        if runtime_endpoint_qualifier:
+            invoke_kwargs["qualifier"] = runtime_endpoint_qualifier
+        runtime_response = runtime_client.invoke_agent_runtime(**invoke_kwargs)
         response_body = runtime_response.get("response")
         ttft_ms: int | None = None
         if agent.invocation_mode == InvocationMode.STREAMING:
