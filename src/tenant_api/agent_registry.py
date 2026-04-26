@@ -41,6 +41,7 @@ _REGISTER_MUTABLE_FIELDS = frozenset(
         "layerHash",
         "layerS3Key",
         "scriptS3Key",
+        "modelId",
         "estimatedDurationSeconds",
         "runtimeArn",
         "agUiEnabled",
@@ -144,6 +145,8 @@ def handle_register_agent(
 
     if "displayName" in body:
         item["display_name"] = str(body["displayName"]).strip()
+    if "modelId" in body:
+        item["model_id"] = str(body["modelId"]).strip()
     if "estimatedDurationSeconds" in body:
         item["estimated_duration_seconds"] = int(body["estimatedDurationSeconds"])
     if "runtimeArn" in body:

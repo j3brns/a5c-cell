@@ -95,6 +95,7 @@ class TenantCapabilityPolicy:
     schema_version: str = "2026-03-21"
     capabilities: dict[str, CapabilityRollout] = field(default_factory=dict)
     killed_capabilities: frozenset[str] = field(default_factory=frozenset)
+    tpm_limits: dict[str, dict[TenantTier, int]] = field(default_factory=dict)
 
     @classmethod
     def safe_fallback(cls) -> TenantCapabilityPolicy:
@@ -111,3 +112,10 @@ class TenantCapabilityPolicy:
         if rollout is None:
             return False
         return rollout.is_enabled_for(tenant_id=tenant_id, tenant_tier=tenant_tier)
+
+    def get_tpm_limit(self, model_id: str, tenant_tier: TenantTier) -> int:
+        """Return the TPM limit for a given model and tier. 0 means unlimited."""
+        model_limits = self.tpm_limits.get(model_id)
+        if not model_limits:
+            return 0
+        return model_limits.get(tenant_tier, 0)

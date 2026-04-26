@@ -24,6 +24,7 @@ RUNTIME_REGION_PARAM = os.environ.get("RUNTIME_REGION_PARAM", "/platform/config/
 MOCK_RUNTIME_URL_PARAM = os.environ.get(
     "MOCK_RUNTIME_URL_PARAM", "/platform/config/mock-runtime-url"
 )
+VALKEY_ENDPOINT_PARAM = os.environ.get("VALKEY_ENDPOINT_PARAM", "/platform/config/valkey-endpoint")
 TENANT_EXECUTION_ROLE_PARAM_TEMPLATE = os.environ.get(
     "TENANT_EXECUTION_ROLE_PARAM_TEMPLATE", "/platform/tenants/{tenant_id}/execution-role-arn"
 )

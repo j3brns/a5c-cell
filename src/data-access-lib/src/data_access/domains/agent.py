@@ -99,6 +99,7 @@ class AgentRecord:
     approved_at: str | None = None
     release_notes: str | None = None
     runtime_arn: str | None = None
+    model_id: str | None = None
     estimated_duration_seconds: int | None = None
     commit_sha: str | None = None
     pipeline_url: str | None = None
