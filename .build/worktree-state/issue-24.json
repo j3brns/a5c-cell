@@ -1,0 +1,99 @@
+{
+  "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+  "details": {
+    "error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt24']' returned non-zero exit status 128.",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-24-wt_docs_24-write-adr-for-eu-west-2-agentcore-runtime-collapse.json"
+  },
+  "events": [
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "docs",
+        "slug": "write-adr-for-eu-west-2-agentcore-runtime-collapse"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:24:wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse:/home/julesb/worktrees/wt24",
+      "issue_number": 24,
+      "issue_title": "TASK-202: Write ADR for eu-west-2 AgentCore runtime collapse",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-24T22:12:51.558857+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    },
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:24:/home/julesb/worktrees/wt24:claude:yolo:execute-now:tmux",
+      "issue_number": 24,
+      "issue_title": "TASK-202: Write ADR for eu-west-2 AgentCore runtime collapse",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-24T22:12:51.560631+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    },
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-24-wt_docs_24-write-adr-for-eu-west-2-agentcore-runtime-collapse.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:24:wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse:/home/julesb/worktrees/wt24",
+      "issue_number": 24,
+      "issue_title": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-24T22:23:01.010156+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    },
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt24']' returned non-zero exit status 128.",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-24-wt_docs_24-write-adr-for-eu-west-2-agentcore-runtime-collapse.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:24:wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse:/home/julesb/worktrees/wt24",
+      "issue_number": 24,
+      "issue_title": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-24T22:23:06.536348+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    },
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt24']' returned non-zero exit status 128.",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-24-wt_docs_24-write-adr-for-eu-west-2-agentcore-runtime-collapse.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:24:wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse:/home/julesb/worktrees/wt24:Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt24']' returned non-zero exit status 128.",
+      "issue_number": 24,
+      "issue_title": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-24T22:23:06.536804+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    }
+  ],
+  "issue_number": 24,
+  "issue_title": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+  "last_event_type": "handback-failed",
+  "last_updated_at": "2026-04-24T22:23:06.536804+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "handback-failed",
+  "worktree_path": "/home/julesb/worktrees/wt24"
+}

@@ -1,9 +1,0 @@
-{
-  "branch": "wt/task/479-centralize-tenant-api-environment-reads-behind-tenantapiconf",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-05T05:35:53.758067+00:00",
-  "head_sha": "72be686867711357c4884a7a200428d6bf4cf23d",
-  "issue_number": 479,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/wt479"
-}

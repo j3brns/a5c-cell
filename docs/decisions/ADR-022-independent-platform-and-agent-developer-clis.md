@@ -42,6 +42,17 @@ We will split the unified `platform-cli` into two independent, purpose-built CLI
     ```
 -   **Makefile Integration:** The root `Makefile` will provide disambiguated targets (e.g., `make help-platform` vs. `make help-agent`) as specified in the DevEx stream (TASK-801).
 
+### Implementation Backlog
+The following tasks are identified to fulfill the CLI split, ordered by dependency:
+
+1.  **DevEx Stream 8xx**: Implement `make bootstrap-agent`, per-agent Makefiles, and doc updates as defined in `docs/SPEC-DEV-EXPERIENCE-AND-ADR703.md` (TASK-801 to 804).
+2.  **Issue Tool Modularization (TASK-701)**: Complete the extraction of the 4,500-line `scripts/issue_tool/cli.py` monolith into purpose-built modules:
+    -   **Phase 1: specialized integrations**: Extract GitNexus and Pre-provisioning logic.
+    -   **Phase 2: Core Worktree Ops**: Extract worktree management and terminal multiplexer (tmux/zellij) logic.
+    -   **Phase 3: CLI Slimming**: Reduce `cli.py` to a thin `argparse` wrapper for command dispatch.
+3.  **Typer Migration (TASK-056)**: After modularization, migrate `scripts/platform_cli.py` to use Typer for improved documentation and argument parsing (Issue #40).
+4.  **CLI Split**: Create the new `agent-cli` entry point and move `agent` and `dev` sub-apps from `platform-cli`.
+
 ## Consequences
 
 ### Positive

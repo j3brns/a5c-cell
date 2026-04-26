@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/44-implement-worktree-health-probes-and-agent-environment-verif",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T12:19:54.156129+00:00",
+  "head_sha": "1657a29ee3a96c87d12a857d6b96b7cc0e35280f",
+  "issue_number": 44,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt44"
+}

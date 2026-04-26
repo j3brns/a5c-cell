@@ -1,0 +1,206 @@
+{
+  "branch": "wt/task/43-standardize-granular-validation-targets",
+  "details": {
+    "evidence_hash": "c91ba34d9cc94531f7e2234f8e3bd24fe2a75521aaa3fb7afba274a155ae293b",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "standardize-granular-validation-targets"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43",
+      "issue_number": 43,
+      "issue_title": "TASK-705: Standardize Granular Validation Targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-25T21:51:31.239208+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:43:/home/julesb/worktrees/wt43:claude:yolo:execute-now:tmux",
+      "issue_number": 43,
+      "issue_title": "TASK-705: Standardize Granular Validation Targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-25T21:51:31.245987+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T23:08:00.380488+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "error": "Expecting value: line 1 column 1 (char 0)",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T23:08:00.837603+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "error": "Expecting value: line 1 column 1 (char 0)",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43:Expecting value: line 1 column 1 (char 0)",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T23:08:00.838042+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T23:08:07.277901+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "error": "Expecting value: line 1 column 1 (char 0)",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T23:08:07.801201+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "error": "Expecting value: line 1 column 1 (char 0)",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43:Expecting value: line 1 column 1 (char 0)",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T23:08:07.801843+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "force": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T11:12:06.054168+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:43:wt/task/43-standardize-granular-validation-targets:/home/julesb/worktrees/wt43",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T11:12:12.222140+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "evidence_hash": "c91ba34d9cc94531f7e2234f8e3bd24fe2a75521aaa3fb7afba274a155ae293b",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:43:c91ba34d9cc94531f7e2234f8e3bd24fe2a75521aaa3fb7afba274a155ae293b",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T11:12:12.223053+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "details": {
+        "evidence_hash": "c91ba34d9cc94531f7e2234f8e3bd24fe2a75521aaa3fb7afba274a155ae293b",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-43-wt_task_43-standardize-granular-validation-targets.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:43:c91ba34d9cc94531f7e2234f8e3bd24fe2a75521aaa3fb7afba274a155ae293b",
+      "issue_number": 43,
+      "issue_title": "wt/task/43-standardize-granular-validation-targets",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T11:12:14.329614+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    }
+  ],
+  "issue_number": 43,
+  "issue_title": "wt/task/43-standardize-granular-validation-targets",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T11:12:14.329614+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt43"
+}

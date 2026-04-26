@@ -1,0 +1,68 @@
+{
+  "branch": "wt/docs/47-write-adr-for-independent-platform-and-agent-developer-clis",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/docs/47-write-adr-for-independent-platform-and-agent-developer-clis",
+      "issue_id": 47,
+      "message": "closeout started",
+      "pid": 371615,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T11:18:58.957253+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt47"
+    },
+    {
+      "branch": "wt/docs/47-write-adr-for-independent-platform-and-agent-developer-clis",
+      "issue_id": 47,
+      "message": "merged MR lookup missed",
+      "pid": 371615,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T11:18:59.404378+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt47"
+    },
+    {
+      "branch": "wt/docs/47-write-adr-for-independent-platform-and-agent-developer-clis",
+      "issue_id": 47,
+      "message": "issue closed via glab",
+      "pid": 371615,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T11:19:02.708262+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt47"
+    },
+    {
+      "branch": "wt/docs/47-write-adr-for-independent-platform-and-agent-developer-clis",
+      "issue_id": 47,
+      "message": "cleanup started",
+      "pid": 371615,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T11:19:02.708823+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt47"
+    },
+    {
+      "branch": "wt/docs/47-write-adr-for-independent-platform-and-agent-developer-clis",
+      "issue_id": 47,
+      "message": "cleanup verified",
+      "pid": 371615,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-26T11:19:05.883917+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt47"
+    }
+  ],
+  "generated_at": "2026-04-26T11:19:05.884083+00:00",
+  "issue_closed": true,
+  "issue_id": 47,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt47"
+}

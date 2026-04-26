@@ -1,0 +1,160 @@
+{
+  "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+  "details": {
+    "evidence_hash": "923d60c47843565798618e0e9831c83099ebee02b2808f63677c400f9702fa6e",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-41-wt_task_41-replace-imperative-tool-setup-with-declarative-manifest.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "replace-imperative-tool-setup-with-declarative-manifest"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:41:wt/task/41-replace-imperative-tool-setup-with-declarative-manifest:/home/julesb/worktrees/wt41",
+      "issue_number": 41,
+      "issue_title": "TASK-703: Replace Imperative Tool Setup with Declarative Manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-25T12:56:06.403521+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:41:/home/julesb/worktrees/wt41:gemini:yolo:execute-now:tmux",
+      "issue_number": 41,
+      "issue_title": "TASK-703: Replace Imperative Tool Setup with Declarative Manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-25T12:56:06.405655+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-41-wt_task_41-replace-imperative-tool-setup-with-declarative-manifest.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:41:wt/task/41-replace-imperative-tool-setup-with-declarative-manifest:/home/julesb/worktrees/wt41",
+      "issue_number": 41,
+      "issue_title": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T18:20:17.887153+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-41-wt_task_41-replace-imperative-tool-setup-with-declarative-manifest.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:41:wt/task/41-replace-imperative-tool-setup-with-declarative-manifest:/home/julesb/worktrees/wt41",
+      "issue_number": 41,
+      "issue_title": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T18:20:18.377090+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-41-wt_task_41-replace-imperative-tool-setup-with-declarative-manifest.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:41:wt/task/41-replace-imperative-tool-setup-with-declarative-manifest:/home/julesb/worktrees/wt41:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 41,
+      "issue_title": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T18:20:18.377493+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "force": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-41-wt_task_41-replace-imperative-tool-setup-with-declarative-manifest.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:41:wt/task/41-replace-imperative-tool-setup-with-declarative-manifest:/home/julesb/worktrees/wt41",
+      "issue_number": 41,
+      "issue_title": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T18:20:20.999276+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-41-wt_task_41-replace-imperative-tool-setup-with-declarative-manifest.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:41:wt/task/41-replace-imperative-tool-setup-with-declarative-manifest:/home/julesb/worktrees/wt41",
+      "issue_number": 41,
+      "issue_title": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-25T18:20:32.183950+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "evidence_hash": "923d60c47843565798618e0e9831c83099ebee02b2808f63677c400f9702fa6e",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-41-wt_task_41-replace-imperative-tool-setup-with-declarative-manifest.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:41:923d60c47843565798618e0e9831c83099ebee02b2808f63677c400f9702fa6e",
+      "issue_number": 41,
+      "issue_title": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-25T18:20:32.185254+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "details": {
+        "evidence_hash": "923d60c47843565798618e0e9831c83099ebee02b2808f63677c400f9702fa6e",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-41-wt_task_41-replace-imperative-tool-setup-with-declarative-manifest.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:41:923d60c47843565798618e0e9831c83099ebee02b2808f63677c400f9702fa6e",
+      "issue_number": 41,
+      "issue_title": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-25T18:20:33.974595+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    }
+  ],
+  "issue_number": 41,
+  "issue_title": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-25T18:20:33.974595+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt41"
+}

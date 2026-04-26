@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/45-automate-worktree-pre-provisioning-instant-on-worktrees",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-24T23:38:55.332155+00:00",
+  "head_sha": "ec20a78c07056227de2b77c2b1c2c377297a0fc6",
+  "issue_number": 45,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt45"
+}

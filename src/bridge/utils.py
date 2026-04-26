@@ -38,3 +38,10 @@ def coerce_optional_string(val: Any) -> str | None:
 
 def coerce_optional_int(val: Any) -> int | None:
     return _coerce_optional_int(val)
+
+
+def estimate_tokens(text: str | None) -> int:
+    if not text:
+        return 0
+    # ≈4 chars per token per ADR-703
+    return max(1, len(text) // 4)

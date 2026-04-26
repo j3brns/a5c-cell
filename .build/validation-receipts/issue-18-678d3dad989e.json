@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T01:40:15.817989+00:00",
+  "head_sha": "678d3dad989e7df264032a6da387a277f604acc4",
+  "issue_number": 18,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt18"
+}

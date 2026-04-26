@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T01:51:53.892380+00:00",
+  "head_sha": "e94b8b73a3552ebd2aa8f4365f28de1cbe550264",
+  "issue_number": 22,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/17inch"
+}

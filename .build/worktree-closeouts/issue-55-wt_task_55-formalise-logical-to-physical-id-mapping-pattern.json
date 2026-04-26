@@ -1,0 +1,65 @@
+{
+  "branch": "wt/task/55-formalise-logical-to-physical-id-mapping-pattern",
+  "cleanup": {},
+  "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt55']' returned non-zero exit status 128.",
+  "cleanup_verified": false,
+  "events": [
+    {
+      "branch": "wt/task/55-formalise-logical-to-physical-id-mapping-pattern",
+      "issue_id": 55,
+      "message": "closeout started",
+      "pid": 156632,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T16:48:35.912121+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt55"
+    },
+    {
+      "branch": "wt/task/55-formalise-logical-to-physical-id-mapping-pattern",
+      "issue_id": 55,
+      "message": "merged MR lookup found",
+      "pid": 156632,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T16:48:36.427461+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt55"
+    },
+    {
+      "branch": "wt/task/55-formalise-logical-to-physical-id-mapping-pattern",
+      "issue_id": 55,
+      "message": "issue already closed; labels normalized",
+      "pid": 156632,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T16:48:38.413980+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt55"
+    },
+    {
+      "branch": "wt/task/55-formalise-logical-to-physical-id-mapping-pattern",
+      "issue_id": 55,
+      "message": "cleanup started",
+      "pid": 156632,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T16:48:38.415262+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt55"
+    },
+    {
+      "branch": "wt/task/55-formalise-logical-to-physical-id-mapping-pattern",
+      "issue_id": 55,
+      "message": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt55']' returned non-zero exit status 128.",
+      "pid": 156632,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-deferred",
+      "ts": "2026-04-26T16:48:38.450331+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt55"
+    }
+  ],
+  "generated_at": "2026-04-26T16:48:38.450516+00:00",
+  "issue_closed": true,
+  "issue_id": 55,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt55"
+}

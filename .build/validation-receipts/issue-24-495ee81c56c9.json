@@ -1,0 +1,9 @@
+{
+  "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-24T22:18:56.648781+00:00",
+  "head_sha": "495ee81c56c910537f02fc37e416e7c1ba059e63",
+  "issue_number": 24,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt24"
+}

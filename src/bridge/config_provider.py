@@ -7,7 +7,7 @@ from typing import Any
 
 from aws_lambda_powertools import Logger
 
-from src.bridge.constants import MOCK_RUNTIME_URL_PARAM, RUNTIME_REGION_PARAM
+from src.bridge.constants import MOCK_RUNTIME_URL_PARAM, RUNTIME_REGION_PARAM, VALKEY_ENDPOINT_PARAM
 
 logger = Logger(service="bridge-config-provider")
 
@@ -63,6 +63,7 @@ def fetch_appconfig_config(http_session: Any) -> dict[str, Any] | None:
             return {
                 "runtime_region": config.get("runtime_region", "eu-west-1"),
                 "mock_runtime_url": config.get("mock_runtime_url"),
+                "valkey_endpoint": config.get("valkey_endpoint"),
             }
     except Exception:
         logger.warning("Failed to fetch config from local AppConfig extension")
@@ -76,7 +77,7 @@ def fetch_ssm_config(ssm: Any, http_session: Any) -> dict[str, Any]:
         return config
 
     try:
-        names = [RUNTIME_REGION_PARAM, MOCK_RUNTIME_URL_PARAM]
+        names = [RUNTIME_REGION_PARAM, MOCK_RUNTIME_URL_PARAM, VALKEY_ENDPOINT_PARAM]
         response = ssm.get_parameters(Names=names)
         params: dict[str, str] = {
             str(p.get("Name")): str(p.get("Value"))
@@ -86,6 +87,7 @@ def fetch_ssm_config(ssm: Any, http_session: Any) -> dict[str, Any]:
         return {
             "runtime_region": params.get(RUNTIME_REGION_PARAM, "eu-west-1"),
             "mock_runtime_url": params.get(MOCK_RUNTIME_URL_PARAM),
+            "valkey_endpoint": params.get(VALKEY_ENDPOINT_PARAM),
         }
     except Exception:
         logger.exception("Failed to fetch config from SSM fallback")
@@ -93,4 +95,4 @@ def fetch_ssm_config(ssm: Any, http_session: Any) -> dict[str, Any]:
 
 
 def config_defaults() -> dict[str, Any]:
-    return {"runtime_region": "eu-west-1", "mock_runtime_url": None}
+    return {"runtime_region": "eu-west-1", "mock_runtime_url": None, "valkey_endpoint": None}

@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/42-implement-modular-pydantic-configuration-models",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/42-implement-modular-pydantic-configuration-models",
+      "issue_id": 42,
+      "message": "closeout started",
+      "pid": 226500,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T23:23:54.333291+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt42"
+    },
+    {
+      "branch": "wt/task/42-implement-modular-pydantic-configuration-models",
+      "issue_id": 42,
+      "message": "merged MR lookup found",
+      "pid": 226500,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T23:23:54.773626+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt42"
+    },
+    {
+      "branch": "wt/task/42-implement-modular-pydantic-configuration-models",
+      "issue_id": 42,
+      "message": "issue already closed; labels normalized",
+      "pid": 226500,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T23:23:55.228595+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt42"
+    },
+    {
+      "branch": "wt/task/42-implement-modular-pydantic-configuration-models",
+      "issue_id": 42,
+      "message": "cleanup started",
+      "pid": 226500,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T23:23:55.229094+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt42"
+    },
+    {
+      "branch": "wt/task/42-implement-modular-pydantic-configuration-models",
+      "issue_id": 42,
+      "message": "cleanup verified",
+      "pid": 226500,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T23:24:00.085630+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt42"
+    }
+  ],
+  "generated_at": "2026-04-25T23:24:00.085802+00:00",
+  "issue_closed": true,
+  "issue_id": 42,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt42"
+}

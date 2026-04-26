@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/55-formalise-logical-to-physical-id-mapping-pattern",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T16:43:41.128450+00:00",
+  "head_sha": "5754e36304afec26a86ab18c6a5d672151360aec",
+  "issue_number": 55,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt55"
+}

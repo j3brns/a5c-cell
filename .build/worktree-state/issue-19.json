@@ -1,0 +1,116 @@
+{
+  "branch": "wt/task/19-add-paginated-tenant-list-path",
+  "details": {
+    "evidence_hash": "a8efaca61fb42fc77088f08d73e0866949dedfdd9bbbe7372aecc4bd159d0b9a",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-19-wt_task_19-add-paginated-tenant-list-path.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "add-paginated-tenant-list-path"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:19:wt/task/19-add-paginated-tenant-list-path:/home/julesb/worktrees/wt19",
+      "issue_number": 19,
+      "issue_title": "TASK-304: Add paginated tenant list path",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T16:12:04.983186+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:19:/home/julesb/worktrees/wt19:claude:yolo:execute-now:tmux",
+      "issue_number": 19,
+      "issue_title": "TASK-304: Add paginated tenant list path",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T16:12:04.983967+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-19-wt_task_19-add-paginated-tenant-list-path.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:19:wt/task/19-add-paginated-tenant-list-path:/home/julesb/worktrees/wt19",
+      "issue_number": 19,
+      "issue_title": "wt/task/19-add-paginated-tenant-list-path",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T16:43:26.172506+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-19-wt_task_19-add-paginated-tenant-list-path.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:19:wt/task/19-add-paginated-tenant-list-path:/home/julesb/worktrees/wt19",
+      "issue_number": 19,
+      "issue_title": "wt/task/19-add-paginated-tenant-list-path",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T16:43:34.497523+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "details": {
+        "evidence_hash": "a8efaca61fb42fc77088f08d73e0866949dedfdd9bbbe7372aecc4bd159d0b9a",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-19-wt_task_19-add-paginated-tenant-list-path.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:19:a8efaca61fb42fc77088f08d73e0866949dedfdd9bbbe7372aecc4bd159d0b9a",
+      "issue_number": 19,
+      "issue_title": "wt/task/19-add-paginated-tenant-list-path",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T16:43:34.498841+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "details": {
+        "evidence_hash": "a8efaca61fb42fc77088f08d73e0866949dedfdd9bbbe7372aecc4bd159d0b9a",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-19-wt_task_19-add-paginated-tenant-list-path.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:19:a8efaca61fb42fc77088f08d73e0866949dedfdd9bbbe7372aecc4bd159d0b9a",
+      "issue_number": 19,
+      "issue_title": "wt/task/19-add-paginated-tenant-list-path",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T16:43:36.635275+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    }
+  ],
+  "issue_number": 19,
+  "issue_title": "wt/task/19-add-paginated-tenant-list-path",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T16:43:36.635275+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt19"
+}

@@ -236,6 +236,116 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
     ]
 
 
+def test_close_issue_done_normalizes_open_issue_after_close(monkeypatch, capsys, tmp_path):
+    from scripts.issue_tool import tracker_client
+
+    root = tmp_path / "repo"
+    root.mkdir(parents=True, exist_ok=True)
+    target = worktree_issues.WorktreeInfo(
+        path=tmp_path / "worktrees" / "wt153",
+        head="abc123",
+        branch="wt/task/153-sample",
+        is_primary=False,
+    )
+    primary = worktree_issues.WorktreeInfo(
+        path=root,
+        head="def456",
+        branch="main",
+        is_primary=True,
+    )
+    edits: list[list[str]] = []
+    close_calls: list[str] = []
+    comments: list[list[str]] = []
+    branch_deleted = False
+
+    target.path.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(worktree_issues, "list_worktrees", lambda _root: [primary, target])
+    monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
+    monkeypatch.setattr(worktree_issues, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
+    monkeypatch.setattr(
+        worktree_issues,
+        "merge_request_for_source_branch",
+        lambda _root, _repo, _branch, _state: {"number": 157},
+    )
+
+    def _issue_state_info(_root, _repo, _issue_id):
+        return {
+            "state": "OPEN",
+            "title": "TASK-153: sample",
+            "url": "https://example.test/issues/153",
+            "labels": [
+                {"name": "type:task"},
+                {"name": "status:in-progress"},
+                {"name": "ready"},
+                {"name": "review"},
+                {"name": "in-progress"},
+            ],
+        }
+
+    def _close_issue(_root, _repo, issue_id):
+        close_calls.append(str(issue_id))
+
+    def _update_issue_labels(_root, _repo, issue_id, *, add=None, remove=None):
+        edits.append([str(issue_id), sorted(add or []), sorted(remove or [])])
+
+    def _comment_issue(_root, _repo, issue_id, body):
+        comments.append([str(issue_id), body])
+        return ""
+
+    monkeypatch.setattr(worktree_issues, "issue_state_info", _issue_state_info)
+    monkeypatch.setattr(worktree_issues, "close_issue", _close_issue)
+    monkeypatch.setattr(worktree_issues, "update_issue_labels", _update_issue_labels)
+    monkeypatch.setattr(tracker_client, "update_issue_labels", _update_issue_labels)
+    monkeypatch.setattr(worktree_issues, "comment_issue", _comment_issue)
+    monkeypatch.setattr(worktree_issues, "issue_has_handback_comment", lambda **_kwargs: False)
+    monkeypatch.setattr(tracker_client, "ensure_label_exists", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        worktree_issues,
+        "local_branch_exists",
+        lambda _root, _branch: not branch_deleted,
+    )
+
+    def _run(cmd, *, cwd=None, **_kwargs):
+        nonlocal branch_deleted
+        if cmd[:3] == ["git", "worktree", "remove"]:
+            target.path.rmdir()
+        if cmd[:3] == ["git", "branch", "-d"]:
+            branch_deleted = True
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(worktree_issues, "run", _run)
+
+    worktree_issues.record_issue_handoff_event(
+        root=root,
+        repo="owner/repo",
+        issue_number=153,
+        issue_title=target.branch,
+        branch=target.branch,
+        worktree_path=target.path,
+        event_type="worktree-resumed",
+        state="worktree-ready",
+        details={"source": "test"},
+        idempotency_key="resume:153:test",
+    )
+
+    worktree_issues.close_issue_done(root, path=target.path, force=False)
+    out = capsys.readouterr().out
+
+    assert close_calls == ["153"]
+    assert edits == [
+        [
+            "153",
+            ["status:done"],
+            ["in-progress", "ready", "review", "status:in-progress"],
+        ]
+    ]
+    assert "Closed issue #153." in out
+    assert "Normalized closed-issue lifecycle labels." in out
+    assert comments and comments[0][0] == "153"
+
+
 def test_close_issue_done_defers_stalled_cleanup(monkeypatch, capsys, tmp_path):
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)

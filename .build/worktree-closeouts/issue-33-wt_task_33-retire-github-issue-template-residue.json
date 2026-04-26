@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/33-retire-github-issue-template-residue",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "issue_id": 33,
+      "message": "closeout started",
+      "pid": 76766,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T02:02:55.156929+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "issue_id": 33,
+      "message": "merged MR lookup missed",
+      "pid": 76766,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T02:02:56.218438+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "issue_id": 33,
+      "message": "issue closed via glab",
+      "pid": 76766,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T02:02:58.191501+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "issue_id": 33,
+      "message": "cleanup started",
+      "pid": 76766,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T02:02:58.192172+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "issue_id": 33,
+      "message": "cleanup verified",
+      "pid": 76766,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T02:02:58.769216+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    }
+  ],
+  "generated_at": "2026-04-25T02:02:58.769352+00:00",
+  "issue_closed": true,
+  "issue_id": 33,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt33"
+}

@@ -1,9 +1,0 @@
-{
-  "branch": "wt/task/477-standardize-shared-tenant-api-platform-state-fixtures",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-05T03:50:06.281843+00:00",
-  "head_sha": "ce24fb649f6ee30562a1b9b43e2e81178631ff4d",
-  "issue_number": 477,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/wt477"
-}

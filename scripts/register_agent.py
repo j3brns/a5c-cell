@@ -144,6 +144,7 @@ def register_agent(agent_name: str, env: str, api_base_url: str | None, token: s
         "streamingEnabled": manifest.streaming_enabled,
         "status": "built",
         "runtimeArn": runtime_arn,
+        "modelId": manifest.llm.model_id,
         "estimatedDurationSeconds": manifest.estimated_duration_seconds,
         "commitSha": get_settings().gitlab.commit_sha,
         "pipelineUrl": get_settings().gitlab.pipeline_url,

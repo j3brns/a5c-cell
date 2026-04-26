@@ -1,0 +1,159 @@
+{
+  "branch": "wt/task/33-retire-github-issue-template-residue",
+  "details": {
+    "evidence_hash": "fbbe53de9cc9fda06e51fc81a2803f01cfc6a02d576aff51e02d45ea94df341a",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-33-wt_task_33-retire-github-issue-template-residue.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "retire-github-issue-template-residue"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:33:wt/task/33-retire-github-issue-template-residue:/home/julesb/worktrees/wt33",
+      "issue_number": 33,
+      "issue_title": "TASK-601: Retire GitHub issue-template residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-25T01:51:31.235856+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:33:/home/julesb/worktrees/wt33:gemini:yolo:execute-now:tmux",
+      "issue_number": 33,
+      "issue_title": "TASK-601: Retire GitHub issue-template residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-25T01:51:31.237305+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-33-wt_task_33-retire-github-issue-template-residue.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:33:wt/task/33-retire-github-issue-template-residue:/home/julesb/worktrees/wt33",
+      "issue_number": 33,
+      "issue_title": "wt/task/33-retire-github-issue-template-residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T02:01:04.322455+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-33-wt_task_33-retire-github-issue-template-residue.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:33:wt/task/33-retire-github-issue-template-residue:/home/julesb/worktrees/wt33",
+      "issue_number": 33,
+      "issue_title": "wt/task/33-retire-github-issue-template-residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T02:01:05.388082+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-33-wt_task_33-retire-github-issue-template-residue.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:33:wt/task/33-retire-github-issue-template-residue:/home/julesb/worktrees/wt33:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 33,
+      "issue_title": "wt/task/33-retire-github-issue-template-residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T02:01:05.388442+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "force": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-33-wt_task_33-retire-github-issue-template-residue.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:33:wt/task/33-retire-github-issue-template-residue:/home/julesb/worktrees/wt33",
+      "issue_number": 33,
+      "issue_title": "wt/task/33-retire-github-issue-template-residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T02:01:07.634724+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-33-wt_task_33-retire-github-issue-template-residue.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:33:wt/task/33-retire-github-issue-template-residue:/home/julesb/worktrees/wt33",
+      "issue_number": 33,
+      "issue_title": "wt/task/33-retire-github-issue-template-residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-25T02:02:58.769856+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "evidence_hash": "fbbe53de9cc9fda06e51fc81a2803f01cfc6a02d576aff51e02d45ea94df341a",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-33-wt_task_33-retire-github-issue-template-residue.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:33:fbbe53de9cc9fda06e51fc81a2803f01cfc6a02d576aff51e02d45ea94df341a",
+      "issue_number": 33,
+      "issue_title": "wt/task/33-retire-github-issue-template-residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-25T02:02:58.770500+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    },
+    {
+      "branch": "wt/task/33-retire-github-issue-template-residue",
+      "details": {
+        "evidence_hash": "fbbe53de9cc9fda06e51fc81a2803f01cfc6a02d576aff51e02d45ea94df341a",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-33-wt_task_33-retire-github-issue-template-residue.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:33:fbbe53de9cc9fda06e51fc81a2803f01cfc6a02d576aff51e02d45ea94df341a",
+      "issue_number": 33,
+      "issue_title": "wt/task/33-retire-github-issue-template-residue",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-25T02:03:02.824268+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt33"
+    }
+  ],
+  "issue_number": 33,
+  "issue_title": "wt/task/33-retire-github-issue-template-residue",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-25T02:03:02.824268+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt33"
+}

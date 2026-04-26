@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/17-specify-reserved-tenant-id-access-semantics",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T00:23:49.938340+00:00",
+  "head_sha": "9c33e4d4b03380370615c3cfe197cc1bd87611ad",
+  "issue_number": 17,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt17"
+}

@@ -1096,18 +1096,23 @@ def test_handler_emits_bridge_metrics(setup_data):
 
         # Verify put_metric_data was called
         mock_cw.put_metric_data.assert_called()
-        _, kwargs = mock_cw.put_metric_data.call_args
-        assert kwargs["Namespace"] == "Platform/Bridge"
 
-        metrics = kwargs["MetricData"]
-        # We expect at least 8 metrics (4 per dimension set)
-        assert len(metrics) >= 8
+        # Combine all metrics from all calls for verification
+        all_metrics = []
+        for call in mock_cw.put_metric_data.call_args_list:
+            _, kwargs = call
+            assert kwargs["Namespace"] == "Platform/Bridge"
+            all_metrics.extend(kwargs["MetricData"])
 
-        metric_names = [m["MetricName"] for m in metrics]
+        # We expect at least 8 metrics (4 per dimension set from emit_invocation_metrics)
+        # plus TTFT and TPM metrics
+        assert len(all_metrics) >= 8
+
+        metric_names = [m["MetricName"] for m in all_metrics]
         assert "Invocations" in metric_names
 
         # Verify aggregate dimensions
-        aggregate_metrics = [m for m in metrics if len(m["Dimensions"]) == 1]
+        aggregate_metrics = [m for m in all_metrics if len(m["Dimensions"]) == 1]
         assert len(aggregate_metrics) >= 4
         for m in aggregate_metrics:
             dims = {d["Name"]: d["Value"] for d in m["Dimensions"]}
@@ -1115,12 +1120,15 @@ def test_handler_emits_bridge_metrics(setup_data):
             assert "AgentName" not in dims
 
         # Verify detailed dimensions
-        detailed_metrics = [m for m in metrics if len(m["Dimensions"]) == 2]
+        detailed_metrics = [m for m in all_metrics if len(m["Dimensions"]) == 2]
         assert len(detailed_metrics) >= 4
         for m in detailed_metrics:
             dims = {d["Name"]: d["Value"] for d in m["Dimensions"]}
             assert dims["TenantId"] == "t-001"
-            assert dims["AgentName"] == "echo-agent"
+            if "AgentName" in dims:
+                assert dims["AgentName"] == "echo-agent"
+            else:
+                assert dims["ModelId"] == "unknown"
 
 
 def test_runtime_failure_response_emits_bedrock_throttle_metric(

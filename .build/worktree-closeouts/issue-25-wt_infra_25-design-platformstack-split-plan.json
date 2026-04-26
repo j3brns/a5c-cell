@@ -1,0 +1,68 @@
+{
+  "branch": "wt/infra/25-design-platformstack-split-plan",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/infra/25-design-platformstack-split-plan",
+      "issue_id": 25,
+      "message": "closeout started",
+      "pid": 74943,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-24T23:12:59.023100+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt25"
+    },
+    {
+      "branch": "wt/infra/25-design-platformstack-split-plan",
+      "issue_id": 25,
+      "message": "merged MR lookup missed",
+      "pid": 74943,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-24T23:13:00.021542+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt25"
+    },
+    {
+      "branch": "wt/infra/25-design-platformstack-split-plan",
+      "issue_id": 25,
+      "message": "issue closed via glab",
+      "pid": 74943,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-24T23:13:05.891766+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt25"
+    },
+    {
+      "branch": "wt/infra/25-design-platformstack-split-plan",
+      "issue_id": 25,
+      "message": "cleanup started",
+      "pid": 74943,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-24T23:13:05.892560+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt25"
+    },
+    {
+      "branch": "wt/infra/25-design-platformstack-split-plan",
+      "issue_id": 25,
+      "message": "cleanup verified",
+      "pid": 74943,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-24T23:13:08.699945+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt25"
+    }
+  ],
+  "generated_at": "2026-04-24T23:13:08.700094+00:00",
+  "issue_closed": true,
+  "issue_id": 25,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt25"
+}

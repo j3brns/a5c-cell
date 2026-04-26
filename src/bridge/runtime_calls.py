@@ -108,6 +108,7 @@ def runtime_failure_response(
     exc: Exception,
     *,
     session_id: str | None,
+    tpm_estimated: int = 0,
     emit_bedrock_throttle_metric: Any | None = None,
     log_invocation: Any | None = None,
     error_response: Any | None = None,
@@ -158,6 +159,7 @@ def runtime_failure_response(
         session_id=session_id,
         error_code=error_code,
         runtime_region=runtime_region,
+        estimated_tokens=tpm_estimated,
     )
     return build_error_response(status_code, error_code, message, request_id)
 
@@ -236,6 +238,7 @@ def invoke_real_runtime(
     invocation_id: str | None = None,
     start_time: float | None = None,
     runtime_credentials: dict[str, Any] | None = None,
+    estimate: int = 0,
     *,
     coerce_optional_string: Any | None = None,
     validate_runtime_arn: Any | None = None,
@@ -380,7 +383,7 @@ def invoke_real_runtime(
             ttft_ms=ttft_ms,
             input_tokens=token_usage.input_tokens,
             output_tokens=token_usage.output_tokens,
-            estimated_tokens=tpm_limiter.estimate_tokens_from_prompt(prompt),
+            estimated_tokens=estimate or tpm_limiter.estimate_tokens_from_prompt(prompt),
             model_id=token_usage.model_id,
         )
         headers = {"Content-Type": str(runtime_response.get("contentType", "application/json"))}
@@ -417,6 +420,7 @@ def invoke_mock_runtime(
     response_stream: Any | None = None,
     invocation_id: str | None = None,
     start_time: float | None = None,
+    estimate: int = 0,
     *,
     get_http_session: Any | None = None,
     build_runtime_payload: Any | None = None,
@@ -462,7 +466,7 @@ def invoke_mock_runtime(
             runtime_region="mock-runtime",
             input_tokens=token_usage.input_tokens,
             output_tokens=token_usage.output_tokens,
-            estimated_tokens=tpm_limiter.estimate_tokens_from_prompt(prompt),
+            estimated_tokens=estimate or tpm_limiter.estimate_tokens_from_prompt(prompt),
             model_id=token_usage.model_id,
         )
         return {

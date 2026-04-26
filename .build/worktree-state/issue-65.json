@@ -1,0 +1,60 @@
+{
+  "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "ci",
+        "slug": "make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:65:wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi:/home/julesb/worktrees/wt65",
+      "issue_number": 65,
+      "issue_title": "TASK-916: Make deploy-capable CI and agent pipelines fail closed on missing OIDC",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T18:39:04.665285+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt65"
+    },
+    {
+      "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:65:/home/julesb/worktrees/wt65:codex:yolo:execute-now:tmux",
+      "issue_number": 65,
+      "issue_title": "TASK-916: Make deploy-capable CI and agent pipelines fail closed on missing OIDC",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T18:39:04.665760+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt65"
+    }
+  ],
+  "issue_number": 65,
+  "issue_title": "TASK-916: Make deploy-capable CI and agent pipelines fail closed on missing OIDC",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-26T18:39:04.665760+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt65"
+}

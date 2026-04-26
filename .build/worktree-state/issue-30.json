@@ -1,0 +1,160 @@
+{
+  "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+  "details": {
+    "evidence_hash": "a16c452b585e75bd1f13d1a567466ca553b8b75b17d7bb6dc7c1dde6296f0c43",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-30-wt_task_30-standardize-tenant-api-test-fixtures.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "standardize-tenant-api-test-fixtures"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:30:wt/task/30-standardize-tenant-api-test-fixtures:/home/julesb/worktrees/wt30",
+      "issue_number": 30,
+      "issue_title": "TASK-503: Standardize tenant_api test fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T00:29:18.985505+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    },
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:30:/home/julesb/worktrees/wt30:gemini:yolo:execute-now:tmux",
+      "issue_number": 30,
+      "issue_title": "TASK-503: Standardize tenant_api test fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T00:29:18.985972+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    },
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-30-wt_task_30-standardize-tenant-api-test-fixtures.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:30:wt/task/30-standardize-tenant-api-test-fixtures:/home/julesb/worktrees/wt30",
+      "issue_number": 30,
+      "issue_title": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T00:38:02.583356+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    },
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-30-wt_task_30-standardize-tenant-api-test-fixtures.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:30:wt/task/30-standardize-tenant-api-test-fixtures:/home/julesb/worktrees/wt30",
+      "issue_number": 30,
+      "issue_title": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-26T00:38:03.015792+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    },
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-30-wt_task_30-standardize-tenant-api-test-fixtures.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:30:wt/task/30-standardize-tenant-api-test-fixtures:/home/julesb/worktrees/wt30:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 30,
+      "issue_title": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-26T00:38:03.016241+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    },
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-30-wt_task_30-standardize-tenant-api-test-fixtures.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:30:wt/task/30-standardize-tenant-api-test-fixtures:/home/julesb/worktrees/wt30",
+      "issue_number": 30,
+      "issue_title": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T00:49:22.807629+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    },
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-30-wt_task_30-standardize-tenant-api-test-fixtures.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:30:wt/task/30-standardize-tenant-api-test-fixtures:/home/julesb/worktrees/wt30",
+      "issue_number": 30,
+      "issue_title": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T00:49:31.583939+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    },
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "evidence_hash": "a16c452b585e75bd1f13d1a567466ca553b8b75b17d7bb6dc7c1dde6296f0c43",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-30-wt_task_30-standardize-tenant-api-test-fixtures.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:30:a16c452b585e75bd1f13d1a567466ca553b8b75b17d7bb6dc7c1dde6296f0c43",
+      "issue_number": 30,
+      "issue_title": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T00:49:31.584976+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    },
+    {
+      "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "details": {
+        "evidence_hash": "a16c452b585e75bd1f13d1a567466ca553b8b75b17d7bb6dc7c1dde6296f0c43",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-30-wt_task_30-standardize-tenant-api-test-fixtures.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:30:a16c452b585e75bd1f13d1a567466ca553b8b75b17d7bb6dc7c1dde6296f0c43",
+      "issue_number": 30,
+      "issue_title": "wt/task/30-standardize-tenant-api-test-fixtures",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T00:49:33.294976+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt30"
+    }
+  ],
+  "issue_number": 30,
+  "issue_title": "wt/task/30-standardize-tenant-api-test-fixtures",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T00:49:33.294976+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt30"
+}

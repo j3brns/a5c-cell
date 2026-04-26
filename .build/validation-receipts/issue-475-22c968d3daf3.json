@@ -1,9 +1,0 @@
-{
-  "branch": "wt/task/475-parallelize-fast-local-validation-and-define-the-fast-full-v",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-05T03:02:34.731863+00:00",
-  "head_sha": "22c968d3daf30c4a584630db68712c6a43b6c170",
-  "issue_number": 475,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/ah"
-}

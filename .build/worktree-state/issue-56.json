@@ -1,0 +1,116 @@
+{
+  "branch": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+  "details": {
+    "evidence_hash": "90cc9e51650d3bd898f6ee8c812f0c7f2aa520f3d13b8a8682bdd3e321b93dce",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-56-wt_task_56-define-v0-2-secure-deployment-contract-and-target-state.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "define-v0-2-secure-deployment-contract-and-target-state"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:56:wt/task/56-define-v0-2-secure-deployment-contract-and-target-state:/home/julesb/worktrees/wt56",
+      "issue_number": 56,
+      "issue_title": "TASK-907: Define v0.2 secure deployment contract and target state",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T16:47:45.035248+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt56"
+    },
+    {
+      "branch": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:56:/home/julesb/worktrees/wt56:codex:yolo:execute-now:tmux",
+      "issue_number": 56,
+      "issue_title": "TASK-907: Define v0.2 secure deployment contract and target state",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T16:47:45.035864+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt56"
+    },
+    {
+      "branch": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-56-wt_task_56-define-v0-2-secure-deployment-contract-and-target-state.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:56:wt/task/56-define-v0-2-secure-deployment-contract-and-target-state:/home/julesb/worktrees/wt56",
+      "issue_number": 56,
+      "issue_title": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T17:09:41.820647+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt56"
+    },
+    {
+      "branch": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-56-wt_task_56-define-v0-2-secure-deployment-contract-and-target-state.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:56:wt/task/56-define-v0-2-secure-deployment-contract-and-target-state:/home/julesb/worktrees/wt56",
+      "issue_number": 56,
+      "issue_title": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T17:09:48.560275+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt56"
+    },
+    {
+      "branch": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "details": {
+        "evidence_hash": "90cc9e51650d3bd898f6ee8c812f0c7f2aa520f3d13b8a8682bdd3e321b93dce",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-56-wt_task_56-define-v0-2-secure-deployment-contract-and-target-state.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:56:90cc9e51650d3bd898f6ee8c812f0c7f2aa520f3d13b8a8682bdd3e321b93dce",
+      "issue_number": 56,
+      "issue_title": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T17:09:48.561572+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt56"
+    },
+    {
+      "branch": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "details": {
+        "evidence_hash": "90cc9e51650d3bd898f6ee8c812f0c7f2aa520f3d13b8a8682bdd3e321b93dce",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-56-wt_task_56-define-v0-2-secure-deployment-contract-and-target-state.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:56:90cc9e51650d3bd898f6ee8c812f0c7f2aa520f3d13b8a8682bdd3e321b93dce",
+      "issue_number": 56,
+      "issue_title": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T17:09:50.544529+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt56"
+    }
+  ],
+  "issue_number": 56,
+  "issue_title": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T17:09:50.544529+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt56"
+}

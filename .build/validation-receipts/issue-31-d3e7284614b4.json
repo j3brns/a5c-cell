@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/31-create-structured-validate-local-runner",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T02:07:10.407645+00:00",
+  "head_sha": "d3e7284614b41457d56c30c6699df016986b2763",
+  "issue_number": 31,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt31"
+}

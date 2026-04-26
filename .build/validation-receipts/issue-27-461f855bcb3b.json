@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/27-replace-per-tenant-dashboards-with-parameterized-dashboard",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T00:36:56.690997+00:00",
+  "head_sha": "461f855bcb3b7317673df85e6991f1c2c37d0f5c",
+  "issue_number": 27,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt27"
+}

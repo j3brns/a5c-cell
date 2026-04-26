@@ -1,0 +1,219 @@
+{
+  "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+  "details": {
+    "evidence_hash": "3aad0b0fe4e16b174d85c5d1cbfee0c7c5c15feab0ae7cc727c4c6baf1905a87",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-51-wt_task_51-provision-redis-valkey-for-tpm-rate-limiting.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "provision-redis-valkey-for-tpm-rate-limiting"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:51:wt/task/51-provision-redis-valkey-for-tpm-rate-limiting:/home/julesb/worktrees/wt51",
+      "issue_number": 51,
+      "issue_title": "TASK-902: Provision Redis/Valkey for TPM rate limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T13:08:44.813190+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:51:/home/julesb/worktrees/wt51:gemini:yolo:execute-now:tmux",
+      "issue_number": 51,
+      "issue_title": "TASK-902: Provision Redis/Valkey for TPM rate limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T13:08:44.814449+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "source": "worktree-resume"
+      },
+      "event_type": "worktree-resumed",
+      "idempotency_key": "resume:51:wt/task/51-provision-redis-valkey-for-tpm-rate-limiting:/home/julesb/worktrees/wt51",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T13:13:05.775200+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-resume"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:51:/home/julesb/worktrees/wt51:codex:yolo:execute-now:tmux",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T13:13:05.777424+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "source": "worktree-resume"
+      },
+      "event_type": "worktree-resumed",
+      "idempotency_key": "resume:51:wt/task/51-provision-redis-valkey-for-tpm-rate-limiting:/home/julesb/worktrees/wt51",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T13:19:04.850438+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-resume"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:51:/home/julesb/worktrees/wt51:codex:yolo:execute-now:tmux",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T13:19:04.851058+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "source": "worktree-resume"
+      },
+      "event_type": "worktree-resumed",
+      "idempotency_key": "resume:51:wt/task/51-provision-redis-valkey-for-tpm-rate-limiting:/home/julesb/worktrees/wt51",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T13:53:42.086456+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-resume"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:51:/home/julesb/worktrees/wt51:codex:yolo:execute-now:tmux",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T13:53:42.087866+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "force": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-51-wt_task_51-provision-redis-valkey-for-tpm-rate-limiting.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:51:wt/task/51-provision-redis-valkey-for-tpm-rate-limiting:/home/julesb/worktrees/wt51",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T15:14:04.232248+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt51']' returned non-zero exit status 128.",
+        "cleanup_verified": false,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-51-wt_task_51-provision-redis-valkey-for-tpm-rate-limiting.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:51:wt/task/51-provision-redis-valkey-for-tpm-rate-limiting:/home/julesb/worktrees/wt51",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T15:14:08.148987+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "evidence_hash": "3aad0b0fe4e16b174d85c5d1cbfee0c7c5c15feab0ae7cc727c4c6baf1905a87",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-51-wt_task_51-provision-redis-valkey-for-tpm-rate-limiting.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:51:3aad0b0fe4e16b174d85c5d1cbfee0c7c5c15feab0ae7cc727c4c6baf1905a87",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T15:14:08.149777+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "details": {
+        "evidence_hash": "3aad0b0fe4e16b174d85c5d1cbfee0c7c5c15feab0ae7cc727c4c6baf1905a87",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-51-wt_task_51-provision-redis-valkey-for-tpm-rate-limiting.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:51:3aad0b0fe4e16b174d85c5d1cbfee0c7c5c15feab0ae7cc727c4c6baf1905a87",
+      "issue_number": 51,
+      "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T15:14:09.976031+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    }
+  ],
+  "issue_number": 51,
+  "issue_title": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T15:14:09.976031+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt51"
+}

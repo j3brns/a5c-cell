@@ -1,0 +1,62 @@
+{
+  "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+  "error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt24']' returned non-zero exit status 128.",
+  "events": [
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "issue_id": 24,
+      "message": "closeout started",
+      "pid": 26967,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-24T22:23:01.009702+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    },
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "issue_id": 24,
+      "message": "merged MR lookup found",
+      "pid": 26967,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-24T22:23:02.385425+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    },
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "issue_id": 24,
+      "message": "issue already closed; labels normalized",
+      "pid": 26967,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-24T22:23:06.516754+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    },
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "issue_id": 24,
+      "message": "cleanup started",
+      "pid": 26967,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-24T22:23:06.517262+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    },
+    {
+      "branch": "wt/docs/24-write-adr-for-eu-west-2-agentcore-runtime-collapse",
+      "issue_id": 24,
+      "message": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt24']' returned non-zero exit status 128.",
+      "pid": 26967,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-24T22:23:06.535331+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt24"
+    }
+  ],
+  "generated_at": "2026-04-24T22:23:06.535564+00:00",
+  "issue_id": 24,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/home/julesb/worktrees/wt24"
+}

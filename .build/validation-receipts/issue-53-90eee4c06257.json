@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/53-tpm-enforcement-and-request-rejection-p1-phase-2",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T17:35:07.248497+00:00",
+  "head_sha": "90eee4c06257cfe16d0efa9b76a214838cbe4a46",
+  "issue_number": 53,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt53"
+}

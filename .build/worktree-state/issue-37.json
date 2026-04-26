@@ -1,0 +1,161 @@
+{
+  "branch": "wt/task/37-finish-issue-tool-module-extraction",
+  "details": {
+    "evidence_hash": "f990bf72418a0e6ba4072acf89624e20851f8340e926963104463f49b17d2f41",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-37-wt_task_37-finish-issue-tool-module-extraction.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "finish-issue-tool-module-extraction"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:37:wt/task/37-finish-issue-tool-module-extraction:/home/julesb/worktrees/wt37",
+      "issue_number": 37,
+      "issue_title": "TASK-701: Finish issue_tool module extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T01:42:13.293252+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    },
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:37:/home/julesb/worktrees/wt37:claude:yolo:execute-now:tmux",
+      "issue_number": 37,
+      "issue_title": "TASK-701: Finish issue_tool module extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T01:42:13.294630+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    },
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-37-wt_task_37-finish-issue-tool-module-extraction.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:37:wt/task/37-finish-issue-tool-module-extraction:/home/julesb/worktrees/wt37",
+      "issue_number": 37,
+      "issue_title": "wt/task/37-finish-issue-tool-module-extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T02:05:51.062836+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    },
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt37']' returned non-zero exit status 128.",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-37-wt_task_37-finish-issue-tool-module-extraction.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:37:wt/task/37-finish-issue-tool-module-extraction:/home/julesb/worktrees/wt37",
+      "issue_number": 37,
+      "issue_title": "wt/task/37-finish-issue-tool-module-extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-26T02:05:53.509406+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    },
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt37']' returned non-zero exit status 128.",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-37-wt_task_37-finish-issue-tool-module-extraction.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:37:wt/task/37-finish-issue-tool-module-extraction:/home/julesb/worktrees/wt37:Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt37']' returned non-zero exit status 128.",
+      "issue_number": 37,
+      "issue_title": "wt/task/37-finish-issue-tool-module-extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-26T02:05:53.509874+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    },
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "force": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-37-wt_task_37-finish-issue-tool-module-extraction.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:37:wt/task/37-finish-issue-tool-module-extraction:/home/julesb/worktrees/wt37",
+      "issue_number": 37,
+      "issue_title": "wt/task/37-finish-issue-tool-module-extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T11:10:42.498229+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    },
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-37-wt_task_37-finish-issue-tool-module-extraction.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:37:wt/task/37-finish-issue-tool-module-extraction:/home/julesb/worktrees/wt37",
+      "issue_number": 37,
+      "issue_title": "wt/task/37-finish-issue-tool-module-extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T11:10:51.370207+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    },
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "evidence_hash": "f990bf72418a0e6ba4072acf89624e20851f8340e926963104463f49b17d2f41",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-37-wt_task_37-finish-issue-tool-module-extraction.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:37:f990bf72418a0e6ba4072acf89624e20851f8340e926963104463f49b17d2f41",
+      "issue_number": 37,
+      "issue_title": "wt/task/37-finish-issue-tool-module-extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T11:10:51.371219+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    },
+    {
+      "branch": "wt/task/37-finish-issue-tool-module-extraction",
+      "details": {
+        "evidence_hash": "f990bf72418a0e6ba4072acf89624e20851f8340e926963104463f49b17d2f41",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-37-wt_task_37-finish-issue-tool-module-extraction.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:37:f990bf72418a0e6ba4072acf89624e20851f8340e926963104463f49b17d2f41",
+      "issue_number": 37,
+      "issue_title": "wt/task/37-finish-issue-tool-module-extraction",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T11:10:53.321088+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt37"
+    }
+  ],
+  "issue_number": 37,
+  "issue_title": "wt/task/37-finish-issue-tool-module-extraction",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T11:10:53.321088+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt37"
+}

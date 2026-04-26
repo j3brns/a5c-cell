@@ -17,7 +17,10 @@ from src.bridge.constants import (
     TENANTS_TABLE,
 )
 from src.bridge.discovery_service import resolve_agent_record as discovery_resolve_agent_record
+from src.bridge.tpm_limiter import TokenLimiter
 from src.platform_aws import aws_region, boto3_client
+
+_limiter: TokenLimiter | None = None
 
 
 def _aws_region() -> str:
@@ -51,6 +54,13 @@ def get_config(force_refresh: bool = False) -> dict[str, Any]:
         ttl_seconds=60,
     )
     return provider.get(force_refresh=force_refresh)
+
+
+def get_limiter() -> TokenLimiter:
+    global _limiter
+    if _limiter is None:
+        _limiter = TokenLimiter()
+    return _limiter
 
 
 def get_runtime_client(region: str, credentials: dict[str, Any] | None = None) -> Any:

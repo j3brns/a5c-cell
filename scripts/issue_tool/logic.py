@@ -88,6 +88,14 @@ def reconcile_issue_label_changes(issue: Issue) -> tuple[list[str], list[str]]:
     return add_labels, sorted(set(remove_labels))
 
 
+def closeout_done_label_changes(issue: Issue) -> tuple[list[str], list[str]]:
+    """Return label changes for a terminal issue closeout."""
+    add_labels, remove_labels = reconcile_issue_label_changes(issue)
+    labels = set(issue.labels)
+    remove_labels.extend(label for label in ("in-progress", "ready", "review") if label in labels)
+    return sorted(set(add_labels)), sorted(set(remove_labels))
+
+
 def edit_issue_labels(root: Path, repo: str, issue_number: int, labels: list[str]) -> None:
     from scripts.issue_tool.tracker_client import update_issue_labels
 
@@ -110,7 +118,7 @@ def normalize_closed_issue_labels(root: Path, repo: str, issue_id: int, info: di
     issue = Issue(
         number=issue_id,
         title=str(info.get("title", "")),
-        state=str(info.get("state", "")).lower(),
+        state="closed",
         created_at="",
         body="",
         labels=labels,
@@ -119,7 +127,7 @@ def normalize_closed_issue_labels(root: Path, repo: str, issue_id: int, info: di
         seq=None,
         depends_on=[],
     )
-    add_labels, remove_labels = reconcile_issue_label_changes(issue)
+    add_labels, remove_labels = closeout_done_label_changes(issue)
     label_ops = add_labels + [f"-{label}" for label in remove_labels]
     if not label_ops:
         return False

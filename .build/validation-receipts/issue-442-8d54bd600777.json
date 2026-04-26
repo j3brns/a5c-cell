@@ -1,9 +1,0 @@
-{
-  "branch": "wt/docs/442-publish-explicit-ag-ui-bootstrap-contract-from-adr-018",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-05T01:40:58.589865+00:00",
-  "head_sha": "8d54bd60077771c90a6e83a8ad176e46cd1f1df5",
-  "issue_number": 442,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/ae"
-}

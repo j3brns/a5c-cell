@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "issue_id": 40,
+      "message": "closeout started",
+      "pid": 151193,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T21:51:34.515804+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "issue_id": 40,
+      "message": "merged MR lookup found",
+      "pid": 151193,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T21:51:34.976981+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "issue_id": 40,
+      "message": "issue closed via glab",
+      "pid": 151193,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T21:51:38.153711+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "issue_id": 40,
+      "message": "cleanup started",
+      "pid": 151193,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T21:51:38.154837+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "issue_id": 40,
+      "message": "cleanup verified",
+      "pid": 151193,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T21:51:49.198158+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    }
+  ],
+  "generated_at": "2026-04-25T21:51:49.198350+00:00",
+  "issue_closed": true,
+  "issue_id": 40,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt40"
+}

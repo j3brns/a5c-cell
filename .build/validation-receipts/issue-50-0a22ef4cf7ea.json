@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/50-record-ttft-metric-on-streaming-invocations",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T13:44:11.064148+00:00",
+  "head_sha": "0a22ef4cf7ea1fd4d047d8449c071cf6e649d2bf",
+  "issue_number": 50,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt50"
+}

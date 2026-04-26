@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/35-decide-whether-codex-flow-remains-necessary",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T02:14:41.610147+00:00",
+  "head_sha": "7dde0e899e752e7914f4ec7657b48737911dd157",
+  "issue_number": 35,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt35"
+}

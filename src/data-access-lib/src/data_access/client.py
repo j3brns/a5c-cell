@@ -724,10 +724,24 @@ class TenantCapabilityClient:
                         extra={"capability": cap_name, "rollout_dict": rollout_dict},
                     )
 
+            tpm_limits = {}
+            for model_id, tier_limits in raw_policy.get("tpm_limits", {}).items():
+                if not isinstance(tier_limits, dict):
+                    continue
+                try:
+                    tpm_limits[model_id] = {
+                        TenantTier(tier): int(limit) for tier, limit in tier_limits.items()
+                    }
+                except (ValueError, TypeError):
+                    logger.error(
+                        "Malformed TPM limit in policy; skipping", extra={"model_id": model_id}
+                    )
+
             policy = TenantCapabilityPolicy(
                 schema_version=str(raw_policy.get("schema_version", "unknown")),
                 capabilities=capabilities,
                 killed_capabilities=frozenset(raw_policy.get("killed_capabilities", [])),
+                tpm_limits=tpm_limits,
             )
             self._last_known_good_policy = policy
             return policy

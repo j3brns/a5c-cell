@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/36-retire-compatibility-shims-and-generated-caches",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T00:50:21.272235+00:00",
+  "head_sha": "527454530619406fb0ebd94d07bcbc95eec484b5",
+  "issue_number": 36,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt36"
+}

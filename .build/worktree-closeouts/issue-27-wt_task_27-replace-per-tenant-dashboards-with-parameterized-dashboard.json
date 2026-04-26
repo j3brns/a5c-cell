@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/27-replace-per-tenant-dashboards-with-parameterized-dashboard",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/27-replace-per-tenant-dashboards-with-parameterized-dashboard",
+      "issue_id": 27,
+      "message": "closeout started",
+      "pid": 22584,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T00:49:33.583866+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt27"
+    },
+    {
+      "branch": "wt/task/27-replace-per-tenant-dashboards-with-parameterized-dashboard",
+      "issue_id": 27,
+      "message": "merged MR lookup found",
+      "pid": 22584,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T00:49:34.711656+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt27"
+    },
+    {
+      "branch": "wt/task/27-replace-per-tenant-dashboards-with-parameterized-dashboard",
+      "issue_id": 27,
+      "message": "issue already closed; labels normalized",
+      "pid": 22584,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T00:49:38.149749+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt27"
+    },
+    {
+      "branch": "wt/task/27-replace-per-tenant-dashboards-with-parameterized-dashboard",
+      "issue_id": 27,
+      "message": "cleanup started",
+      "pid": 22584,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T00:49:38.150575+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt27"
+    },
+    {
+      "branch": "wt/task/27-replace-per-tenant-dashboards-with-parameterized-dashboard",
+      "issue_id": 27,
+      "message": "cleanup verified",
+      "pid": 22584,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T00:49:41.098242+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt27"
+    }
+  ],
+  "generated_at": "2026-04-25T00:49:41.098360+00:00",
+  "issue_closed": true,
+  "issue_id": 27,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt27"
+}

@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "issue_id": 22,
+      "message": "closeout started",
+      "pid": 72440,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T01:54:46.953564+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "issue_id": 22,
+      "message": "merged MR lookup found",
+      "pid": 72440,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T01:54:48.506789+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "issue_id": 22,
+      "message": "issue already closed; labels normalized",
+      "pid": 72440,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T01:54:52.329518+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "issue_id": 22,
+      "message": "cleanup started",
+      "pid": 72440,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T01:54:52.330363+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "issue_id": 22,
+      "message": "cleanup verified",
+      "pid": 72440,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T01:54:55.374388+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    }
+  ],
+  "generated_at": "2026-04-25T01:54:55.374554+00:00",
+  "issue_closed": true,
+  "issue_id": 22,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/17inch"
+}

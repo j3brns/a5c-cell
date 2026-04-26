@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/29-extract-tenant-api-service-inputs-from-api-gateway-event-sch",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T00:43:25.082301+00:00",
+  "head_sha": "4a9314b2034f4106c1fc9ff313a58615971d0dec",
+  "issue_number": 29,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt29"
+}

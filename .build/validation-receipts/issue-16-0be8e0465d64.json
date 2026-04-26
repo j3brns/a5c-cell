@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/16-remove-bootstrap-dual-key-tenant-attributes",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T00:25:40.916752+00:00",
+  "head_sha": "0be8e0465d644e4365c71d2cfb84d3c663b0c0e0",
+  "issue_number": 16,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt16"
+}

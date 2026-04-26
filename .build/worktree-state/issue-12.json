@@ -1,0 +1,114 @@
+{
+  "branch": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+  "details": {
+    "evidence_hash": "ba68c0b44385c2bd6ba9cf7f05b0cc402a6a92f40fb02b57cd24f4b32f16b520",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-12-wt_frontend_12-define-spa-cloudfront-access-log-retention-and-analysis.json"
+  },
+  "events": [
+    {
+      "branch": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "frontend",
+        "slug": "define-spa-cloudfront-access-log-retention-and-analysis"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:12:wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis:/home/julesb/worktrees/wt12",
+      "issue_number": 12,
+      "issue_title": "TASK-115: Define SPA CloudFront access-log retention and analysis",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-24T22:09:16.475979+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt12"
+    },
+    {
+      "branch": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:12:/home/julesb/worktrees/wt12:gemini:yolo:execute-now:tmux",
+      "issue_number": 12,
+      "issue_title": "TASK-115: Define SPA CloudFront access-log retention and analysis",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-24T22:09:16.477160+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt12"
+    },
+    {
+      "branch": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-12-wt_frontend_12-define-spa-cloudfront-access-log-retention-and-analysis.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:12:wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis:/home/julesb/worktrees/wt12",
+      "issue_number": 12,
+      "issue_title": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-24T23:06:50.318453+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt12"
+    },
+    {
+      "branch": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-12-wt_frontend_12-define-spa-cloudfront-access-log-retention-and-analysis.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:12:wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis:/home/julesb/worktrees/wt12",
+      "issue_number": 12,
+      "issue_title": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-24T23:06:57.628569+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt12"
+    },
+    {
+      "branch": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "details": {
+        "evidence_hash": "ba68c0b44385c2bd6ba9cf7f05b0cc402a6a92f40fb02b57cd24f4b32f16b520",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-12-wt_frontend_12-define-spa-cloudfront-access-log-retention-and-analysis.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:12:ba68c0b44385c2bd6ba9cf7f05b0cc402a6a92f40fb02b57cd24f4b32f16b520",
+      "issue_number": 12,
+      "issue_title": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-24T23:06:57.629094+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt12"
+    },
+    {
+      "branch": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "details": {
+        "evidence_hash": "ba68c0b44385c2bd6ba9cf7f05b0cc402a6a92f40fb02b57cd24f4b32f16b520",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-12-wt_frontend_12-define-spa-cloudfront-access-log-retention-and-analysis.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:12:ba68c0b44385c2bd6ba9cf7f05b0cc402a6a92f40fb02b57cd24f4b32f16b520",
+      "issue_number": 12,
+      "issue_title": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-24T23:07:01.252193+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt12"
+    }
+  ],
+  "issue_number": 12,
+  "issue_title": "wt/frontend/12-define-spa-cloudfront-access-log-retention-and-analysis",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-24T23:07:01.252193+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt12"
+}

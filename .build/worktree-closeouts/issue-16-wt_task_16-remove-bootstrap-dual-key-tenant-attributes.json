@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/16-remove-bootstrap-dual-key-tenant-attributes",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/16-remove-bootstrap-dual-key-tenant-attributes",
+      "issue_id": 16,
+      "message": "closeout started",
+      "pid": 16762,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T00:28:25.050795+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt16"
+    },
+    {
+      "branch": "wt/task/16-remove-bootstrap-dual-key-tenant-attributes",
+      "issue_id": 16,
+      "message": "merged MR lookup found",
+      "pid": 16762,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T00:28:26.834615+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt16"
+    },
+    {
+      "branch": "wt/task/16-remove-bootstrap-dual-key-tenant-attributes",
+      "issue_id": 16,
+      "message": "issue already closed; labels normalized",
+      "pid": 16762,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T00:28:31.874061+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt16"
+    },
+    {
+      "branch": "wt/task/16-remove-bootstrap-dual-key-tenant-attributes",
+      "issue_id": 16,
+      "message": "cleanup started",
+      "pid": 16762,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T00:28:31.875098+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt16"
+    },
+    {
+      "branch": "wt/task/16-remove-bootstrap-dual-key-tenant-attributes",
+      "issue_id": 16,
+      "message": "cleanup verified",
+      "pid": 16762,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T00:28:37.665340+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt16"
+    }
+  ],
+  "generated_at": "2026-04-25T00:28:37.665746+00:00",
+  "issue_closed": true,
+  "issue_id": 16,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt16"
+}
