@@ -1,32 +1,15 @@
 from __future__ import annotations
 
 import json
-import sys
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 from src.tenant_api import ops_control
 from tests.unit.tenant_api_test_support import (
-    build_handler_state,
-    fixed_now_value,
     invoke_handler,
     response_body,
 )
-
-
-@pytest.fixture
-def fixed_now() -> datetime:
-    return fixed_now_value()
-
-
-@pytest.fixture
-def fake_state(monkeypatch: pytest.MonkeyPatch, fixed_now: datetime) -> dict[str, Any]:
-    return build_handler_state(monkeypatch, fixed_now)
 
 
 def _ops_event(

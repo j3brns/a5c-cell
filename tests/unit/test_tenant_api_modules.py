@@ -1,16 +1,9 @@
 from __future__ import annotations
 
 import json
-import sys
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from moto import mock_aws
 
 from src.tenant_api import (
     agent_registry,
@@ -19,38 +12,7 @@ from src.tenant_api import (
     tenant_records,
     webhook_registry,
 )
-from src.tenant_api import (
-    handler as tenant_api_handler,
-)
 from src.tenant_api.models import TenantCreateInput, TenantUpdateInput
-from tests.unit.tenant_api_test_support import build_module_state, fixed_now_value
-
-
-@pytest.fixture
-def fixed_now() -> datetime:
-    return fixed_now_value()
-
-
-@pytest.fixture
-def module_state(monkeypatch: pytest.MonkeyPatch, fixed_now: Any) -> Any:
-    with mock_aws():
-        yield build_module_state(monkeypatch, fixed_now)
-
-
-def _caller(
-    *,
-    tenant_id: str | None = "t-admin",
-    roles: list[str] | None = None,
-    app_id: str = "app-admin",
-) -> tenant_api_handler.CallerIdentity:
-    return tenant_api_handler.CallerIdentity(
-        tenant_id=tenant_id,
-        app_id=app_id,
-        tier="premium",
-        sub="user-123",
-        roles=frozenset(roles or ["Platform.Admin"]),
-        usage_identifier_key=None,
-    )
 
 
 def _event(path: str, method: str = "GET", body: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -62,8 +24,10 @@ def _event(path: str, method: str = "GET", body: dict[str, Any] | None = None) -
     }
 
 
-@mock_aws
-def test_agent_registry_dispatch_registers_agent(module_state: dict[str, Any]) -> None:
+def test_agent_registry_dispatch_registers_agent(
+    module_state: dict[str, Any],
+    tenant_api_caller: Any,
+) -> None:
     response = agent_registry.dispatch_routes(
         "/v1/platform/agents",
         "POST",
@@ -72,7 +36,7 @@ def test_agent_registry_dispatch_registers_agent(module_state: dict[str, Any]) -
             "POST",
             {"agentName": "echo-agent", "version": "1.0.0"},
         ),
-        _caller(),
+        tenant_api_caller(),
         module_state["deps"],
     )
 
@@ -82,13 +46,15 @@ def test_agent_registry_dispatch_registers_agent(module_state: dict[str, Any]) -
     assert stored["status"] == "built"
 
 
-@mock_aws
-def test_ops_control_dispatches_platform_quota(module_state: dict[str, Any]) -> None:
+def test_ops_control_dispatches_platform_quota(
+    module_state: dict[str, Any],
+    tenant_api_caller: Any,
+) -> None:
     response = ops_control.dispatch_platform_admin_routes(
         "/v1/platform/quota",
         "GET",
         _event("/v1/platform/quota"),
-        _caller(),
+        tenant_api_caller(),
         module_state["deps"],
     )
 
@@ -97,8 +63,10 @@ def test_ops_control_dispatches_platform_quota(module_state: dict[str, Any]) -> 
     assert body["utilisation"][0]["region"] == "eu-west-1"
 
 
-@mock_aws
-def test_tenant_lifecycle_dispatch_creates_tenant(module_state: dict[str, Any]) -> None:
+def test_tenant_lifecycle_dispatch_creates_tenant(
+    module_state: dict[str, Any],
+    tenant_api_caller: Any,
+) -> None:
     response = tenant_lifecycle.dispatch_routes(
         "/v1/tenants",
         "POST",
@@ -115,7 +83,7 @@ def test_tenant_lifecycle_dispatch_creates_tenant(module_state: dict[str, Any]) 
                 "accountId": "123456789012",
             },
         ),
-        _caller(),
+        tenant_api_caller(),
         module_state["deps"],
         None,
     )
@@ -126,9 +94,9 @@ def test_tenant_lifecycle_dispatch_creates_tenant(module_state: dict[str, Any]) 
     assert len(module_state["deps"].secretsmanager.policy_calls) == 1
 
 
-@mock_aws
 def test_tenant_record_create_accepts_service_input_without_gateway_event(
     module_state: dict[str, Any],
+    tenant_api_caller: Any,
 ) -> None:
     response = tenant_records.handle_create(
         TenantCreateInput(
@@ -141,7 +109,7 @@ def test_tenant_record_create_accepts_service_input_without_gateway_event(
             account_id="123456789012",
             monthly_budget_usd=None,
         ),
-        _caller(),
+        tenant_api_caller(),
         module_state["deps"],
     )
 
@@ -151,9 +119,9 @@ def test_tenant_record_create_accepts_service_input_without_gateway_event(
     assert stored["displayName"] == "Service Tenant"
 
 
-@mock_aws
 def test_tenant_record_create_rejects_blank_service_input(
     module_state: dict[str, Any],
+    tenant_api_caller: Any,
 ) -> None:
     with pytest.raises(ValueError, match="displayName is required"):
         tenant_records.handle_create(
@@ -167,15 +135,15 @@ def test_tenant_record_create_rejects_blank_service_input(
                 account_id="123456789012",
                 monthly_budget_usd=None,
             ),
-            _caller(),
+            tenant_api_caller(),
             module_state["deps"],
         )
     assert module_state["db"].items == {}
 
 
-@mock_aws
 def test_tenant_record_update_accepts_service_input_without_gateway_event(
     module_state: dict[str, Any],
+    tenant_api_caller: Any,
 ) -> None:
     module_state["db"].items[("TENANT#tenant-svc-002", "METADATA")] = {
         "PK": "TENANT#tenant-svc-002",
@@ -192,7 +160,7 @@ def test_tenant_record_update_accepts_service_input_without_gateway_event(
             display_name="Updated Tenant",
             tier="premium",
         ),
-        _caller(),
+        tenant_api_caller(),
         module_state["deps"],
         tenant_id="tenant-svc-002",
     )
@@ -212,8 +180,10 @@ def test_tenant_update_input_rejects_unmarked_values() -> None:
         )
 
 
-@mock_aws
-def test_webhook_registry_dispatch_registers_webhook(module_state: dict[str, Any]) -> None:
+def test_webhook_registry_dispatch_registers_webhook(
+    module_state: dict[str, Any],
+    tenant_api_caller: Any,
+) -> None:
     module_state["db"].items[("TENANT#t-001", "METADATA")] = {
         "PK": "TENANT#t-001",
         "SK": "METADATA",
@@ -231,7 +201,7 @@ def test_webhook_registry_dispatch_registers_webhook(module_state: dict[str, Any
             "POST",
             {"callbackUrl": "https://example.com/hook", "events": ["job.completed"]},
         ),
-        _caller(tenant_id="t-001", roles=["SelfService.Admin"]),
+        tenant_api_caller(tenant_id="t-001", roles=["SelfService.Admin"]),
         module_state["deps"],
     )
 
