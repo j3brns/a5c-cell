@@ -66,6 +66,49 @@ def test_dispatch_list_tenants_maps_query_filters(monkeypatch) -> None:
     assert captured["deps"] == "deps"
 
 
+def test_dispatch_list_tenants_maps_pagination_params(monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def _fake_handle_list_tenants(request: Any, caller: Any, deps: Any) -> dict[str, Any]:
+        captured["request"] = request
+        return {"statusCode": 200, "body": "{}"}
+
+    monkeypatch.setattr(tenant_lifecycle, "handle_list_tenants", _fake_handle_list_tenants)
+
+    tenant_lifecycle.dispatch_routes(
+        "/v1/tenants",
+        "GET",
+        {"queryStringParameters": {"limit": "25", "nextToken": "abc123"}},
+        "caller",
+        "deps",
+        None,
+    )
+
+    assert captured["request"].limit == 25
+    assert captured["request"].next_token == "abc123"
+
+
+def test_dispatch_list_tenants_invalid_limit_becomes_none(monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def _fake_handle_list_tenants(request: Any, caller: Any, deps: Any) -> dict[str, Any]:
+        captured["request"] = request
+        return {"statusCode": 200, "body": "{}"}
+
+    monkeypatch.setattr(tenant_lifecycle, "handle_list_tenants", _fake_handle_list_tenants)
+
+    tenant_lifecycle.dispatch_routes(
+        "/v1/tenants",
+        "GET",
+        {"queryStringParameters": {"limit": "not-a-number"}},
+        "caller",
+        "deps",
+        None,
+    )
+
+    assert captured["request"].limit is None
+
+
 def test_handle_audit_export_delegates_to_audit_module(monkeypatch) -> None:
     expected = {"statusCode": 200, "body": "{}"}
 
