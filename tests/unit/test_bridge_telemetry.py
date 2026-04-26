@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -98,3 +99,89 @@ def test_emit_bedrock_throttle_metric_logs_structured_warning_on_cloudwatch_fail
         message="Failed to emit Bedrock throttle metric",
         error="throttle metric unavailable",
     )
+
+
+def test_log_invocation_persists_streaming_ttft_and_emits_metric() -> None:
+    cloudwatch = MagicMock()
+    db = MagicMock()
+    agent = replace(_agent(), invocation_mode=InvocationMode.STREAMING, streaming_enabled=True)
+
+    with patch("src.bridge.telemetry.TenantScopedDynamoDB", return_value=db):
+        telemetry.log_invocation(
+            cloudwatch,
+            _tenant_context(),
+            agent,
+            "inv-ttft",
+            InvocationStatus.SUCCESS,
+            42,
+            InvocationMode.STREAMING,
+            runtime_region="eu-west-1",
+            session_id="sess-ttft",
+            ttft_ms=17,
+        )
+
+    _, item = db.put_item.call_args.args
+    assert item["ttftMs"] == 17
+
+    metric_names = [
+        metric["MetricName"]
+        for call in cloudwatch.put_metric_data.call_args_list
+        for metric in call.kwargs["MetricData"]
+    ]
+    assert "gen_ai.ttft_ms" in metric_names
+
+    ttft_metrics = [
+        metric
+        for call in cloudwatch.put_metric_data.call_args_list
+        for metric in call.kwargs["MetricData"]
+        if metric["MetricName"] == "gen_ai.ttft_ms"
+    ]
+    assert len(ttft_metrics) == 2
+    for metric in ttft_metrics:
+        assert metric["Value"] == 17
+        assert metric["Unit"] == "Milliseconds"
+
+    dimension_sets = [
+        {dimension["Name"]: dimension["Value"] for dimension in metric["Dimensions"]}
+        for metric in ttft_metrics
+    ]
+    assert {
+        "AgentName": "echo-agent",
+        "InvocationMode": "streaming",
+        "RuntimeRegion": "eu-west-1",
+    } in dimension_sets
+    assert {
+        "AgentName": "all",
+        "InvocationMode": "streaming",
+        "RuntimeRegion": "all",
+    } in dimension_sets
+
+
+@pytest.mark.parametrize("mode", [InvocationMode.SYNC, InvocationMode.ASYNC])
+def test_log_invocation_persists_null_ttft_for_non_streaming_modes(mode: InvocationMode) -> None:
+    cloudwatch = MagicMock()
+    db = MagicMock()
+    agent = replace(_agent(), invocation_mode=mode)
+
+    with patch("src.bridge.telemetry.TenantScopedDynamoDB", return_value=db):
+        telemetry.log_invocation(
+            cloudwatch,
+            _tenant_context(),
+            agent,
+            f"inv-{mode.value}",
+            InvocationStatus.SUCCESS,
+            42,
+            mode,
+            runtime_region="eu-west-1",
+            session_id=f"sess-{mode.value}",
+        )
+
+    _, item = db.put_item.call_args.args
+    assert item["ttftMs"] is None
+
+    metric_names = [
+        metric["MetricName"]
+        for call in cloudwatch.put_metric_data.call_args_list
+        for metric in call.kwargs["MetricData"]
+    ]
+    assert "gen_ai.ttft_ms" not in metric_names

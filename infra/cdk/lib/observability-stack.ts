@@ -263,6 +263,28 @@ export class ObservabilityStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     });
 
+    new cloudwatch.Alarm(this, 'Fm2StreamingTtftPlaceholderAlarm', {
+      alarmName: `${alarmNamePrefix}-FM-2-StreamingTTFTPlaceholder`,
+      alarmDescription:
+        'Placeholder for streaming Time-to-First-Token p99. Actions remain disabled until the AG-UI SLO threshold is defined from production data.',
+      metric: new cloudwatch.Metric({
+        namespace: 'Platform/Bridge',
+        metricName: 'gen_ai.ttft_ms',
+        dimensionsMap: {
+          AgentName: 'all',
+          InvocationMode: 'streaming',
+          RuntimeRegion: 'all',
+        },
+        period: cdk.Duration.minutes(5),
+        statistic: 'p99',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      actionsEnabled: false,
+    });
+
     new cloudwatch.Alarm(this, 'AuthoriserHardFailureAlarm', {
       alarmName: `${alarmNamePrefix}-Authoriser-HardFailures`,
       alarmDescription:

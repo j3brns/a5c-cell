@@ -169,6 +169,31 @@ describe('ObservabilityStack (TASK-026)', () => {
     });
   });
 
+  test('creates disabled streaming TTFT placeholder alarm pending SLO definition', () => {
+    const template = synthStack();
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'ObservabilityStack-FM-2-StreamingTTFTPlaceholder',
+      MetricName: 'gen_ai.ttft_ms',
+      Namespace: 'Platform/Bridge',
+      ExtendedStatistic: 'p99',
+      ActionsEnabled: false,
+      Dimensions: Match.arrayWith([
+        Match.objectLike({
+          Name: 'AgentName',
+          Value: 'all',
+        }),
+        Match.objectLike({
+          Name: 'InvocationMode',
+          Value: 'streaming',
+        }),
+        Match.objectLike({
+          Name: 'RuntimeRegion',
+          Value: 'all',
+        }),
+      ]),
+    });
+  });
+
   test('creates authoriser hard-failure alarm with missing data treated as not breaching', () => {
     const template = synthStack();
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {

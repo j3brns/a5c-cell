@@ -145,6 +145,44 @@ def emit_bedrock_throttle_metric(
         logger.warning("Failed to emit Bedrock throttle metric", extra={"error": str(exc)})
 
 
+def emit_ttft_metric(
+    cloudwatch: Any,
+    *,
+    agent: AgentRecord,
+    runtime_region: str,
+    ttft_ms: int,
+) -> None:
+    metric_data = [
+        {
+            "MetricName": "gen_ai.ttft_ms",
+            "Value": float(ttft_ms),
+            "Unit": "Milliseconds",
+            "Dimensions": [
+                {"Name": "AgentName", "Value": agent.agent_name},
+                {"Name": "InvocationMode", "Value": InvocationMode.STREAMING.value},
+                {"Name": "RuntimeRegion", "Value": runtime_region},
+            ],
+        },
+        {
+            "MetricName": "gen_ai.ttft_ms",
+            "Value": float(ttft_ms),
+            "Unit": "Milliseconds",
+            "Dimensions": [
+                {"Name": "AgentName", "Value": "all"},
+                {"Name": "InvocationMode", "Value": InvocationMode.STREAMING.value},
+                {"Name": "RuntimeRegion", "Value": "all"},
+            ],
+        },
+    ]
+    try:
+        cloudwatch.put_metric_data(
+            Namespace="Platform/Bridge",
+            MetricData=metric_data,
+        )
+    except Exception as exc:
+        logger.warning("Failed to emit TTFT metric", extra={"error": str(exc)})
+
+
 def log_invocation(
     cloudwatch: Any,
     tenant_context: TenantContext,
@@ -160,6 +198,7 @@ def log_invocation(
     session_id: str | None = None,
     error_code: str | None = None,
     jitter: str | None = None,
+    ttft_ms: int | None = None,
 ) -> None:
     """Write invocation audit record to DynamoDB and emit metrics."""
     try:
@@ -185,6 +224,7 @@ def log_invocation(
             jitter=jitter,
             error_code=error_code,
             job_id=job_id,
+            ttft_ms=ttft_ms,
         )
 
         item = {
@@ -204,6 +244,7 @@ def log_invocation(
             "invocation_mode": str(record.invocation_mode),
             "timestamp": record.timestamp,
             "ttl": record.ttl,
+            "ttftMs": record.ttft_ms,
         }
         if record.jitter:
             item["jitter"] = record.jitter
@@ -216,6 +257,13 @@ def log_invocation(
         emit_invocation_metrics(
             cloudwatch, tenant_context, agent, status, latency_ms, input_tokens, output_tokens
         )
+        if mode == InvocationMode.STREAMING and ttft_ms is not None:
+            emit_ttft_metric(
+                cloudwatch,
+                agent=agent,
+                runtime_region=runtime_region,
+                ttft_ms=ttft_ms,
+            )
     except Exception:
         logger.exception("Failed to log invocation")
 

@@ -52,12 +52,15 @@ class InvocationRecord:
     jitter: str | None = None
     error_code: str | None = None
     job_id: str | None = None
+    ttft_ms: int | None = None
 
     def __post_init__(self) -> None:
         if self.jitter is not None and len(self.jitter) != JITTER_LENGTH:
             raise ValueError(
                 f"jitter must be exactly {JITTER_LENGTH} characters, got {len(self.jitter)!r}"
             )
+        if self.ttft_ms is not None and self.ttft_ms < 1:
+            raise ValueError("ttft_ms must be a positive integer when present")
 
     @property
     def pk(self) -> str:

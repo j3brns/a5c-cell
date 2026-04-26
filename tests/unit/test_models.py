@@ -400,6 +400,14 @@ class TestInvocationRecord:
         assert inv.jitter is None
         assert inv.error_code is None
         assert inv.job_id is None
+        assert inv.ttft_ms is None
+
+    def test_ttft_must_be_positive_when_present(self):
+        with pytest.raises(ValueError):
+            _make_invocation(ttft_ms=0)
+
+        inv = _make_invocation(ttft_ms=1)
+        assert inv.ttft_ms == 1
 
     def test_all_invocation_statuses_accepted(self):
         for status in InvocationStatus:
