@@ -116,6 +116,7 @@ def build_queue(
     *,
     stream_label: str | None = None,
     from_issue: int | None = None,
+    from_seq: int | None = None,
     mode: Literal["auto", "ready", "open-task"] = "auto",
 ) -> QueueSelection:
     task_issues = queue_task_issues(issues)
@@ -130,6 +131,9 @@ def build_queue(
     if from_issue is not None:
         open_task = [i for i in open_task if i.number >= from_issue]
         source_notes.append(f"starting from issue #{from_issue}")
+    if from_seq is not None:
+        open_task = [i for i in open_task if i.seq is not None and i.seq >= from_seq]
+        source_notes.append(f"starting from Seq:{from_seq}")
 
     queued_open_task = [i for i in open_task if lifecycle_status(i) != "in-progress"]
     open_ready = [i for i in queued_open_task if "ready" in i.labels]

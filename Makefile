@@ -804,12 +804,13 @@ plan-dev:
 # =============================================================================
 
 ## issue-queue: Show issue queue ordered by Seq (with dependency blocking)
-## Usage: make issue-queue [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310] [LIMIT=20]
+## Usage: make issue-queue [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310] [FROM_SEQ=901] [LIMIT=20]
 issue-queue:
 	uv run python -m scripts.issue_tool issue-queue \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),) \
 		$(if $(LIMIT),--limit $(LIMIT),)
 
 ## issue-create: Create a canonical GitLab task issue
@@ -857,15 +858,16 @@ gitnexus-refresh:
 	uv run python -m scripts.issue_tool gitnexus-refresh
 
 ## worktree: Interactive issue-driven worktree menu (Seq/Depends on aware)
-## Usage: make worktree [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310]
+## Usage: make worktree [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310] [FROM_SEQ=901]
 worktree:
 	uv run python -m scripts.issue_tool menu \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
-		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),)
+		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),)
 
 ## wt-go: Start the next runnable issue worktree and launch an explicit or random agent in tmux
-## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [PRE_PROVISION=1] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo]
+## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [FROM_SEQ=901] [PRE_PROVISION=1] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo]
 wt-go:
 	$(MAKE) --no-print-directory worktree-next-issue \
 		HANDOFF=execute-now \
@@ -873,6 +875,7 @@ wt-go:
 		$(if $(QUEUE_MODE),QUEUE_MODE=$(QUEUE_MODE),) \
 		$(if $(STREAM),STREAM=$(STREAM),) \
 		$(if $(FROM_ISSUE),FROM_ISSUE=$(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),FROM_SEQ=$(FROM_SEQ),) \
 		AGENT=$(if $(AGENT),$(AGENT),random) \
 		$(if $(REVIEW_AGENT),REVIEW_AGENT=$(REVIEW_AGENT),) \
 		$(if $(REVIEW_AGENT_MODE),REVIEW_AGENT_MODE=$(REVIEW_AGENT_MODE),) \
@@ -880,13 +883,14 @@ wt-go:
 		AGENT_MODE=$(if $(AGENT_MODE),$(AGENT_MODE),yolo)
 
 ## worktree-next-issue: Create a worktree for the next runnable issue in the queue
-## Usage: make worktree-next-issue [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [PRE_PROVISION=1] [DRY_RUN=1] [OPEN_SHELL=1]
+## Usage: make worktree-next-issue [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [FROM_SEQ=901] [PRE_PROVISION=1] [DRY_RUN=1] [OPEN_SHELL=1]
 ## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-next-issue:
 	uv run python -m scripts.issue_tool worktree-next \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),) \
 		$(if $(DRY_RUN),--dry-run,) \
 		$(if $(OPEN_SHELL),--open-shell,) \
 		$(if $(NO_CLAIM),--no-claim,) \
@@ -903,7 +907,7 @@ worktree-next-issue:
 		$(if $(PRINT_ONLY),--print-only,)
 
 ## wt-batch: Create multiple runnable issue worktrees and start detached agent runs
-## Usage: make wt-batch [COUNT=3] [FROM_ISSUE=310] [AGENTS=gemini] [AGENT_MODE=yolo] [INTERACTIVE=1]
+## Usage: make wt-batch [COUNT=3] [FROM_ISSUE=310] [FROM_SEQ=901] [AGENTS=gemini] [AGENT_MODE=yolo] [INTERACTIVE=1]
 wt-batch:
 	uv run python -m scripts.issue_tool wt-batch \
 		--count $(if $(COUNT),$(COUNT),3) \
@@ -912,6 +916,7 @@ wt-batch:
 		$(if $(QUEUE_MODE),--mode "$(QUEUE_MODE)",--mode auto) \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),) \
 		$(if $(BASE_DIR),--base-dir "$(BASE_DIR)",) \
 		$(if $(INTERACTIVE),--interactive,) \
 		$(if $(DRY_RUN),--dry-run,)

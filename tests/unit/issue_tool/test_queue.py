@@ -51,6 +51,26 @@ def test_build_queue_can_start_from_issue_number():
     assert [item.issue.number for item in selection.items] == [23]
 
 
+def test_build_queue_can_start_from_seq():
+    lower = _issue(
+        number=50,
+        task_id="TASK-901",
+        seq=901,
+        labels=["type:task", "status:not-started"],
+    )
+    higher = _issue(
+        number=51,
+        task_id="TASK-902",
+        seq=902,
+        labels=["type:task", "status:not-started"],
+    )
+
+    selection = build_queue([lower, higher], mode="open-task", from_seq=902)
+
+    assert "starting from Seq:902" in selection.source_note
+    assert [item.issue.number for item in selection.items] == [51]
+
+
 def test_choose_next_runnable_requires_not_blocked_and_dependencies_closed():
     blocked_by_label = _issue(
         number=23,
