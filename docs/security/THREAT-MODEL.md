@@ -62,10 +62,9 @@ Runtime microVM isolation prevents cross-session access at compute level
 Threat: AgentCore Runtime remains internet-addressable by silent default even after the
 platform claims a stronger network posture
 Mitigation: ADR-023 defines the v0.2 staging/production target as AgentCore Runtime in
-`eu-west-2` with `NetworkMode: VPC` and no `eu-west-1` runtime fallback. The current
-pre-v0.2 runtime stack still records `PUBLIC` as an explicit exception tied to ADR-009,
-but implementation work must convert that exception into fail-closed CI/CD gates for
-staging and production. Dev-only exceptions must be explicit and environment-scoped.
+`eu-west-2` with `NetworkMode: VPC` and no `eu-west-1` runtime fallback. The runtime
+stack now synthesizes VPC mode with explicit subnet and security-group configuration;
+CI/CD gates must keep failing closed if that posture drifts in staging or production.
 
 ### 9. Data Exfiltration via Agent
 Threat: agent accumulates and exfiltrates tenant data

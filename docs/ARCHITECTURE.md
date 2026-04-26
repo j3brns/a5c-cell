@@ -11,7 +11,7 @@ infrastructure releases. Platform operators monitor, scale, and respond to incid
 
 ## Architecture Overview
 
-![Platform architecture: eu-west-2 control plane, eu-west-1 AgentCore compute, eu-central-1 evaluation](images/tf_acore_aas_architecture.drawio.png)
+![Platform architecture: eu-west-2 control plane and AgentCore compute, eu-central-1 evaluation](images/tf_acore_aas_architecture.drawio.png)
 
 **Audience-specific views:**
 - [Engineer architecture](images/tf_acore_aas_architecture_engineer.drawio.png) — explicit service interactions and data flows
@@ -53,19 +53,19 @@ The v0.2 serving path has no eu-west-1 runtime fallback and no runtime regional
 failover. AgentCore Evaluations may remain a non-serving quality gate outside London
 when AWS regional support requires it; that exception is not a serving-path failover.
 
-### Current Pre-v0.2 Implementation
+### Current Implementation
 
-The current checked-in implementation still contains ADR-009/ADR-020 migration-era
-defaults until follow-up implementation issues converge CDK, bootstrap, tests, and
-runbooks on ADR-023:
+The checked-in implementation now uses the ADR-023 v0.2 runtime topology:
 
 ```
-eu-west-2 London (HOME — owns everything)
+eu-west-2 London (HOME + RUNTIME)
+├── one platform VPC
 ├── REST API Gateway + WAF
 ├── CloudFront + SPA (S3, CloudFront WebACL provisioned separately in us-east-1)
 ├── AgentCore Gateway (native)
 ├── AgentCore Memory (native)
 ├── AgentCore Identity (native)
+├── AgentCore Runtime (NetworkMode VPC)
 ├── All DynamoDB tables
 ├── All S3 buckets
 ├── Secrets Manager
@@ -81,43 +81,20 @@ eu-west-2 London (HOME — owns everything)
 ├── CloudWatch (aggregated)
 └── Platform identity and shared config
 
-eu-west-1 Dublin (COMPUTE — current primary runtime region by platform policy)
-├── AgentCore Runtime (arm64 Firecracker microVM)
-├── AgentCore runtime telemetry metric stream to London
-├── AgentCore Browser
-└── AgentCore Code Interpreter
-
-eu-central-1 Frankfurt (EVALUATION + failover)
-├── AgentCore Evaluations
-├── AgentCore Policy (Cedar) for Gateway authorization decisions
-├── Runtime failover target
-└── Shadow NetworkStack for failover parity work
+eu-central-1 Frankfurt (EVALUATION)
+└── AgentCore Evaluations when AWS regional support requires a non-serving quality gate
 ```
 
-All data remains in the EU. The current approved zigzag to Dublin adds ~12ms RTT.
-AWS documentation now shows AgentCore Runtime and core AgentCore services available
-in London. ADR-023 is the v0.2 target-state contract; current code remains
-pre-v0.2 until the implementing issues land.
-
-Current runtime network posture: `AWS::BedrockAgentCore::Runtime` remains in
-`NetworkMode: PUBLIC` by explicit exception, not by omission. The reason is structural:
-the approved ADR-009 deployment path places Runtime in eu-west-1, while this repository
-currently provisions VPC infrastructure only in eu-west-2. Moving Runtime to `VPC`
-requires a dedicated eu-west-1 VPC design covering subnets, security groups, required
-service endpoints, and egress policy. Until that exists and a successor ADR approves
-the migration, the runtime stack records the exception in CloudFormation metadata and
-tests/guard rules enforce that `PUBLIC` cannot remain an undocumented default.
-For v0.2, this exception must be removed for staging and production rather than
-carried forward.
+All data remains in the EU. The old Dublin zigzag is removed from defaults,
+tenant execution-role runtime region sets, runtime bootstrap seeds, and the CDK
+runtime stack. Runtime VPC mode uses the London platform VPC isolated subnets and
+a dedicated AgentCore Runtime security group.
 
 Policy in AgentCore is GA and baseline Cedar enforcement is now wired into the
 platform. Additional policy tuning remains an ongoing platform task.
 
-Pre-v0.2 failover: Dublin to Frankfurt on `ServiceUnavailableException`
-([RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md)).
-Failover is controlled by SSM `/platform/config/runtime-region` with a DynamoDB
-distributed lock. ADR-023 defers serving-path runtime failover for v0.2 and forbids
-`eu-west-1` as a fallback target.
+Runtime regional failover is disabled for v0.2. A Runtime outage is handled as
+a degradation event through [RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md).
 
 Dynamic tenant capability policy uses AppConfig in the home region. AppConfig is
 reserved for rollout-sensitive capability policy only; runtime parameters remain
@@ -153,9 +130,8 @@ so pure tenant lifecycle tests do not need to construct full Lambda event payloa
 
 ## Request Lifecycle (Synchronous)
 
-This is the current pre-v0.2 request lifecycle. ADR-023 changes the v0.2 target so
-the serving Runtime moves into `eu-west-2` VPC mode and `eu-west-1` disappears from
-the runtime serving path.
+This is the current v0.2 request lifecycle. The serving Runtime is in `eu-west-2`
+VPC mode; `eu-west-1` is not a serving fallback.
 
 ![Request lifecycle: client through CloudFront, API Gateway, Authoriser, Bridge, AgentCore Runtime, Gateway interceptors, Tool Lambdas, and response stream](images/tf_acore_aas_request_lifecycle_engineer.drawio.png)
 
@@ -174,14 +150,14 @@ Client
         (fallback: SSM /platform/tenants/{tenantId}/execution-role-arn)
       Validates IAM role ARN/account match, then assumes tenant execution role via STS
         Role policy authorises AgentCore runtime invocation only in the approved
-        runtime region set (pre-v0.2: primary eu-west-1, failover eu-central-1)
+        runtime region set (v0.2: eu-west-2 only)
       Reads active runtime region from SSM (cached 60s)
-      Invokes AgentCore Runtime in the active runtime region (pre-v0.2 default eu-west-1)
+      Invokes AgentCore Runtime in the active runtime region (default eu-west-2)
         via bedrock-agentcore SDK
       Writes INVOCATION record to DynamoDB on completion
-  → AgentCore Runtime eu-west-1 (pre-v0.2)
+  → AgentCore Runtime eu-west-2
       Firecracker microVM isolation per session
-      NetworkMode PUBLIC by explicit pre-v0.2 exception
+      NetworkMode VPC using isolated platform VPC subnets and runtime security group
       Calls tools via AgentCore Gateway eu-west-2
       Gateway policy engine: Cedar evaluation (LOG_ONLY in dev/staging, ENFORCE in prod)
       Gateway REQUEST interceptor: issues scoped act-on-behalf token
@@ -193,7 +169,7 @@ Client
 Implementation note: the Bridge still deploys as one Lambda, but the package is
 now split internally into `config_provider`, `discovery_service`,
 `invocation_engine`, `runtime_orchestrator`, and `runtime_invoker` so routing,
-discovery, and failover logic can evolve independently without changing the
+discovery, and degradation handling can evolve independently without changing the
 current public invoke contract. TASK-902 provisions the eu-west-2 ElastiCache Serverless
 Valkey counter store and publishes its endpoint per environment at
 `/platform/{env}/config/valkey-endpoint`; the Bridge receives the same resolved
@@ -203,9 +179,7 @@ endpoint in the selected subnets and security groups; no additional user-managed
 ElastiCache interface endpoint is required for counter traffic. Bridge remains
 outside the VPC under ADR-014; TASK-903's counter client is fail-open and
 endpoint-gated, while any move to hard enforcement still requires an approved
-narrow adapter or runtime-network design. Pulling the whole Bridge into isolated
-subnets would break the current eu-west-1 AgentCore Runtime path until the
-ADR-023 runtime implementation replaces that path.
+narrow adapter or runtime-network design.
 
 Current SPA edge posture: the public SPA distribution is protected by a dedicated
 CloudFront-scope WebACL that must be provisioned in **us-east-1**. AWS WAF requires
@@ -745,7 +719,7 @@ See [ADR-007](decisions/ADR-007-cdk-terraform.md) for the CDK vs Terraform split
 | 3 | PlatformStack | eu-west-2 | REST API, WAF, CloudFront, Bridge, BFF, Authoriser, Gateway |
 | 4 | TenantStack | eu-west-2 | Per-tenant Memory store, execution role, usage plan key, SSM |
 | 5 | ObservabilityStack | eu-west-2 | Dashboards, alarms, monitoring-account OAM sink only |
-| 6 | AgentCoreStack | eu-west-1 pre-v0.2; eu-west-2 target | Runtime config; v0.2 removes the eu-west-1 metric stream |
+| 6 | AgentCoreStack | eu-west-2 | Runtime config; VPC mode; no cross-region metric stream |
 
 TenantStack deploys per-tenant through the tenant provisioning Step Functions
 workflow, which is started by EventBridge `platform.tenant.created` and
@@ -762,15 +736,14 @@ CloudFront) is designed in [ADR-703](decisions/ADR-703-platformstack-split-plan.
 with follow-on implementation issues created upon plan acceptance.
 
 ObservabilityStack currently provisions the eu-west-2 monitoring-account OAM sink only.
-No regional OAM member links are deployed yet, so the pre-v0.2 cross-region
-observability path is represented by the AgentCoreStack metric stream into
-eu-west-2 dashboards. ADR-023 removes that metric stream from the v0.2 target.
+No regional OAM member links are deployed yet. Runtime metrics are read in the serving
+region; the old eu-west-1 metric stream is not part of the v0.2 topology.
 
 ## Failure Modes
 
 | ID | Failure | Detection | Alarm | Response |
 |----|---------|-----------|-------|----------|
-| FM-1 | Runtime region unavailable | `ServiceUnavailableException` | `FM-1-RuntimeRegionUnavailable` | [RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md) pre-v0.2; v0.2 degradation procedure pending |
+| FM-1 | Runtime region unavailable | `ServiceUnavailableException` | `FM-1-RuntimeRegionUnavailable` | [RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md) degradation procedure |
 | FM-2 | Authoriser cold start spike | P99 > 500ms | `FM-2-AuthoriserColdStartSpike` | Provisioned concurrency |
 | FM-3 | Secrets Manager throttling | Cache miss rate | `FM-3-SecretsManagerThrottling` | By design (Lambda /tmp cache with TTL) |
 | FM-4 | DynamoDB hot partition | Throttle events on invocations table | `FM-4-DynamoDbHotPartition` | Jitter suffix on SK |
@@ -834,7 +807,7 @@ See [ADR-013](decisions/ADR-013-entra-rbac-roles-claim.md).
 
 | Constraint | Impact | Mitigation |
 |-----------|--------|------------|
-| Current pre-v0.2 implementation keeps Runtime in eu-west-1 | ~12ms RTT zigzag to Dublin even though Runtime is now available in eu-west-2 | [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md) defines the v0.2 secure target: eu-west-2 Runtime, staging/prod VPC mode, no Dublin fallback |
+| Runtime regional failover is deferred for v0.2 | A London Runtime outage is a platform degradation event | [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md) requires eu-west-2 Runtime, staging/prod VPC mode, and no Dublin fallback |
 | AgentCore Gateway timeout: 5 min | Tools cannot exceed 5 min response | Design tools for fast response; long work uses async mode |
 | Code Interpreter: 25 concurrent sessions | Per-account per-region limit | Monitor via [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md) |
 | arm64 only in Runtime | All Python deps must be cross-compiled aarch64-manylinux2014 | See [ADR-001](decisions/ADR-001-agentcore-runtime.md) |

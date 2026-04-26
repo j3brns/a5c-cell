@@ -164,7 +164,7 @@ def setup_data(mock_aws_services):
     )
 
     # Seed SSM
-    ssm.put_parameter(Name="/platform/config/runtime-region", Value="eu-west-1", Type="String")
+    ssm.put_parameter(Name="/platform/config/runtime-region", Value="eu-west-2", Type="String")
     ssm.put_parameter(
         Name="/platform/config/mock-runtime-url", Value="http://localhost:8765", Type="String"
     )
@@ -1171,7 +1171,7 @@ def test_runtime_failure_response_emits_bedrock_throttle_metric(
             "inv-001",
             0.0,
             InvocationMode.SYNC,
-            "eu-west-1",
+            "eu-west-2",
             "req-001",
             exc,
             session_id=None,

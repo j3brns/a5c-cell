@@ -166,9 +166,8 @@ def test_get_agent_detail_uses_platform_context_db_factory() -> None:
     mock_db.query.assert_called_once_with(AGENTS_TABLE, pk_value="AGENT#echo-agent")
 
 
-def test_trigger_failover_uses_control_plane_db_for_locking() -> None:
+def test_trigger_failover_is_disabled_for_v0_2_topology() -> None:
     ssm = MagicMock()
-    ssm.get_parameter.return_value = {"Parameter": {"Value": "eu-west-1"}}
 
     with (
         patch("src.bridge.lock_manager.ControlPlaneDynamoDB") as mock_db_cls,
@@ -177,21 +176,11 @@ def test_trigger_failover_uses_control_plane_db_for_locking() -> None:
         patch("src.bridge.lock_manager.get_ssm", return_value=ssm),
     ):
         result = lock_manager.trigger_failover(
-            current_region="eu-west-1",
+            current_region="eu-west-2",
         )
 
-    assert result == "eu-central-1"
-    ctx = mock_db_cls.call_args.args[0]
-    assert ctx.tenant_id == "platform"
-    assert ctx.app_id == "bridge-lock-manager"
-    assert ctx.tier == TenantTier.PREMIUM
-    mock_acquire.assert_called_once_with(
-        mock_db_cls.return_value,
-        lock_name=lock_manager.FAILOVER_LOCK_NAME,
-        identity=mock_acquire.call_args.kwargs["identity"],
-    )
-    mock_release.assert_called_once_with(
-        mock_db_cls.return_value,
-        lock_name=lock_manager.FAILOVER_LOCK_NAME,
-        lock_id="lock-123",
-    )
+    assert result is None
+    mock_db_cls.assert_not_called()
+    mock_acquire.assert_not_called()
+    mock_release.assert_not_called()
+    ssm.get_parameter.assert_not_called()

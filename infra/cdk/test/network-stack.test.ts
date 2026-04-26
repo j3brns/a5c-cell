@@ -9,19 +9,6 @@ describe('NetworkStack', () => {
       env: {
         region: 'eu-west-2',
       },
-      runtimePeerRegion: 'eu-west-1',
-    });
-
-    return Template.fromStack(stack);
-  }
-
-  function synthShadowTemplate(): Template {
-    const app = new cdk.App();
-    const stack = new NetworkStack(app, 'platform-network-shadow-dev', {
-      env: {
-        region: 'eu-central-1',
-      },
-      runtimePeerRegion: 'eu-west-2',
     });
 
     return Template.fromStack(stack);
@@ -32,7 +19,7 @@ describe('NetworkStack', () => {
 
     template.resourceCountIs('AWS::EC2::VPC', 1);
     template.resourceCountIs('AWS::EC2::Subnet', 4);
-    template.resourceCountIs('AWS::EC2::SecurityGroup', 2);
+    template.resourceCountIs('AWS::EC2::SecurityGroup', 3);
     template.resourceCountIs('AWS::EC2::NetworkAcl', 2);
     template.resourceCountIs('AWS::EC2::SubnetNetworkAclAssociation', 4);
   });
@@ -73,31 +60,23 @@ describe('NetworkStack', () => {
     });
   });
 
-  test('includes optional eu-west-1 peering scaffolding for runtime connectivity', () => {
+  test('does not include cross-region runtime peering scaffolding', () => {
     const template = synthTemplate();
 
-    template.hasResourceProperties('AWS::EC2::VPCPeeringConnection', {
-      PeerRegion: 'eu-west-1',
-    });
-    template.hasResourceProperties(
-      'AWS::EC2::SecurityGroupEgress',
-      Match.objectLike({
-        IpProtocol: 'tcp',
-        FromPort: 443,
-        ToPort: 443,
-      }),
-    );
+    template.resourceCountIs('AWS::EC2::VPCPeeringConnection', 0);
   });
 
-  test('allows failover shadow deployment to peer back to the home region', () => {
-    const template = synthShadowTemplate();
+  test('creates a dedicated AgentCore Runtime security group', () => {
+    const template = synthTemplate();
 
-    template.hasResourceProperties('AWS::EC2::VPCPeeringConnection', {
-      PeerRegion: 'eu-west-2',
-    });
-    template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
-      ServiceName: 'com.amazonaws.eu-central-1.bedrock-agentcore',
-      VpcEndpointType: 'Interface',
+    template.hasResourceProperties(
+      'AWS::EC2::SecurityGroup',
+      Match.objectLike({
+        GroupDescription: 'Security group for AgentCore Runtime VPC ENIs',
+      }),
+    );
+    template.hasOutput('AgentCoreRuntimeSecurityGroupId', {
+      Value: Match.anyValue(),
     });
   });
 });

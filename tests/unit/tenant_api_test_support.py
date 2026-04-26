@@ -208,18 +208,11 @@ class FakePlatformQuotaClient:
         self.calls: list[dict[str, Any]] = []
         self.response = [
             {
-                "region": "eu-west-1",
+                "region": "eu-west-2",
                 "quotaName": "ConcurrentSessions",
                 "currentValue": 11.0,
                 "limit": 500.0,
                 "utilisationPercentage": 2.2,
-            },
-            {
-                "region": "eu-central-1",
-                "quotaName": "ConcurrentSessions",
-                "currentValue": 3.0,
-                "limit": 500.0,
-                "utilisationPercentage": 0.6,
             },
         ]
 
@@ -402,8 +395,7 @@ class FakeLambdaContext:
 class FakeSsm:
     def __init__(self) -> None:
         self.parameters = {
-            "/platform/config/runtime-region": "eu-west-1",
-            "/platform/config/fallback-region": "eu-central-1",
+            "/platform/config/runtime-region": "eu-west-2",
         }
         self.get_calls: list[dict[str, Any]] = []
         self.put_calls: list[dict[str, Any]] = []

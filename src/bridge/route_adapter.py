@@ -358,6 +358,20 @@ def invoke_agent(
                 from .lock_manager import trigger_failover as do_failover
 
             new_region = do_failover(runtime_region)
+            if new_region is None:
+                return runtime_calls.runtime_failure_response(
+                    tenant_context,
+                    agent,
+                    invocation_id,
+                    start_time,
+                    agent.invocation_mode,
+                    runtime_region,
+                    request_id,
+                    exc,
+                    session_id=session_id,
+                    tpm_estimated=estimate,
+                    log_invocation=log_result_with_tpm,
+                )
             return call_real_runtime(
                 new_region,
                 agent,
@@ -391,6 +405,20 @@ def invoke_agent(
                 from .lock_manager import trigger_failover as do_failover
 
             new_region = do_failover(runtime_region)
+            if new_region is None:
+                return runtime_calls.runtime_failure_response(
+                    tenant_context,
+                    agent,
+                    invocation_id,
+                    start_time,
+                    agent.invocation_mode,
+                    runtime_region,
+                    request_id,
+                    exc,
+                    session_id=session_id,
+                    tpm_estimated=estimate,
+                    log_invocation=log_result_with_tpm,
+                )
             return call_real_runtime(
                 new_region,
                 agent,

@@ -37,9 +37,8 @@ import { PlatformApi } from './platform-api';
 import { PlatformGateway } from './platform-gateway';
 import { PlatformSpa } from './platform-spa';
 import { PlatformWaf } from './platform-waf';
+import { AUTHORIZED_RUNTIME_REGIONS } from './runtime-topology';
 import { TenantStack } from './tenant-stack';
-
-const TENANT_AUTHORIZED_RUNTIME_REGIONS = ['eu-west-1', 'eu-central-1'] as const;
 
 type PythonLambdaProps = {
   assetPath: string;
@@ -238,7 +237,7 @@ export class PlatformStack extends cdk.Stack {
     const tenantStackTemplatePath = ensureTenantStubTemplate(
       env,
       this.env,
-      TENANT_AUTHORIZED_RUNTIME_REGIONS,
+      AUTHORIZED_RUNTIME_REGIONS,
     );
     const tenantStackTemplateAsset = new s3assets.Asset(this, 'TenantStackTemplateAsset', {
       path: tenantStackTemplatePath,

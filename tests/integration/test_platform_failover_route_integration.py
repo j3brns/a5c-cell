@@ -33,13 +33,6 @@ def _load_failover_lock_module() -> Any:
 failover_lock = _load_failover_lock_module()
 
 
-class FakeLambdaContext:
-    function_name = "tenant-api"
-    memory_limit_in_mb = 256
-    invoked_function_arn = "arn:aws:lambda:eu-west-2:111111111111:function:tenant-api"
-    aws_request_id = "req-platform-failover-integration"
-
-
 class _FakeEvents:
     def put_events(self, **kwargs: Any) -> dict[str, Any]:
         return {"FailedEntryCount": 0, "Entries": [{"EventId": "evt-1"}]}
@@ -89,7 +82,7 @@ def _failover_event(lock_id: str) -> dict[str, Any]:
     }
 
 
-def test_failover_route_updates_ssm_and_bridge_reads_new_runtime_region(monkeypatch) -> None:
+def test_failover_route_is_disabled_and_bridge_keeps_serving_region(monkeypatch) -> None:
     with mock_aws():
         monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
         monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
@@ -104,7 +97,7 @@ def test_failover_route_updates_ssm_and_bridge_reads_new_runtime_region(monkeypa
         ddb_client = boto3.client("dynamodb", region_name="eu-west-2")
         ssm = boto3.client("ssm", region_name="eu-west-2")
         _create_table(ddb_resource, "platform-ops-locks")
-        ssm.put_parameter(Name="/platform/config/runtime-region", Value="eu-west-1", Type="String")
+        ssm.put_parameter(Name="/platform/config/runtime-region", Value="eu-west-2", Type="String")
         ssm.put_parameter(
             Name="/platform/config/mock-runtime-url",
             Value="http://localhost:8765",
@@ -126,18 +119,16 @@ def test_failover_route_updates_ssm_and_bridge_reads_new_runtime_region(monkeypa
             memory_provisioner=_FakeMemoryProvisioner(),
             platform_quota_client=MagicMock(),
         )
-        monkeypatch.setattr(tenant_api_handler, "_dependencies", lambda: deps)
-
-        response = tenant_api_handler.lambda_handler(
-            _failover_event(lock_record.lock_id), FakeLambdaContext()
+        response = tenant_api_handler.handle_event(
+            _failover_event(lock_record.lock_id), dependencies=deps
         )
 
-        assert response["statusCode"] == 200
-        assert json.loads(response["body"])["status"] == "failover_executed"
+        assert response["statusCode"] == 409
+        assert json.loads(response["body"])["error"]["code"] == "RUNTIME_FAILOVER_DISABLED"
 
         bridge_handler._ssm_client = None
         bridge_handler._config_cache = {}
         bridge_handler._config_cache_expiry = 0
         config = bridge_handler.get_config(force_refresh=True)
 
-        assert config["runtime_region"] == "eu-central-1"
+        assert config["runtime_region"] == "eu-west-2"

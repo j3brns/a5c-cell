@@ -208,18 +208,10 @@ rule agentcore_runtime_network_mode_explicit {
     }
 }
 
-# agentcore_runtime_public_requires_exception_metadata
-rule agentcore_runtime_public_requires_exception_metadata {
+# agentcore_runtime_uses_vpc_mode
+rule agentcore_runtime_uses_vpc_mode {
     when %agentcore_runtimes exists {
-        %agentcore_runtimes {
-            when Properties.NetworkConfiguration.NetworkMode == "PUBLIC" {
-                Metadata.RuntimeNetworkPosture {
-                    Decision == "PUBLIC_WITH_COMPENSATING_CONTROLS"
-                    Justification == "ADR-009_NO_RUNTIME_REGION_VPC"
-                    RevisitTrigger exists
-                }
-            }
-        }
+        %agentcore_runtimes.Properties.NetworkConfiguration.NetworkMode == "VPC"
     }
 }
 

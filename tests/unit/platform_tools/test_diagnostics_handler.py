@@ -24,7 +24,9 @@ def test_get_platform_health(mock_db):
     assert response["id"] == "1"
     assert "result" in response
     assert response["result"]["status"] == "healthy"
-    assert len(response["result"]["regions"]) == 2
+    assert response["result"]["regions"] == [
+        {"region": "eu-west-2", "status": "operational", "latency_ms": 0}
+    ]
 
 
 def test_get_tenant_status(mock_db):

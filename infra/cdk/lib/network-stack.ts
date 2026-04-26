@@ -1,8 +1,9 @@
 /**
  * NetworkStack — VPC, subnets, VPC endpoints, security groups, NACLs.
  *
- * eu-west-2 London only. Provides network isolation for all Lambda functions
- * and VPC endpoints for: S3, DynamoDB, SSM, Secrets Manager, AgentCore.
+ * eu-west-2 London only. Provides network isolation for Lambda functions,
+ * AgentCore Runtime VPC mode, and VPC endpoints for: S3, DynamoDB, SSM,
+ * Secrets Manager, AgentCore.
  *
  * Implemented in TASK-021.
  * ADRs: ADR-009
@@ -11,19 +12,15 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
 
-export interface NetworkStackProps extends cdk.StackProps {
-  readonly runtimePeerRegion?: string;
-}
-
 export class NetworkStack extends cdk.Stack {
   public readonly vpc: ec2.Vpc;
   public readonly lambdaSecurityGroup: ec2.SecurityGroup;
+  public readonly agentCoreRuntimeSecurityGroup: ec2.SecurityGroup;
 
-  constructor(scope: Construct, id: string, props?: NetworkStackProps) {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const region = cdk.Stack.of(this).region;
-    const runtimePeerRegion = props?.runtimePeerRegion ?? 'eu-west-1';
     const privateSubnetSelection: ec2.SubnetSelection = {
       subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
     };
@@ -53,6 +50,17 @@ export class NetworkStack extends cdk.Stack {
     });
     this.lambdaSecurityGroup = lambdaSecurityGroup;
 
+    const agentCoreRuntimeSecurityGroup = new ec2.SecurityGroup(
+      this,
+      'AgentCoreRuntimeSecurityGroup',
+      {
+        vpc: this.vpc,
+        allowAllOutbound: false,
+        description: 'Security group for AgentCore Runtime VPC ENIs',
+      },
+    );
+    this.agentCoreRuntimeSecurityGroup = agentCoreRuntimeSecurityGroup;
+
     const endpointSecurityGroup = new ec2.SecurityGroup(this, 'InterfaceEndpointSecurityGroup', {
       vpc: this.vpc,
       allowAllOutbound: false,
@@ -64,7 +72,17 @@ export class NetworkStack extends cdk.Stack {
       ec2.Port.tcp(443),
       'Allow HTTPS from platform Lambdas',
     );
+    endpointSecurityGroup.addIngressRule(
+      agentCoreRuntimeSecurityGroup,
+      ec2.Port.tcp(443),
+      'Allow HTTPS from AgentCore Runtime',
+    );
     lambdaSecurityGroup.addEgressRule(
+      endpointSecurityGroup,
+      ec2.Port.tcp(443),
+      'Allow HTTPS to interface VPC endpoints',
+    );
+    agentCoreRuntimeSecurityGroup.addEgressRule(
       endpointSecurityGroup,
       ec2.Port.tcp(443),
       'Allow HTTPS to interface VPC endpoints',
@@ -75,6 +93,16 @@ export class NetworkStack extends cdk.Stack {
       'Allow DNS (UDP) to VPC resolver',
     );
     lambdaSecurityGroup.addEgressRule(
+      ec2.Peer.ipv4(this.vpc.vpcCidrBlock),
+      ec2.Port.tcp(53),
+      'Allow DNS (TCP) to VPC resolver',
+    );
+    agentCoreRuntimeSecurityGroup.addEgressRule(
+      ec2.Peer.ipv4(this.vpc.vpcCidrBlock),
+      ec2.Port.udp(53),
+      'Allow DNS (UDP) to VPC resolver',
+    );
+    agentCoreRuntimeSecurityGroup.addEgressRule(
       ec2.Peer.ipv4(this.vpc.vpcCidrBlock),
       ec2.Port.tcp(53),
       'Allow DNS (TCP) to VPC resolver',
@@ -139,68 +167,6 @@ export class NetworkStack extends cdk.Stack {
     this.addPublicSubnetAclRules(publicNetworkAcl, this.vpc.vpcCidrBlock);
     this.addPrivateSubnetAclRules(privateNetworkAcl, this.vpc.vpcCidrBlock);
 
-    const enableRuntimeVpcPeering = new cdk.CfnParameter(this, 'EnableRuntimeVpcPeering', {
-      type: 'String',
-      allowedValues: ['true', 'false'],
-      default: 'false',
-      description:
-        `Enable optional inter-region VPC peering to a ${runtimePeerRegion} runtime egress VPC for AgentCore Runtime traffic`,
-    });
-    const runtimePeerVpcId = new cdk.CfnParameter(this, 'RuntimePeerVpcId', {
-      type: 'String',
-      default: '',
-      description: `Peer VPC ID in ${runtimePeerRegion} (required when EnableRuntimeVpcPeering=true)`,
-    });
-    const runtimePeerAccountId = new cdk.CfnParameter(this, 'RuntimePeerAccountId', {
-      type: 'String',
-      default: '',
-      description: `Peer AWS account ID in ${runtimePeerRegion} (required when EnableRuntimeVpcPeering=true)`,
-    });
-    const runtimePeerCidr = new cdk.CfnParameter(this, 'RuntimePeerCidr', {
-      type: 'String',
-      default: '',
-      description: `CIDR of the ${runtimePeerRegion} runtime egress VPC (required when peering is enabled)`,
-    });
-
-    const runtimePeeringConfigured = new cdk.CfnCondition(this, 'RuntimeVpcPeeringConfigured', {
-      expression: cdk.Fn.conditionAnd(
-        cdk.Fn.conditionEquals(enableRuntimeVpcPeering.valueAsString, 'true'),
-        cdk.Fn.conditionNot(cdk.Fn.conditionEquals(runtimePeerVpcId.valueAsString, '')),
-        cdk.Fn.conditionNot(cdk.Fn.conditionEquals(runtimePeerAccountId.valueAsString, '')),
-        cdk.Fn.conditionNot(cdk.Fn.conditionEquals(runtimePeerCidr.valueAsString, '')),
-      ),
-    });
-
-    const runtimeVpcPeering = new ec2.CfnVPCPeeringConnection(this, 'RuntimeVpcPeeringConnection', {
-      vpcId: this.vpc.vpcId,
-      peerVpcId: runtimePeerVpcId.valueAsString,
-      peerOwnerId: runtimePeerAccountId.valueAsString,
-      peerRegion: runtimePeerRegion,
-      tags: [{ key: 'Name', value: `${cdk.Stack.of(this).stackName}-runtime-peering` }],
-    });
-    runtimeVpcPeering.cfnOptions.condition = runtimePeeringConfigured;
-
-    for (const [index, subnet] of this.vpc.isolatedSubnets.entries()) {
-      const isolatedSubnet = subnet as ec2.Subnet;
-      const route = new ec2.CfnRoute(this, `RuntimePeerRoute${index + 1}`, {
-        routeTableId: isolatedSubnet.routeTable.routeTableId,
-        destinationCidrBlock: runtimePeerCidr.valueAsString,
-        vpcPeeringConnectionId: runtimeVpcPeering.ref,
-      });
-      route.cfnOptions.condition = runtimePeeringConfigured;
-      route.addDependency(runtimeVpcPeering);
-    }
-
-    const runtimePeerEgress = new ec2.CfnSecurityGroupEgress(this, 'RuntimePeerHttpsEgress', {
-      groupId: lambdaSecurityGroup.securityGroupId,
-      ipProtocol: 'tcp',
-      fromPort: 443,
-      toPort: 443,
-      cidrIp: runtimePeerCidr.valueAsString,
-      description: `HTTPS egress to ${runtimePeerRegion} runtime VPC over optional inter-region peering`,
-    });
-    runtimePeerEgress.cfnOptions.condition = runtimePeeringConfigured;
-
     new cdk.CfnOutput(this, 'VpcId', {
       value: this.vpc.vpcId,
       description: 'Primary platform VPC ID',
@@ -220,6 +186,11 @@ export class NetworkStack extends cdk.Stack {
       value: lambdaSecurityGroup.securityGroupId,
       description: 'Security group for platform Lambdas in the VPC',
       exportName: `${this.stackName}-LambdaSecurityGroupId`,
+    });
+    new cdk.CfnOutput(this, 'AgentCoreRuntimeSecurityGroupId', {
+      value: agentCoreRuntimeSecurityGroup.securityGroupId,
+      description: 'Security group for AgentCore Runtime VPC ENIs',
+      exportName: `${this.stackName}-AgentCoreRuntimeSecurityGroupId`,
     });
     new cdk.CfnOutput(this, 'InterfaceEndpointSecurityGroupId', {
       value: endpointSecurityGroup.securityGroupId,

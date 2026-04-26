@@ -7,6 +7,8 @@ from aws_lambda_powertools import Logger
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
+from platform_config.runtime_topology import RUNTIME_FAILOVER_REGION
+
 try:
     from . import (
         auth,
@@ -61,6 +63,19 @@ def handle_platform_failover(
 
     if not target_region or not lock_id:
         raise ValueError("targetRegion and lockId are required")
+
+    if RUNTIME_FAILOVER_REGION is None:
+        return http_utils.error(
+            409,
+            "RUNTIME_FAILOVER_DISABLED",
+            "Runtime regional failover is disabled for the v0.2 topology",
+        )
+    if target_region != RUNTIME_FAILOVER_REGION:
+        return http_utils.error(
+            400,
+            "UNSUPPORTED_RUNTIME_REGION",
+            "Target region is not an approved runtime failover region",
+        )
 
     lock_record = db_utils.read_failover_lock_record(caller, deps)
     if lock_record is None:
@@ -146,7 +161,11 @@ def handle_platform_quota(
 
     ssm = deps.ssm
     active_region = bootstrap.required_ssm_parameter(ssm, db_factory.runtime_region_param_name())
-    fallback_region = bootstrap.optional_ssm_parameter(ssm, db_factory.fallback_region_param_name())
+    fallback_region = (
+        None
+        if RUNTIME_FAILOVER_REGION is None
+        else bootstrap.optional_ssm_parameter(ssm, db_factory.fallback_region_param_name())
+    )
 
     # Get real-time utilization from CloudWatch/Service Quotas
     quotas = deps.platform_quota_client.get_utilisation(

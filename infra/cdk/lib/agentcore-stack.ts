@@ -1,13 +1,12 @@
 /**
  * AgentCoreStack — AgentCore Runtime configuration and cross-region wiring.
  *
- * Runtime configuration: eu-west-1 (Dublin) — see ADR-009.
+ * Runtime configuration: eu-west-2 (London) — see ADR-023.
  * Memory template: provisioned per-tenant in TenantStack.
  * Identity configuration for Entra JWKS.
- * Observability metric stream eu-west-1 → eu-west-2.
  *
  * Implemented in TASK-024.
- * ADRs: ADR-001, ADR-009
+ * ADRs: ADR-001, ADR-023
  */
 import * as cdk from 'aws-cdk-lib';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
@@ -17,10 +16,13 @@ import {
   serializeAgentCoreTenantMemoryTemplate,
   TENANT_MEMORY_TEMPLATE_PARAMETER_NAME,
 } from './agentcore-memory-template';
+import { HOME_REGION, RUNTIME_NETWORK_MODE } from './runtime-topology';
 
 export interface AgentCoreStackProps extends cdk.StackProps {
   readonly homeRegion: string;
-  readonly runtimeNetworkPosture: 'PUBLIC_WITH_COMPENSATING_CONTROLS';
+  readonly runtimeNetworkMode: typeof RUNTIME_NETWORK_MODE;
+  readonly runtimeSubnetIds: readonly string[];
+  readonly runtimeSecurityGroupIds: readonly string[];
 }
 
 export class AgentCoreStack extends cdk.Stack {
@@ -31,13 +33,17 @@ export class AgentCoreStack extends cdk.Stack {
     const entra = resolveEntraConfiguration(this);
     const runtimeRegion = cdk.Stack.of(this).region;
 
-    if (!cdk.Token.isUnresolved(runtimeRegion) && runtimeRegion !== 'eu-west-1') {
-      throw new Error('AgentCoreStack must be deployed in eu-west-1');
+    if (!cdk.Token.isUnresolved(runtimeRegion) && runtimeRegion !== HOME_REGION) {
+      throw new Error(`AgentCoreStack must be deployed in ${HOME_REGION}`);
     }
-    if (props.runtimeNetworkPosture !== 'PUBLIC_WITH_COMPENSATING_CONTROLS') {
-      throw new Error(
-        'AgentCoreStack requires an explicit runtime network posture decision for the current deployment path',
-      );
+    if (props.homeRegion !== HOME_REGION) {
+      throw new Error(`AgentCoreStack homeRegion must be ${HOME_REGION}`);
+    }
+    if (props.runtimeNetworkMode !== RUNTIME_NETWORK_MODE) {
+      throw new Error('AgentCoreStack requires the ADR-023 VPC runtime network mode');
+    }
+    if (props.runtimeSubnetIds.length === 0 || props.runtimeSecurityGroupIds.length === 0) {
+      throw new Error('AgentCoreStack VPC mode requires runtime subnets and security groups');
     }
 
     const runtimeExecutionRoleArn = new cdk.CfnParameter(this, 'RuntimeExecutionRoleArn', {
@@ -52,17 +58,6 @@ export class AgentCoreStack extends cdk.Stack {
       type: 'String',
       description: 'S3 key prefix for the runtime artifact object',
     });
-    const metricStreamFirehoseArn = new cdk.CfnParameter(this, 'AgentCoreMetricStreamFirehoseArn', {
-      type: 'String',
-      description:
-        'Firehose delivery stream ARN in eu-west-1 that forwards AgentCore metrics to eu-west-2 observability sinks',
-    });
-    const metricStreamRoleArn = new cdk.CfnParameter(this, 'AgentCoreMetricStreamRoleArn', {
-      type: 'String',
-      description:
-        'IAM role ARN assumed by CloudWatch metric streams for firehose:PutRecord and firehose:PutRecordBatch',
-    });
-
     const runtimeName = this.runtimeName(envName);
     const runtimeEndpointName = this.runtimeEndpointName(envName);
 
@@ -85,7 +80,13 @@ export class AgentCoreStack extends cdk.Stack {
           },
         },
         NetworkConfiguration: {
-          NetworkMode: 'PUBLIC',
+          NetworkMode: props.runtimeNetworkMode,
+          NetworkModeConfig: {
+            VpcConfig: {
+              Subnets: [...props.runtimeSubnetIds],
+              SecurityGroups: [...props.runtimeSecurityGroupIds],
+            },
+          },
         },
         ProtocolConfiguration: 'HTTP',
         AuthorizerConfiguration: {
@@ -105,25 +106,22 @@ export class AgentCoreStack extends cdk.Stack {
           component: 'agentcore-runtime',
           environment: envName,
           homeRegion: props.homeRegion,
-          networkMode: 'PUBLIC',
-          networkPosture: props.runtimeNetworkPosture,
+          networkMode: props.runtimeNetworkMode,
+          networkPosture: 'ADR-023_VPC',
         },
       },
     });
     runtime.cfnOptions.metadata = {
       RuntimeNetworkPosture: {
-        Decision: props.runtimeNetworkPosture,
-        Justification: 'ADR-009_NO_RUNTIME_REGION_VPC',
+        Decision: 'ADR-023_VPC',
+        Justification: 'ADR-023_SECURE_RUNTIME_BASELINE',
         Rationale:
-          'The approved ADR-009 topology deploys the runtime in eu-west-1, while this repository only provisions VPC infrastructure in eu-west-2. A VPC migration requires dedicated eu-west-1 subnets, security groups, and service endpoints before NetworkMode can move to VPC.',
-        CompensatingControls: [
-          'Custom JWT authorizer enforces Entra discovery URL and allowed audience',
-          'Request headers are allowlisted to authorization, x-tenant-id, and x-app-id',
-          'Tenant execution roles restrict invocation to approved runtime regions only',
-          'Runtime region remains fixed to eu-west-1 until a successor ADR approves a topology change',
+          'ADR-023 defines the v0.2 serving runtime as eu-west-2 with NetworkMode=VPC and no eu-west-1 fallback.',
+        Controls: [
+          'Runtime ENIs are attached to isolated platform VPC subnets',
+          'Security group egress is limited to platform interface endpoints and VPC DNS',
+          'Tenant execution roles authorize only the serving runtime region',
         ],
-        RevisitTrigger:
-          'Revisit when runtime-region VPC infrastructure exists in eu-west-1 and a successor ADR or approved design authorises migration to NetworkMode=VPC.',
       },
     };
 
@@ -157,45 +155,16 @@ export class AgentCoreStack extends cdk.Stack {
       tier: ssm.ParameterTier.STANDARD,
     });
 
-    const metricStream = new cdk.CfnResource(this, 'AgentCoreMetricStream', {
-      type: 'AWS::CloudWatch::MetricStream',
-      properties: {
-        Name: `${this.stackName}-agentcore-metrics`,
-        OutputFormat: 'json',
-        FirehoseArn: metricStreamFirehoseArn.valueAsString,
-        RoleArn: metricStreamRoleArn.valueAsString,
-        IncludeFilters: [
-          {
-            Namespace: 'AWS/BedrockAgentCore',
-          },
-        ],
-        Tags: [
-          {
-            Key: 'component',
-            Value: 'agentcore-observability',
-          },
-          {
-            Key: 'source-region',
-            Value: runtimeRegion,
-          },
-          {
-            Key: 'destination-region',
-            Value: props.homeRegion,
-          },
-        ],
-      },
-    });
-
     new cdk.CfnOutput(this, 'AgentCoreRuntimeRegion', {
       value: runtimeRegion,
       description: 'Runtime compute region for AgentCore execution',
     });
     new cdk.CfnOutput(this, 'AgentCoreRuntimeNetworkMode', {
-      value: 'PUBLIC',
-      description: 'Explicitly approved runtime network mode for the current deployment path',
+      value: props.runtimeNetworkMode,
+      description: 'ADR-023 runtime network mode',
     });
     new cdk.CfnOutput(this, 'AgentCoreRuntimeNetworkPostureDecision', {
-      value: props.runtimeNetworkPosture,
+      value: 'ADR-023_VPC',
       description: 'Explicit network posture decision guarding against silent runtime network drift',
     });
     new cdk.CfnOutput(this, 'AgentCoreRuntimeName', {
@@ -206,9 +175,6 @@ export class AgentCoreStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'TenantMemoryTemplateParameterName', {
       value: memoryTemplateParameter.parameterName,
-    });
-    new cdk.CfnOutput(this, 'AgentCoreMetricStreamName', {
-      value: metricStream.ref,
     });
     new cdk.CfnOutput(this, 'EntraJwksUrl', {
       value: entra.jwksUrl,

@@ -74,7 +74,7 @@ failure-investigation steps still require external consoles or service UIs.
 | Runbook | Procedure | Trigger |
 |---------|-----------|---------|
 | [RUNBOOK-000](operations/RUNBOOK-000-bootstrap.md) | Platform bootstrap (day zero) | New environment |
-| [RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md) | Pre-v0.2 runtime region failover | `ServiceUnavailableException` from eu-west-1 |
+| [RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md) | Runtime region degradation | `ServiceUnavailableException` from eu-west-2 |
 | [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md) | AgentCore quota monitoring | ConcurrentSessions > 70% |
 | [RUNBOOK-003](operations/RUNBOOK-003-tenant-access-violation.md) | Tenant access violation response | `TenantAccessViolation` alarm |
 | [RUNBOOK-004](operations/RUNBOOK-004-quota-increase.md) | AgentCore quota increase request | ConcurrentSessions > 90% |
@@ -106,12 +106,12 @@ See [Diagram Semantics](#diagram-semantics) for colour conventions.
 
 ### Platform Architecture
 
-Current pre-v0.2 implementation view across three EU regions: control plane, compute,
-and evaluation. The normative secure deployment target is
-[ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md) plus the
-[v0.2 Secure Deployment Contract](contracts/v0-2-secure-deployment-contract.md).
+Current v0.2 implementation view: the control plane and serving runtime are in
+`eu-west-2`; non-serving evaluation may remain outside London when AWS support
+requires it. The normative deployment target is [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md)
+plus the [v0.2 Secure Deployment Contract](contracts/v0-2-secure-deployment-contract.md).
 
-![Platform architecture: eu-west-2 control plane, eu-west-1 AgentCore compute, eu-central-1 evaluation](images/tf_acore_aas_architecture.drawio.png)
+![Platform architecture: eu-west-2 control plane and AgentCore compute, eu-central-1 evaluation](images/tf_acore_aas_architecture.drawio.png)
 
 | Variant | Audience | File |
 |---------|----------|------|
@@ -121,9 +121,9 @@ and evaluation. The normative secure deployment target is
 
 ### Request Lifecycle
 
-Current pre-v0.2 end-to-end request flow: authentication, authorisation, runtime
-execution, tool invocation via gateway interceptors, async webhook delivery, and region
-failover path. ADR-023 removes `eu-west-1` from the v0.2 serving runtime path.
+Current v0.2 end-to-end request flow: authentication, authorisation, runtime
+execution in `eu-west-2`, tool invocation via gateway interceptors, and async
+webhook delivery. Runtime regional failover is deferred.
 
 ![Request lifecycle: client through auth, bridge, runtime, gateway interceptors, tool lambdas, and response](images/tf_acore_aas_request_lifecycle_engineer.drawio.png)
 

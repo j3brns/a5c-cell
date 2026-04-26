@@ -50,7 +50,7 @@ def _agent(mode: InvocationMode = InvocationMode.SYNC) -> MagicMock:
     agent.agent_name = "echo-agent"
     agent.version = "1.0.0"
     agent.invocation_mode = mode
-    agent.runtime_arn = "arn:aws:bedrock-agentcore:eu-west-1:210987654321:runtime/echo-agent"
+    agent.runtime_arn = "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/echo-agent"
     return agent
 
 
@@ -119,7 +119,7 @@ def test_invoke_real_runtime_uses_arn_from_record(
     }
 
     response = invoke_real_runtime(
-        "eu-west-1",
+        "eu-west-2",
         agent,
         tenant_context,
         "prompt",
@@ -134,7 +134,7 @@ def test_invoke_real_runtime_uses_arn_from_record(
     assert response["statusCode"] == 200
     mock_assume.assert_called_once_with("t-123", "arn:aws:iam::123456789012:role/record-role")
     mock_get_runtime_client.assert_called_once_with(
-        "eu-west-1",
+        "eu-west-2",
         credentials={
             "AccessKeyId": "assumed-akid",
             "SecretAccessKey": "assumed-secret",  # pragma: allowlist secret
@@ -143,7 +143,7 @@ def test_invoke_real_runtime_uses_arn_from_record(
     )
     _, kwargs = runtime_client.invoke_agent_runtime.call_args
     assert kwargs["agentRuntimeArn"] == (
-        "arn:aws:bedrock-agentcore:eu-west-1:210987654321:runtime/echo-agent"
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/echo-agent"
     )
     assert kwargs["payload"] == json.dumps(
         {
@@ -183,7 +183,7 @@ def test_invoke_real_runtime_logs_actual_and_estimated_tokens(
     log_invocation = MagicMock()
 
     response = invoke_real_runtime(
-        "eu-west-1",
+        "eu-west-2",
         agent,
         tenant_context,
         "123456789",
@@ -229,7 +229,7 @@ def test_invoke_real_runtime_uses_ssm_arn_when_record_missing(
     mock_get_role_from_ssm.return_value = "arn:aws:iam::123456789012:role/ssm-role"
 
     response = invoke_real_runtime(
-        "eu-west-1",
+        "eu-west-2",
         agent,
         tenant_context,
         "prompt",
@@ -258,7 +258,7 @@ def test_invoke_real_runtime_errors_when_execution_role_arn_missing(
     agent = _agent()
 
     response = invoke_real_runtime(
-        "eu-west-1",
+        "eu-west-2",
         agent,
         tenant_context,
         "prompt",
@@ -287,7 +287,7 @@ def test_invoke_real_runtime_errors_when_execution_role_arn_malformed(
     agent = _agent()
 
     response = invoke_real_runtime(
-        "eu-west-1",
+        "eu-west-2",
         agent,
         tenant_context,
         "prompt",
@@ -317,7 +317,7 @@ def test_invoke_real_runtime_errors_when_execution_role_arn_account_mismatch(
     agent = _agent()
 
     response = invoke_real_runtime(
-        "eu-west-1",
+        "eu-west-2",
         agent,
         tenant_context,
         "prompt",
@@ -390,7 +390,7 @@ def test_invoke_real_runtime_records_streaming_ttft_from_first_chunk(mock_aws_se
 
     with patch("src.bridge.runtime_calls.time.time", side_effect=[100.021, 100.050]):
         response = invoke_real_runtime(
-            "eu-west-1",
+            "eu-west-2",
             agent,
             tenant_context,
             "prompt",
@@ -425,7 +425,7 @@ def test_invoke_agent_maps_runtime_throttling_to_platform_error():
     with (
         patch(
             "src.bridge.handler.get_config",
-            return_value={"runtime_region": "eu-west-1", "mock_runtime_url": None},
+            return_value={"runtime_region": "eu-west-2", "mock_runtime_url": None},
         ),
         patch("src.bridge.handler.invoke_real_runtime", side_effect=throttled),
         patch("src.bridge.handler.log_invocation") as mock_log_invocation,
@@ -440,7 +440,7 @@ def test_invoke_agent_maps_runtime_throttling_to_platform_error():
     assert kwargs["error_code"] == "THROTTLED"
 
 
-def test_invoke_agent_retries_real_runtime_after_failover():
+def test_invoke_agent_returns_failure_when_failover_is_disabled():
     tenant_context = _tenant_context()
     agent = _agent()
     service_unavailable = ClientError(
@@ -450,22 +450,20 @@ def test_invoke_agent_retries_real_runtime_after_failover():
         },
         "InvokeAgentRuntime",
     )
-    success_response = {"statusCode": 200, "headers": {}, "body": json.dumps({"status": "success"})}
-
     with (
         patch(
             "src.bridge.handler.get_config",
-            return_value={"runtime_region": "eu-west-1", "mock_runtime_url": None},
+            return_value={"runtime_region": "eu-west-2", "mock_runtime_url": None},
         ),
-        patch("src.bridge.handler.trigger_failover", return_value="eu-central-1") as mock_failover,
+        patch("src.bridge.handler.trigger_failover", return_value=None) as mock_failover,
         patch(
             "src.bridge.handler.invoke_real_runtime",
-            side_effect=[service_unavailable, success_response],
+            side_effect=[service_unavailable],
         ) as mock_invoke_real_runtime,
     ):
         response = invoke_agent(agent, tenant_context, "prompt", None, None, "req-1", None)
 
-    assert response["statusCode"] == 200
-    mock_failover.assert_called_once_with("eu-west-1")
-    assert mock_invoke_real_runtime.call_args_list[0].args[0] == "eu-west-1"
-    assert mock_invoke_real_runtime.call_args_list[1].args[0] == "eu-central-1"
+    assert response["statusCode"] == 503
+    mock_failover.assert_called_once_with("eu-west-2")
+    assert mock_invoke_real_runtime.call_args_list[0].args[0] == "eu-west-2"
+    assert mock_invoke_real_runtime.call_count == 1

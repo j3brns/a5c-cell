@@ -15,7 +15,7 @@ function NotificationProbe() {
       onClick={() =>
         notify({
           title: "Quota Warning",
-          message: "eu-west-1 runtime is above 80% utilisation.",
+          message: "eu-west-2 runtime is above 80% utilisation.",
           severity: "warning",
         })
       }
@@ -39,7 +39,7 @@ describe("Notifications", () => {
     fireEvent.click(screen.getByRole("button", { name: /trigger notification/i }));
 
     expect(screen.getByText("Quota Warning")).toBeInTheDocument();
-    expect(screen.getByText("eu-west-1 runtime is above 80% utilisation.")).toBeInTheDocument();
+    expect(screen.getByText("eu-west-2 runtime is above 80% utilisation.")).toBeInTheDocument();
     expect(screen.getByText("Tenant Context Missing")).toBeInTheDocument();
     expect(screen.getByText("Tenant context is required for this route.")).toBeInTheDocument();
   });

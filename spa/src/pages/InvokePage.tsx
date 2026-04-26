@@ -318,9 +318,9 @@ export const InvokePage: React.FC = () => {
                    <div className="space-y-2">
                       <StatusIndicator 
                         label="Runtime" 
-                        value="eu-west-1" 
+                        value="eu-west-2"
                         tone="success" 
-                        title="AgentCore execution region: Dublin"
+                        title="AgentCore execution region: London"
                       />
                       <StatusIndicator 
                         label="Compute" 

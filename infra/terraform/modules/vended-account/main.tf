@@ -29,7 +29,7 @@ resource "aws_organizations_account" "this" {
 #
 # The trust policy scopes to the platform home account only.
 # The permissions policy scopes to AgentCore Runtime invocation in the
-# approved runtime regions (eu-west-1 primary, eu-central-1 failover).
+# approved serving runtime region.
 resource "aws_iam_role" "tenant_execution" {
   provider = aws
 
@@ -78,7 +78,7 @@ resource "aws_iam_role_policy" "tenant_execution" {
         Resource = "arn:aws:bedrock-agentcore:*:${aws_organizations_account.this.id}:runtime/*"
         Condition = {
           StringEquals = {
-            "aws:RequestedRegion" = ["eu-west-1", "eu-central-1"]
+            "aws:RequestedRegion" = [var.home_region]
           }
         }
       }

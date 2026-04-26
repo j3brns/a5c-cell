@@ -60,7 +60,7 @@ def test_ops_control_dispatches_platform_quota(
 
     assert response is not None
     body = json.loads(response["body"])
-    assert body["utilisation"][0]["region"] == "eu-west-1"
+    assert body["utilisation"][0]["region"] == "eu-west-2"
 
 
 def test_tenant_lifecycle_dispatch_creates_tenant(

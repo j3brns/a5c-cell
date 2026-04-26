@@ -13,13 +13,13 @@ The platform bootstrap flow assumes one AWS account per environment.
 Target-state note: [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md)
 defines v0.2 as one `eu-west-2` platform VPC with the serving AgentCore Runtime in
 `eu-west-2`, `NetworkMode: VPC` for staging and production, and no `eu-west-1`
-runtime fallback. The current bootstrap script still carries pre-v0.2 multi-region
-defaults until the implementation issues update it.
+runtime fallback. Bootstrap now seeds that topology by default.
 
-- **Single account, multi-region**:
-  - eu-west-2 (London): home region for data plane and control plane
-  - eu-west-1 (Dublin): AgentCore Runtime compute
-  - eu-central-1 (Frankfurt): evaluation/failover supporting services
+- **Single account, London serving path**:
+  - eu-west-2 (London): home region for data plane, control plane, platform VPC,
+    and AgentCore Runtime compute
+  - eu-central-1 (Frankfurt): non-serving evaluation capability when AWS regional
+    support requires it
 
 Record the AWS account ID for the target environment — needed for CDK bootstrap
 and IAM role verification.
@@ -68,7 +68,7 @@ Legacy variable names are still accepted temporarily for compatibility:
 Ordered steps with validation at each:
 
 1. **Verify prerequisites** — checks all required tools and account IDs
-2. **CDK bootstrap** — creates CDKToolkit stacks in eu-west-2, eu-west-1, eu-central-1
+2. **CDK bootstrap** — creates the CDKToolkit stack in eu-west-2
 3. **Seed secrets** — writes Entra credentials and platform private key to Secrets Manager
 4. **OIDC wiring** — creates GitLab OIDC provider and pipeline roles, prints ARNs
 5. **First CDK deploy** — deploys the 5 bootstrap-supported home-region stacks from the

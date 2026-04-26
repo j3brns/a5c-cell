@@ -36,7 +36,6 @@ _TENANT_DUAL_KEY_PAIRS = {
     "owner_team": "ownerTeam",
     "account_id": "accountId",
     "runtime_region": "runtimeRegion",
-    "fallback_region": "fallbackRegion",
     "monthly_budget_usd": "monthlyBudgetUsd",
 }
 
@@ -46,8 +45,8 @@ def _ctx() -> object:
         env="dev",
         aws_region=_REGION,
         home_region=_REGION,
-        runtime_region="eu-west-1",
-        fallback_region="eu-central-1",
+        runtime_region=_REGION,
+        fallback_region=None,
         account_id="111122223333",
         caller_arn="arn:aws:iam::111122223333:user/bootstrap-user",
         report_bucket="platform-bootstrap-reports-dev",
@@ -204,7 +203,8 @@ def test_step_post_deploy_writes_camel_case_tenant_metadata_only(
     result = bootstrap.step_post_deploy(_ctx())
 
     assert result["tenantId"] == "t-admin-001"
-    assert ssm_writes["/platform/config/runtime-region"] == "eu-west-1"
+    assert ssm_writes["/platform/config/runtime-region"] == _REGION
+    assert "/platform/config/fallback-region" not in ssm_writes
 
     tenant_items = tables["platform-tenants"]
     assert {item["tenantId"] for item in tenant_items} == {"platform", "t-admin-001"}
@@ -275,8 +275,8 @@ def test_step_seed_secrets_uses_home_region_for_secret_writes(
         env="dev",
         aws_region="eu-central-1",
         home_region="eu-west-2",
-        runtime_region="eu-west-1",
-        fallback_region="eu-central-1",
+        runtime_region="eu-west-2",
+        fallback_region=None,
         account_id="111122223333",
         caller_arn="arn:aws:iam::111122223333:user/bootstrap-user",
         report_bucket="platform-bootstrap-reports-dev",

@@ -31,6 +31,11 @@ import boto3
 from botocore.exceptions import ClientError
 
 from platform_config import env_optional, process_env_required
+from platform_config.runtime_topology import (
+    HOME_REGION,
+    RUNTIME_FAILOVER_REGION,
+    SERVING_RUNTIME_REGION,
+)
 
 logger = logging.getLogger("bootstrap")
 logging.basicConfig(
@@ -41,9 +46,9 @@ logging.basicConfig(
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CDK_DIR = REPO_ROOT / "infra" / "cdk"
 
-DEFAULT_HOME_REGION = "eu-west-2"
-DEFAULT_RUNTIME_REGION = "eu-west-1"
-DEFAULT_FALLBACK_REGION = "eu-central-1"
+DEFAULT_HOME_REGION = HOME_REGION
+DEFAULT_RUNTIME_REGION = SERVING_RUNTIME_REGION
+DEFAULT_FALLBACK_REGION = RUNTIME_FAILOVER_REGION
 
 STEP_ORDER: tuple[str, ...] = (
     "cdk-bootstrap",
@@ -89,7 +94,7 @@ class BootstrapContext:
     aws_region: str
     home_region: str
     runtime_region: str
-    fallback_region: str
+    fallback_region: str | None
     account_id: str
     caller_arn: str
     report_bucket: str
@@ -171,9 +176,7 @@ def build_context(env_name: str) -> BootstrapContext:
     runtime_region = (
         env_optional("PLATFORM_RUNTIME_REGION", DEFAULT_RUNTIME_REGION) or DEFAULT_RUNTIME_REGION
     )
-    fallback_region = (
-        env_optional("PLATFORM_FALLBACK_REGION", DEFAULT_FALLBACK_REGION) or DEFAULT_FALLBACK_REGION
-    )
+    fallback_region = env_optional("PLATFORM_FALLBACK_REGION", DEFAULT_FALLBACK_REGION)
     report_bucket = (
         env_optional(
             "BOOTSTRAP_REPORT_BUCKET",
@@ -214,7 +217,9 @@ def build_context(env_name: str) -> BootstrapContext:
 
 def expected_bootstrap_regions(ctx: BootstrapContext) -> tuple[str, ...]:
     """Ordered unique list of target bootstrap regions."""
-    ordered = (ctx.home_region, ctx.runtime_region, ctx.fallback_region)
+    ordered = tuple(
+        region for region in (ctx.home_region, ctx.runtime_region, ctx.fallback_region) if region
+    )
     deduped = tuple(dict.fromkeys(ordered))
     return deduped
 
@@ -598,9 +603,10 @@ def step_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
 
     ssm_params = {
         "/platform/config/runtime-region": ctx.runtime_region,
-        "/platform/config/fallback-region": ctx.fallback_region,
         "/platform/config/env": ctx.env,
     }
+    if ctx.fallback_region:
+        ssm_params["/platform/config/fallback-region"] = ctx.fallback_region
     for name, value in ssm_params.items():
         _upsert_ssm_parameter(ssm_client, name=name, value=value)
 
@@ -620,7 +626,6 @@ def step_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
             "ownerTeam": owner_team,
             "accountId": ctx.account_id,
             "runtimeRegion": ctx.runtime_region,
-            "fallbackRegion": ctx.fallback_region,
             "executionRoleArn": (
                 f"arn:aws:iam::{ctx.account_id}:role/platform-internal-execution-role"
             ),
@@ -643,7 +648,6 @@ def step_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
             "ownerTeam": owner_team,
             "accountId": ctx.account_id,
             "runtimeRegion": ctx.runtime_region,
-            "fallbackRegion": ctx.fallback_region,
             "executionRoleArn": (
                 f"arn:aws:iam::{ctx.account_id}:role/"
                 f"platform-tenant-{admin_tenant_id}-execution-role"
@@ -693,9 +697,10 @@ def validate_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
 
     param_names = [
         "/platform/config/runtime-region",
-        "/platform/config/fallback-region",
         "/platform/config/env",
     ]
+    if ctx.fallback_region:
+        param_names.append("/platform/config/fallback-region")
     params = ssm_client.get_parameters(Names=param_names).get("Parameters", [])
     values: dict[str, str] = {}
     for item in params:
@@ -708,7 +713,10 @@ def validate_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
     if values.get("/platform/config/runtime-region") != ctx.runtime_region:
         raise RuntimeError("runtime-region SSM parameter mismatch")
 
-    if values.get("/platform/config/fallback-region") != ctx.fallback_region:
+    if (
+        ctx.fallback_region
+        and values.get("/platform/config/fallback-region") != ctx.fallback_region
+    ):
         raise RuntimeError("fallback-region SSM parameter mismatch")
 
     if values.get("/platform/config/env") != ctx.env:
