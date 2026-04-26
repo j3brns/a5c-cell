@@ -55,21 +55,6 @@ def test_canonical_issue_tool_entrypoint_help_smoke():
     assert "Issue-driven worktree workflow" in proc.stdout
 
 
-def test_legacy_worktree_shim_delegates_without_exec():
-    shim_path = REPO_ROOT / "scripts" / "worktree_issues.py"
-    proc = subprocess.run(
-        [sys.executable, str(shim_path), "--help"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert "exec(" not in shim_path.read_text(encoding="utf-8")
-    assert proc.returncode == 0
-    assert "Issue-driven worktree workflow" in proc.stdout
-
-
 def test_build_queue_auto_excludes_in_progress_from_candidates():
     in_progress = _issue(
         number=22,

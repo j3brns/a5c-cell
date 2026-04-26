@@ -106,18 +106,15 @@ function ensureTenantStubTemplate(
   stackEnv: cdk.Environment,
   authorizedRuntimeRegions: readonly string[],
 ): string {
-  const generatedDir = path.join(__dirname, '../generated');
+  // Use a subdirectory within cdk.out to avoid persistent "generated" directories in the source tree.
+  const outDir = path.join(process.cwd(), 'cdk.out', 'tenant-templates');
   const stackId = `platform-tenant-stub-${env}`;
-  const templatePath = path.join(generatedDir, `${stackId}.template.json`);
+  const templatePath = path.join(outDir, `${stackId}.template.json`);
 
-  if (fs.existsSync(templatePath)) {
-    return templatePath;
-  }
-
-  fs.mkdirSync(generatedDir, { recursive: true });
+  fs.mkdirSync(outDir, { recursive: true });
 
   const tempApp = new cdk.App({
-    outdir: generatedDir,
+    outdir: outDir,
     context: {
       env,
     },
