@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3assets from 'aws-cdk-lib/aws-s3-assets';
@@ -20,6 +21,8 @@ export type PythonLambdaFactoryProps = {
   timeout: cdk.Duration;
   memorySize: number;
   environment?: Record<string, string>;
+  vpc?: lambda.FunctionProps['vpc'];
+  securityGroups?: lambda.FunctionProps['securityGroups'];
 };
 
 export interface PlatformComputeProps {
@@ -30,6 +33,8 @@ export interface PlatformComputeProps {
   readonly entra: EntraConfiguration;
   readonly scopedTokenSigningKeySecret: secretsmanager.ISecret;
   readonly tenantStackTemplateAsset: s3assets.Asset;
+  readonly vpc: ec2.IVpc;
+  readonly lambdaSecurityGroup: ec2.ISecurityGroup;
   readonly createPythonLambda: (props: PythonLambdaFactoryProps) => lambda.Function;
 }
 
@@ -82,11 +87,16 @@ export function createPlatformCompute(
     entra,
     scopedTokenSigningKeySecret,
     tenantStackTemplateAsset,
+    vpc,
+    lambdaSecurityGroup,
     createPythonLambda,
   } = props;
 
   const dlqs: Record<string, sqs.IQueue> = {};
   const stack = cdk.Stack.of(scope);
+  const capabilityConfigurationArn =
+    `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}` +
+    `/environment/${storage.appconfigEnv.ref}/configuration/${storage.capabilityProfile.ref}`;
 
   const appConfigExtension = lambda.LayerVersion.fromLayerVersionArn(
     scope,
@@ -108,6 +118,7 @@ export function createPlatformCompute(
       EVENT_BUS_NAME: 'default',
       TENANT_API_KEY_SECRET_PREFIX: 'platform/tenants', // pragma: allowlist secret
     },
+    // ADR-014: non-VPC by default for control-plane administrative APIs
   });
   tenantMgmtFn.addLayers(appConfigExtension);
   tenantMgmtFn.addEnvironment('TENANT_MGMT_ROLE_ARN', tenantMgmtFn.role!.roleArn);
@@ -165,6 +176,7 @@ export function createPlatformCompute(
       TENANTS_TABLE_NAME: storage.tenantsTable.tableName,
       EVENT_BUS_NAME: 'default',
     },
+    // ADR-014: non-VPC by default for control-plane administrative APIs
   });
   storage.tenantsTable.grantReadWriteData(webhookRegistryFn);
   webhookRegistryFn.addToRolePolicy(
@@ -185,6 +197,7 @@ export function createPlatformCompute(
       AGENTS_TABLE_NAME: storage.agentsTable.tableName,
       EVENT_BUS_NAME: 'default',
     },
+    // ADR-014: non-VPC by default for control-plane administrative APIs
   });
   storage.agentsTable.grantReadWriteData(agentRegistryFn);
   agentRegistryFn.addToRolePolicy(
@@ -217,6 +230,7 @@ export function createPlatformCompute(
       RUNTIME_REGION_PARAM: '/platform/config/runtime-region',
       FALLBACK_REGION_PARAM: '/platform/config/fallback-region',
     },
+    // ADR-014: non-VPC by default for control-plane administrative APIs
   });
   adminOpsFn.addLayers(appConfigExtension);
   storage.tenantsTable.grantReadWriteData(adminOpsFn);
@@ -266,6 +280,7 @@ export function createPlatformCompute(
       APPCONFIG_ENVIRONMENT_ID: storage.appconfigEnv.ref,
       APPCONFIG_PROFILE_ID: storage.capabilityProfile.ref,
     },
+    // ADR-014: non-VPC by default for control plane
   });
   bridgeFn.addLayers(appConfigExtension);
   storage.tenantsTable.grantReadData(bridgeFn);
@@ -292,7 +307,7 @@ export function createPlatformCompute(
   bridgeFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['sts:AssumeRole'],
-      resources: ['arn:aws:iam::*:role/platform-tenant-*-execution-role'],
+      resources: [`arn:aws:iam::${stack.account}:role/platform-tenant-*-execution-role`],
     }),
   );
   bridgeFn.addToRolePolicy(
@@ -310,11 +325,7 @@ export function createPlatformCompute(
   bridgeFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['appconfig:GetLatestConfiguration', 'appconfig:StartConfigurationSession'],
-      resources: [
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/environment/${storage.appconfigEnv.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/configurationprofile/${storage.capabilityProfile.ref}`,
-      ],
+      resources: [capabilityConfigurationArn],
     }),
   );
 
@@ -349,6 +360,7 @@ export function createPlatformCompute(
       WEBHOOK_MAX_RETRY_ATTEMPTS: '3',
       WEBHOOK_HTTP_TIMEOUT_SECONDS: '10',
     },
+    // ADR-014: non-VPC by default for control plane
   });
 
   const bffFn = createPythonLambda({
@@ -365,6 +377,7 @@ export function createPlatformCompute(
       ENTRA_CLIENT_ID_SECRET_ARN: `arn:aws:secretsmanager:${stack.region}:${stack.account}:secret:platform/${envName}/entra/client-id`,
       ENTRA_CLIENT_SECRET_SECRET_ARN: `arn:aws:secretsmanager:${stack.region}:${stack.account}:secret:platform/${envName}/entra/client-secret`, // pragma: allowlist secret
     },
+    // ADR-014: non-VPC as it needs to reach Entra ID public endpoints
   });
 
   const entraClientIdSecret = secretsmanager.Secret.fromSecretNameV2(scope, 'EntraClientIdSecret', `platform/${envName}/entra/client-id`);
@@ -402,16 +415,13 @@ export function createPlatformCompute(
       APPCONFIG_ENVIRONMENT_ID: storage.appconfigEnv.ref,
       APPCONFIG_PROFILE_ID: storage.capabilityProfile.ref,
     },
+    // ADR-014: non-VPC as it needs to reach Entra ID public endpoints
   });
   storage.tenantsTable.grantReadData(authoriserFn);
   authoriserFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['appconfig:GetLatestConfiguration', 'appconfig:StartConfigurationSession'],
-      resources: [
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/environment/${storage.appconfigEnv.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/configurationprofile/${storage.capabilityProfile.ref}`,
-      ],
+      resources: [capabilityConfigurationArn],
     }),
   );
   storage.tenantsTable.grantReadData(webhookDeliveryFn);
@@ -446,16 +456,13 @@ export function createPlatformCompute(
       APPCONFIG_ENVIRONMENT_ID: storage.appconfigEnv.ref,
       APPCONFIG_PROFILE_ID: storage.capabilityProfile.ref,
     },
+    // ADR-014: non-VPC by default for control plane
   });
   scopedTokenSigningKeySecret.grantRead(requestInterceptorFn);
   requestInterceptorFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['appconfig:GetLatestConfiguration', 'appconfig:StartConfigurationSession'],
-      resources: [
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/environment/${storage.appconfigEnv.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/configurationprofile/${storage.capabilityProfile.ref}`,
-      ],
+      resources: [capabilityConfigurationArn],
     }),
   );
   storage.toolsTable.grantReadData(requestInterceptorFn);
@@ -469,8 +476,18 @@ export function createPlatformCompute(
     memorySize: 512,
     environment: {
       POWERTOOLS_SERVICE_NAME: 'gateway-response-interceptor',
+      TOOLS_TABLE: storage.toolsTable.tableName,
+      PII_PATTERNS_PARAM: '/platform/gateway/pii-patterns/default',
     },
+    // ADR-014: non-VPC by default for control plane
   });
+  storage.toolsTable.grantReadData(responseInterceptorFn);
+  responseInterceptorFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [`arn:aws:ssm:${stack.region}:${stack.account}:parameter/platform/gateway/pii-patterns/*`],
+    }),
+  );
 
   const billingFn = createPythonLambda({
     assetPath: path.join(__dirname, '../../../src/billing'),
@@ -484,6 +501,7 @@ export function createPlatformCompute(
       INVOCATIONS_TABLE_NAME: storage.invocationsTable.tableName,
       EVENT_BUS_NAME: 'default',
     },
+    // ADR-014: non-VPC by default for control plane
   });
   storage.tenantsTable.grantReadWriteData(billingFn);
   storage.invocationsTable.grantReadData(billingFn);
@@ -528,6 +546,7 @@ export function createPlatformCompute(
       TENANT_STACK_TEMPLATE_URL: tenantStackTemplateAsset.bucket.s3UrlForObject(tenantStackTemplateAsset.s3ObjectKey),
       EVENT_BUS_NAME: 'default',
     },
+    // ADR-014: non-VPC by default for control-plane provisioning
   });
   tenantStackTemplateAsset.grantRead(tenantProvisionerFn);
   tenantProvisionerFn.addToRolePolicy(
@@ -551,11 +570,43 @@ export function createPlatformCompute(
       resources: [`arn:aws:ssm:${stack.region}:${stack.account}:parameter/platform/tenants/*`],
     }),
   );
+  const tenantMemoryArn = `arn:aws:bedrock-agentcore:${stack.region}:${stack.account}:memory/*`;
+
   tenantProvisionerFn.addToRolePolicy(
     new iam.PolicyStatement({
-      sid: 'TenantStackBedrockAccess',
-      actions: ['bedrock-agentcore:CreateMemory', 'bedrock-agentcore:UpdateMemory', 'bedrock-agentcore:DeleteMemory', 'bedrock-agentcore:GetMemory', 'bedrock-agentcore:TagResource'],
+      sid: 'TenantStackCreateTaggedMemory',
+      actions: ['bedrock-agentcore:CreateMemory'],
       resources: ['*'],
+      conditions: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+        },
+      },
+    }),
+  );
+  tenantProvisionerFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      sid: 'TenantStackManageTaggedMemory',
+      actions: ['bedrock-agentcore:UpdateMemory', 'bedrock-agentcore:DeleteMemory', 'bedrock-agentcore:GetMemory'],
+      resources: [tenantMemoryArn],
+      conditions: {
+        StringEquals: {
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
+      },
+    }),
+  );
+  tenantProvisionerFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      sid: 'TenantStackTagManagedMemory',
+      actions: ['bedrock-agentcore:TagResource'],
+      resources: [tenantMemoryArn],
+      conditions: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
+      },
     }),
   );
   tenantProvisionerFn.addToRolePolicy(

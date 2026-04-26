@@ -291,7 +291,7 @@ describe('PlatformStack (TASK-023)', () => {
     );
   });
 
-  test('attaches VPC Lambdas to the endpoint-trusted Lambda security group', () => {
+  test('deploys control-plane Lambdas outside the VPC by default as per ADR-014', () => {
     const template = synthTemplate('dev');
 
     const lambdaFunctions = template.findResources('AWS::Lambda::Function') as Record<
@@ -299,20 +299,16 @@ describe('PlatformStack (TASK-023)', () => {
       {
         Properties?: {
           FunctionName?: string;
-          VpcConfig?: { SecurityGroupIds?: unknown[] };
+          VpcConfig?: unknown;
         };
       }
     >;
 
-    const securityGroupIdTokens = new Set<string>();
-
     for (const resource of Object.values(lambdaFunctions)) {
-      const securityGroupIds = resource.Properties?.VpcConfig?.SecurityGroupIds;
-      expect(securityGroupIds).toHaveLength(1);
-      securityGroupIdTokens.add(JSON.stringify(securityGroupIds?.[0]));
+      // All control-plane Lambdas should now be non-VPC by default.
+      // Exception class would have VpcConfig, but none are currently in that class.
+      expect(resource.Properties?.VpcConfig).toBeUndefined();
     }
-
-    expect(securityGroupIdTokens.size).toBe(1);
   });
 
   test('creates environment-aware bridge rollout policy with auto-rollback alarm', () => {
@@ -851,7 +847,7 @@ describe('PlatformStack (TASK-023)', () => {
           Match.objectLike({
             Action: 'sts:AssumeRole',
             Effect: 'Allow',
-            Resource: 'arn:aws:iam::*:role/platform-tenant-*-execution-role',
+            Resource: 'arn:aws:iam::123456789012:role/platform-tenant-*-execution-role',
           }),
         ]),
       },
@@ -878,6 +874,72 @@ describe('PlatformStack (TASK-023)', () => {
             'arn:aws:secretsmanager:eu-west-2:123456789012:secret:platform/dev/entra/client-secret',
           POWERTOOLS_SERVICE_NAME: 'bff',
         }),
+      },
+    });
+  });
+
+  test('scopes AppConfig retrieval permissions to deployed configuration resources', () => {
+    const appConfigStatements = getIamPolicyStatements(template).filter((statement) =>
+      JSON.stringify(statement.Action).includes('StartConfigurationSession'),
+    );
+
+    expect(appConfigStatements.length).toBeGreaterThanOrEqual(3);
+    for (const statement of appConfigStatements) {
+      const resources = JSON.stringify(statement.Resource);
+      expect(resources).toContain('/environment/');
+      expect(resources).toContain('/configuration/');
+      expect(resources).not.toContain('/configurationprofile/');
+    }
+  });
+
+  test('wires response interceptor tool filtering and PII pattern permissions', () => {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'platform-core-dev-interceptor-response',
+      Environment: {
+        Variables: Match.objectLike({
+          TOOLS_TABLE: Match.anyValue(),
+          PII_PATTERNS_PARAM: '/platform/gateway/pii-patterns/default',
+        }),
+      },
+    });
+
+    const policyJson = JSON.stringify(template.findResources('AWS::IAM::Policy'));
+    expect(policyJson).toContain('parameter/platform/gateway/pii-patterns/*');
+    expect(policyJson).toContain('ToolsTable');
+  });
+
+  test('limits tenant provisioner AgentCore memory access to tagged tenant memories', () => {
+    const statements = getIamPolicyStatements(template);
+    const createMemory = statements.find((statement) => statement.Sid === 'TenantStackCreateTaggedMemory');
+    const manageMemory = statements.find((statement) => statement.Sid === 'TenantStackManageTaggedMemory');
+    const tagMemory = statements.find((statement) => statement.Sid === 'TenantStackTagManagedMemory');
+
+    expect(createMemory).toMatchObject({
+      Action: 'bedrock-agentcore:CreateMemory',
+      Resource: '*',
+      Condition: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+        },
+      },
+    });
+    expect(manageMemory).toMatchObject({
+      Action: ['bedrock-agentcore:UpdateMemory', 'bedrock-agentcore:DeleteMemory', 'bedrock-agentcore:GetMemory'],
+      Resource: 'arn:aws:bedrock-agentcore:eu-west-2:123456789012:memory/*',
+      Condition: {
+        StringEquals: {
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
+      },
+    });
+    expect(tagMemory).toMatchObject({
+      Action: 'bedrock-agentcore:TagResource',
+      Resource: 'arn:aws:bedrock-agentcore:eu-west-2:123456789012:memory/*',
+      Condition: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
       },
     });
   });
