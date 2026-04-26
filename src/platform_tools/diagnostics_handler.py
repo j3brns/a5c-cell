@@ -133,7 +133,8 @@ def get_tenant_status(db: ControlPlaneDynamoDB, tenant_id: str) -> dict[str, Any
     # but for a platform tool it's acceptable with a small limit.
     recent_invocations = db.query(
         INVOCATIONS_TABLE,
-        sk_condition=Key("SK").gt(f"TIME#{hour_ago}"),
+        pk_value=f"TENANT#{tenant_id}",
+        sk_condition=Key("SK").gt(f"INV#{hour_ago}"),
         limit=20,
         scan_index_forward=False,
     )
@@ -202,15 +203,20 @@ def get_runbook_guidance(query: str | None = None, runbook_id: str | None = None
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Tool entrypoint — handles JSON-RPC from Gateway."""
-    logger.info("Diagnostics tool invoked", extra={"method": event.get("method")})
-
-    # 1. Parse request (Gateway Tool Call format)
     # The Gateway REQUEST interceptor injects x-tenant-id, etc. into headers.
     headers = event.get("headers", {})
     tenant_id = headers.get("x-tenant-id") or headers.get("X-Tenant-Id")
     app_id = headers.get("x-app-id") or headers.get("X-App-Id")
+    log_context = {
+        "method": event.get("method"),
+        "tenantid": tenant_id or "unknown",
+        "appid": app_id or "unknown",
+    }
+
+    logger.info("Diagnostics tool invoked", extra=log_context)
 
     if not tenant_id or tenant_id != "platform":
+        logger.warning("Diagnostics tool access denied", extra=log_context)
         return {
             "jsonrpc": "2.0",
             "id": event.get("id"),
@@ -261,7 +267,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
         return {"jsonrpc": "2.0", "id": event.get("id"), "result": result}
     except Exception as exc:
-        logger.exception("Tool execution failed")
+        logger.exception("Tool execution failed", extra=log_context)
         return {
             "jsonrpc": "2.0",
             "id": event.get("id"),

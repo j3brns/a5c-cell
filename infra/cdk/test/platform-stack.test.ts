@@ -393,6 +393,16 @@ describe('PlatformStack (TASK-023)', () => {
     });
 
     devTemplate.resourceCountIs('AWS::AppConfig::Deployment', 1);
+
+    const hostedConfigurations = devTemplate.findResources(
+      'AWS::AppConfig::HostedConfigurationVersion',
+    ) as Record<string, { Properties?: { Content?: string } }>;
+    const content = Object.values(hostedConfigurations)[0]?.Properties?.Content;
+    expect(content).toContain('tools.get_platform_health');
+    expect(content).toContain('tools.get_tenant_status');
+    expect(content).toContain('tools.get_recent_errors');
+    expect(content).toContain('tools.get_runbook_guidance');
+    expect(content).toContain('"tenant_allow_list":["platform"]');
   });
 
   test('creates WAF WebACL with managed baselines, rate limits, and API association', () => {
@@ -637,6 +647,52 @@ describe('PlatformStack (TASK-023)', () => {
         }),
       ]),
     });
+  });
+
+  test('deploys platform diagnostics as a Lambda-backed Gateway target', () => {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'platform-core-dev-platform-diagnostics-tool',
+      Handler: 'diagnostics_handler.lambda_handler',
+      Environment: {
+        Variables: Match.objectLike({
+          POWERTOOLS_SERVICE_NAME: 'platform-diagnostics-tool',
+          TENANTS_TABLE_NAME: Match.anyValue(),
+          INVOCATIONS_TABLE_NAME: Match.anyValue(),
+        }),
+      },
+    });
+
+    template.hasResourceProperties('AWS::BedrockAgentCore::GatewayTarget', {
+      Name: 'platform-diagnostics',
+      Description: 'Read-only platform diagnostics MCP tools',
+      MetadataConfiguration: {
+        AllowedRequestHeaders: ['x-tenant-id', 'x-app-id'],
+      },
+      TargetConfiguration: {
+        Mcp: {
+          Lambda: {
+            ToolSchema: {
+              InlinePayload: Match.arrayWith([
+                Match.objectLike({ Name: 'get_platform_health' }),
+                Match.objectLike({ Name: 'get_tenant_status' }),
+                Match.objectLike({ Name: 'get_recent_errors' }),
+                Match.objectLike({ Name: 'get_runbook_guidance' }),
+              ]),
+            },
+          },
+        },
+      },
+    });
+
+    const customResources = template.findResources('Custom::AWS');
+    const customResourceJson = JSON.stringify(customResources);
+    expect(Object.keys(customResources)).toHaveLength(4);
+    expect(customResourceJson).toContain('TOOL#get_platform_health');
+    expect(customResourceJson).toContain('TOOL#get_tenant_status');
+    expect(customResourceJson).toContain('TOOL#get_recent_errors');
+    expect(customResourceJson).toContain('TOOL#get_runbook_guidance');
+    expect(customResourceJson).toContain('TENANT#platform');
+    expect(customResourceJson).toContain('platform-diagnostics-tool-registry');
   });
 
   test('creates AgentCore Policy Engine and Cedar policy resources', () => {

@@ -95,9 +95,11 @@ when enforced. Dev and staging run the policy in `LOG_ONLY`; production runs it
 in `ENFORCE`. The baseline Cedar policy permits only same-account tenant
 execution-role callers on the concrete Gateway. The REQUEST interceptor remains
 the checked-in source of truth for tenant tool registration, capability, tier,
-and act-on-behalf checks before a tool Lambda is invoked. Specific Cedar
-tool-action policies require CloudFormation-owned Gateway targets or another
-checked-in tool schema source of truth before they can be deployed safely.
+and act-on-behalf checks before a tool Lambda is invoked. The first
+CloudFormation-owned Gateway target is the platform diagnostics MCP Lambda,
+with inline schemas, header propagation, tool-registry records, and AppConfig
+capability defaults for the read-only operator tools. Specific Cedar
+tool-action policies should build from that checked-in target/schema pattern.
 
 Runtime regional failover is disabled for v0.2. A Runtime outage is handled as
 a degradation event through [RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md).

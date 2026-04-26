@@ -293,9 +293,10 @@ agent = Agent(tools=tools)
 ```
 
 If a tool requires a higher tier than your agent's tier_minimum, the REQUEST interceptor
-returns 403 before the tool Lambda is invoked. Specific Cedar tool-action policies
-must wait until the matching Gateway targets or tool schemas are owned in the same
-deployment path.
+returns 403 before the tool Lambda is invoked. The platform diagnostics tools are
+registered through a CloudFormation-owned Lambda/MCP Gateway target with inline
+schemas, header propagation, tool-registry records, and AppConfig capability
+defaults; new platform-owned tools should follow that deployment path.
 
 ## Pipeline Promotion
 

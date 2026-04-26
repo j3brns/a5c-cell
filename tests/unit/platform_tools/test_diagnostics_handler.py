@@ -53,6 +53,11 @@ def test_get_tenant_status(mock_db):
     assert response["result"]["tenantId"] == "t-test-001"
     assert response["result"]["status"] == "active"
     mock_instance.get_item.assert_called_once()
+    query_kwargs = mock_instance.query.call_args.kwargs
+    assert query_kwargs["pk_value"] == "TENANT#t-test-001"
+    assert query_kwargs["sk_condition"].get_expression()["values"][1].startswith("INV#")
+    assert query_kwargs["limit"] == 20
+    assert query_kwargs["scan_index_forward"] is False
 
 
 def test_get_tenant_status_reads_canonical_tenant_metadata(mock_db):
@@ -78,6 +83,9 @@ def test_get_tenant_status_reads_canonical_tenant_metadata(mock_db):
     assert response["result"]["displayName"] == "Test Tenant"
     assert response["result"]["lastUpdated"] == "2026-01-01T00:00:00+00:00"
     assert response["result"]["recentInvocations"] == 1
+    query_kwargs = mock_instance.query.call_args.kwargs
+    assert query_kwargs["pk_value"] == "TENANT#t-test-001"
+    assert query_kwargs["sk_condition"].get_expression()["values"][1].startswith("INV#")
 
 
 def test_get_runbook_guidance(mock_db):
