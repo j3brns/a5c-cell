@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -22,6 +23,7 @@ from platform_config import env_optional
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLS_JSON = REPO_ROOT / "scripts" / "tools.json"
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def info(msg: str) -> None:
@@ -46,6 +48,20 @@ def get_sha256(file_path: Path) -> str:
         for byte_block in iter(lambda: f.read(4096), b""):
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
+
+
+def resolve_sha256(platform_data: dict[str, Any]) -> str:
+    raw_checksum = platform_data["sha256"]
+    if isinstance(raw_checksum, str):
+        checksum = raw_checksum
+    elif isinstance(raw_checksum, list) and all(isinstance(part, str) for part in raw_checksum):
+        checksum = "".join(raw_checksum).replace("-", "")
+    else:
+        raise ValueError("sha256 must be a string or list of strings")
+
+    if not SHA256_RE.fullmatch(checksum):
+        raise ValueError("Expected 64 lowercase hex characters for sha256")
+    return checksum
 
 
 def can_sudo() -> bool:
@@ -135,7 +151,11 @@ def install_tool(tool: dict[str, Any], arch: str, force: bool = False) -> bool:
 
     platform_data = platforms[arch]
     url = platform_data["url"]
-    expected_sha256 = platform_data["sha256"]
+    try:
+        expected_sha256 = resolve_sha256(platform_data)
+    except ValueError as e:
+        fail(f"Invalid checksum for {name}: {e}")
+        return False
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
