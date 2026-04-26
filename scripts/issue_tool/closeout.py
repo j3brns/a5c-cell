@@ -12,6 +12,15 @@ from scripts.issue_tool.git_utils import run
 from scripts.issue_tool.models import WorktreeInfo
 
 
+def cleanup_timeout_seconds() -> float:
+    raw = os.environ.get("ISSUE_TOOL_CLEANUP_TIMEOUT_SECONDS", "30")
+    try:
+        value = float(raw)
+    except ValueError:
+        return 30.0
+    return max(value, 1.0)
+
+
 def cleanup_finished_worktree(
     root: Path,
     target: WorktreeInfo,
@@ -26,6 +35,7 @@ def cleanup_finished_worktree(
         "worktree_pruned": False,
     }
     branch = target.branch
+    timeout_seconds = cleanup_timeout_seconds()
     print("Cleaning up worktree...")
     try:
         cwd = Path(os_module.getcwd()).resolve()
@@ -34,19 +44,19 @@ def cleanup_finished_worktree(
     if cwd is None or cwd == target.path.resolve() or target.path.resolve() in cwd.parents:
         os_module.chdir(root)
     if target.path.exists():
-        run_fn(["git", "worktree", "remove", str(target.path)], cwd=root)
+        run_fn(["git", "worktree", "remove", str(target.path)], cwd=root, timeout=timeout_seconds)
         print(f"Removed worktree {target.path}")
         result["worktree_removed"] = True
     else:
         print(f"Worktree path missing, skipping remove: {target.path}")
     if branch and branch != "(detached)" and WORKTREE_BRANCH_REGEX.fullmatch(branch):
         if local_branch_exists_fn(root, branch):
-            run_fn(["git", "branch", "-d", branch], cwd=root)
+            run_fn(["git", "branch", "-d", branch], cwd=root, timeout=timeout_seconds)
             print(f"Deleted branch {branch}")
             result["branch_deleted"] = True
         else:
             print(f"Branch already absent, skipping delete: {branch}")
-    run_fn(["git", "worktree", "prune"], cwd=root)
+    run_fn(["git", "worktree", "prune"], cwd=root, timeout=timeout_seconds)
     print("Pruned stale worktree refs")
     result["worktree_pruned"] = True
     return result

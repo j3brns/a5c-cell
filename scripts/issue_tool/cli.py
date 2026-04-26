@@ -2307,6 +2307,21 @@ def merge_request_for_source_branch(root: Path, repo: str, branch: str, state: s
     return merge_request_for_branch(root, repo, branch, state)
 
 
+def format_merge_request_status(mr: dict[str, object] | None) -> str:
+    if not mr:
+        return "-"
+    number = mr.get("number")
+    state = str(mr.get("state") or "").lower()
+    if not state and mr.get("mergedAt"):
+        state = "merged"
+    if not state:
+        state = "open"
+    if mr.get("isDraft") and state == "opened":
+        state = "draft"
+    prefix = f"!{number}" if number else "mr"
+    return f"{prefix}:{state}"
+
+
 def issue_state_info(root: Path, repo: str, issue_id: int) -> dict | None:
     return get_issue(root, repo, issue_id)
 
@@ -2383,6 +2398,7 @@ def issue_status_rows(
         numbers = active | local_issue_numbers(root, active_only=True)
 
     rows: list[dict[str, object]] = []
+    mr_status_cache: dict[str, str] = {}
     for issue_number in sorted(
         numbers,
         key=lambda number: (
@@ -2436,6 +2452,23 @@ def issue_status_rows(
             stage = closeout.get("stage") or "present"
             cleanup = closeout.get("cleanup_verified")
             closeout_text = f"{stage}:{cleanup}" if cleanup is not None else str(stage)
+        branch = (
+            evidence.get("linked_branch")
+            or state.get("branch")
+            or (agent_status.get("branch") if isinstance(agent_status, dict) else None)
+            or "-"
+        )
+        branch_text = str(branch)
+        mr_status = "-"
+        if repo and branch_text != "-":
+            if branch_text not in mr_status_cache:
+                try:
+                    mr_status_cache[branch_text] = format_merge_request_status(
+                        merge_request_for_source_branch(root, repo, branch_text, "all")
+                    )
+                except CliError:
+                    mr_status_cache[branch_text] = "unknown"
+            mr_status = mr_status_cache[branch_text]
         rows.append(
             {
                 "issue": issue_number,
@@ -2444,12 +2477,8 @@ def issue_status_rows(
                 "issue_status": lifecycle_status(issue) if issue is not None else "-",
                 "issue_state": issue.state if issue is not None else "-",
                 "worktree": str(linked_worktree or "-"),
-                "branch": (
-                    evidence.get("linked_branch")
-                    or state.get("branch")
-                    or (agent_status.get("branch") if isinstance(agent_status, dict) else None)
-                    or "-"
-                ),
+                "branch": branch_text,
+                "mr": mr_status,
                 "agent": str(agent or "-"),
                 "runtime": ":".join(
                     part
@@ -2483,6 +2512,7 @@ def print_issue_status_rows(rows: list[dict[str, object]]) -> None:
         ("seq", "Seq", 5),
         ("issue_status", "Status", 12),
         ("worktree", "Worktree", 34),
+        ("mr", "MR", 12),
         ("agent", "Agent", 8),
         ("runtime", "Runtime", 24),
         ("live", "Live", 5),
@@ -2821,20 +2851,42 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
                     issue_id=issue_id,
                 )
             )
-        cleanup_result = cleanup_finished_worktree(root, target)
-        cleanup_problems = verify_cleanup_finished(root, target)
-        if cleanup_problems:
-            raise CliError("Cleanup verification failed: " + "; ".join(cleanup_problems))
-        if isinstance(events, list):
-            events.append(
-                closeout_event(
-                    stage="cleanup-verified",
-                    message="cleanup verified",
-                    target=target,
-                    repo=repo,
-                    issue_id=issue_id,
+        cleanup_result: dict[str, object] = {}
+        cleanup_verified = False
+        cleanup_error: str | None = None
+        try:
+            cleanup_result = dict(cleanup_finished_worktree(root, target))
+            cleanup_problems = verify_cleanup_finished(root, target)
+            if cleanup_problems:
+                raise CliError("Cleanup verification failed: " + "; ".join(cleanup_problems))
+            cleanup_verified = True
+            if isinstance(events, list):
+                events.append(
+                    closeout_event(
+                        stage="cleanup-verified",
+                        message="cleanup verified",
+                        target=target,
+                        repo=repo,
+                        issue_id=issue_id,
+                    )
                 )
-            )
+        except Exception as exc:
+            cleanup_error = str(exc)
+            print(f"Cleanup deferred: {cleanup_error}")
+            print(f"Manual cleanup: git worktree remove {target.path}")
+            if target.branch and target.branch != "(detached)":
+                print(f"Manual cleanup: git branch -d {target.branch}")
+            print("Manual cleanup: git worktree prune")
+            if isinstance(events, list):
+                events.append(
+                    closeout_event(
+                        stage="cleanup-deferred",
+                        message=cleanup_error,
+                        target=target,
+                        repo=repo,
+                        issue_id=issue_id,
+                    )
+                )
         write_closeout_report(
             root,
             target,
@@ -2843,7 +2895,8 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
                 "stage": "complete",
                 "issue_closed": issue_closed,
                 "cleanup": cleanup_result,
-                "cleanup_verified": True,
+                "cleanup_verified": cleanup_verified,
+                **({"cleanup_error": cleanup_error} if cleanup_error else {}),
             },
         )
         record_issue_handoff_event(
@@ -2855,7 +2908,12 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
             worktree_path=target.path,
             event_type="closeout-complete",
             state="closed",
-            details={"report_path": str(report_path), "issue_closed": issue_closed},
+            details={
+                "report_path": str(report_path),
+                "issue_closed": issue_closed,
+                "cleanup_verified": cleanup_verified,
+                **({"cleanup_error": cleanup_error} if cleanup_error else {}),
+            },
             idempotency_key=f"closeout-complete:{issue_id}:{target.branch}:{target.path}",
         )
         handback_summary = audit_issue_handoff_evidence(

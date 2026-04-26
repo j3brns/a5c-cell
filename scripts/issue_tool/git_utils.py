@@ -16,6 +16,7 @@ def run(
     capture_output: bool = True,
     text: bool = True,
     input_text: str | None = None,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,
@@ -24,6 +25,7 @@ def run(
         capture_output=capture_output,
         text=text,
         input=input_text,
+        timeout=timeout,
     )
 
 

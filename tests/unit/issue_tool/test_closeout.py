@@ -236,6 +236,96 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
     ]
 
 
+def test_close_issue_done_defers_stalled_cleanup(monkeypatch, capsys, tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir(parents=True, exist_ok=True)
+    target = worktree_issues.WorktreeInfo(
+        path=tmp_path / "worktrees" / "wt153",
+        head="abc123",
+        branch="wt/task/153-sample",
+        is_primary=False,
+    )
+    primary = worktree_issues.WorktreeInfo(
+        path=root,
+        head="def456",
+        branch="main",
+        is_primary=True,
+    )
+    comments: list[list[str]] = []
+
+    target.path.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(worktree_issues, "list_worktrees", lambda _root: [primary, target])
+    monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
+    monkeypatch.setattr(worktree_issues, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
+    monkeypatch.setattr(
+        worktree_issues,
+        "merge_request_for_source_branch",
+        lambda _root, _repo, _branch, _state: {"number": 157},
+    )
+    monkeypatch.setattr(
+        worktree_issues,
+        "issue_state_info",
+        lambda _root, _repo, _issue_id: {
+            "state": "CLOSED",
+            "title": "TASK-153: sample",
+            "url": "https://example.test/issues/153",
+            "labels": [{"name": "type:task"}, {"name": "status:done"}],
+        },
+    )
+    monkeypatch.setattr(worktree_issues, "issue_has_handback_comment", lambda **_kwargs: False)
+    monkeypatch.setattr(
+        worktree_issues,
+        "comment_issue",
+        lambda _root, _repo, issue_id, body: comments.append([str(issue_id), body]) or "",
+    )
+
+    def _cleanup_timeout(_root, _target):
+        raise subprocess.TimeoutExpired(["git", "worktree", "remove", str(target.path)], 30)
+
+    monkeypatch.setattr(worktree_issues, "cleanup_finished_worktree", _cleanup_timeout)
+    monkeypatch.setattr(
+        worktree_issues,
+        "verify_cleanup_finished",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not verify")),
+    )
+
+    worktree_issues.record_issue_handoff_event(
+        root=root,
+        repo="owner/repo",
+        issue_number=153,
+        issue_title=target.branch,
+        branch=target.branch,
+        worktree_path=target.path,
+        event_type="worktree-resumed",
+        state="worktree-ready",
+        details={"source": "test"},
+        idempotency_key="resume:153:test",
+    )
+
+    worktree_issues.close_issue_done(root, path=target.path, force=False)
+    out = capsys.readouterr().out
+
+    assert "Cleanup deferred:" in out
+    assert f"Manual cleanup: git worktree remove {target.path}" in out
+    assert "Manual cleanup: git branch -d wt/task/153-sample" in out
+    assert comments and comments[0][0] == "153"
+
+    report_path = root / ".build" / "worktree-closeouts" / "issue-153-wt_task_153-sample.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["stage"] == "complete"
+    assert report["issue_closed"] is True
+    assert report["cleanup_verified"] is False
+    assert "cleanup_error" in report
+    assert report["events"][-1]["stage"] == "cleanup-deferred"
+
+    state_path = root / ".build" / "worktree-state" / "issue-153.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["state"] == "done"
+    assert state["last_event_type"] == "handback-complete"
+
+
 def test_cmd_finish_close_json_prints_closeout_report(monkeypatch, capsys, tmp_path):
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)

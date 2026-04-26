@@ -129,6 +129,15 @@ def test_issue_status_rows_join_issue_worktree_agent_and_validation(monkeypatch,
         },
     )
     monkeypatch.setattr(worktree_issues, "worktree_agent_running", lambda _path: True)
+    monkeypatch.setattr(
+        worktree_issues,
+        "merge_request_for_source_branch",
+        lambda _root, _repo, _branch, _state: {
+            "number": 12,
+            "state": "merged",
+            "isDraft": False,
+        },
+    )
 
     rows = worktree_issues.issue_status_rows(root, "owner/repo", [issue])
 
@@ -141,6 +150,7 @@ def test_issue_status_rows_join_issue_worktree_agent_and_validation(monkeypatch,
             "issue_state": "open",
             "worktree": str(wt),
             "branch": "wt/task/33-test",
+            "mr": "!12:merged",
             "agent": "codex",
             "runtime": "tmux:interactive:wt33",
             "live": "yes",
@@ -180,6 +190,11 @@ def test_cmd_issue_status_prints_joined_dashboard(monkeypatch, capsys, tmp_path)
             "validation_receipt": None,
         },
     )
+    monkeypatch.setattr(
+        worktree_issues,
+        "merge_request_for_source_branch",
+        lambda _root, _repo, _branch, _state: None,
+    )
 
     rc = worktree_issues.cmd_issue_status(
         argparse.Namespace(repo=None, issue=None, all=False, json=False)
@@ -188,6 +203,7 @@ def test_cmd_issue_status_prints_joined_dashboard(monkeypatch, capsys, tmp_path)
     assert rc == 0
     out = capsys.readouterr().out
     assert "Issue" in out
+    assert "MR" in out
     assert "Status" in out
     assert "44" in out
     assert "not-started" in out

@@ -75,6 +75,7 @@ def _normalise_mr(raw: dict) -> dict:
         "number": raw.get("iid") or raw.get("number"),
         "url": raw.get("web_url") or raw.get("url") or "",
         "title": raw.get("title") or "",
+        "state": raw.get("state") or "",
         "isDraft": bool(raw.get("draft") or raw.get("work_in_progress")),
         "mergedAt": raw.get("merged_at") or raw.get("mergedAt"),
     }
@@ -217,7 +218,9 @@ def merge_request_for_branch(root: Path, repo: str, branch: str, state: str) -> 
         "-F",
         "json",
     ]
-    if state == "merged":
+    if state == "all":
+        cmd.append("--all")
+    elif state == "merged":
         cmd.append("--merged")
     elif state == "closed":
         cmd.append("--closed")
