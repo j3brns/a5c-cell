@@ -7,6 +7,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from src.platform_aws import aws_region, boto3_client
+from src.tenant_api import validation
 
 try:
     from aws_lambda_powertools import Logger
@@ -76,9 +77,13 @@ def _tenant_id(detail: dict[str, Any]) -> str:
 
 def _account_id(detail: dict[str, Any], context: Any) -> str:
     provided = str(detail.get("accountId") or "").strip()
+    home_account_id = str(context.invoked_function_arn).split(":")[4]
     if provided:
-        return provided
-    return str(context.invoked_function_arn).split(":")[4]
+        account_id = validation.require_aws_account_id(provided, field="accountId")
+        if account_id != home_account_id:
+            raise ValueError("accountId must equal the platform home account")
+        return account_id
+    return home_account_id
 
 
 def _stack_name(tenant_id: str) -> str:
@@ -124,8 +129,8 @@ def _start_provisioning(event: dict[str, Any], context: Any) -> dict[str, Any]:
     tenant_id = _tenant_id(detail)
     stack_name = _stack_name(tenant_id)
     template_url = os.environ["TENANT_STACK_TEMPLATE_URL"]
-    cfn = get_cloudformation()
     params = _stack_parameters(detail, context)
+    cfn = get_cloudformation()
     operation = "UPDATE"
 
     logger.info(

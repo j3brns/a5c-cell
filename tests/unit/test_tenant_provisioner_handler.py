@@ -187,6 +187,24 @@ class TestTenantProvisioner(unittest.TestCase):
         self.assertEqual(params["accountId"], "999888777666")
 
     @patch("src.tenant_provisioner.handler.get_cloudformation")
+    def test_start_rejects_non_home_account_id(self, mock_get_cloudformation):
+        event = {
+            "detail": {
+                "tenantId": "t-cross-001",
+                "tier": "premium",
+                "accountId": "999999999999",
+            }
+        }
+        context = MagicMock()
+        context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:prov"
+
+        result = lambda_handler(event, context)
+
+        self.assertEqual(result["provisioningState"], "FAILED")
+        self.assertEqual(result["reason"], "accountId must equal the platform home account")
+        mock_get_cloudformation.assert_not_called()
+
+    @patch("src.tenant_provisioner.handler.get_cloudformation")
     def test_start_throttling_raises_retryable_error(self, mock_get_cloudformation):
         from src.tenant_provisioner.handler import TenantProvisionerRetryableError
 

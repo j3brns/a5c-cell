@@ -743,7 +743,9 @@ See [ADR-007](decisions/ADR-007-cdk-terraform.md) for the CDK vs Terraform split
 TenantStack deploys per-tenant through the tenant provisioning Step Functions
 workflow, which is started by EventBridge `platform.tenant.created` and
 completes by emitting `platform.tenant_provisioner` completion events back to
-the control plane. It is **not** deployed by the platform pipeline.
+the control plane. The supported path is same-account only: tenant create,
+TenantStack start, and provisioning completion all reject a non-home `accountId`.
+It is **not** deployed by the platform pipeline.
 Existing tenants are migrated/verified with `make ops-backfill-tenant-role-arn [APPLY=1]`.
 
 Implementation note: `PlatformStack` still deploys as one stack, but the CDK

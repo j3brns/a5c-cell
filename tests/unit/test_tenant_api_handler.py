@@ -175,6 +175,30 @@ def test_create_tenant_writes_record_provisions_memory_secret_and_emits_event(
     assert detail["accountId"] == "123456789012"
 
 
+def test_create_tenant_rejects_non_home_account_id(fake_state: dict[str, Any]) -> None:
+    response = _invoke(
+        _event(
+            method="POST",
+            tenant_id=None,
+            body={
+                "tenantId": "t-cross-001",
+                "appId": "app-001",
+                "displayName": "Cross Account Ltd",
+                "tier": "standard",
+                "ownerEmail": "owner@example.com",
+                "ownerTeam": "team-cross",
+                "accountId": "999999999999",
+            },
+        )
+    )
+
+    assert response["statusCode"] == 400
+    error = _body(response)["error"]
+    assert error["code"] == "BAD_REQUEST"
+    assert error["message"] == "accountId must equal the platform home account"
+    assert fake_state["deps"].memory_provisioner.calls == []
+
+
 def test_tenant_provisioned_event_updates_tenant_record(fake_state: dict[str, Any]) -> None:
     fake_state["db"].items[("TENANT#t-prov-001", "METADATA")] = {
         "PK": "TENANT#t-prov-001",
@@ -211,6 +235,48 @@ def test_tenant_provisioned_event_updates_tenant_record(fake_state: dict[str, An
     assert tenant["provisioningStatus"] == "ready"
     assert tenant["executionRoleArn"] == "arn:role"
     assert tenant["memoryStoreArn"] == "arn:mem"
+
+
+def test_tenant_provisioning_event_rejects_non_home_account_id(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-prov-cross", "METADATA")] = {
+        "PK": "TENANT#t-prov-cross",
+        "SK": "METADATA",
+        "tenantId": "t-prov-cross",
+        "appId": "app-001",
+        "displayName": "Cross Account Ltd",
+        "tier": "standard",
+        "status": "active",
+        "provisioningStatus": "pending",
+        "createdAt": "2026-03-28T12:00:00Z",
+        "updatedAt": "2026-03-28T12:00:00Z",
+        "ownerEmail": "owner@example.com",
+        "ownerTeam": "team-cross",
+        "accountId": "123456789012",
+    }
+
+    response = tenant_api_handler.handle_event(
+        {
+            "source": "platform.tenant_provisioner",
+            "detail-type": "tenant.provisioned",
+            "detail": {
+                "tenantId": "t-prov-cross",
+                "appId": "app-001",
+                "accountId": "999999999999",
+                "ExecutionRoleArn": "arn:role",
+            },
+        },
+        dependencies=fake_state["deps"],
+    )
+
+    assert response["statusCode"] == 400
+    error = _body(response)["error"]
+    assert error["code"] == "BAD_REQUEST"
+    assert error["message"] == "accountId must equal the platform home account"
+    item = fake_state["db"].items[("TENANT#t-prov-cross", "METADATA")]
+    assert item["provisioningStatus"] == "pending"
+    assert "executionRoleArn" not in item
 
 
 def test_tenant_provisioning_failed_event_updates_tenant_record(fake_state: dict[str, Any]) -> None:

@@ -56,7 +56,7 @@ def handle_create(
     display_name = _require_non_empty_text(request.display_name, field="displayName")
     owner_email = _require_non_empty_text(request.owner_email, field="ownerEmail")
     owner_team = _require_non_empty_text(request.owner_team, field="ownerTeam")
-    account_id = _require_non_empty_text(request.account_id, field="accountId")
+    account_id = validation.require_platform_home_account_id(request.account_id)
     now = utils.now_utc()
     tier = lifecycle_logic.normalize_tier(request.tier)
 

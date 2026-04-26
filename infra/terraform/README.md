@@ -61,3 +61,8 @@ the platform CDK bootstrap step.
 - Cross-account trust policies scope to the platform home account only.
 - Vended accounts receive a minimal execution role for AgentCore Runtime invocation.
 - All resources tagged with `platform:managed-by = terraform-account-vending`.
+
+This Terraform account-vending lane is not a current Bridge execution path.
+ADR-019 keeps tenant execution roles same-account only until a successor
+cross-account allow-list design covers metadata sync, ExternalId handling, role
+naming, and Bridge IAM.
