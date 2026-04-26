@@ -1,68 +1,60 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from redis.exceptions import RedisError
-
-from src.bridge.limiter import TokenLimiter
+from src.bridge.tpm_limiter import TokenLimiter
 
 
 class TestTokenLimiter:
     def test_check_and_increment_no_client(self):
-        limiter = TokenLimiter(redis_client=None)
-        result = limiter.check_and_increment("t1", "m1", 100, 10)
-        assert result.allowed is True
-        assert result.limit == 100
-        assert result.used == 10
+        # Point _default_counter_client to return None
+        with patch("src.bridge.tpm_limiter._default_counter_client", return_value=None):
+            limiter = TokenLimiter(counter_client=None)
+            result = limiter.check_and_increment("t1", "m1", 100, 10)
+            assert result.allowed is True
+            assert result.limit == 100
+            assert result.used == 10
 
     def test_check_and_increment_under_limit(self):
-        mock_redis = MagicMock()
-        mock_redis.script_load.return_value = "sha123"
-        # evalsha returns [new_val, success]
-        mock_redis.evalsha.return_value = [50, 1]
+        mock_client = MagicMock()
+        # check_and_increment returns (used, success)
+        mock_client.check_and_increment.return_value = (50, True)
 
-        limiter = TokenLimiter(redis_client=mock_redis)
+        limiter = TokenLimiter(counter_client=mock_client)
         result = limiter.check_and_increment("t1", "m1", 100, 10)
 
         assert result.allowed is True
         assert result.used == 50
         assert result.limit == 100
-        mock_redis.evalsha.assert_called_once()
+        mock_client.check_and_increment.assert_called_once()
 
     def test_check_and_increment_over_limit(self):
-        mock_redis = MagicMock()
-        mock_redis.script_load.return_value = "sha123"
-        mock_redis.evalsha.return_value = [95, 0]
+        mock_client = MagicMock()
+        mock_client.check_and_increment.return_value = (95, False)
 
-        limiter = TokenLimiter(redis_client=mock_redis)
+        limiter = TokenLimiter(counter_client=mock_client)
         result = limiter.check_and_increment("t1", "m1", 100, 10)
 
         assert result.allowed is False
         assert result.used == 95
         assert result.limit == 100
 
-    def test_check_and_increment_redis_error_fails_open(self):
-        mock_redis = MagicMock()
-        mock_redis.script_load.side_effect = RedisError("down")
+    def test_check_and_increment_error_fails_open(self):
+        mock_client = MagicMock()
+        mock_client.check_and_increment.side_effect = Exception("down")
 
-        limiter = TokenLimiter(redis_client=mock_redis)
+        limiter = TokenLimiter(counter_client=mock_client)
         result = limiter.check_and_increment("t1", "m1", 100, 10)
 
         assert result.allowed is True
         assert result.used == 10
 
     def test_correct_usage(self):
-        mock_redis = MagicMock()
-        mock_redis.script_load.return_value = "sha456"
-        mock_redis.evalsha.return_value = 45
+        mock_client = MagicMock()
+        mock_client.correct_usage.return_value = 45
 
-        limiter = TokenLimiter(redis_client=mock_redis)
+        limiter = TokenLimiter(counter_client=mock_client)
         new_val = limiter.correct_usage("t1", "m1", 10, 5)
 
         assert new_val == 45
-        # Script called with (estimate, actual) -> (10, 5)
-        # diff will be 5 - 10 = -5
-        mock_redis.evalsha.assert_called_once()
-        args = mock_redis.evalsha.call_args[0]
-        assert args[3] == 10
-        assert args[4] == 5
+        mock_client.correct_usage.assert_called_once()

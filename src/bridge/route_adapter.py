@@ -24,7 +24,7 @@ from data_access.models import (
     TenantContext,
 )
 
-from src.bridge import runtime_calls, telemetry
+from src.bridge import runtime_calls, telemetry, tpm_limiter
 from src.bridge.constants import (
     AG_UI_SCOPE_NAME,
     BFF_SESSION_KEEPALIVE_PATH,
@@ -38,6 +38,7 @@ from src.bridge.runtime_dependencies import (
     get_cloudwatch,
     get_config,
     get_http_session,
+    get_limiter,
     get_platform_context,
     get_webhook_registration,
 )
@@ -209,6 +210,7 @@ def invoke_agent(
     webhook_id: str | None,
     request_id: str,
     response_stream: Any | None,
+    estimate: int = 0,
 ) -> Any:
     get_runtime_config = _local_or_handler_dependency("get_config", _DEFAULT_GET_CONFIG)
     call_real_runtime = _handler_dependency(
@@ -218,6 +220,15 @@ def invoke_agent(
         log_result = None
     else:
         log_result = _handler_dependency("log_invocation", None)
+
+    # Wrap log_result to include TPM estimate (TASK-903)
+    def log_result_with_tpm(*args: Any, **kwargs: Any) -> None:
+        kwargs["estimated_tokens"] = estimate
+        if log_result is not None:
+            log_result(*args, **kwargs)
+        else:
+            telemetry.log_invocation(get_cloudwatch(), *args, **kwargs)
+
     do_failover = _handler_dependency("trigger_failover", None)
 
     config = get_runtime_config()
@@ -297,14 +308,17 @@ def invoke_agent(
             response_stream,
             invocation_id,
             start_time,
+            estimate=estimate,
             get_http_session=get_http_session,
             build_runtime_payload=runtime_calls.build_runtime_payload,
-            log_invocation=log_result,
+            log_invocation=log_result_with_tpm,
         )
+        if response is not None and response.get("statusCode") == 200:
+            _perform_tpm_correction(agent, tenant_context, estimate, response)
         return response
 
     try:
-        return call_real_runtime(
+        response = call_real_runtime(
             runtime_region,
             agent,
             tenant_context,
@@ -315,37 +329,27 @@ def invoke_agent(
             response_stream,
             invocation_id,
             start_time,
+            estimate=estimate,
+            log_invocation=log_result_with_tpm,
         )
+        if response is not None and response.get("statusCode") == 200:
+            _perform_tpm_correction(agent, tenant_context, estimate, response)
+        return response
     except ClientError as exc:
         error_code = str(exc.response.get("Error", {}).get("Code", ""))
         if error_code == "ThrottlingException":
             latency_ms = int((time.time() - start_time) * 1000)
-            if log_result is not None:
-                log_result(
-                    tenant_context,
-                    agent,
-                    invocation_id,
-                    InvocationStatus.ERROR,
-                    latency_ms,
-                    agent.invocation_mode,
-                    session_id=session_id,
-                    error_code="THROTTLED",
-                    runtime_region=runtime_region,
-                )
-            else:
-                telemetry.log_invocation(
-                    get_cloudwatch(),
-                    tenant_context,
-                    agent,
-                    invocation_id,
-                    InvocationStatus.ERROR,
-                    latency_ms,
-                    agent.invocation_mode,
-                    session_id=session_id,
-                    error_code="THROTTLED",
-                    runtime_region=runtime_region,
-                    jitter=runtime_calls.get_jitter(),
-                )
+            log_result_with_tpm(
+                tenant_context,
+                agent,
+                invocation_id,
+                InvocationStatus.ERROR,
+                latency_ms,
+                agent.invocation_mode,
+                session_id=session_id,
+                error_code="THROTTLED",
+                runtime_region=runtime_region,
+            )
             response = error_response(429, "THROTTLED", "Agent runtime throttled", request_id)
             response["headers"]["Retry-After"] = "1"
             return response
@@ -365,6 +369,8 @@ def invoke_agent(
                 response_stream,
                 invocation_id,
                 start_time,
+                estimate=estimate,
+                log_invocation=log_result_with_tpm,
             )
         return runtime_calls.runtime_failure_response(
             tenant_context,
@@ -376,6 +382,8 @@ def invoke_agent(
             request_id,
             exc,
             session_id=session_id,
+            tpm_estimated=estimate,
+            log_invocation=log_result_with_tpm,
         )
     except Exception as exc:
         if is_runtime_unavailable_error(exc):
@@ -394,6 +402,8 @@ def invoke_agent(
                 response_stream,
                 invocation_id,
                 start_time,
+                estimate=estimate,
+                log_invocation=log_result_with_tpm,
             )
         return runtime_calls.runtime_failure_response(
             tenant_context,
@@ -405,6 +415,8 @@ def invoke_agent(
             request_id,
             exc,
             session_id=session_id,
+            tpm_estimated=estimate,
+            log_invocation=log_result_with_tpm,
         )
 
 
@@ -490,3 +502,27 @@ def bootstrap_agent_session(
             }
         ),
     }
+
+
+def _perform_tpm_correction(
+    agent: AgentRecord,
+    tenant_context: TenantContext,
+    estimate: int,
+    response: dict[str, Any],
+) -> None:
+    """Correct estimated usage with actual usage for enforcement counter (non-streaming)."""
+    if agent.invocation_mode == InvocationMode.STREAMING:
+        return
+
+    body_text = response.get("body", "{}")
+    token_usage = tpm_limiter.extract_token_usage(body_text)
+    actual = token_usage.total_tokens
+
+    if actual > 0 or estimate > 0:
+        limiter = get_limiter()
+        limiter.correct_usage(
+            tenant_context.tenant_id,
+            agent.model_id or agent.agent_name,
+            estimate,
+            actual,
+        )

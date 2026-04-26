@@ -17,10 +17,9 @@ from src.bridge.constants import (
     TENANTS_TABLE,
 )
 from src.bridge.discovery_service import resolve_agent_record as discovery_resolve_agent_record
-from src.bridge.limiter import TokenLimiter
+from src.bridge.tpm_limiter import TokenLimiter
 from src.platform_aws import aws_region, boto3_client
 
-_redis_client: Any | None = None
 _limiter: TokenLimiter | None = None
 
 
@@ -57,38 +56,10 @@ def get_config(force_refresh: bool = False) -> dict[str, Any]:
     return provider.get(force_refresh=force_refresh)
 
 
-def get_valkey_client() -> Any | None:
-    global _redis_client
-    if _redis_client is not None:
-        return _redis_client
-
-    config = get_config()
-    endpoint = config.get("valkey_endpoint")
-    if not endpoint:
-        return None
-
-    try:
-        from redis import Redis
-
-        # ElastiCache Serverless Valkey usually uses 6379 and requires SSL
-        _redis_client = Redis(
-            host=endpoint,
-            port=6379,
-            ssl=True,
-            socket_timeout=1.0,
-            socket_connect_timeout=1.0,
-            retry_on_timeout=False,
-            decode_responses=True,
-        )
-        return _redis_client
-    except Exception:
-        return None
-
-
 def get_limiter() -> TokenLimiter:
     global _limiter
     if _limiter is None:
-        _limiter = TokenLimiter(redis_client=get_valkey_client())
+        _limiter = TokenLimiter()
     return _limiter
 
 

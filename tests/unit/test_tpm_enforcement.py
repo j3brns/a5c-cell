@@ -8,7 +8,7 @@ import pytest
 from data_access.models import InvocationMode, TenantCapabilityPolicy, TenantContext, TenantTier
 
 from src.bridge.invocation_engine import handle_invoke_request
-from src.bridge.limiter import RateLimitResult
+from src.bridge.tpm_limiter import RateLimitResult
 
 
 class TestTPMEnforcement:

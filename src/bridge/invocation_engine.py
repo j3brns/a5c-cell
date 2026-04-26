@@ -100,7 +100,10 @@ def handle_invoke_request(
     model_id = agent.model_id or "unknown"
     tpm_limit = 0
     if capability_policy is not None:
-        tpm_limit = capability_policy.get_tpm_limit(model_id, tenant_context.tier)
+        try:
+            tpm_limit = int(capability_policy.get_tpm_limit(model_id, tenant_context.tier))
+        except (ValueError, TypeError, AttributeError):
+            tpm_limit = 0
 
     if tpm_limit > 0 or get_limiter()._redis is not None:
         limiter = get_limiter()
