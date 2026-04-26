@@ -85,7 +85,8 @@ must block drift; documentation-only warnings are not enough once implementation
 ## Required Follow-Up Issues
 
 1. Update CDK to synthesize the v0.2 runtime in `eu-west-2` with `NetworkMode: VPC`
-   for staging and production.
+   for staging and production, including the no-internet Runtime endpoint set:
+   S3 gateway plus CloudWatch Logs, ECR API, and ECR Docker interface endpoints.
 2. Remove `eu-west-1` from runtime defaults, tenant execution role region sets, metric
    streams, tests, and operator runbooks.
 3. Replace runtime regional failover runbook paths with a v0.2 degradation procedure.

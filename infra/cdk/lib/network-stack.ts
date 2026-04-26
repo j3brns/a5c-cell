@@ -3,7 +3,7 @@
  *
  * eu-west-2 London only. Provides network isolation for Lambda functions,
  * AgentCore Runtime VPC mode, and VPC endpoints for: S3, DynamoDB, SSM,
- * Secrets Manager, AgentCore.
+ * Secrets Manager, CloudWatch Logs, ECR, AgentCore.
  *
  * Implemented in TASK-021.
  * ADRs: ADR-009
@@ -125,6 +125,24 @@ export class NetworkStack extends cdk.Stack {
     });
     this.vpc.addInterfaceEndpoint('SecretsManagerInterfaceEndpoint', {
       service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      privateDnsEnabled: true,
+      securityGroups: [endpointSecurityGroup],
+      subnets: privateSubnetSelection,
+    });
+    this.vpc.addInterfaceEndpoint('CloudWatchLogsInterfaceEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+      privateDnsEnabled: true,
+      securityGroups: [endpointSecurityGroup],
+      subnets: privateSubnetSelection,
+    });
+    this.vpc.addInterfaceEndpoint('EcrApiInterfaceEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.ECR,
+      privateDnsEnabled: true,
+      securityGroups: [endpointSecurityGroup],
+      subnets: privateSubnetSelection,
+    });
+    this.vpc.addInterfaceEndpoint('EcrDockerInterfaceEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
       privateDnsEnabled: true,
       securityGroups: [endpointSecurityGroup],
       subnets: privateSubnetSelection,

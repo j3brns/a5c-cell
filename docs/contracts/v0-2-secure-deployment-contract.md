@@ -54,6 +54,8 @@ Before staging or production deployment, CI must prove:
 - synthesized AgentCore Runtime resources use `NetworkMode: VPC`
 - runtime subnet and security group references are present for the `eu-west-2`
   platform VPC
+- no-internet Runtime VPC dependencies are reachable through private endpoints:
+  S3 gateway plus CloudWatch Logs, ECR API, and ECR Docker interface endpoints
 - no serving-path runtime ARN, SSM default, or tenant execution-role region set
   includes `eu-west-1`
 - protected production deployment approval checks still pass before `deploy-prod`
@@ -86,5 +88,7 @@ Checked on 2026-04-26:
 
 The AWS region table shows AgentCore Runtime, Memory, Gateway, Identity, built-in
 tools, Observability, and Policy support in Europe (London). The VPC documentation
-shows Runtime, Browser, and Code Interpreter VPC connectivity support and lists the
-supported `eu-west-2` AZ IDs: `euw2-az1`, `euw2-az2`, and `euw2-az3`.
+shows Runtime, Browser, and Code Interpreter VPC connectivity support, lists the
+supported `eu-west-2` AZ IDs (`euw2-az1`, `euw2-az2`, and `euw2-az3`), and requires
+ECR Docker, ECR API, S3, and CloudWatch Logs endpoints when the Runtime VPC has no
+internet access.
