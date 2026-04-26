@@ -307,6 +307,29 @@ describe('ObservabilityStack (TASK-026)', () => {
     });
   });
 
+  test('creates FM-12 Valkey unavailable alarm', () => {
+    const template = synthStack();
+    template.hasResourceProperties('AWS::Logs::MetricFilter', {
+      FilterPattern: '{ $.event.name = "valkey_unavailable" }',
+      MetricTransformations: [
+        Match.objectLike({
+          MetricNamespace: 'Platform/Bridge',
+          MetricName: 'ValkeyUnavailableCount',
+          MetricValue: '1',
+        }),
+      ],
+    });
+
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'ObservabilityStack-FM-12-ValkeyUnavailable',
+      Namespace: 'Platform/Bridge',
+      MetricName: 'ValkeyUnavailableCount',
+      ComparisonOperator: 'GreaterThanOrEqualToThreshold',
+      Threshold: 1,
+      TreatMissingData: 'notBreaching',
+    });
+  });
+
   test('creates FM-8 Usage Plan Quota Exhausted alarm', () => {
     const template = synthStack();
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
@@ -390,6 +413,7 @@ describe('ObservabilityStack (TASK-026)', () => {
       'FM-6-InterceptorRetryStorm',
       'FM-7-AgentCoreMemoryDegraded',
       'FM-11-BedrockThrottlePressure',
+      'FM-12-ValkeyUnavailable',
       'FM-8-UsagePlanQuotaExhausted',
       'FM-9-DLQ-Arrival-',
       'FM-10-BillingLambdaFailure',

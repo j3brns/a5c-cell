@@ -33,6 +33,7 @@ eu-west-2 London (HOME — owns everything)
 ├── AppConfig
 ├── EventBridge
 ├── SQS (webhook delivery retry queue only, not async invocation routing)
+├── ElastiCache Serverless Valkey (TPM counter coordination)
 ├── Bridge Lambda
 ├── Authoriser Lambda
 ├── Tenant API Lambda (Modular: lifecycle, webhooks, agents, ops)
@@ -149,7 +150,15 @@ Implementation note: the Bridge still deploys as one Lambda, but the package is
 now split internally into `config_provider`, `discovery_service`,
 `invocation_engine`, `runtime_orchestrator`, and `runtime_invoker` so routing,
 discovery, and failover logic can evolve independently without changing the
-public invoke contract.
+public invoke contract. TASK-902 provisions the eu-west-2 ElastiCache Serverless
+Valkey counter store and publishes its endpoint per environment at
+`/platform/{env}/config/valkey-endpoint`. ElastiCache Serverless places the cache
+endpoint in the selected subnets and security groups; no additional user-managed
+ElastiCache interface endpoint is required for counter traffic. Bridge remains
+outside the VPC under ADR-014 until TASK-903 supplies the fail-open client path
+through an approved narrow adapter or runtime-network design; pulling the whole
+Bridge into isolated subnets would break the current eu-west-1 AgentCore Runtime
+path without the gated ADR-020 network work.
 
 Current SPA edge posture: the public SPA distribution is protected by a dedicated
 CloudFront-scope WebACL that must be provisioned in **us-east-1**. AWS WAF requires
@@ -721,6 +730,7 @@ is represented today by the AgentCoreStack metric stream into eu-west-2 dashboar
 | FM-9 | DLQ message arrival | DLQ CloudWatch alarm | `FM-9-DLQ-Arrival-{name}` | [RUNBOOK-005](operations/RUNBOOK-005-dlq-management.md) |
 | FM-10 | Billing Lambda failure | Billing Lambda errors | `FM-10-BillingLambdaFailure` | [RUNBOOK-006](operations/RUNBOOK-006-budget-and-suspension.md) |
 | FM-11 | Bedrock runtime throttle pressure | Bridge emits `Invocation.Throttled.Bedrock` | `FM-11-BedrockThrottlePressure` | Investigate noisy tenants, concurrency pressure, and runtime quota headroom |
+| FM-12 | Valkey unavailable | Bridge emits `valkey_unavailable` fail-open metric/log | `FM-12-ValkeyUnavailable` | Bridge continues with fail-open (TPM check skipped, metric emitted) |
 
 Streaming TTFT uses `gen_ai.ttft_ms` in `Platform/Bridge`. The Bridge publishes
 the operational series with `AgentName`, `InvocationMode=streaming`, and

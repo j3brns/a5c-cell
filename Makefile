@@ -370,7 +370,9 @@ validate-secrets-full:
 	@(git ls-files -o --exclude-standard; git ls-files) | sort -u | \
 		grep -Ev '(^|/)(package-lock\.json)$$|\.(lock|log)$$|(^|/)\.build/' | \
 		while IFS= read -r f; do [ -f "$$f" ] && printf '%s\0' "$$f"; done | \
-		xargs -0 -r uv run detect-secrets-hook --baseline .secrets.baseline
+		xargs -0 -r uv run detect-secrets-hook \
+			--filter file://scripts/detect_secrets_filters.py::is_docs_sync_stamp_commit \
+			--baseline .secrets.baseline
 	@echo "==> detect-secrets full scan passed"
 
 ## dev: Start local development environment
