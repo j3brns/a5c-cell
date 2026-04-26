@@ -13,7 +13,7 @@ Usage:
     uv run python scripts/ops.py suspend-tenant --tenant <id> --reason <r> --env <env>
 
 Implemented in Phase 5 — Operations & Governance.
-ADRs: ADR-009, ADR-011
+ADRs: ADR-011, ADR-023
 """
 
 from __future__ import annotations
@@ -240,15 +240,6 @@ def _command_to_operation(args: argparse.Namespace) -> ApiOperation:
             if not get_settings().ops.can_get_error_rate:
                 raise OpsCliError("Command `error-rate` is disabled")
             return ApiOperation(method="GET", path="/v1/platform/ops/health/errors")
-        case "set-runtime-region":
-            if not get_settings().ops.failover_lock_token_path:
-                # Simulation for the test expectation "Failover lock id required"
-                if not args.lock_id:
-                    raise OpsCliError("Failover lock id required")
-            body = {"targetRegion": args.region}
-            if args.lock_id:
-                body["lockId"] = args.lock_id
-            return ApiOperation(method="PUT", path="/v1/platform/ops/runtime-region", body=body)
         case "notify-tenant":
             return ApiOperation(
                 method="POST",
@@ -402,18 +393,6 @@ def build_parser() -> argparse.ArgumentParser:
     error_rate = subparsers.add_parser("error-rate", help="Get error rate.")
     _add_api_common_arguments(error_rate)
     error_rate.add_argument("--minutes", type=int, default=5)
-
-    set_runtime_region = subparsers.add_parser(
-        "set-runtime-region",
-        help="Trigger runtime region failover via the Admin API.",
-    )
-    _add_api_common_arguments(set_runtime_region)
-    set_runtime_region.add_argument("--region", required=True)
-    set_runtime_region.add_argument(
-        "--lock-id",
-        default=None,
-        help="Failover lock id. Defaults to the saved token from failover-lock-acquire.",
-    )
 
     notify_tenant = subparsers.add_parser("notify-tenant", help="Notify tenant owner.")
     _add_api_common_arguments(notify_tenant)

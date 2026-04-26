@@ -19,8 +19,9 @@ Some dependencies genuinely require VPC placement: private RDS clusters, ElastiC
 private ALBs/NLBs, private SaaS via PrivateLink, or explicit source-network controls.
 Those are exceptions, not the default shape of the platform control plane.
 
-This ADR does not change ADR-009's runtime-region policy. It governs how platform
-services decide whether they should be VPC-attached at all.
+This ADR does not choose the runtime region. ADR-023 now defines the v0.2 serving
+Runtime as `eu-west-2` in VPC mode for staging and production. This ADR governs how
+platform services decide whether they should be VPC-attached at all.
 
 See also: [logical decision diagram](../images/tf_acore_aas_vpc_dependency_policy.drawio.png)
 

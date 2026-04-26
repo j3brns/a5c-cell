@@ -13,8 +13,6 @@ TENANT_MGMT_ROLE_ARN_ENV = "TENANT_MGMT_ROLE_ARN"
 PLATFORM_ACCOUNT_ID_ENV = "PLATFORM_ACCOUNT_ID"
 OPS_LOCKS_TABLE_ENV = "OPS_LOCKS_TABLE"
 RUNTIME_REGION_PARAM_ENV = "RUNTIME_REGION_PARAM"
-FALLBACK_REGION_PARAM_ENV = "FALLBACK_REGION_PARAM"
-FAILOVER_LOCK_NAME_ENV = "FAILOVER_LOCK_NAME"
 
 # Business Rules & Lifecycle
 DELETE_RETENTION_DAYS = 30
@@ -36,10 +34,7 @@ AWS_ACCOUNT_ID_PATTERN = re.compile(r"^[0-9]{12}$")
 RESERVED_TENANT_IDS = frozenset({"platform", "admin", "root", "system", "stub"})
 
 # Defaults
-DEFAULT_OPS_LOCKS_TABLE = "platform-ops-locks"
 DEFAULT_RUNTIME_REGION_PARAM = "/platform/config/runtime-region"
-DEFAULT_FALLBACK_REGION_PARAM = "/platform/config/fallback-region"
-DEFAULT_FAILOVER_LOCK_NAME = "platform-runtime-failover"
 
 # Tenant List Pagination
 TENANT_LIST_DEFAULT_PAGE_SIZE = 50

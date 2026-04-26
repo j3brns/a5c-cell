@@ -9,8 +9,6 @@ AGENTS_TABLE = os.environ.get("AGENTS_TABLE", "platform-agents")
 INVOCATIONS_TABLE = os.environ.get("INVOCATIONS_TABLE", "platform-invocations")
 JOBS_TABLE = os.environ.get("JOBS_TABLE", "platform-jobs")
 SESSIONS_TABLE = os.environ.get("SESSIONS_TABLE", "platform-sessions")
-OPS_LOCKS_TABLE = os.environ.get("OPS_LOCKS_TABLE", "platform-ops-locks")
-FAILOVER_LOCK_NAME = os.environ.get("FAILOVER_LOCK_NAME", "platform-runtime-failover")
 
 # Environment & Infrastructure
 JOB_RESULTS_BUCKET = os.environ.get("JOB_RESULTS_BUCKET")

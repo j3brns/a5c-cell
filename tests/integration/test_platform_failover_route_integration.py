@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -14,23 +13,8 @@ from moto import mock_aws
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-access-lib" / "src"))
 
-bridge_handler = importlib.import_module("src.bridge.handler")
-tenant_api_handler = importlib.import_module("src.tenant_api.handler")
-
-
-def _load_failover_lock_module() -> Any:
-    repo_root = Path(__file__).resolve().parents[2]
-    spec = importlib.util.spec_from_file_location(
-        "failover_lock_script_integration", repo_root / "scripts" / "failover_lock.py"
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
-    return module
-
-
-failover_lock = _load_failover_lock_module()
+bridge_handler: Any = importlib.import_module("src.bridge.handler")
+tenant_api_handler: Any = importlib.import_module("src.tenant_api.handler")
 
 
 class _FakeEvents:
@@ -50,26 +34,11 @@ class _FakeMemoryProvisioner:
     pass
 
 
-def _create_table(ddb: Any, table_name: str) -> None:
-    ddb.create_table(
-        TableName=table_name,
-        KeySchema=[
-            {"AttributeName": "PK", "KeyType": "HASH"},
-            {"AttributeName": "SK", "KeyType": "RANGE"},
-        ],
-        AttributeDefinitions=[
-            {"AttributeName": "PK", "AttributeType": "S"},
-            {"AttributeName": "SK", "AttributeType": "S"},
-        ],
-        BillingMode="PAY_PER_REQUEST",
-    )
-
-
-def _failover_event(lock_id: str) -> dict[str, Any]:
+def _failover_event() -> dict[str, Any]:
     return {
         "httpMethod": "POST",
         "path": "/v1/platform/failover",
-        "body": json.dumps({"targetRegion": "eu-central-1", "lockId": lock_id}),
+        "body": json.dumps({"targetRegion": "eu-central-1", "lockId": "unused-for-v0-2"}),
         "requestContext": {
             "authorizer": {
                 "tenantid": "platform",
@@ -90,24 +59,14 @@ def test_failover_route_is_disabled_and_bridge_keeps_serving_region(monkeypatch)
         monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
         monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-2")
         monkeypatch.setenv("AWS_REGION", "eu-west-2")
-        monkeypatch.setenv("OPS_LOCKS_TABLE", "platform-ops-locks")
         monkeypatch.setenv("RUNTIME_REGION_PARAM", "/platform/config/runtime-region")
 
-        ddb_resource = boto3.resource("dynamodb", region_name="eu-west-2")
-        ddb_client = boto3.client("dynamodb", region_name="eu-west-2")
         ssm = boto3.client("ssm", region_name="eu-west-2")
-        _create_table(ddb_resource, "platform-ops-locks")
         ssm.put_parameter(Name="/platform/config/runtime-region", Value="eu-west-2", Type="String")
         ssm.put_parameter(
             Name="/platform/config/mock-runtime-url",
             Value="http://localhost:8765",
             Type="String",
-        )
-
-        lock_record = failover_lock.acquire_lock(
-            ddb_client,
-            table_name="platform-ops-locks",
-            acquired_by="ops@example.com",
         )
 
         deps = tenant_api_handler.TenantApiDependencies(
@@ -119,9 +78,7 @@ def test_failover_route_is_disabled_and_bridge_keeps_serving_region(monkeypatch)
             memory_provisioner=_FakeMemoryProvisioner(),
             platform_quota_client=MagicMock(),
         )
-        response = tenant_api_handler.handle_event(
-            _failover_event(lock_record.lock_id), dependencies=deps
-        )
+        response = tenant_api_handler.handle_event(_failover_event(), dependencies=deps)
 
         assert response["statusCode"] == 409
         assert json.loads(response["body"])["error"]["code"] == "RUNTIME_FAILOVER_DISABLED"

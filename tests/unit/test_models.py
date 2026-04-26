@@ -108,7 +108,6 @@ class TestTenantRecord:
         tenant = _make_tenant()
         assert tenant.memory_store_arn is None
         assert tenant.runtime_region is None
-        assert tenant.fallback_region is None
         assert tenant.api_key_secret_arn is None
         assert tenant.monthly_budget_usd is None
 
@@ -116,7 +115,6 @@ class TestTenantRecord:
         tenant = _make_tenant(
             memory_store_arn="arn:aws:bedrock:eu-west-2:123:memory/m-1",
             runtime_region="eu-west-2",
-            fallback_region="eu-central-1",
             api_key_secret_arn="arn:aws:secretsmanager:eu-west-2:123:secret:k",
             monthly_budget_usd=1000.0,
         )

@@ -450,7 +450,7 @@ See [ADR-012](decisions/ADR-012-dynamodb-capacity.md) for capacity mode rational
 - PK: `TENANT#{tenantId}`, SK: `METADATA`
 - Attributes: tenantId, appId, displayName, tier, status, createdAt, updatedAt,
   provisioningStatus, provisioningUpdatedAt, provisioningError, ownerEmail,
-  ownerTeam, executionRoleArn, memoryStoreArn, runtimeRegion, fallbackRegion,
+  ownerTeam, executionRoleArn, memoryStoreArn, runtimeRegion,
   apiKeySecretArn, monthlyBudgetUsd, accountId
 - Control-plane metadata only. Do not store high-frequency invocation counters,
   last-activity markers, or session heartbeat state in this row.
@@ -586,7 +586,8 @@ Operational consumers:
 **platform-ops-locks** — distributed operation locks
 - PK: `LOCK#{lockName}`, SK: `METADATA`
 - Attributes: lockId, acquiredBy, acquiredAt, ttl (5-minute auto-expire)
-- Used for: region failover, account scaling transitions
+- Used for: account scaling transitions. Historical runtime region failover locks
+  are not part of the ADR-023 v0.2 topology.
 
 ## Scaling Model
 

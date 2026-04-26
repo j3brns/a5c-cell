@@ -85,10 +85,9 @@ class BillingSettings(BaseModel):
 
 
 class OpsSettings(BaseModel):
-    """Operator CLI and failover-lock settings."""
+    """Operator CLI settings."""
 
     credentials_path: str | None = None
-    failover_lock_token_path: str | None = None
     platform_ops_locks_table: str | None = None
     user: str | None = None
     username: str | None = None
@@ -156,7 +155,6 @@ class PlatformSettings(BaseSettings):
     event_bus_name: str | None = None
 
     platform_credentials_path: str | None = None
-    failover_lock_token_path: str | None = None
     platform_ops_locks_table: str | None = None
     user: str | None = None
     username: str | None = None
@@ -238,7 +236,6 @@ class PlatformSettings(BaseSettings):
     def ops(self) -> OpsSettings:
         return OpsSettings(
             credentials_path=self.platform_credentials_path,
-            failover_lock_token_path=self.failover_lock_token_path,
             platform_ops_locks_table=self.platform_ops_locks_table,
             user=self.user,
             username=self.username,

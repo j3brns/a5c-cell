@@ -4,10 +4,9 @@ from decimal import Decimal
 from typing import Any
 
 from src.tenant_api.db_factory import control_plane_db, tenants_table_name
-from src.tenant_api.db_factory import (
-    ops_locks_table_name as _ops_locks_table_name,
-)
-from src.tenant_api.models import CallerIdentity, TenantApiDependencies
+from src.tenant_api.models import CallerIdentity
+
+__all__ = ["control_plane_db"]
 
 
 def db_for_tenant(*, tenant_id: str, caller: CallerIdentity, app_id: str | None = None):
@@ -61,19 +60,3 @@ def build_update_expression(
         values[value_key] = ddb_value(raw_value)
         set_parts.append(f"{name_key} = {value_key}")
     return "SET " + ", ".join(set_parts), names, values
-
-
-def read_failover_lock_record(
-    caller: CallerIdentity, deps: TenantApiDependencies
-) -> dict[str, Any] | None:
-    import os
-
-    from src.tenant_api.constants import DEFAULT_FAILOVER_LOCK_NAME, FAILOVER_LOCK_NAME_ENV
-
-    _ = deps
-    db = control_plane_db(caller)
-    lock_name = os.environ.get(FAILOVER_LOCK_NAME_ENV, DEFAULT_FAILOVER_LOCK_NAME)
-    return db.get_item(
-        _ops_locks_table_name(),
-        {"PK": f"LOCK#{lock_name}", "SK": "METADATA"},
-    )

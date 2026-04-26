@@ -32,22 +32,10 @@ def audit_export_bucket_name() -> str:
     return os.environ.get(AUDIT_EXPORT_BUCKET_ENV, "platform-audit-exports")
 
 
-def ops_locks_table_name() -> str:
-    from src.tenant_api.constants import DEFAULT_OPS_LOCKS_TABLE, OPS_LOCKS_TABLE_ENV
-
-    return os.environ.get(OPS_LOCKS_TABLE_ENV, DEFAULT_OPS_LOCKS_TABLE)
-
-
 def runtime_region_param_name() -> str:
     from src.tenant_api.constants import DEFAULT_RUNTIME_REGION_PARAM, RUNTIME_REGION_PARAM_ENV
 
     return os.environ.get(RUNTIME_REGION_PARAM_ENV, DEFAULT_RUNTIME_REGION_PARAM)
-
-
-def fallback_region_param_name() -> str:
-    from src.tenant_api.constants import DEFAULT_FALLBACK_REGION_PARAM, FALLBACK_REGION_PARAM_ENV
-
-    return os.environ.get(FALLBACK_REGION_PARAM_ENV, DEFAULT_FALLBACK_REGION_PARAM)
 
 
 def _tenant_context_for_scope(

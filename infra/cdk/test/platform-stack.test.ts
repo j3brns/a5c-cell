@@ -849,8 +849,6 @@ describe('PlatformStack (TASK-023)', () => {
         Variables: Match.objectLike({
           POWERTOOLS_SERVICE_NAME: 'admin-ops-service',
           TENANTS_TABLE_NAME: Match.anyValue(),
-          OPS_LOCKS_TABLE: Match.anyValue(),
-          FAILOVER_LOCK_NAME: 'platform-runtime-failover',
         }),
       },
     });
@@ -860,8 +858,6 @@ describe('PlatformStack (TASK-023)', () => {
       Handler: 'handler.handler',
       Environment: {
         Variables: Match.objectLike({
-          OPS_LOCKS_TABLE: Match.anyValue(),
-          FAILOVER_LOCK_NAME: 'platform-runtime-failover',
           RUNTIME_REGION_PARAM: '/platform/config/runtime-region',
           TENANT_EXECUTION_ROLE_PARAM_TEMPLATE: '/platform/tenants/{tenant_id}/execution-role-arn',
           VALKEY_ENDPOINT: Match.anyValue(),

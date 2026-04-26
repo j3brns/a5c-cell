@@ -200,18 +200,10 @@ def test_get_agent_detail_uses_platform_context_db_factory() -> None:
 def test_trigger_failover_is_disabled_for_v0_2_topology() -> None:
     ssm = MagicMock()
 
-    with (
-        patch("src.bridge.lock_manager.ControlPlaneDynamoDB") as mock_db_cls,
-        patch("src.bridge.lock_manager.acquire_lock", return_value="lock-123") as mock_acquire,
-        patch("src.bridge.lock_manager.release_lock") as mock_release,
-        patch("src.bridge.lock_manager.get_ssm", return_value=ssm),
-    ):
-        result = lock_manager.trigger_failover(
-            current_region="eu-west-2",
-        )
+    result = lock_manager.trigger_failover(
+        current_region="eu-west-2",
+        ssm=ssm,
+    )
 
     assert result is None
-    mock_db_cls.assert_not_called()
-    mock_acquire.assert_not_called()
-    mock_release.assert_not_called()
     ssm.get_parameter.assert_not_called()

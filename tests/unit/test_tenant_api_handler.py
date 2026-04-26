@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -79,23 +79,6 @@ def _last_event_detail(fake_state: dict[str, Any]) -> tuple[str, dict[str, Any]]
     assert calls, "expected EventBridge put_events call"
     entry = calls[-1]["Entries"][0]
     return entry["DetailType"], json.loads(entry["Detail"])
-
-
-def _seed_failover_lock(
-    fake_state: dict[str, Any],
-    *,
-    lock_id: str = "lock-123",
-    ttl: int | None = None,
-    acquired_by: str = "ops@example.com",
-) -> None:
-    expires_at = ttl if ttl is not None else int(datetime.now(UTC).timestamp()) + 300
-    fake_state["db"].items[("LOCK#platform-runtime-failover", "METADATA")] = {
-        "PK": "LOCK#platform-runtime-failover",
-        "SK": "METADATA",
-        "lockId": lock_id,
-        "acquiredBy": acquired_by,
-        "ttl": expires_at,
-    }
 
 
 def _seed_agent_version(
@@ -578,6 +561,7 @@ def test_read_own_tenant_allowed_and_enriched_with_usage(fake_state: dict[str, A
         "ownerEmail": "b@example.com",
         "ownerTeam": "team-b",
         "accountId": "123456789012",
+        "fallbackRegion": "eu-central-1",
         "monthlyBudgetUsd": Decimal("50"),
     }
 
@@ -595,6 +579,7 @@ def test_read_own_tenant_allowed_and_enriched_with_usage(fake_state: dict[str, A
     assert response["statusCode"] == 200
     tenant = _body(response)["tenant"]
     assert tenant["tenantId"] == "t-002"
+    assert "fallbackRegion" not in tenant
     assert tenant["usage"]["requestsToday"] == 12
     assert tenant["usage"]["usageIdentifierKey"] == "usage-key-1"
 
@@ -1162,12 +1147,7 @@ def test_platform_quota_report(fake_state: dict[str, Any]) -> None:
     assert utilisation == fake_state["deps"].platform_quota_client.response
     assert body["audit"]["actorTenantId"] == "platform"
     assert body["audit"]["operationType"] == "quota_report"
-    assert fake_state["deps"].platform_quota_client.calls == [
-        {
-            "active_region": "eu-west-2",
-            "fallback_region": None,
-        }
-    ]
+    assert fake_state["deps"].platform_quota_client.calls == [{"active_region": "eu-west-2"}]
 
 
 def test_platform_quota_report_returns_explicit_aws_error(fake_state: dict[str, Any]) -> None:
@@ -1232,7 +1212,7 @@ def test_aws_platform_quota_client_reads_metrics_and_service_quotas() -> None:
 
     client = tenant_api_handler._AwsPlatformQuotaClient(session)
 
-    utilisation = client.get_utilisation(active_region="eu-west-2", fallback_region="eu-central-1")
+    utilisation = client.get_utilisation(active_region="eu-west-2")
 
     assert utilisation == [
         {
@@ -1241,13 +1221,6 @@ def test_aws_platform_quota_client_reads_metrics_and_service_quotas() -> None:
             "currentValue": 11.0,
             "limit": 600.0,
             "utilisationPercentage": 1.83,
-        },
-        {
-            "region": "eu-central-1",
-            "quotaName": "ConcurrentSessions",
-            "currentValue": 0.0,
-            "limit": 400.0,
-            "utilisationPercentage": 0.0,
         },
     ]
     eu_west_service_quotas = session.service_quotas_clients["eu-west-2"]
@@ -1265,7 +1238,7 @@ def test_aws_platform_quota_client_falls_back_to_documented_default_limit() -> N
 
     client = tenant_api_handler._AwsPlatformQuotaClient(session)
 
-    utilisation = client.get_utilisation(active_region="eu-central-1", fallback_region=None)
+    utilisation = client.get_utilisation(active_region="eu-central-1")
 
     assert utilisation == [
         {

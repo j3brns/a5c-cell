@@ -220,14 +220,8 @@ class FakePlatformQuotaClient:
         self,
         *,
         active_region: str,
-        fallback_region: str | None,
     ) -> list[dict[str, Any]]:
-        self.calls.append(
-            {
-                "active_region": active_region,
-                "fallback_region": fallback_region,
-            }
-        )
+        self.calls.append({"active_region": active_region})
         return [dict(item) for item in self.response]
 
 
@@ -379,9 +373,8 @@ class FailingPlatformQuotaClient:
         self,
         *,
         active_region: str,
-        fallback_region: str | None,
     ) -> list[dict[str, Any]]:
-        _ = active_region, fallback_region
+        _ = active_region
         raise self.error
 
 
@@ -433,9 +426,7 @@ def apply_common_tenant_api_env(monkeypatch: Any, *, include_agents_table: bool 
         "TENANT_MGMT_ROLE_ARN",
         "arn:aws:iam::111111111111:role/platform-tenant-mgmt-dev",
     )
-    monkeypatch.setenv("OPS_LOCKS_TABLE", "platform-ops-locks")
     monkeypatch.setenv("RUNTIME_REGION_PARAM", "/platform/config/runtime-region")
-    monkeypatch.setenv("FALLBACK_REGION_PARAM", "/platform/config/fallback-region")
 
 
 def build_tenant_api_dependencies() -> tenant_api_handler.TenantApiDependencies:

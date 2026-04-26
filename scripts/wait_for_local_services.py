@@ -43,7 +43,6 @@ REQUIRED_TABLES = (
 
 REQUIRED_SSM_PARAMETERS = (
     "/platform/config/runtime-region",
-    "/platform/config/fallback-region",
     "/platform/config/env",
     "/platform/config/jwks-url",
     "/platform/config/api-audience",

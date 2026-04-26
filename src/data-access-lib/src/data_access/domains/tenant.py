@@ -44,7 +44,6 @@ class TenantRecord:
     execution_role_arn: str | None = None
     memory_store_arn: str | None = None
     runtime_region: str | None = None
-    fallback_region: str | None = None
     api_key_secret_arn: str | None = None
     monthly_budget_usd: float | None = None
 

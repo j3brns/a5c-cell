@@ -33,14 +33,8 @@ class _AwsPlatformQuotaClient:
         self,
         *,
         active_region: str,
-        fallback_region: str | None,
     ) -> list[dict[str, Any]]:
-        regions: list[str] = []
-        for region in (active_region, fallback_region):
-            if region and region not in regions:
-                regions.append(region)
-
-        return [self._build_region_entry(region) for region in regions]
+        return [self._build_region_entry(active_region)]
 
     def _build_region_entry(self, region: str) -> dict[str, Any]:
         current_value = self._current_sessions(region)
