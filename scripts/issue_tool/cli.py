@@ -1549,9 +1549,12 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
             ),
             (
                 "Execution loop: inspect; form the smallest defensible plan; add or update "
-                "tests before behavior changes when practical; implement; run the narrowest "
-                "useful checks; then run make preflight-session and make pre-validate-session "
-                "before push. Fix failures and repeat until the issue is actually complete."
+                "tests before behavior changes when practical; run make worktree-probe MODE=test "
+                "before attempting tests; if it fails, stop the test attempt and run make "
+                "ensure-tools before continuing; run make worktree-probe before agent handoff; "
+                "implement; run the narrowest useful checks; then run make preflight-session and "
+                "make pre-validate-session before push. Fix failures and repeat until the issue "
+                "is actually complete."
             ),
             (
                 "Change shape: keep diffs small and reversible; prefer deletion over addition; "

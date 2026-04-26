@@ -3,7 +3,7 @@
 # Run `make help` for a grouped summary, or `make help-all` for the full dump
 # =============================================================================
 
-.PHONY: help help-all bootstrap ensure-tools validate-local validate-local-full
+.PHONY: help help-all bootstrap ensure-tools worktree-probe validate-local validate-local-full
 .PHONY: validate-local-prereqs validate-lint validate-typecheck validate-unit validate-contract validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
 .PHONY: validate-pre-push validate-secrets-diff validate-secrets-push validate-secrets-full
 .PHONY: docs-sync-audit docs-sync-stamp rules-sync-audit
@@ -48,6 +48,7 @@ help:
 		echo "  Setup"; \
 		ex "bootstrap" "install tools and check prerequisites"; \
 		ex "ensure-tools" "install missing dev tools"; \
+		ex "worktree-probe" "check worktree dev dependencies"; \
 		echo ""; \
 		echo "  Validation"; \
 		ex "validate-local" "fast local validation"; \
@@ -167,6 +168,11 @@ bootstrap-delete-iam-user:
 ## ensure-tools: Install missing dev tools (idempotent — safe to run repeatedly)
 ensure-tools:
 	@bash scripts/install-dev-tools.sh
+
+## worktree-probe: Verify worktree dev dependencies before tests or agent handoff
+## Usage: make worktree-probe [MODE=agent|test]
+worktree-probe:
+	@python3 scripts/worktree_probe.py $(if $(MODE),--mode $(MODE),)
 
 ## validate-local: Run local validation checks before commit (fast path)
 ## Uses diff-only secret detection for speed. Run `make validate-local-full` for full repo secret scan.
