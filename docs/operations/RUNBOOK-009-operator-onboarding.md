@@ -63,11 +63,12 @@ make logs-bridge ENV=prod MINUTES=5   # Should return recent bridge telemetry
 
 ### 5. Read all runbooks (in order)
 RUNBOOK-000 through RUNBOOK-009. Understand each trigger and response.
-Complete a dry-run of RUNBOOK-001 (failover) in the dev environment.
+Complete a dry-run of RUNBOOK-001 (failover) in the dev environment only while the
+pre-v0.2 runtime-failover path remains implemented.
 
 ## Success Criteria
 Operator is considered onboarded when:
-- They can complete RUNBOOK-001 (failover) in dev without assistance
+- They can complete the current runtime incident procedure in dev without assistance
 - They can answer: "How do I identify the tenant driving the most quota pressure?"
   Use the parameterized CloudWatch tenant usage dashboard together with AgentCore concurrent-session metrics,
   tenant audit records, and usage records.

@@ -10,6 +10,12 @@ prerequisites and manual steps that cannot be automated.
 
 The platform bootstrap flow assumes one AWS account per environment.
 
+Target-state note: [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md)
+defines v0.2 as one `eu-west-2` platform VPC with the serving AgentCore Runtime in
+`eu-west-2`, `NetworkMode: VPC` for staging and production, and no `eu-west-1`
+runtime fallback. The current bootstrap script still carries pre-v0.2 multi-region
+defaults until the implementation issues update it.
+
 - **Single account, multi-region**:
   - eu-west-2 (London): home region for data plane and control plane
   - eu-west-1 (Dublin): AgentCore Runtime compute
@@ -144,3 +150,6 @@ It does not deploy `platform-agentcore-{env}`. `AgentCoreStack` requires explici
 artifact and metric-stream parameters, and the bootstrap path does not have a supported
 automatic source for those values on a fresh account. The bootstrap flow and runbooks are
 therefore scoped to the 5-stack control-plane deployment until that contract changes.
+Under ADR-023, that contract changes to a same-region v0.2 runtime deployment with
+fail-closed staging/prod CI gates; this guide remains a pre-implementation note until
+the bootstrap issue updates the command flow.

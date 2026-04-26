@@ -23,7 +23,7 @@
 | Access control         | Entra RBAC, least-privilege IAM            |
 | Logical separation     | Four-layer tenant isolation                |
 | Encryption             | AWS-managed at rest, TLS in transit        |
-| Availability           | Multi-region failover, usage plans         |
+| Availability           | Usage plans; pre-v0.2 runtime failover is deferred from the v0.2 serving target by ADR-023 |
 | Change management      | Two-reviewer approval, pipeline validation |
 | Incident response      | Runbooks, PagerDuty integration            |
 | Vendor management      | AWS DPA, Entra DPA                         |

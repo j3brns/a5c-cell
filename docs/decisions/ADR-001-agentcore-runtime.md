@@ -10,8 +10,9 @@ custom orchestrator, Lambda (15-minute limit), or AgentCore Runtime.
 
 ## Decision
 Use Amazon Bedrock AgentCore Runtime as the agent execution environment.
-Current primary region: eu-west-1 (Dublin). ADR-020 approves migration to eu-west-2
-(London) pending go/no-go gate validation; implementation is tracked separately.
+Current pre-v0.2 implementation still contains Dublin-era defaults. ADR-023 defines
+the v0.2 secure target: AgentCore Runtime in eu-west-2 with VPC mode for staging and
+production, and no eu-west-1 runtime fallback.
 
 ## Consequences
 - arm64 Firecracker microVM isolation per session — no cross-tenant leakage

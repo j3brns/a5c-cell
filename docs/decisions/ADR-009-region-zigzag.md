@@ -14,6 +14,11 @@ and defines the go/no-go gates required before implementation begins. This ADR's
 London-home / Dublin-runtime policy remains in force until those gates pass and the
 implementation issue completes the migration.
 
+## Status Note (2026-04-26)
+ADR-023 supersedes the ADR-020 migration framing for v0.2. The v0.2 target removes
+the Dublin runtime fallback entirely and treats the next staging/production deployment
+as a fresh secure baseline rather than a migration from a live Dublin deployment.
+
 ## Context
 At the time of this decision, AgentCore Runtime was not available in eu-west-2
 (London). All data had to remain in the EU, and compliance required UK/EU data

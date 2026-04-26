@@ -61,11 +61,11 @@ Runtime microVM isolation prevents cross-session access at compute level
 ### 8a. Runtime Public Network Drift
 Threat: AgentCore Runtime remains internet-addressable by silent default even after the
 platform claims a stronger network posture
-Mitigation: the runtime stack now records `PUBLIC` as an explicit exception tied to
-ADR-009 and the absence of eu-west-1 runtime VPC infrastructure. CDK tests and
-cfn-guard fail if `PUBLIC` is present without the documented exception metadata and
-revisit trigger. Migration to `VPC` is deferred until runtime-region subnets, security
-groups, endpoints, and egress controls are designed and approved.
+Mitigation: ADR-023 defines the v0.2 staging/production target as AgentCore Runtime in
+`eu-west-2` with `NetworkMode: VPC` and no `eu-west-1` runtime fallback. The current
+pre-v0.2 runtime stack still records `PUBLIC` as an explicit exception tied to ADR-009,
+but implementation work must convert that exception into fail-closed CI/CD gates for
+staging and production. Dev-only exceptions must be explicit and environment-scoped.
 
 ### 9. Data Exfiltration via Agent
 Threat: agent accumulates and exfiltrates tenant data
@@ -108,7 +108,7 @@ not as approval for cross-account tenant execution
 | cfn-guard IaC policy           | 7                            | GitLab CI validate stage  |
 | CloudTrail + VPC Flow Logs     | 10                           | ObservabilityStack        |
 | PII redaction (RESPONSE)       | 9                            | RESPONSE interceptor      |
-| Explicit runtime posture gate  | 8a                           | AgentCoreStack + cfn-guard + CDK tests |
+| Explicit runtime posture gate  | 8a                           | ADR-023 contract, AgentCoreStack, cfn-guard, CDK tests |
 | Reserved platform-tenant guardrails | 11                      | ADR-016 + control-plane APIs + audit model |
 
 ## Data Classification

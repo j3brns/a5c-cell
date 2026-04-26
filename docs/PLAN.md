@@ -98,7 +98,10 @@ run `make infra-deploy ENV=dev` and get a working platform.
 - First successful `make infra-deploy ENV=dev` execution
 
 **Gate**: `cdk synth` passes. `cfn-guard` passes. infra-diff reviewed by operator.
-Operator runs RUNBOOK-001 (failover) in dev and it completes successfully.
+For pre-v0.2 deployments, operator runs RUNBOOK-001 (failover) in dev and it
+completes successfully. For the ADR-023 v0.2 target, runtime regional failover is
+deferred and the gate becomes the v0.2 degradation procedure plus fail-closed
+Runtime VPC checks.
 
 **Success criteria**:
 - All stacks deploy cleanly to dev account
@@ -117,18 +120,21 @@ No AWS console access required for routine operations.
 **Deliverables**:
 - bootstrap.py — ordered bootstrap sequence with validation at each step
 - ops.py — full operations CLI wrapping the Admin REST API
-- failover_lock.py — DynamoDB distributed lock for region failover
-- All runbooks tested against dev environment
+- failover_lock.py — DynamoDB distributed lock for pre-v0.2 region failover only
+- All runbooks tested against dev environment; for v0.2, replace runtime failover with
+  the ADR-023 degradation procedure and fail-closed Runtime VPC validation
 - RUNBOOK-000 (bootstrap) executable end-to-end
 
 **Gate**: Operator completes full bootstrap of a new dev environment from scratch.
-Operator completes every runbook scenario in dev. All pass.
+Operator completes every supported runbook scenario in dev. For v0.2, runtime regional
+failover is not a supported serving-path scenario unless a later ADR reintroduces it.
+All supported scenarios pass.
 
 **Success criteria**:
 - `make bootstrap-verify ENV=dev` passes
-- Every runbook has been executed at least once in dev
+- Every supported runbook has been executed at least once in dev
 - Bootstrap IAM user deleted automatically at end of bootstrap
-- Failover to Frankfurt and back completes without data loss
+- v0.2 degradation procedure and fail-closed staging/prod Runtime VPC checks pass
 
 ---
 
@@ -214,7 +220,7 @@ Results delivered via webhook or poll endpoint.
 - AgentCore Policy CEDAR enforcement — implemented on 2026-03-10 (Issue #58)
 - Agent marketplace and catalogue portal
 - Tenant self-service portal (currently operator-provisioned)
-- Revisit eu-west-2 Runtime placement — AWS now supports London; current zigzag remains in place pending explicit architecture review and migration plan
+- Implement ADR-023 secure runtime baseline and remove pre-v0.2 Dublin-era defaults
 
 ---
 
@@ -298,7 +304,7 @@ an engineering surface rather than a finished tenant and operator product.
 |------|---------|
 | Platform Overview | High-level health, active incidents, and rollout state |
 | Tenants | Search, filter, inspect, and act on tenant records |
-| Runtime Regions | Active region, failover posture, and regional health |
+| Runtime Regions | Active region, v0.2 posture, deferred failover status, and regional health |
 | Quota & Capacity | Utilisation, trend, and account-topology trigger visibility |
 | Incidents | Open events, timelines, and runbook entry points |
 | Security Events | Auth failures, policy denials, tenant violations, audit flags |
@@ -330,7 +336,7 @@ an engineering surface rather than a finished tenant and operator product.
 | `/admin` | Operator | Platform overview |
 | `/admin/tenants` | Operator | Tenant search, list, drill-down |
 | `/admin/tenants/:tenantId` | Operator | Tenant detail and operator actions |
-| `/admin/runtime` | Operator | Runtime regions, failover, quotas |
+| `/admin/runtime` | Operator | Runtime region, v0.2 posture, deferred failover status, quotas |
 | `/admin/incidents` | Operator | Incident board and runbook links |
 | `/admin/security` | Operator | Security events and policy signals |
 | `/admin/deliveries` | Operator | DLQs and webhook failures |
@@ -365,7 +371,7 @@ an engineering surface rather than a finished tenant and operator product.
 | Platform Overview | global health, active incidents, quota hot spots, runtime region, deployment version | drill into issue, open runbook |
 | Tenants | filterable tenant list, tier, status, region, budget posture | inspect tenant, suspend or resume where policy allows |
 | Tenant Detail | tenant metadata, recent activity, sessions, jobs, security signals, audit path | rotate key, resend invite, export evidence |
-| Runtime Regions | active runtime region, failover state, quota, alarms, recent failovers | trigger guarded failover, inspect evidence |
+| Runtime Regions | active runtime region, v0.2 posture, quota, alarms, deferred failover state | inspect evidence; guarded failover only when a later ADR reintroduces it |
 | Incidents | open events, severity, owner, timeline | acknowledge, open runbook |
 | Security Events | auth failures, policy denials, access violations | inspect, export, pivot to tenant |
 | DLQs / Failed Deliveries | pending failures, age, retry state | replay, inspect payload metadata |
