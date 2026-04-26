@@ -199,6 +199,9 @@ def test_build_agent_prompt_for_worktree_includes_explicit_dod_and_conflict_requ
     assert "detect_changes before commit" in prompt
     assert "fall back to rg, git diff/log, and direct file reads" in prompt
     assert "Execution loop: inspect; form the smallest defensible plan" in prompt
+    assert "run make worktree-probe MODE=test before attempting tests" in prompt
+    assert "if it fails, stop the test attempt and run make ensure-tools" in prompt
+    assert "run make worktree-probe before agent handoff" in prompt
     assert "run make preflight-session and make pre-validate-session before push" in prompt
     assert "Change shape: keep diffs small and reversible" in prompt
     assert "make preflight-session" in prompt
