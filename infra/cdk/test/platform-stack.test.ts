@@ -830,6 +830,7 @@ describe('PlatformStack (TASK-023)', () => {
           FAILOVER_LOCK_NAME: 'platform-runtime-failover',
           RUNTIME_REGION_PARAM: '/platform/config/runtime-region',
           TENANT_EXECUTION_ROLE_PARAM_TEMPLATE: '/platform/tenants/{tenant_id}/execution-role-arn',
+          VALKEY_ENDPOINT: Match.anyValue(),
         }),
       },
     });

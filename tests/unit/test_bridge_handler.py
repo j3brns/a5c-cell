@@ -862,7 +862,10 @@ def test_handler_session_id_from_runtime(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
+    with (
+        patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session,
+        patch("src.bridge.tpm_limiter.record_log_only_tpm") as mock_record_tpm,
+    ):
         mock_post = MagicMock()
         mock_get_http_session.return_value.post = mock_post
         mock_response = MagicMock()
@@ -885,7 +888,10 @@ def test_handler_session_id_from_runtime(setup_data):
         inv_table = ddb.Table("platform-invocations")
 
         items = inv_table.query(KeyConditionExpression=Key("PK").eq("TENANT#t-001"))["Items"]
+        assert mock_post.call_count == 1
+        assert len(items) == 1
         assert any(item["session_id"] == "runtime-session-456" for item in items)
+        assert mock_record_tpm.call_count == 1
 
 
 def test_get_job_status_returns_job_payload(setup_data):

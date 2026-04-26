@@ -152,13 +152,16 @@ now split internally into `config_provider`, `discovery_service`,
 discovery, and failover logic can evolve independently without changing the
 public invoke contract. TASK-902 provisions the eu-west-2 ElastiCache Serverless
 Valkey counter store and publishes its endpoint per environment at
-`/platform/{env}/config/valkey-endpoint`. ElastiCache Serverless places the cache
+`/platform/{env}/config/valkey-endpoint`; the Bridge receives the same resolved
+endpoint through `VALKEY_ENDPOINT` so TPM log-only accounting does not require a
+new request-path SSM permission. ElastiCache Serverless places the cache
 endpoint in the selected subnets and security groups; no additional user-managed
 ElastiCache interface endpoint is required for counter traffic. Bridge remains
-outside the VPC under ADR-014 until TASK-903 supplies the fail-open client path
-through an approved narrow adapter or runtime-network design; pulling the whole
-Bridge into isolated subnets would break the current eu-west-1 AgentCore Runtime
-path without the gated ADR-020 network work.
+outside the VPC under ADR-014; TASK-903's counter client is fail-open and
+endpoint-gated, while any move to hard enforcement still requires an approved
+narrow adapter or runtime-network design. Pulling the whole Bridge into isolated
+subnets would break the current eu-west-1 AgentCore Runtime path without the
+gated ADR-020 network work.
 
 Current SPA edge posture: the public SPA distribution is protected by a dedicated
 CloudFront-scope WebACL that must be provisioned in **us-east-1**. AWS WAF requires
