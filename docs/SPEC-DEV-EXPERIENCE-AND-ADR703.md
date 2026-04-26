@@ -315,28 +315,34 @@ from all Bridge Lambda instances. The platform has no Redis/Valkey today.
 - Configure within the existing VPC with a security group permitting inbound
   6379/TCP from the Bridge Lambda security group only.
 - Store the cluster endpoint in SSM at
-  `/platform/config/valkey-endpoint` (not hardcoded).
+  `/platform/{env}/config/valkey-endpoint` (not hardcoded).
 - Add VPC endpoint for ElastiCache if required for private connectivity.
 - Add CDK cfn-guard rules: no public access, encryption at rest enabled,
   encryption in transit enabled.
 - Add `FM-12: Valkey unavailable` to ARCHITECTURE.md failure modes table:
-  detection = CloudWatch `CacheHits` drop or connection errors; response =
-  Bridge continues with fail-open (TPM check skipped, metric emitted).
+  detection = Bridge `valkey_unavailable` fail-open metric/log; response =
+  Bridge continues with fail-open (TPM check skipped, metric emitted). Cache
+  command volume metrics are not sufficient because they conflate idle traffic
+  with outage.
 - Bridge Lambda must not hard-depend on Valkey availability. Valkey connection
   failure must be caught, logged with `event.name=valkey_unavailable`, and the
   request allowed to proceed (fail-open).
+- Direct Bridge VPC attachment is intentionally not part of this task: ADR-014
+  rejects broad NAT egress, and ADR-020 gates runtime-region VPC changes. TASK-903
+  must use an approved narrow adapter or runtime-network design before Bridge
+  executes Valkey commands.
 
 **Out of scope**
 - TPM counter logic (TASK-903).
-- Multi-region Valkey (eu-west-1 Bridge path is handled by the eu-west-2
-  cluster via VPC peering or cross-region endpoint — document the chosen
-  approach).
+- Runtime client integration and the Bridge-to-Valkey network adapter (TASK-903).
+- Multi-region Valkey enforcement.
 
 **Acceptance Criteria**
 - [ ] `cdk synth` includes the ElastiCache Serverless cluster in PlatformStack.
 - [ ] `cfn-guard` passes: encryption at rest, encryption in transit, no public access.
-- [ ] Cluster endpoint published to SSM `/platform/config/valkey-endpoint`.
-- [ ] Bridge Lambda can connect to the cluster in a deployed dev environment.
+- [ ] Cluster endpoint published to SSM `/platform/{env}/config/valkey-endpoint`.
+- [ ] Valkey client network path is documented for TASK-903 without regressing
+      the current Bridge-to-AgentCore Runtime path.
 - [ ] `make validate-local` passes.
 
 **Test Plan**

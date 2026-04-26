@@ -150,6 +150,7 @@ export class PlatformStack extends cdk.Stack {
   public readonly toolsTable: dynamodb.Table;
   public readonly opsLocksTable: dynamodb.Table;
   public readonly gatewayIdempotencyTable: dynamodb.Table;
+  public readonly valkeyCacheName: string;
 
   public readonly bridgeFn: lambda.Function;
   public readonly bffFn: lambda.Function;
@@ -201,7 +202,26 @@ export class PlatformStack extends cdk.Stack {
       },
     });
 
-    const storage = createPlatformStorage(this, { envName: env });
+    const bridgeValkeyClientSecurityGroup = new ec2.SecurityGroup(
+      this,
+      'BridgeValkeyClientSecurityGroup',
+      {
+        vpc: this.vpc,
+        allowAllOutbound: false,
+        description: 'Bridge Lambda client access to platform Valkey',
+      },
+    );
+
+    const storage = createPlatformStorage(this, {
+      envName: env,
+      vpc: this.vpc,
+      valkeyClientSecurityGroup: bridgeValkeyClientSecurityGroup,
+    });
+    bridgeValkeyClientSecurityGroup.addEgressRule(
+      storage.valkeySecurityGroup,
+      ec2.Port.tcp(6379),
+      'Allow Redis/Valkey egress to platform Valkey cluster',
+    );
     this.tenantsTable = storage.tenantsTable;
     this.agentsTable = storage.agentsTable;
     this.toolsTable = storage.toolsTable;
@@ -210,6 +230,7 @@ export class PlatformStack extends cdk.Stack {
     this.invocationsTable = storage.invocationsTable;
     this.jobsTable = storage.jobsTable;
     this.sessionsTable = storage.sessionsTable;
+    this.valkeyCacheName = storage.valkeyCacheName;
 
     // The TenantStack template is synthesized during 'cdk synth' and needs to be
     // available to the provisioner Lambda via S3.

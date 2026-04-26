@@ -222,3 +222,43 @@ rule agentcore_runtime_public_requires_exception_metadata {
         }
     }
 }
+
+let elasticache_serverless = Resources.*[ Type == 'AWS::ElastiCache::ServerlessCache' ]
+let elasticache_serverless_security_group_ids = Resources.*[
+    Type == 'AWS::ElastiCache::ServerlessCache'
+].Properties.SecurityGroupIds[*]
+let ec2_security_group_ingress = Resources.*[ Type == 'AWS::EC2::SecurityGroupIngress' ]
+
+# elasticache_serverless_uses_valkey_service_managed_encryption
+rule elasticache_serverless_uses_valkey_service_managed_encryption {
+    when %elasticache_serverless exists {
+        # ElastiCache Serverless exposes no CloudFormation transit-encryption toggle.
+        # Valkey serverless caches use service-managed encryption; keep the engine
+        # pinned so this template cannot drift to a different cache mode silently.
+        %elasticache_serverless.Properties.Engine == 'valkey'
+    }
+}
+
+# elasticache_serverless_private_sg_access_only
+rule elasticache_serverless_private_sg_access_only {
+    when %elasticache_serverless exists {
+        # Serverless cache must be placed in a VPC (isolated subnets)
+        %elasticache_serverless.Properties.SubnetIds exists
+        %elasticache_serverless.Properties.SecurityGroupIds exists
+
+        let elasticache_serverless_ingress = %ec2_security_group_ingress[
+            Properties.GroupId in %elasticache_serverless_security_group_ids
+        ]
+        when %elasticache_serverless_ingress exists {
+            %elasticache_serverless_ingress.Properties {
+                when FromPort == 6379 {
+                    ToPort == 6379
+                    IpProtocol == 'tcp'
+                    SourceSecurityGroupId exists
+                    when CidrIp exists { CidrIp == '__valkey_6379_cidr_ingress_forbidden__' }
+                    when CidrIpv6 exists { CidrIpv6 == '__valkey_6379_cidr_ingress_forbidden__' }
+                }
+            }
+        }
+    }
+}
