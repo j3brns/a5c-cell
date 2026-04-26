@@ -2553,6 +2553,101 @@ def evidence_drift_findings(root: Path, issues: list[Issue]) -> list[AuditFindin
     return findings
 
 
+def stale_evidence_findings(root: Path, issues: list[Issue]) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    known_issue_numbers = {issue.number for issue in issues}
+
+    evidence_dirs = [
+        (WORKTREE_STATE_DIR, "state"),
+        (WORKTREE_CLOSEOUT_DIR, "closeout"),
+        (VALIDATION_RECEIPTS_DIR, "receipt"),
+    ]
+
+    # Pre-cache linked worktrees for performance
+    linked_wts = {
+        extract_issue_id_from_branch(wt.branch): wt
+        for wt in list_resume_candidates(root)
+        if extract_issue_id_from_branch(wt.branch) is not None
+    }
+
+    # Check for orphaned or stale evidence files
+    for rel_dir, kind in evidence_dirs:
+        dir_path = root / rel_dir
+        if not dir_path.exists():
+            continue
+        for p in dir_path.glob("issue-*.json"):
+            parts = p.stem.split("-")
+            if len(parts) < 2:
+                continue
+            try:
+                issue_num = int(parts[1])
+            except ValueError:
+                continue
+
+            if issue_num not in known_issue_numbers:
+                findings.append(
+                    AuditFinding(
+                        severity="warning",
+                        issue_number=issue_num,
+                        message=f"orphaned {kind} file: {rel_dir}/{p.name} (issue not in tracker)",
+                    )
+                )
+                continue
+
+            # If it's a validation receipt, check if it matches current HEAD
+            if kind == "receipt" and issue_num in linked_wts:
+                linked = linked_wts[issue_num]
+                try:
+                    with open(p) as f:
+                        receipt = json.load(f)
+                    receipt_sha = receipt.get("head_sha")
+                    if receipt_sha and receipt_sha != linked.head:
+                        findings.append(
+                            AuditFinding(
+                                severity="warning",
+                                issue_number=issue_num,
+                                message=(
+                                    f"stale validation receipt: {rel_dir}/{p.name} "
+                                    f"(does not match worktree HEAD {linked.head[:12]})"
+                                ),
+                            )
+                        )
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+    # Check for evidence consistency for known issues
+    for issue in queue_task_issues(issues):
+        evidence = issue_evidence_summary(root, issue.number)
+
+        # 1. Check worktree path existence if linked
+        if evidence["linked_worktree"]:
+            wt_path = Path(str(evidence["linked_worktree"]))
+            if not wt_path.exists():
+                findings.append(
+                    AuditFinding(
+                        severity="error",
+                        issue_number=issue.number,
+                        message=f"linked worktree path does not exist: {wt_path}",
+                    )
+                )
+
+        # 2. Check for missing closeout report on done/closed tasks
+        status = lifecycle_status(issue)
+        if (status == "done" or issue.state == "closed") and evidence["state_path"]:
+            if not evidence["closeout_path"]:
+                findings.append(
+                    AuditFinding(
+                        severity="warning",
+                        issue_number=issue.number,
+                        message=(
+                            "task is done/closed with execution state but missing closeout report"
+                        ),
+                    )
+                )
+
+    return findings
+
+
 def stale_lock_findings(root: Path, repo: str, issues: list[Issue]) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
     for issue in queue_task_issues(issues):
@@ -3213,6 +3308,7 @@ def cmd_issues_audit(args: argparse.Namespace) -> int:
     issues = fetch_repo_issues(root, repo, state="all")
     findings = audit_issues(issues)
     findings.extend(evidence_drift_findings(root, issues))
+    findings.extend(stale_evidence_findings(root, issues))
     findings.extend(stale_lock_findings(root, repo, issues))
     errors = [f for f in findings if f.severity == "error"]
     warnings = [f for f in findings if f.severity == "warning"]
