@@ -3,7 +3,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from data_access.models import REGISTERABLE_AGENT_STATUSES, AgentStatus, normalize_agent_status
+from data_access.models import (
+    REGISTERABLE_AGENT_STATUSES,
+    AgentStatus,
+    InvocationMode,
+    normalize_agent_status,
+)
 
 try:
     from . import (
@@ -48,6 +53,10 @@ _REGISTER_MUTABLE_FIELDS = frozenset(
         "agUiTransport",
         "agUiEndpoint",
     }
+)
+
+_SUPPORTED_V0_2_INVOCATION_MODES = frozenset(
+    {InvocationMode.SYNC.value, InvocationMode.STREAMING.value}
 )
 
 
@@ -125,6 +134,11 @@ def handle_register_agent(
     now = utils.now_utc()
     now_iso = utils.iso(now)
 
+    invocation_mode = str(body.get("invocationMode", InvocationMode.SYNC.value)).strip().lower()
+    if invocation_mode not in _SUPPORTED_V0_2_INVOCATION_MODES:
+        allowed = ", ".join(sorted(_SUPPORTED_V0_2_INVOCATION_MODES))
+        raise ValueError(f"invocationMode must be one of: {allowed}")
+
     item = {
         "PK": f"AGENT#{agent_name}",
         "SK": f"VERSION#{version}",
@@ -133,7 +147,7 @@ def handle_register_agent(
         "status": initial_status.value,
         "owner_team": str(body.get("ownerTeam", "unknown")).strip(),
         "tier_minimum": str(body.get("tierMinimum", "basic")).strip(),
-        "invocation_mode": str(body.get("invocationMode", "sync")).strip(),
+        "invocation_mode": invocation_mode,
         "streaming_enabled": bool(body.get("streamingEnabled", False)),
         "layer_hash": str(body.get("layerHash", "")).strip(),
         "layer_s3_key": str(body.get("layerS3Key", "")).strip(),

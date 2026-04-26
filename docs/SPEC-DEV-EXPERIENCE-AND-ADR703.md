@@ -288,7 +288,7 @@ defined or monitored.
 
 **Acceptance Criteria**
 - [ ] `platform-invocations` records for streaming invocations include `ttftMs`.
-- [ ] `platform-invocations` records for sync and async invocations have `ttftMs=null`.
+- [ ] `platform-invocations` records for sync invocations have `ttftMs=null`.
 - [ ] `gen_ai.ttft_ms` CloudWatch metric emitted and visible in dev environment.
 - [ ] No change to non-streaming Bridge code paths.
 - [ ] Unit tests cover: streaming with TTFT captured, non-streaming with null.
@@ -621,24 +621,23 @@ cannot follow the token transformation without working through multiple document
 
 ---
 
-### TASK-1003: Async invocation sequence diagram (Mermaid, ARCHITECTURE.md)
+### TASK-1003: Async invocation sequence diagram (deferred by ADR-024)
 
 **Seq:** 1003
 **Depends on:** none
 
 **Problem**
-The async invocation mode (`202 Accepted → add_async_task → HealthyBusy →
-complete_async_task → client polls or receives webhook`) is the most complex
-user-facing flow and the one most commonly misunderstood. The request lifecycle
-draw.io diagram covers the sync path; there is no diagram for async.
+ADR-024 removes async invocation from the v0.2 supported contract. This diagram
+should not be added until the platform owns native async completion/status/results
+semantics end to end.
 
 **Scope**
-- Add a `sequenceDiagram` Mermaid block to the "Invocation Modes" section of
-  ARCHITECTURE.md covering:
+- Deferred future scope: add a `sequenceDiagram` Mermaid block to the "Invocation
+  Modes" section of ARCHITECTURE.md covering:
   - Client → API Gateway → Bridge: invoke request
-  - Bridge → AgentCore Runtime: invoke (returns 202 immediately)
+  - Bridge → AgentCore Runtime: invoke returns only after a real async backend exists
   - Bridge → DynamoDB: write JOB record
-  - Bridge → Client: 202 Accepted + jobId
+  - Bridge → Client: accepted job response
   - AgentCore Runtime → agent code: `add_async_task` → HealthyBusy
   - agent code: background work
   - agent code: `complete_async_task` → Healthy

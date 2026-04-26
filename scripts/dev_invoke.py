@@ -159,8 +159,6 @@ def _build_payload(args: argparse.Namespace) -> dict[str, Any]:
     payload: dict[str, Any] = {"input": args.prompt}
     if args.session_id:
         payload["sessionId"] = args.session_id
-    if args.webhook_id:
-        payload["webhookId"] = args.webhook_id
     return payload
 
 
@@ -195,14 +193,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--prompt", default="Hello", help="Input prompt/body for the invocation")
     parser.add_argument(
         "--mode",
-        choices=("sync", "streaming", "async"),
+        choices=("sync", "streaming"),
         default="sync",
         help="Client expectation for response handling; the server still decides actual mode",
     )
     parser.add_argument("--env", default=DEFAULT_ENV, help="Profile/environment name")
     parser.add_argument("--api-base-url", help="Override the API base URL")
     parser.add_argument("--session-id", help="Optional existing session identifier")
-    parser.add_argument("--webhook-id", help="Optional webhook registration identifier")
     parser.add_argument(
         "--timeout-seconds",
         type=int,
@@ -298,7 +295,6 @@ def dev_invoke(
     api_base_url: str | None = None,
     token: str | None = None,
     session_id: str | None = None,
-    webhook_id: str | None = None,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
 ) -> int:
     args_dict = {
@@ -310,7 +306,6 @@ def dev_invoke(
         "api_base_url": api_base_url,
         "token": token,
         "session_id": session_id,
-        "webhook_id": webhook_id,
         "timeout_seconds": timeout_seconds,
     }
     args = argparse.Namespace(**args_dict)

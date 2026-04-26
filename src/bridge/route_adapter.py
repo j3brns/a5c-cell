@@ -15,12 +15,11 @@ from botocore.exceptions import (
     EndpointConnectionError,
     ReadTimeoutError,
 )
-from data_access import ControlPlaneDynamoDB, TenantScopedDynamoDB
+from data_access import ControlPlaneDynamoDB
 from data_access.models import (
     AgentRecord,
     InvocationMode,
     InvocationStatus,
-    JobStatus,
     TenantContext,
 )
 
@@ -30,7 +29,6 @@ from src.bridge.constants import (
     BFF_SESSION_KEEPALIVE_PATH,
     BFF_TOKEN_REFRESH_PATH,
     ENTRA_AUDIENCE,
-    JOBS_TABLE,
     SESSIONS_TABLE,
 )
 from src.bridge.runtime_dependencies import (
@@ -40,7 +38,6 @@ from src.bridge.runtime_dependencies import (
     get_http_session,
     get_limiter,
     get_platform_context,
-    get_webhook_registration,
 )
 from src.platform_utils import coerce_optional_string as _coerce_optional_string
 
@@ -238,46 +235,12 @@ def invoke_agent(
     start_time = time.time()
 
     if agent.invocation_mode == InvocationMode.ASYNC:
-        webhook_record = None
-        if webhook_id:
-            webhook_record = get_webhook_registration(tenant_context, webhook_id)
-            if webhook_record is None:
-                return error_response(
-                    404,
-                    "NOT_FOUND",
-                    f"Webhook '{webhook_id}' not found",
-                    request_id,
-                )
-
-        job_id = str(uuid.uuid4())
-        TenantScopedDynamoDB(tenant_context).put_item(
-            JOBS_TABLE,
-            {
-                "PK": f"TENANT#{tenant_context.tenant_id}",
-                "SK": f"JOB#{job_id}",
-                "job_id": job_id,
-                "tenant_id": tenant_context.tenant_id,
-                "app_id": tenant_context.app_id,
-                "agent_name": agent.agent_name,
-                "status": JobStatus.PENDING.value,
-                "created_at": datetime.now(UTC).isoformat(),
-                "webhook_id": webhook_id,
-                "webhook_url": _coerce_optional_string(
-                    webhook_record.get("callback_url") if webhook_record else None
-                ),
-            },
+        return error_response(
+            422,
+            "UNSUPPORTED_INVOCATION_MODE",
+            "Async invocation is not supported by the v0.2 platform contract",
+            request_id,
         )
-        return {
-            "statusCode": 202,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps(
-                {
-                    "status": "accepted",
-                    "jobId": job_id,
-                    "webhookDelivery": "registered" if webhook_record else "none",
-                }
-            ),
-        }
 
     if mock_url:
         if response_stream is not None and agent.invocation_mode == InvocationMode.STREAMING:

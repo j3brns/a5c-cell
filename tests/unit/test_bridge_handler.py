@@ -224,6 +224,22 @@ def test_list_agents_returns_openapi_shape_and_tier_filtered(setup_data):
             "streaming_enabled": False,
         }
     )
+    table.put_item(
+        Item={
+            "PK": "AGENT#legacy-async-agent",
+            "SK": "VERSION#1.0.0",
+            "agent_name": "legacy-async-agent",
+            "version": "1.0.0",
+            "owner_team": "platform-test",
+            "tier_minimum": "basic",
+            "layer_hash": "1111",
+            "layer_s3_key": "k2",
+            "script_s3_key": "s2",
+            "deployed_at": "2026-01-04T00:00:00Z",
+            "invocation_mode": "async",
+            "streaming_enabled": False,
+        }
+    )
 
     event = {
         "httpMethod": "GET",
@@ -311,6 +327,22 @@ def test_get_agent_detail_returns_latest_version_and_versions(setup_data):
             "streaming_enabled": True,
         }
     )
+    table.put_item(
+        Item={
+            "PK": "AGENT#echo-agent",
+            "SK": "VERSION#1.2.0",
+            "agent_name": "echo-agent",
+            "version": "1.2.0",
+            "owner_team": "platform-test",
+            "tier_minimum": "basic",
+            "layer_hash": "3333",
+            "layer_s3_key": "k4",
+            "script_s3_key": "s4",
+            "deployed_at": "2026-01-04T00:00:00Z",
+            "invocation_mode": "async",
+            "streaming_enabled": False,
+        }
+    )
 
     event = {
         "httpMethod": "GET",
@@ -334,6 +366,7 @@ def test_get_agent_detail_returns_latest_version_and_versions(setup_data):
     assert body["agUi"]["enabled"] is False
     assert len(body["versions"]) == 2
     assert body["versions"][0]["version"] == "1.1.0"
+    assert {version["invocationMode"] for version in body["versions"]} == {"sync", "streaming"}
 
 
 def test_get_agent_detail_masks_ag_ui_when_tenant_capability_disabled(
@@ -669,7 +702,7 @@ def test_get_agent_detail_not_found(setup_data):
     assert body["error"]["code"] == "NOT_FOUND"
 
 
-def test_handler_async_accepted(setup_data):
+def test_handler_async_rejected_without_creating_dead_job(setup_data):
     # Seed async agent
     ddb = boto3.resource("dynamodb", region_name="eu-west-2")
     table = ddb.Table("platform-agents")
@@ -704,21 +737,15 @@ def test_handler_async_accepted(setup_data):
         "body": json.dumps({"input": "Hello"}),
     }
 
-    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
-        mock_get_http_session.return_value.post = MagicMock()
-        response = handler(event, FakeLambdaContext())
+    response = handler(event, FakeLambdaContext())
 
-        assert response["statusCode"] == 202
-        body = json.loads(response["body"])
-        assert body["status"] == "accepted"
-        assert "jobId" in body
+    assert response["statusCode"] == 404
+    body = json.loads(response["body"])
+    assert body["error"]["code"] == "NOT_FOUND"
 
-        # Verify job was written to DynamoDB
-        jobs_table = ddb.Table("platform-jobs")
-        job_item = jobs_table.get_item(Key={"PK": "TENANT#t-001", "SK": f"JOB#{body['jobId']}"})
-        assert "Item" in job_item
-        assert job_item["Item"]["status"] == "pending"
-        assert job_item["Item"]["app_id"] == "app-001"
+    jobs_table = ddb.Table("platform-jobs")
+    items = jobs_table.query(KeyConditionExpression=Key("PK").eq("TENANT#t-001"))["Items"]
+    assert items == []
 
 
 def test_handler_streaming(setup_data):
@@ -1235,7 +1262,7 @@ def test_client_initializers_require_aws_region(monkeypatch):
         get_sts()
 
 
-def test_handler_async_uses_registered_webhook_callback(setup_data):
+def test_handler_async_webhook_request_rejected_without_creating_dead_job(setup_data):
     ddb = boto3.resource("dynamodb", region_name="eu-west-2")
     agents_table = ddb.Table("platform-agents")
     tenants_table = ddb.Table("platform-tenants")
@@ -1285,22 +1312,17 @@ def test_handler_async_uses_registered_webhook_callback(setup_data):
         "body": json.dumps({"input": "hello", "webhookId": "webhook-001"}),
     }
 
-    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
-        mock_get_http_session.return_value.post = MagicMock()
-        response = handler(event, FakeLambdaContext())
+    response = handler(event, FakeLambdaContext())
 
-    assert response["statusCode"] == 202
+    assert response["statusCode"] == 404
     response_body = json.loads(response["body"])
-    assert response_body["webhookDelivery"] == "registered"
+    assert response_body["error"]["code"] == "NOT_FOUND"
 
-    job_id = response_body["jobId"]
-    job = jobs_table.get_item(Key={"PK": "TENANT#t-001", "SK": f"JOB#{job_id}"})["Item"]
-    assert job["app_id"] == "app-001"
-    assert job["webhook_id"] == "webhook-001"
-    assert job["webhook_url"] == "https://example.com/hooks/job"
+    items = jobs_table.query(KeyConditionExpression=Key("PK").eq("TENANT#t-001"))["Items"]
+    assert items == []
 
 
-def test_handler_async_rejects_unknown_webhook_id(setup_data):
+def test_handler_async_rejects_before_webhook_lookup(setup_data):
     ddb = boto3.resource("dynamodb", region_name="eu-west-2")
     table = ddb.Table("platform-agents")
     table.put_item(
@@ -1334,9 +1356,7 @@ def test_handler_async_rejects_unknown_webhook_id(setup_data):
         "body": json.dumps({"input": "hello", "webhookId": "does-not-exist"}),
     }
 
-    with patch("src.bridge.route_adapter.get_http_session") as mock_get_http_session:
-        mock_get_http_session.return_value.post = MagicMock()
-        response = handler(event, FakeLambdaContext())
+    response = handler(event, FakeLambdaContext())
 
     assert response["statusCode"] == 404
     body = json.loads(response["body"])

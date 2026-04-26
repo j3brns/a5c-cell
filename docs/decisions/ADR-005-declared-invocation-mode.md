@@ -1,6 +1,6 @@
 # ADR-005: Declared Invocation Mode over Runtime Detection
 
-## Status: Accepted
+## Status: Superseded for v0.2 by ADR-024
 ## Date: 2026-02-24
 
 ## Context
@@ -15,8 +15,9 @@ AgentCore Runtime natively supports:
 
 ## Decision
 Agent declares its invocation mode in pyproject.toml [tool.agentcore.invocation_mode].
-Values: sync | streaming | async. Bridge Lambda reads from agent registry (DynamoDB)
-and routes accordingly. No runtime detection.
+The original accepted values were sync, streaming, and async. ADR-024 narrows the
+v0.2 supported set to sync and streaming. Bridge Lambda reads from agent registry
+(DynamoDB) and routes accordingly. No runtime detection.
 
 Async mode uses the AgentCore SDK native pattern:
 - agent calls app.add_async_task() to register background work
@@ -29,6 +30,11 @@ Async mode uses the AgentCore SDK native pattern:
 - Async agents return 202 immediately — no heuristic timeout detection
 - Sync agents always wait up to 15 minutes — no mid-stream mode switching
 - Agent developer explicitly chooses the right pattern for their workload
+
+## v0.2 Update
+ADR-024 removes async invocation from the v0.2 supported contract because the checked-in
+platform path did not own completion, result persistence, or terminal job transition
+semantics. Declared modes for v0.2 are `sync` and `streaming`.
 
 ## Alternatives Rejected
 - Runtime detection at 25 seconds: wrong sync limit (15 minutes not 25 seconds),

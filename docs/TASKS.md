@@ -206,7 +206,7 @@ Nothing in Phase 2 starts until written confirmation.
               Reads invocation_mode from agent registry
               sync: invoke Runtime, wait up to 15min, write INVOCATION record
               streaming: SSE relay via Lambda response streaming
-              async: write JOB record, invoke Runtime with add_async_task context, 202
+              async: removed from v0.2 supported invoke contract by Issue #63 / ADR-024
               Region failover via SSM (cached 60s) with DynamoDB distributed lock
               Assumes tenant execution role via STS
               ADRs: ADR-005, ADR-009, ADR-010 | Tests: all three modes mocked
@@ -221,8 +221,8 @@ Nothing in Phase 2 starts until written confirmation.
               ADRs: none | Tests: make validate-local must pass end-to-end
 
 [x] TASK-020  Write agents/echo-agent/ reference pattern
-              Demonstrates all three invocation modes (sync, streaming, async)
-              async mode uses app.add_async_task / app.complete_async_task
+              Demonstrates sync and streaming modes for the v0.2 platform contract.
+              Earlier async reference code is no longer a supported platform invoke mode.
               Full test suite, golden test cases (3 per mode)
               End-to-end through full local stack
               ADRs: ADR-005, ADR-008 | Tests: all golden cases pass
@@ -490,9 +490,10 @@ sees results. Admin view shows platform health metrics.
 ## Phase 8 — Async and Long-Running Agents
 
 [x] TASK-046  Retired: no standalone async-runner Lambda in deployable topology
-              Native AgentCore async is the single model: app.add_async_task /
-              app.complete_async_task in agent code, with Bridge + jobs polling/webhooks.
-              ADRs: ADR-010 | Decision aligned: 2026-03-09
+              Native AgentCore async remains the only acceptable future model, but
+              v0.2 does not support async invocation until completion/status/results
+              semantics are implemented end to end.
+              ADRs: ADR-010, ADR-024 | Decision aligned: 2026-04-26
 
 [x] TASK-047  Write src/webhook_delivery/handler.py
               EventBridge rule on DynamoDB Stream for JOB table status=complete
@@ -510,8 +511,9 @@ sees results. Admin view shows platform health metrics.
               Done: 2026-03-14 (Issue #192)
               ADRs: ADR-010 | Tests: status transitions, presigned URL expiry
 
-**Phase 8 Gate**: Async echo-agent variant completes simulated 30-second background
-task. Result delivered via webhook and available via poll endpoint.
+**Phase 8 Gate**: Deferred for v0.2 by ADR-024. Async must not be advertised again
+until Runtime submission, status transition, result persistence, and webhook delivery
+are implemented and tested end to end.
 
 ---
 

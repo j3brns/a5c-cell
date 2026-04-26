@@ -117,10 +117,10 @@ paths:
       operationId: invokeAgent
       summary: Invoke an agent
       description: >
-        Unified invoke route for sync, streaming, and async agents. The platform
-        reads the agent's declared invocation mode from the registry (ADR-005);
-        clients do not select mode at runtime. Response shape/content type depends
-        on the agent's configured mode.
+        Unified invoke route for sync and streaming agents. The platform reads the
+        agent's declared invocation mode from the registry (ADR-005); clients do
+        not select mode at runtime. Async invocation is not part of the v0.2
+        supported contract.
       parameters:
         - $ref: "#/components/parameters/AgentName"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -141,12 +141,6 @@ paths:
               schema:
                 type: string
                 description: SSE stream emitted for streaming agents
-        "202":
-          description: Async job accepted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AgentInvokeAsyncAccepted"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -535,9 +529,10 @@ paths:
     get:
       tags: [Jobs]
       operationId: getJob
-      summary: Get async job status
+      summary: Get job status
       description: >
-        Polls async job status. When complete, may include a presigned result URL.
+        Reads a job record visible to the current tenant. Completed records may include
+        a presigned result URL. v0.2 does not create jobs from async invokes.
       parameters:
         - $ref: "#/components/parameters/JobId"
       responses:
@@ -586,7 +581,7 @@ paths:
       operationId: registerWebhook
       summary: Register webhook callback
       description: >
-        Registers a webhook callback URL for async job completion/failure events.
+        Registers a webhook callback URL for terminal job completion/failure events.
         Delivery is signed with HMAC-SHA256. The webhook verification secret is
         generated and stored server-side only and is not returned by this API.
       requestBody:
@@ -1325,7 +1320,7 @@ components:
       enum: [pending, provisioning, ready, failed]
     InvocationMode:
       type: string
-      enum: [sync, streaming, async]
+      enum: [sync, streaming]
     InvocationStatus:
       type: string
       enum: [success, error, timeout, throttled]
@@ -1621,9 +1616,6 @@ components:
           type: object
           additionalProperties: true
           description: Non-sensitive client metadata/context for the agent
-        webhookId:
-          type: string
-          description: Optional webhook registration id for async completion callback
         metadata:
           type: object
           additionalProperties:
@@ -1668,26 +1660,6 @@ components:
               minimum: 0
         timestamp:
           $ref: "#/components/schemas/UtcTimestamp"
-
-    AgentInvokeAsyncAccepted:
-      type: object
-      required: [jobId, status, mode, pollUrl]
-      properties:
-        jobId:
-          type: string
-        status:
-          type: string
-          enum: [accepted]
-        mode:
-          type: string
-          enum: [async]
-        pollUrl:
-          type: string
-          format: uri-reference
-          description: Relative or absolute URL for GET job polling
-        webhookDelivery:
-          type: string
-          enum: [registered, not_registered]
 
     AgentBootstrapRequest:
       type: object

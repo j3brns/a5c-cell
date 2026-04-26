@@ -65,8 +65,6 @@ def test_build_event_matches_bridge_contract() -> None:
             "hello",
             "--session-id",
             "session-123",
-            "--webhook-id",
-            "wh-123",
         ]
     )
 
@@ -75,7 +73,6 @@ def test_build_event_matches_bridge_contract() -> None:
         tenant=args.tenant,
         prompt=args.prompt,
         session_id=args.session_id,
-        webhook_id=args.webhook_id,
     )
 
     assert event["httpMethod"] == "POST"
@@ -84,7 +81,6 @@ def test_build_event_matches_bridge_contract() -> None:
     assert json.loads(event["body"]) == {
         "input": "hello",
         "sessionId": "session-123",
-        "webhookId": "wh-123",
     }
     assert event["requestContext"]["authorizer"]["lambda"]["tenantid"] == "t-test-001"
 

@@ -20,14 +20,10 @@ class AgentInvokeError(RuntimeError):
     """Domain error for CLI usage and invocation failures."""
 
 
-def build_payload(
-    prompt: str, session_id: str | None = None, webhook_id: str | None = None
-) -> dict[str, Any]:
+def build_payload(prompt: str, session_id: str | None = None) -> dict[str, Any]:
     payload: dict[str, Any] = {"input": prompt}
     if session_id:
         payload["sessionId"] = session_id
-    if webhook_id:
-        payload["webhookId"] = webhook_id
     return payload
 
 
@@ -36,14 +32,13 @@ def build_event(
     tenant: str,
     prompt: str,
     session_id: str | None = None,
-    webhook_id: str | None = None,
 ) -> dict[str, Any]:
     """Construct a bridge-compatible API Gateway event payload."""
     return {
         "httpMethod": "POST",
         "path": f"/v1/agents/{agent}/invoke",
         "pathParameters": {"agentName": agent},
-        "body": json.dumps(build_payload(prompt, session_id, webhook_id)),
+        "body": json.dumps(build_payload(prompt, session_id)),
         "requestContext": {
             "authorizer": {
                 "lambda": {
@@ -66,7 +61,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--prompt", default="Hello", help="Input prompt")
     parser.add_argument(
         "--mode",
-        choices=("sync", "streaming", "async"),
+        choices=("sync", "streaming"),
         default="sync",
         help="Requested invocation mode for the payload contract",
     )
@@ -76,7 +71,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Deployment environment (dev, staging, prod). Use dev-invoke for local.",
     )
     parser.add_argument("--session-id", help="Optional session identifier")
-    parser.add_argument("--webhook-id", help="Optional webhook identifier")
     return parser.parse_args(argv)
 
 
@@ -94,7 +88,6 @@ def invoke_remote(
     env: str = DEFAULT_ENV,
     mode: str = "sync",
     session_id: str | None = None,
-    webhook_id: str | None = None,
 ) -> int:
     """Invoke the deployed Bridge Lambda on AWS."""
     if env == "local":
@@ -104,9 +97,7 @@ def invoke_remote(
     client = boto3.client("lambda")
 
     try:
-        payload_bytes = json.dumps(
-            build_event(agent, tenant, prompt, session_id, webhook_id)
-        ).encode("utf-8")
+        payload_bytes = json.dumps(build_event(agent, tenant, prompt, session_id)).encode("utf-8")
         response = client.invoke(
             FunctionName=function_name,
             InvocationType="RequestResponse",
@@ -139,7 +130,6 @@ def main(argv: list[str] | None = None) -> int:
             env=args.env,
             mode=args.mode,
             session_id=args.session_id,
-            webhook_id=args.webhook_id,
         )
     except AgentInvokeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

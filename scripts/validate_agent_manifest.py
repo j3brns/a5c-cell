@@ -26,7 +26,7 @@ logger = logging.getLogger("validate_manifest")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 VALID_TIERS = {tier.value for tier in TenantTier}
-VALID_INVOCATION_MODES = {mode.value for mode in InvocationMode}
+VALID_INVOCATION_MODES = {InvocationMode.SYNC.value, InvocationMode.STREAMING.value}
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -38,10 +38,18 @@ def parse_args() -> argparse.Namespace:
 
 def validate_manifest(agent_name: str) -> bool:
     try:
-        load_agent_manifest(agent_name, REPO_ROOT)
+        manifest = load_agent_manifest(agent_name, REPO_ROOT)
     except ManifestValidationError as exc:
         for error in exc.errors:
             logger.error(error)
+        return False
+
+    if manifest.invocation_mode.value not in VALID_INVOCATION_MODES:
+        logger.error(
+            "Unsupported invocation_mode '%s'; v0.2 supports: %s",
+            manifest.invocation_mode.value,
+            ", ".join(sorted(VALID_INVOCATION_MODES)),
+        )
         return False
 
     logger.info("Manifest for agent '%s' is valid.", agent_name)

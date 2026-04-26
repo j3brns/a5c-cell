@@ -58,7 +58,6 @@ def handle_invoke_request(
         )
 
     session_id = coerce(body.get("sessionId"))
-    webhook_id = coerce(body.get("webhookId"))
 
     agent = fetch_agent(agent_name)
     if not agent:
@@ -139,7 +138,7 @@ def handle_invoke_request(
         tenant_context,
         prompt,
         session_id,
-        webhook_id,
+        None,
         request_id,
         response_stream,
         estimate=estimate,
