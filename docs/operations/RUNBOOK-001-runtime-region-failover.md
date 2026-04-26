@@ -26,8 +26,9 @@ execution-role, AppConfig, or tenant data-access failures.
 
 ### 2. Declare degraded runtime mode
 
-There is no approved runtime failover command for v0.2. Do not run
-`make infra-set-runtime-region` to route traffic to another region.
+There is no approved runtime failover command for v0.2, and this repository no
+longer ships a runtime-region switch target. Do not route traffic to another
+region from local scripts.
 
 Record:
 - affected environment

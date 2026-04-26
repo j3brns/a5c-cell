@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import sys
+from email.message import Message
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
@@ -36,11 +37,6 @@ def _jwt(payload: dict[str, Any]) -> str:
     return f"{head}.{body}.signature"
 
 
-class _FakeHeaders:
-    def get_content_charset(self, default: str = "utf-8") -> str:
-        return default
-
-
 class _FakeResponse:
     def __init__(self, *, status: int, payload: Any) -> None:
         self.status = status
@@ -69,16 +65,6 @@ def _write_creds(path: Path, *, env_name: str, token: str, api_base_url: str) ->
         },
     }
     path.write_text(json.dumps(store), encoding="utf-8")
-
-
-def _write_failover_lock_token(path: Path, *, lock_id: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "lockId": lock_id,
-        "tableName": "platform-ops-locks",
-        "lockName": "platform-runtime-failover",
-    }
-    path.write_text(json.dumps(payload), encoding="utf-8")
 
 
 def test_parse_args_top_tenants_defaults() -> None:
@@ -135,6 +121,7 @@ def _capture_request(monkeypatch: Any) -> dict[str, Any]:
         seen["timeout"] = timeout
         data = request.data
         if data:
+            assert isinstance(data, bytes)
             seen["body"] = json.loads(data.decode("utf-8"))
         return _FakeResponse(status=200, payload={"ok": True})
 
@@ -211,69 +198,12 @@ def test_update_tenant_budget_uses_patch_and_json_body(monkeypatch, tmp_path: Pa
     assert seen["body"] == {"monthlyBudget": 500.0}
 
 
-def test_set_runtime_region_uses_failover_api_contract(monkeypatch, tmp_path: Path) -> None:
-    creds_path = tmp_path / ".platform" / "credentials"
-    monkeypatch.setenv("PLATFORM_CREDENTIALS_PATH", str(creds_path))
-    _write_creds(
-        creds_path,
-        env_name="dev",
-        token="t1",
-        api_base_url="https://ops.example.com",
-    )
-    seen = _capture_request(monkeypatch)
+def test_set_runtime_region_command_is_removed_for_v0_2(capsys) -> None:
+    with pytest.raises(SystemExit) as exc:
+        ops.main(["set-runtime-region", "--region", "eu-central-1"])
 
-    rc = ops.main(["set-runtime-region", "--region", "eu-central-1", "--lock-id", "l1"])
-
-    assert rc == 0
-    assert seen["method"] == "PUT"
-    assert seen["url"] == "https://ops.example.com/v1/platform/ops/runtime-region"
-    assert seen["body"] == {"targetRegion": "eu-central-1", "lockId": "l1"}
-
-
-def test_set_runtime_region_accepts_explicit_lock_id(monkeypatch, tmp_path: Path) -> None:
-    creds_path = tmp_path / ".platform" / "credentials"
-    monkeypatch.setenv("PLATFORM_CREDENTIALS_PATH", str(creds_path))
-    _write_creds(
-        creds_path,
-        env_name="prod",
-        token="failover-token",
-        api_base_url="https://ops.example.com",
-    )
-    seen = _capture_request(monkeypatch)
-
-    rc = ops.main(
-        [
-            "set-runtime-region",
-            "--env",
-            "prod",
-            "--region",
-            "eu-central-1",
-            "--lock-id",
-            "lock-explicit",
-        ]
-    )
-
-    assert rc == 0
-    assert seen["body"] == {"targetRegion": "eu-central-1", "lockId": "lock-explicit"}
-
-
-def test_set_runtime_region_requires_lock_id_when_no_saved_token(
-    monkeypatch, tmp_path: Path, capsys
-) -> None:
-    creds_path = tmp_path / ".platform" / "credentials"
-    monkeypatch.setenv("PLATFORM_CREDENTIALS_PATH", str(creds_path))
-    monkeypatch.delenv("FAILOVER_LOCK_TOKEN_PATH", raising=False)
-    _write_creds(
-        creds_path,
-        env_name="prod",
-        token="failover-token",
-        api_base_url="https://ops.example.com",
-    )
-
-    rc = ops.main(["set-runtime-region", "--env", "prod", "--region", "eu-central-1"])
-
-    assert rc == 2
-    assert "Failover lock id required" in capsys.readouterr().err
+    assert exc.value.code == 2
+    assert "invalid choice" in capsys.readouterr().err
 
 
 def test_api_error_returns_nonzero_and_prints_error(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -292,7 +222,7 @@ def test_api_error_returns_nonzero_and_prints_error(monkeypatch, tmp_path: Path,
             url=request.full_url,
             code=403,
             msg="Forbidden",
-            hdrs=_FakeHeaders(),
+            hdrs=Message(),
             fp=io.BytesIO(b'{"error":{"code":"FORBIDDEN","message":"nope"}}'),
         )
 

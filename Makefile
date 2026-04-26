@@ -11,9 +11,8 @@
 .PHONY: test-unit test-int test-agent test-all
 .PHONY: worktree-create worktree-list worktree-clean
 .PHONY: infra-synth infra-diff infra-deploy infra-deploy-prod-ci infra-destroy
-.PHONY: infra-rollback-lambda infra-set-runtime-region
+.PHONY: infra-rollback-lambda
 .PHONY: tf-validate tf-fmt-check tf-plan tf-apply
-.PHONY: failover-lock-acquire failover-lock-release
 .PHONY: bootstrap-cdk bootstrap-secrets bootstrap-gitlab-oidc
 .PHONY: bootstrap-post-deploy bootstrap-verify bootstrap-delete-iam-user
 .PHONY: agent-push agent-invoke agent-logs agent-test agent-rollback
@@ -495,25 +494,6 @@ infra-destroy:
 infra-rollback-lambda:
 	@test -n "$(FUNCTION)" || (echo "ERROR: FUNCTION required" && exit 1)
 	uv run python scripts/ops.py lambda-rollback --env $(ENV) --function $(FUNCTION)
-
-## infra-set-runtime-region: Update active runtime region via Admin REST API (requires failover lock)
-## Usage: make infra-set-runtime-region REGION=eu-central-1 ENV=prod
-infra-set-runtime-region:
-	@test -n "$(REGION)" || (echo "ERROR: REGION required" && exit 1)
-	uv run python scripts/ops.py set-runtime-region \
-		--region $(REGION) \
-		$(if $(LOCK_ID),--lock-id "$(LOCK_ID)",) \
-		--env $(ENV)
-	@echo "==> Runtime region set to $(REGION) via POST /v1/platform/failover"
-	@echo "    Allow 90 seconds for all bridge Lambda instances to pick up the change"
-
-## failover-lock-acquire: Acquire distributed lock before region failover
-failover-lock-acquire:
-	uv run python scripts/failover_lock.py acquire --env $(ENV)
-
-## failover-lock-release: Release distributed lock after region failover
-failover-lock-release:
-	uv run python scripts/failover_lock.py release --env $(ENV)
 
 # =============================================================================
 # ACCOUNT VENDING (Terraform)

@@ -9,7 +9,7 @@ from data_access.models import AgentRecord, TenantContext
 
 
 class RuntimeInvoker:
-    """Own runtime selection and failover policy for bridge agent invocation."""
+    """Own runtime selection and the disabled failover policy for invocation."""
 
     def __init__(
         self,
@@ -65,53 +65,21 @@ class RuntimeInvoker:
         except Exception as exc:
             if self._is_runtime_unavailable_error(exc):
                 if self._log_warning is not None:
-                    self._log_warning("Runtime unavailable, attempting failover")
-                new_region = self._trigger_failover(str(config["runtime_region"]))
-                if new_region is None:
-                    if self._log_exception is not None:
-                        self._log_exception("Runtime unavailable and no failover region configured")
-                    return self._runtime_failure_response(
-                        tenant_context,
-                        agent,
-                        invocation_id,
-                        start_time,
-                        agent.invocation_mode,
-                        str(config["runtime_region"]),
-                        request_id,
-                        exc,
-                        session_id=session_id,
-                    )
-                retry_config = self._get_config(force_refresh=True)
-                retry_mock_url = retry_config.get("mock_runtime_url")
-                try:
-                    return self._dispatch(
-                        region=new_region,
-                        mock_url=retry_mock_url,
-                        agent=agent,
-                        tenant_context=tenant_context,
-                        prompt=prompt,
-                        session_id=session_id,
-                        webhook_id=webhook_id,
-                        request_id=request_id,
-                        response_stream=response_stream,
-                        invocation_id=invocation_id,
-                        start_time=start_time,
-                    )
-                except Exception as retry_exc:
-                    failure = self._runtime_failure_response(
-                        tenant_context,
-                        agent,
-                        invocation_id,
-                        start_time,
-                        agent.invocation_mode,
-                        new_region,
-                        request_id,
-                        retry_exc,
-                        session_id=session_id,
-                    )
-                    if self._log_exception is not None:
-                        self._log_exception("Invocation failed after failover retry")
-                    return failure
+                    self._log_warning("Runtime unavailable; checking runtime degradation policy")
+                self._trigger_failover(str(config["runtime_region"]))
+                if self._log_exception is not None:
+                    self._log_exception("Runtime unavailable and runtime failover is disabled")
+                return self._runtime_failure_response(
+                    tenant_context,
+                    agent,
+                    invocation_id,
+                    start_time,
+                    agent.invocation_mode,
+                    str(config["runtime_region"]),
+                    request_id,
+                    exc,
+                    session_id=session_id,
+                )
             if self._log_exception is not None:
                 self._log_exception("Invocation failed")
             return self._runtime_failure_response(

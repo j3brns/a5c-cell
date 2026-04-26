@@ -20,7 +20,6 @@ def serialize_tenant(item: dict[str, Any]) -> dict[str, Any]:
         "executionRoleArn",
         "memoryStoreArn",
         "runtimeRegion",
-        "fallbackRegion",
         "provisioningStatus",
         "provisioningUpdatedAt",
         "provisioningError",

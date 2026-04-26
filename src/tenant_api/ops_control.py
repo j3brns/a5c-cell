@@ -7,14 +7,11 @@ from aws_lambda_powertools import Logger
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
-from platform_config.runtime_topology import RUNTIME_FAILOVER_REGION
-
 try:
     from . import (
         auth,
         bootstrap,
         db_factory,
-        db_utils,
         http_utils,
         lifecycle_logic,
         models,
@@ -25,7 +22,6 @@ except (ImportError, ValueError):  # pragma: no cover
         auth,
         bootstrap,
         db_factory,
-        db_utils,
         http_utils,
         lifecycle_logic,
         models,
@@ -64,91 +60,12 @@ def handle_platform_failover(
     if not target_region or not lock_id:
         raise ValueError("targetRegion and lockId are required")
 
-    if RUNTIME_FAILOVER_REGION is None:
-        return http_utils.error(
-            409,
-            "RUNTIME_FAILOVER_DISABLED",
-            "Runtime regional failover is disabled for the v0.2 topology",
-        )
-    if target_region != RUNTIME_FAILOVER_REGION:
-        return http_utils.error(
-            400,
-            "UNSUPPORTED_RUNTIME_REGION",
-            "Target region is not an approved runtime failover region",
-        )
-
-    lock_record = db_utils.read_failover_lock_record(caller, deps)
-    if lock_record is None:
-        logger.warning(
-            "Platform failover rejected: lock missing",
-            extra={
-                "actor": caller.sub,
-                "lock_id": lock_id,
-                "target_region": target_region,
-                "lock_name": db_factory.ops_locks_table_name(),
-            },
-        )
-        return http_utils.error(409, "LOCK_NOT_HELD", "Runtime failover lock is not currently held")
-
-    current_lock_id = utils.str_or_none(lock_record.get("lockId") or lock_record.get("lock_id"))
-    acquired_by = utils.str_or_none(lock_record.get("acquiredBy") or lock_record.get("acquired_by"))
-
-    ttl = lock_record.get("ttl")
-    if isinstance(ttl, (int, float)) and int(ttl) < int(utils.now_utc().timestamp()):
-        return http_utils.error(409, "LOCK_EXPIRED", "Failover lock has expired")
-
-    if current_lock_id != lock_id:
-        logger.warning(
-            "Platform failover rejected: lock mismatch",
-            extra={
-                "actor": caller.sub,
-                "lock_id": lock_id,
-                "current_lock_id": current_lock_id,
-                "acquired_by": acquired_by,
-            },
-        )
-        return http_utils.error(409, "LOCK_MISMATCH", "Failover lock is held by another session")
-
-    try:
-        ssm = deps.ssm
-        previous_region = bootstrap.required_ssm_parameter(
-            ssm, db_factory.runtime_region_param_name()
-        )
-        changed = previous_region != target_region
-        if changed:
-            ssm.put_parameter(
-                Name=db_factory.runtime_region_param_name(),
-                Value=target_region,
-                Type="String",
-                Overwrite=True,
-            )
-        return lifecycle_logic.platform_control_response(
-            200,
-            {
-                "status": "completed",
-                "region": target_region,
-                "previousRegion": previous_region,
-                "lockId": lock_id,
-                "changed": changed,
-            },
-            caller=caller,
-            operation_type="runtime_failover",
-        )
-    except ClientError as exc:
-        previous_region = bootstrap.required_ssm_parameter(
-            ssm, db_factory.runtime_region_param_name()
-        )
-        logger.exception(
-            "Platform failover SSM update failed",
-            extra={
-                "actor": caller.sub,
-                "lock_id": lock_id,
-                "lock_owner": acquired_by,
-                "previous_region": previous_region,
-                "target_region": target_region,
-            },
-        )
-        return http_utils.error(502, "AWS_CLIENT_ERROR", str(exc))
+    _ = deps, target_region, lock_id
+    return http_utils.error(
+        409,
+        "RUNTIME_FAILOVER_DISABLED",
+        "Runtime regional failover is disabled for the v0.2 topology",
+    )
 
 
 def handle_platform_quota(
@@ -161,16 +78,9 @@ def handle_platform_quota(
 
     ssm = deps.ssm
     active_region = bootstrap.required_ssm_parameter(ssm, db_factory.runtime_region_param_name())
-    fallback_region = (
-        None
-        if RUNTIME_FAILOVER_REGION is None
-        else bootstrap.optional_ssm_parameter(ssm, db_factory.fallback_region_param_name())
-    )
-
     # Get real-time utilization from CloudWatch/Service Quotas
     quotas = deps.platform_quota_client.get_utilisation(
         active_region=active_region,
-        fallback_region=fallback_region,
     )
 
     return lifecycle_logic.platform_control_response(

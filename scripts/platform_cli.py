@@ -9,7 +9,6 @@ from . import (
     dev_bootstrap,
     dev_invoke,
     evaluate_agent,
-    failover_lock,
     ops,
     rollback_agent,
     validate_local,
@@ -25,7 +24,7 @@ app = typer.Typer(
 # Sub-apps for different categories
 agent_app = typer.Typer(help="Manage agents (package, deploy, invoke, etc.)")
 dev_app = typer.Typer(help="Local development commands")
-infra_app = typer.Typer(help="Infrastructure commands (CDK, region management)")
+infra_app = typer.Typer(help="Infrastructure commands (CDK)")
 ops_app = typer.Typer(help="Platform operations (tenants, quotas, logs)")
 validate_app = typer.Typer(help="Validation and linting commands")
 
@@ -171,30 +170,6 @@ def dev_wait_for_services_cmd(
         interval_seconds=interval_seconds,
         check_seeded_state=check_seeded_state,
     )
-    if exit_code != 0:
-        raise typer.Exit(code=exit_code)
-
-
-@infra_app.command("failover-lock-acquire")
-def infra_failover_lock_acquire_cmd(
-    env: str = typer.Option("dev", help="Environment label"),
-    owner: str | None = typer.Option(None, help="Lock owner identity"),
-    ttl_seconds: int = typer.Option(300, help="Lock TTL in seconds"),
-):
-    """Acquire distributed runtime failover lock."""
-    exit_code = failover_lock.run_acquire(env=env, owner=owner, ttl_seconds=ttl_seconds)
-    if exit_code != 0:
-        raise typer.Exit(code=exit_code)
-
-
-@infra_app.command("failover-lock-release")
-def infra_failover_lock_release_cmd(
-    env: str = typer.Option("dev", help="Environment label"),
-    lock_id: str | None = typer.Option(None, help="Expected lockId to release"),
-    force: bool = typer.Option(False, help="Release without validating lockId ownership"),
-):
-    """Release distributed runtime failover lock."""
-    exit_code = failover_lock.run_release(env=env, lock_id=lock_id, force=force)
     if exit_code != 0:
         raise typer.Exit(code=exit_code)
 

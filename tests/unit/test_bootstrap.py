@@ -46,7 +46,6 @@ def _ctx() -> object:
         aws_region=_REGION,
         home_region=_REGION,
         runtime_region=_REGION,
-        fallback_region=None,
         account_id="111122223333",
         caller_arn="arn:aws:iam::111122223333:user/bootstrap-user",
         report_bucket="platform-bootstrap-reports-dev",
@@ -103,6 +102,24 @@ def test_build_context_rejects_non_home_region_shell(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(bootstrap.boto3, "client", lambda service_name, region_name=None: FakeSts())
 
     with pytest.raises(RuntimeError, match="AWS_REGION must match PLATFORM_HOME_REGION"):
+        bootstrap.build_context("dev")
+
+
+def test_build_context_rejects_runtime_fallback_region(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AWS_REGION", _REGION)
+    monkeypatch.setenv("BOOTSTRAP_ACCOUNT_ID", "111122223333")
+    monkeypatch.setenv("PLATFORM_FALLBACK_REGION", "eu-central-1")
+
+    class FakeSts:
+        def get_caller_identity(self) -> dict[str, str]:
+            return {
+                "Account": "111122223333",
+                "Arn": "arn:aws:iam::111122223333:user/bootstrap-user",
+            }
+
+    monkeypatch.setattr(bootstrap.boto3, "client", lambda service_name, region_name=None: FakeSts())
+
+    with pytest.raises(RuntimeError, match="PLATFORM_FALLBACK_REGION is not supported"):
         bootstrap.build_context("dev")
 
 
@@ -276,7 +293,6 @@ def test_step_seed_secrets_uses_home_region_for_secret_writes(
         aws_region="eu-central-1",
         home_region="eu-west-2",
         runtime_region="eu-west-2",
-        fallback_region=None,
         account_id="111122223333",
         caller_arn="arn:aws:iam::111122223333:user/bootstrap-user",
         report_bucket="platform-bootstrap-reports-dev",

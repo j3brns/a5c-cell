@@ -33,7 +33,6 @@ from botocore.exceptions import ClientError
 from platform_config import env_optional, process_env_required
 from platform_config.runtime_topology import (
     HOME_REGION,
-    RUNTIME_FAILOVER_REGION,
     SERVING_RUNTIME_REGION,
 )
 
@@ -48,7 +47,6 @@ CDK_DIR = REPO_ROOT / "infra" / "cdk"
 
 DEFAULT_HOME_REGION = HOME_REGION
 DEFAULT_RUNTIME_REGION = SERVING_RUNTIME_REGION
-DEFAULT_FALLBACK_REGION = RUNTIME_FAILOVER_REGION
 
 STEP_ORDER: tuple[str, ...] = (
     "cdk-bootstrap",
@@ -94,7 +92,6 @@ class BootstrapContext:
     aws_region: str
     home_region: str
     runtime_region: str
-    fallback_region: str | None
     account_id: str
     caller_arn: str
     report_bucket: str
@@ -176,7 +173,8 @@ def build_context(env_name: str) -> BootstrapContext:
     runtime_region = (
         env_optional("PLATFORM_RUNTIME_REGION", DEFAULT_RUNTIME_REGION) or DEFAULT_RUNTIME_REGION
     )
-    fallback_region = env_optional("PLATFORM_FALLBACK_REGION", DEFAULT_FALLBACK_REGION)
+    if env_optional("PLATFORM_FALLBACK_REGION"):
+        raise RuntimeError("PLATFORM_FALLBACK_REGION is not supported by the ADR-023 v0.2 topology")
     report_bucket = (
         env_optional(
             "BOOTSTRAP_REPORT_BUCKET",
@@ -207,7 +205,6 @@ def build_context(env_name: str) -> BootstrapContext:
         aws_region=aws_region,
         home_region=home_region,
         runtime_region=runtime_region,
-        fallback_region=fallback_region,
         account_id=account_id,
         caller_arn=caller_arn,
         report_bucket=report_bucket,
@@ -217,9 +214,7 @@ def build_context(env_name: str) -> BootstrapContext:
 
 def expected_bootstrap_regions(ctx: BootstrapContext) -> tuple[str, ...]:
     """Ordered unique list of target bootstrap regions."""
-    ordered = tuple(
-        region for region in (ctx.home_region, ctx.runtime_region, ctx.fallback_region) if region
-    )
+    ordered = (ctx.home_region, ctx.runtime_region)
     deduped = tuple(dict.fromkeys(ordered))
     return deduped
 
@@ -605,8 +600,6 @@ def step_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
         "/platform/config/runtime-region": ctx.runtime_region,
         "/platform/config/env": ctx.env,
     }
-    if ctx.fallback_region:
-        ssm_params["/platform/config/fallback-region"] = ctx.fallback_region
     for name, value in ssm_params.items():
         _upsert_ssm_parameter(ssm_client, name=name, value=value)
 
@@ -699,8 +692,6 @@ def validate_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
         "/platform/config/runtime-region",
         "/platform/config/env",
     ]
-    if ctx.fallback_region:
-        param_names.append("/platform/config/fallback-region")
     params = ssm_client.get_parameters(Names=param_names).get("Parameters", [])
     values: dict[str, str] = {}
     for item in params:
@@ -712,12 +703,6 @@ def validate_post_deploy(ctx: BootstrapContext) -> dict[str, Any]:
 
     if values.get("/platform/config/runtime-region") != ctx.runtime_region:
         raise RuntimeError("runtime-region SSM parameter mismatch")
-
-    if (
-        ctx.fallback_region
-        and values.get("/platform/config/fallback-region") != ctx.fallback_region
-    ):
-        raise RuntimeError("fallback-region SSM parameter mismatch")
 
     if values.get("/platform/config/env") != ctx.env:
         raise RuntimeError("env SSM parameter mismatch")

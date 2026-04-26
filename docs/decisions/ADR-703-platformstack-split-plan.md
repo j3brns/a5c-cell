@@ -142,7 +142,7 @@ simultaneously; the old exports must be removed from `platform-core-{env}`.
 | `platform-edge-security-{env}` | yes | us-east-1 CloudFront WAF (unchanged) | 3 |
 | `platform-tenant-{tenantId}-{env}` | yes | per-tenant (unchanged) | 5 |
 | `platform-observability-{env}` | yes | dashboards, alarms (updated cross-refs) | 6 |
-| `platform-agentcore-{env}` | yes | Runtime config eu-west-1 (unchanged) | 6 |
+| `platform-agentcore-{env}` | yes | Runtime config eu-west-2 (unchanged by this split) | 6 |
 
 `platform-core-{env}` **retains its name** so that all Lambda function names remain
 unchanged (they embed `${this.stackName}` today). No `functionName` override patches
@@ -320,19 +320,19 @@ since no compute resources are being moved. The compute change is limited to how
 DynamoDB table objects are resolved in CDK. This change is fully reversible by
 reverting to direct construct refs if the storage split is rolled back.
 
-## Sequencing vs VPC Opt-In (ADR-020)
+## Sequencing vs Runtime VPC Baseline (ADR-023)
 
 **Recommendation: PlatformStack split precedes VPC opt-in.**
 
-ADR-020 targets eu-west-1 runtime region collapse (AgentCore Runtime moved to
-eu-west-2). The changes in ADR-020 affect `AgentCoreStack` and `NetworkStack`
-(adding VPC infrastructure in eu-west-2 for the Runtime). None of these overlap
-with the `platform-storage`, `platform-spa`, or `platform-core` compute changes
-in this ADR.
+ADR-023 targets the v0.2 Runtime baseline in eu-west-2 with VPC mode for staging and
+production. Those changes affect `AgentCoreStack` and `NetworkStack`. None of these
+overlap with the `platform-storage`, `platform-spa`, or `platform-core` compute
+changes in this ADR.
 
-The stack split is organizational work in eu-west-2 control-plane stacks; VPC opt-in
-is network posture work for the runtime path. They are orthogonal and can proceed
-concurrently without conflict, but the split should not block on ADR-020 completion.
+The stack split is organizational work in eu-west-2 control-plane stacks; Runtime VPC
+mode is network posture work for the serving path. They are orthogonal and can
+proceed concurrently without conflict, but the split should not block on ADR-023
+implementation.
 
 If ADR-020 implementation begins before this split completes, the two branches can
 merge cleanly because they modify different CDK files and different stacks.

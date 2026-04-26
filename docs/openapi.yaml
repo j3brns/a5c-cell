@@ -648,7 +648,6 @@ paths:
         serving failover target.
       x-required-roles:
         - Platform.Admin
-        - Platform.Operator
       requestBody:
         required: true
         content:
@@ -662,31 +661,20 @@ paths:
                 lockId:
                   type: string
       responses:
-        "200":
-          description: Reserved for a future approved failover design
+        "409":
+          description: Runtime failover is disabled for ADR-023 v0.2
           content:
             application/json:
               schema:
-                type: object
-                required: [status, region, previousRegion, lockId, changed]
-                properties:
-                  status:
-                    type: string
-                    enum: [completed]
-                  region:
-                    type: string
-                  previousRegion:
-                    type: string
-                  lockId:
-                    type: string
-                  changed:
-                    type: boolean
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: RUNTIME_FAILOVER_DISABLED
+                  message: Runtime regional failover is disabled for the v0.2 topology
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "409":
-          $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -1808,8 +1796,6 @@ components:
           type: [string, "null"]
         runtimeRegion:
           type: [string, "null"]
-        fallbackRegion:
-          type: [string, "null"]
         apiKeySecretArn:
           type: [string, "null"]
         monthlyBudgetUsd:
@@ -1886,8 +1872,6 @@ components:
         status:
           $ref: "#/components/schemas/TenantStatus"
         runtimeRegion:
-          type: string
-        fallbackRegion:
           type: string
         monthlyBudgetUsd:
           type: [number, "null"]

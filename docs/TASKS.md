@@ -109,7 +109,7 @@ in one session should be split — raise this before starting, not after.
               ADRs: none | Tests: make validate-local passes
               Done: 2026-02-24
               Note: Lambda src dirs use snake_case (snake_case everywhere per CLAUDE.md)
-              Note: Fixed Makefile infra-set-runtime-region to use $$AWS_REGION (D-002)
+              Note: Historical infra-set-runtime-region target was removed by TASK-919
               Note: Fixed logs-* MINUTES parameter (O-001)
               Note: Added scripts/task.py + make task-{next,list,start,resume,finish,prompt}
                     task-start auto-selects next [ ] task; marks [~] in worktree on start
@@ -314,19 +314,18 @@ make bootstrap-dev succeeds. Operator completes RUNBOOK-001 in dev.
               Full operations CLI. All commands call Admin REST API — not direct AWS SDK.
               Commands: top-tenants, tenant-sessions, suspend-tenant, reinstate-tenant,
               quota-report, invocation-report, security-events, dlq-inspect, dlq-redrive,
-              error-rate, failover-lock-acquire, failover-lock-release,
-              set-runtime-region, notify-tenant
+              error-rate, notify-tenant
               ADRs: none | Tests: unit tests with mocked REST API responses
               Done: implemented; aligned via Issue #198
               Note: Issue #222 open — some operator endpoints still stubbed
 
-[x] TASK-030  Write scripts/failover_lock.py
+[x] TASK-030  Write scripts/failover_lock.py (historical; removed for v0.2)
               DynamoDB conditional write for lock acquire (prevents race condition)
               TTL 5-minute auto-expire on lock record
               Release on success or error (finally block)
-              Used by: infra-set-runtime-region Makefile target
+              Used by: infra-set-runtime-region Makefile target before ADR-023
               ADRs: ADR-009 | Tests: concurrent acquire, only one succeeds
-              Done: implemented; Issues #210, #211 open for deployment wiring
+              Done: implemented historically; runtime failover tooling removed by TASK-919
 
 [x] TASK-031  Implement Admin REST API routes
               POST /v1/platform/failover

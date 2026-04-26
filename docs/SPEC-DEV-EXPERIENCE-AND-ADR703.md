@@ -652,32 +652,31 @@ semantics end to end.
 
 ---
 
-### TASK-1004: Runtime failover sequence diagram (Mermaid, RUNBOOK-001)
+### TASK-1004: Runtime degradation sequence diagram (Mermaid, RUNBOOK-001)
 
 **Seq:** 1004
 **Depends on:** none
 
 **Problem**
-RUNBOOK-001 describes the Dublin → Frankfurt failover procedure in prose. The
-sequence of events (who detects the failure, how the distributed lock prevents
-concurrent failover, what happens to in-flight requests) cannot be followed
-quickly at 3am from prose alone.
+RUNBOOK-001 describes the v0.2 London Runtime degradation procedure in prose. The
+sequence of events (who detects the failure, what operators pause, and when
+traffic is considered recovered) should be skimmable at 3am.
 
 **Scope**
 - Add a `sequenceDiagram` Mermaid block to RUNBOOK-001 showing:
-  - Bridge Lambda: receives `ServiceUnavailableException` from eu-west-1
-  - Bridge Lambda: attempts to acquire DynamoDB distributed lock (`platform-ops-locks`)
-  - Bridge Lambda (winner): updates SSM `/platform/config/runtime-region` to eu-central-1
-  - Bridge Lambda (winner): releases lock
-  - Bridge Lambda (loser): reads updated SSM region, retries in eu-central-1
-  - Subsequent Bridge invocations: read eu-central-1 from SSM (60s cache)
-  - Operator: monitors and eventually restores eu-west-1
-- Show the lock contention path (loser proceeds without flipping the switch).
+  - Bridge Lambda: receives `ServiceUnavailableException` from eu-west-2
+  - Bridge Lambda: records the invocation failure and returns the runtime error
+  - Operator: verifies AWS Health and Bridge logs
+  - Operator: declares degraded runtime mode and pauses risky releases/promotions
+  - Operator: monitors `eu-west-2` recovery signals
+  - Operator: records the incident and opens a follow-up decision issue only if
+    a future release needs serving-path failover
+- Explicitly show that no SSM runtime-region update or fallback lock is used in v0.2.
 
 **Acceptance Criteria**
 - [ ] Mermaid diagram renders in GitLab.
-- [ ] Lock acquisition and contention paths both shown.
-- [ ] SSM cache TTL (60s) annotated.
+- [ ] No runtime-region switch, fallback lock, or `eu-west-1` path is shown.
+- [ ] Degradation and recovery signals match ADR-023.
 
 ---
 

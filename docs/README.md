@@ -47,7 +47,7 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-006](decisions/ADR-006-uv-pyproject.md) | uv + pyproject.toml for Python dependency management |
 | [ADR-007](decisions/ADR-007-cdk-terraform.md) | CDK TypeScript for platform IaC; Terraform for account vending |
 | [ADR-008](decisions/ADR-008-zip-deployment-default.md) | ZIP deployment as default; container as opt-in |
-| [ADR-009](decisions/ADR-009-region-zigzag.md) | eu-west-2 London home; eu-west-1 Dublin runtime |
+| [ADR-009](decisions/ADR-009-region-zigzag.md) | Historical: eu-west-2 London home; eu-west-1 Dublin runtime |
 | [ADR-010](decisions/ADR-010-async-agentcore-native.md) | AgentCore native async over SQS routing |
 | [ADR-011](decisions/ADR-011-thin-bff.md) | Thin BFF for token refresh and session keepalive only |
 | [ADR-012](decisions/ADR-012-dynamodb-capacity.md) | On-demand for invocations; provisioned for config tables |

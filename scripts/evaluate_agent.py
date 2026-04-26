@@ -90,7 +90,7 @@ def evaluate_agent(agent_name: str, env: str) -> bool:
         )
 
         # Call the evaluation service
-        # ADR-009: AgentCore Evaluations is the source of truth for promotion quality
+        # ADR-023 keeps Evaluations as a non-serving quality gate when needed.
         response = acore.evaluate_agent(
             agentName=agent_name,
             dataset=golden_cases,

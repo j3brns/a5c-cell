@@ -120,7 +120,7 @@ No AWS console access required for routine operations.
 **Deliverables**:
 - bootstrap.py — ordered bootstrap sequence with validation at each step
 - ops.py — full operations CLI wrapping the Admin REST API
-- failover_lock.py — DynamoDB distributed lock for pre-v0.2 region failover only
+- runtime degradation handling — no serving-path failover commands in v0.2
 - All runbooks tested against dev environment; for v0.2, replace runtime failover with
   the ADR-023 degradation procedure and fail-closed Runtime VPC validation
 - RUNBOOK-000 (bootstrap) executable end-to-end
