@@ -750,6 +750,19 @@ ObservabilityStack currently provisions the eu-west-2 monitoring-account OAM sin
 No regional OAM member links are deployed yet. Runtime metrics are read in the serving
 region; the old eu-west-1 metric stream is not part of the v0.2 topology.
 
+## Validation Sources Of Truth
+
+Version truth is release-oriented, not write-oriented. The product semver must match
+across `pyproject.toml`, both package manifests, both package lockfiles, `docs/openapi.yaml`,
+and `docs/DOCS_SYNC.json`. `make docs-sync-audit` is the validation source; `make
+docs-sync-stamp` refreshes the release checkpoint when code and docs are intentionally
+aligned.
+
+CDK generated output is local state. `infra/cdk/cdk.out/` may exist after synth, but it
+must remain ignored and untracked. The retired `infra/cdk/generated/` cache must not
+return. `make generated-state-audit` enforces that policy and runs with local and
+pre-push validation.
+
 ## Failure Modes
 
 | ID | Failure | Detection | Alarm | Response |

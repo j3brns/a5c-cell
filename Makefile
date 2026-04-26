@@ -6,7 +6,7 @@
 .PHONY: help help-all bootstrap ensure-tools worktree-probe validate-local validate-local-full
 .PHONY: validate-local-prereqs validate-lint validate-typecheck validate-unit validate-contract validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
 .PHONY: validate-pre-push validate-secrets-diff validate-secrets-push validate-secrets-full
-.PHONY: docs-sync-audit docs-sync-stamp rules-sync-audit
+.PHONY: docs-sync-audit docs-sync-stamp generated-state-audit rules-sync-audit
 .PHONY: dev dev-stop dev-logs dev-invoke
 .PHONY: test-unit test-int test-agent test-all
 .PHONY: worktree-create worktree-list worktree-clean
@@ -189,6 +189,10 @@ docs-sync-audit:
 	uv run python scripts/docs_sync_audit.py check \
 		$(if $(JSON),--json,)
 
+## generated-state-audit: Verify local generated CDK state is ignored and untracked
+generated-state-audit:
+	uv run python scripts/generated_state_audit.py check
+
 ## docs-sync-stamp: Refresh docs/DOCS_SYNC.json to current semver + commit
 docs-sync-stamp:
 	uv run python scripts/docs_sync_audit.py stamp
@@ -200,6 +204,8 @@ rules-sync-audit:
 ## validate-pre-push: Pre-push validation (skips cdk synth; repo should already synth clean)
 validate-pre-push: validate-local-prereqs
 	@echo "==> Running pre-push validation (no cdk synth)"
+	@$(MAKE) --no-print-directory generated-state-audit
+	@$(MAKE) --no-print-directory docs-sync-audit
 	@$(MAKE) --no-print-directory validate-python
 	@$(MAKE) --no-print-directory validate-cdk-ts-push
 	@$(MAKE) --no-print-directory validate-secrets-push
@@ -337,7 +343,9 @@ validate-secrets-diff:
 	fi; \
 	printf '%s\n' "$$files" | while IFS= read -r f; do \
 		[ -f "$$f" ] && printf '%s\0' "$$f"; \
-	done | xargs -0 -r uv run detect-secrets-hook --baseline .secrets.baseline; \
+	done | xargs -0 -r uv run detect-secrets-hook \
+		--filter file://scripts/detect_secrets_filters.py::is_docs_sync_stamp_commit \
+		--baseline .secrets.baseline; \
 	echo "==> detect-secrets diff scan passed"
 
 ## validate-secrets-push: detect-secrets on files in commits that will be pushed (fast pre-push path)
@@ -361,7 +369,9 @@ validate-secrets-push:
 	fi; \
 	printf '%s\n' "$$files" | while IFS= read -r f; do \
 		[ -f "$$f" ] && printf '%s\0' "$$f"; \
-	done | xargs -0 -r uv run detect-secrets-hook --baseline .secrets.baseline; \
+	done | xargs -0 -r uv run detect-secrets-hook \
+		--filter file://scripts/detect_secrets_filters.py::is_docs_sync_stamp_commit \
+		--baseline .secrets.baseline; \
 	echo "==> detect-secrets push scan passed"
 
 ## validate-secrets-full: detect-secrets on all tracked + untracked files

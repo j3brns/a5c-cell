@@ -236,3 +236,107 @@ def test_cmd_check_passes_on_repository_local_contract(monkeypatch, capsys) -> N
     assert rc == 0
     assert "Docs sync audit: PASS" in out
     assert "WARN:" not in out
+
+
+def test_collect_versions_reads_lockfiles_and_openapi(monkeypatch, tmp_path: Path) -> None:
+    pyproject = _write(tmp_path / "pyproject.toml", '[project]\nversion = "2.3.4"\n')
+    cdk_package = _write(tmp_path / "infra" / "cdk" / "package.json", '{"version": "2.3.4"}')
+    cdk_lock = _write(
+        tmp_path / "infra" / "cdk" / "package-lock.json",
+        '{"version": "2.3.4", "packages": {"": {"version": "2.3.4"}}}',
+    )
+    spa_package = _write(tmp_path / "spa" / "package.json", '{"version": "2.3.4"}')
+    spa_lock = _write(
+        tmp_path / "spa" / "package-lock.json",
+        '{"version": "2.3.4", "packages": {"": {"version": "2.3.4"}}}',
+    )
+    openapi = _write(
+        tmp_path / "docs" / "openapi.yaml",
+        """
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 2.3.4
+""".lstrip(),
+    )
+
+    monkeypatch.setattr(docs_sync_audit, "PYPROJECT", pyproject)
+    monkeypatch.setattr(docs_sync_audit, "CDK_PACKAGE", cdk_package)
+    monkeypatch.setattr(docs_sync_audit, "CDK_PACKAGE_LOCK", cdk_lock)
+    monkeypatch.setattr(docs_sync_audit, "SPA_PACKAGE", spa_package)
+    monkeypatch.setattr(docs_sync_audit, "SPA_PACKAGE_LOCK", spa_lock)
+    monkeypatch.setattr(docs_sync_audit, "OPENAPI_FILE", openapi)
+
+    assert docs_sync_audit.collect_versions() == {
+        "python": "2.3.4",
+        "cdk": "2.3.4",
+        "cdk_lock": "2.3.4",
+        "spa": "2.3.4",
+        "spa_lock": "2.3.4",
+        "openapi": "2.3.4",
+    }
+
+
+def test_cmd_check_fails_when_openapi_version_drifts(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setattr(
+        docs_sync_audit,
+        "collect_versions",
+        lambda: {
+            "python": "1.0.0",
+            "cdk": "1.0.0",
+            "cdk_lock": "1.0.0",
+            "spa": "1.0.0",
+            "spa_lock": "1.0.0",
+            "openapi": "0.9.0",
+        },
+    )
+    monkeypatch.setattr(
+        docs_sync_audit,
+        "load_stamp",
+        lambda: {
+            "semver": "1.0.0",
+            "components": {
+                "python": "1.0.0",
+                "cdk": "1.0.0",
+                "cdk_lock": "1.0.0",
+                "spa": "1.0.0",
+                "spa_lock": "1.0.0",
+                "openapi": "0.9.0",
+            },
+        },
+    )
+    monkeypatch.setattr(docs_sync_audit, "TASKS_MD", _write(tmp_path / "docs" / "TASKS.md", ""))
+    monkeypatch.setattr(
+        docs_sync_audit,
+        "OPS_PY",
+        _write(
+            tmp_path / "scripts" / "ops.py",
+            'import argparse\nif __name__ == "__main__":\n    pass\n',
+        ),
+    )
+    monkeypatch.setattr(docs_sync_audit, "MAKEFILE", _write(tmp_path / "Makefile", ""))
+    monkeypatch.setattr(
+        docs_sync_audit, "DEV_BOOTSTRAP_PY", _write(tmp_path / "scripts" / "dev_bootstrap.py", "")
+    )
+    monkeypatch.setattr(
+        docs_sync_audit,
+        "LOCAL_SETUP_MD",
+        _write(tmp_path / "docs" / "development" / "LOCAL-SETUP.md", ""),
+    )
+    monkeypatch.setattr(
+        docs_sync_audit,
+        "AGENT_GUIDE_MD",
+        _write(tmp_path / "docs" / "development" / "AGENT-DEVELOPER-GUIDE.md", ""),
+    )
+    monkeypatch.setattr(
+        docs_sync_audit,
+        "RUNBOOK_008_MD",
+        _write(tmp_path / "docs" / "operations" / "RUNBOOK-008-developer-onboarding.md", ""),
+    )
+    monkeypatch.setattr(docs_sync_audit, "CI_FILE", _write(tmp_path / ".gitlab-ci.yml", ""))
+
+    rc = docs_sync_audit.cmd_check(json_output=False)
+    out = capsys.readouterr().out
+
+    assert rc == 1
+    assert "component version mismatch" in out

@@ -129,7 +129,7 @@ default:
         - spa/**/*
         - src/**/*
         - tests/**/*
-        - docs/openapi.yaml
+        - docs/**/*
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes: *platform_changes
     - if: $CI_COMMIT_BRANCH
@@ -150,6 +150,7 @@ default:
         - scripts/**/*.py
         - src/**/*
         - tests/**/*
+        - docs/**/*
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes: *python_changes
     - if: $CI_COMMIT_BRANCH
@@ -231,6 +232,8 @@ validate:
   stage: validate
   extends: .tools_base
   script:
+    - make generated-state-audit
+    - make docs-sync-audit
     - make validate-python
     - make validate-cdk
     - make validate-secrets-full

@@ -36,6 +36,8 @@ def test_build_task_set_fast_and_full() -> None:
 
     assert [task.target for task in fast] == [
         "rules-sync-audit",
+        "generated-state-audit",
+        "docs-sync-audit",
         "validate-lint",
         "validate-typecheck",
         "validate-contract",
@@ -44,6 +46,8 @@ def test_build_task_set_fast_and_full() -> None:
     ]
     assert [task.target for task in full] == [
         "rules-sync-audit",
+        "generated-state-audit",
+        "docs-sync-audit",
         "validate-lint",
         "validate-typecheck",
         "validate-contract",
@@ -52,6 +56,8 @@ def test_build_task_set_fast_and_full() -> None:
     ]
     assert [task.target for task in legacy_fast] == [
         "rules-sync-audit",
+        "generated-state-audit",
+        "docs-sync-audit",
         "validate-python",
         "validate-cdk-ts-local",
         "validate-secrets-diff",
@@ -170,6 +176,8 @@ def test_run_validation_mode_normalizes_task_startup_exceptions(tmp_path: Path, 
 def test_build_task_set_fast_and_full_order_is_stable_for_public_targets() -> None:
     assert [task.target for task in validate_local.FAST_TASKS] == [
         "rules-sync-audit",
+        "generated-state-audit",
+        "docs-sync-audit",
         "validate-lint",
         "validate-typecheck",
         "validate-contract",
@@ -189,6 +197,8 @@ def test_run_validation_mode_prints_summary_for_success(tmp_path: Path, capsys) 
     output = capsys.readouterr().out
     assert "==> Validation summary" in output
     assert "[PASS] Rules sync (rules-sync-audit)" in output
+    assert "[PASS] Generated state (generated-state-audit)" in output
+    assert "[PASS] Docs sync (docs-sync-audit)" in output
     assert "[PASS] Secrets full (validate-secrets-full)" in output
     assert "==> Validation passed" in output
     assert list((tmp_path / ".build" / "validate-local").glob("full-*/validate-cdk.log"))
