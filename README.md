@@ -293,6 +293,7 @@ All work is tracked through GitLab Issues, using `Seq:` for ordering and `Depend
 ```bash
 make issue-create TITLE='TASK-123: Summary' SEQ=123
 make issue-queue              # Dependency-aware queue ordered by Seq
+make issue-status             # Health check: joined issue, worktree, and agent status
 make worktree-next-issue      # Create worktree for next runnable issue
 make worktree                 # Interactive worktree menu
 make wt-go                    # Create next runnable worktree and launch zellij session
