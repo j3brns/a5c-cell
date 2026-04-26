@@ -78,7 +78,7 @@ class TestInvocationModeEnum:
     """Invocation modes must match ARCHITECTURE.md."""
 
     def test_canonical_modes(self) -> None:
-        assert VALID_INVOCATION_MODES == {"sync", "streaming", "async"}
+        assert VALID_INVOCATION_MODES == {"sync", "streaming"}
 
     @pytest.mark.parametrize("mode", sorted(VALID_INVOCATION_MODES))
     def test_valid_mode_accepted(self, tmp_path: Path, mode: str) -> None:
@@ -101,11 +101,12 @@ class TestInvocationModeEnum:
         with patch("scripts.validate_agent_manifest.REPO_ROOT", tmp_path):
             assert validate_manifest("test-agent") is True
 
-    def test_invalid_mode_rejected(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize("mode", ["batch", "async"])
+    def test_invalid_mode_rejected(self, tmp_path: Path, mode: str) -> None:
         _write_manifest(
             tmp_path,
             "test-agent",
-            """\
+            f"""\
             [project]
             name = "test-agent"
             version = "1.0.0"
@@ -115,7 +116,7 @@ class TestInvocationModeEnum:
             owner_team = "team-test"
             tier_minimum = "basic"
             handler = "handler:invoke"
-            invocation_mode = "batch"
+            invocation_mode = "{mode}"
         """,
         )
         with patch("scripts.validate_agent_manifest.REPO_ROOT", tmp_path):

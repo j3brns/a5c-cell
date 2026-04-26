@@ -264,7 +264,7 @@ The platform exposes two public endpoints to tenants and end users:
 
 ## Invocation Modes
 
-Three modes, declared in agent `pyproject.toml` under `[tool.agentcore.invocation_mode]`.
+Two modes, declared in agent `pyproject.toml` under `[tool.agentcore.invocation_mode]`.
 Never inferred. Bridge Lambda routes based on declared mode.
 See [ADR-005](decisions/ADR-005-declared-invocation-mode.md).
 
@@ -272,12 +272,13 @@ See [ADR-005](decisions/ADR-005-declared-invocation-mode.md).
 |------|---------|----------|---------|
 | **sync** | 15 min | Direct full response | Interactive queries, classification, tool lookups |
 | **streaming** | 15 min | SSE chunked via Lambda response streaming | Chat interfaces, narrated reasoning |
-| **async** | 8 hours | 202 Accepted + jobId; poll or webhook | Research agents, batch processing, multi-step workflows |
 
-**Async detail:** Agent code calls `app.add_async_task` to keep session HealthyBusy during
-background work, then `app.complete_async_task` when done. Client polls
-`GET /v1/jobs/{jobId}` or registers a webhook. No standalone async-runner Lambda;
-no SQS routing for invocation execution. See [ADR-010](decisions/ADR-010-async-agentcore-native.md).
+**Async status:** v0.2 does not support async invocation. Earlier design accepted
+`async` agents with `202 Accepted`, but that only created pending job records without
+a native AgentCore completion path owned by the platform. The bridge now rejects async
+agents instead of creating dead jobs. Existing job polling and webhook delivery
+surfaces remain for terminal job records, but they are not an async execution backend.
+See [ADR-024](decisions/ADR-024-defer-async-invocation-for-v0-2.md).
 
 ## Interactive AG-UI Path (Proposed)
 
@@ -832,7 +833,7 @@ See [ADR-013](decisions/ADR-013-entra-rbac-roles-claim.md).
 | Constraint | Impact | Mitigation |
 |-----------|--------|------------|
 | Runtime regional failover is deferred for v0.2 | A London Runtime outage is a platform degradation event | [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md) requires eu-west-2 Runtime, staging/prod VPC mode, and no Dublin fallback |
-| AgentCore Gateway timeout: 5 min | Tools cannot exceed 5 min response | Design tools for fast response; long work uses async mode |
+| AgentCore Gateway timeout: 5 min | Tools cannot exceed 5 min response | Design tools for fast response; long-running platform async is deferred by ADR-024 |
 | Code Interpreter: 25 concurrent sessions | Per-account per-region limit | Monitor via [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md) |
 | arm64 only in Runtime | All Python deps must be cross-compiled aarch64-manylinux2014 | See [ADR-001](decisions/ADR-001-agentcore-runtime.md) |
 | Session idle timeout: 15 min | Long UI sessions require keepalive | BFF keepalive endpoint; BFF secret resolution uses cached values plus retry/jitter on fetch miss; see [ADR-011](decisions/ADR-011-thin-bff.md) |

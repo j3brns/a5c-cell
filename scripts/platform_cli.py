@@ -44,7 +44,6 @@ def agent_invoke_cmd(
     mode: str = typer.Option("sync", help="Requested invocation mode"),
     env: str = typer.Option("dev", help="Deployment environment"),
     session_id: str | None = typer.Option(None, help="Optional session identifier"),
-    webhook_id: str | None = typer.Option(None, help="Optional webhook identifier"),
 ):
     """Invoke a deployed agent directly via the Bridge Lambda."""
     exit_code = agent_invoke.invoke_remote(
@@ -54,7 +53,6 @@ def agent_invoke_cmd(
         env=env,
         mode=mode,
         session_id=session_id,
-        webhook_id=webhook_id,
     )
     if exit_code != 0:
         raise typer.Exit(code=exit_code)

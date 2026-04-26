@@ -30,18 +30,17 @@ def test_openapi_declares_canonical_invoke_and_jobs_routes() -> None:
     assert jobs_operation.get("operationId") == "getJob"
 
 
-def test_openapi_async_invoke_response_contract_points_to_jobs_polling() -> None:
+def test_openapi_v0_2_invoke_contract_does_not_advertise_async_acceptance() -> None:
     spec = _load_openapi()
-    components = spec.get("components", {})
-    schemas = components.get("schemas", {})
-    async_schema = schemas.get("AgentInvokeAsyncAccepted", {})
-    required = async_schema.get("required", [])
-    properties = async_schema.get("properties", {})
+    invoke_operation = spec.get("paths", {})["/v1/agents/{agentName}/invoke"].get("post", {})
+    responses = invoke_operation.get("responses", {})
+    schemas = spec.get("components", {}).get("schemas", {})
+    invoke_request_properties = schemas.get("AgentInvokeRequest", {}).get("properties", {})
 
-    assert "jobId" in required
-    assert "pollUrl" in required
-    assert "mode" in required
-    assert properties.get("mode", {}).get("enum") == ["async"]
+    assert "202" not in responses
+    assert "AgentInvokeAsyncAccepted" not in schemas
+    assert schemas.get("InvocationMode", {}).get("enum") == ["sync", "streaming"]
+    assert "webhookId" not in invoke_request_properties
 
 
 def test_openapi_tenant_id_contract_is_deterministic_and_env_safe() -> None:

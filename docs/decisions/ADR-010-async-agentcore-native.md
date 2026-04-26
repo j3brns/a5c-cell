@@ -1,6 +1,6 @@
 # ADR-010: AgentCore Native Async Pattern over SQS Routing
 
-## Status: Accepted
+## Status: Superseded for v0.2 by ADR-024
 ## Date: 2026-02-24
 
 ## Context
@@ -25,6 +25,10 @@ SQS IS used for webhook delivery retry (separate concern).
 - Agent developer writes app.add_async_task / app.complete_async_task directly
 - Bridge Lambda polls session status via AgentCore API until completion
 - 8-hour limit is enforced by Runtime, not by the platform queue
+
+## v0.2 Update
+ADR-024 defers async invocation for v0.2. The platform no longer advertises or accepts
+async agent invocation until a complete AgentCore-native completion path exists.
 
 ## Alternatives Rejected
 - SQS-triggered Lambda for async invocation: misroutes invocation; SQS Lambda

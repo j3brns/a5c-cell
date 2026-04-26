@@ -22,9 +22,18 @@ from src.bridge.constants import (
 )
 from src.platform_utils import coerce_optional_string as _shared_coerce_optional_string
 
+_SUPPORTED_V0_2_INVOCATION_MODES = frozenset(
+    {InvocationMode.SYNC.value, InvocationMode.STREAMING.value}
+)
+
 
 def _coerce_optional_string(value: Any) -> str | None:
     return _shared_coerce_optional_string(value)
+
+
+def _is_supported_invocation_mode(item: dict[str, Any]) -> bool:
+    mode = str(item.get("invocation_mode", InvocationMode.SYNC.value)).strip().lower()
+    return mode in _SUPPORTED_V0_2_INVOCATION_MODES
 
 
 def _agent_summary_from_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -98,6 +107,8 @@ def list_agents(
     for item in items:
         if not is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
             continue
+        if not _is_supported_invocation_mode(item):
+            continue
         agent_name = _coerce_optional_string(item.get("agent_name"))
         if agent_name is None:
             continue
@@ -154,7 +165,11 @@ def resolve_agent_record(
         item = control_plane_db.get_item(
             table, {"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{agent_version}"}
         )
-        if item and is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
+        if (
+            item
+            and is_invokable_agent_status(_coerce_optional_string(item.get("status")))
+            and _is_supported_invocation_mode(item)
+        ):
             try:
                 return _agent_record_from_item(item)
             except ValueError:
@@ -167,7 +182,9 @@ def resolve_agent_record(
 
     promoted_items = []
     for item in items:
-        if is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
+        if is_invokable_agent_status(
+            _coerce_optional_string(item.get("status"))
+        ) and _is_supported_invocation_mode(item):
             promoted_items.append(item)
 
     if not promoted_items:
@@ -252,7 +269,7 @@ def get_agent_detail(
     promoted_items = []
     for item in items:
         item_status = _coerce_optional_string(item.get("status"))
-        if is_invokable_agent_status(item_status):
+        if is_invokable_agent_status(item_status) and _is_supported_invocation_mode(item):
             promoted_items.append(item)
     if not promoted_items:
         return build_error_response(404, "NOT_FOUND", f"Agent '{agent_name}' not found", request_id)

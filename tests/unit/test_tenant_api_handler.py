@@ -2347,6 +2347,32 @@ def test_platform_register_agent_defaults_to_built(fake_state: dict[str, Any]) -
     assert "approved_by" not in item
 
 
+def test_platform_register_agent_rejects_async_invocation_mode(
+    fake_state: dict[str, Any],
+) -> None:
+    event = _event(
+        method="POST",
+        body={
+            "agentName": "echo-agent",
+            "version": "1.2.7",
+            "ownerTeam": "platform",
+            "tierMinimum": "basic",
+            "layerHash": "hash-127",
+            "layerS3Key": "layers/1.2.7.zip",
+            "scriptS3Key": "scripts/1.2.7.zip",
+            "invocationMode": "async",
+        },
+        roles=["Platform.Admin"],
+        caller_tenant_id="platform",
+    )
+    event["path"] = "/v1/platform/agents"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 400
+    assert ("AGENT#echo-agent", "VERSION#1.2.7") not in fake_state["db"].items
+
+
 def test_platform_register_agent_persists_ag_ui_metadata(fake_state: dict[str, Any]) -> None:
     event = _event(
         method="POST",

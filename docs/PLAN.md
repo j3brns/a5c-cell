@@ -74,7 +74,7 @@ end-to-end in a local environment within 30 minutes of first checkout.
 - dev-bootstrap.py (idempotent seed script)
 - All three core Lambdas: authoriser, bridge, tenant-api
 - Full Makefile implementation
-- echo-agent reference pattern with sync, streaming, and async modes demonstrated
+- echo-agent reference pattern with sync and streaming modes demonstrated
 
 **Gate**: `make dev && make test-unit` both pass clean.
 Echo agent invocable end-to-end in local environment.
@@ -198,10 +198,10 @@ Auto-rollback tested and verified in staging.
 
 ---
 
-## Phase 8 — Async and Long-Running Agents (Weeks 13–16)
+## Phase 8 — Async and Long-Running Agents (Deferred for v0.2)
 
-**Goal**: Agents using app.add_async_task can run for up to 8 hours.
-Results delivered via webhook or poll endpoint.
+**Goal**: Deferred by ADR-024 until the platform owns native async completion,
+status transition, result persistence, and webhook delivery end to end.
 
 **Deliverables**:
 - Native AgentCore async lifecycle via `app.add_async_task` / `app.complete_async_task`
@@ -210,6 +210,7 @@ Results delivered via webhook or poll endpoint.
 - Webhook registration API
 
 **Gate**: 8-hour async agent completes. Result delivered via webhook and poll endpoint.
+This gate is not part of the v0.2 supported contract.
 
 ---
 

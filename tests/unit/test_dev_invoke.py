@@ -87,8 +87,6 @@ def test_build_request_includes_contract_headers_and_payload() -> None:
             "streaming",
             "--session-id",
             "session-123",
-            "--webhook-id",
-            "wh-123",
         ]
     )
 
@@ -107,7 +105,6 @@ def test_build_request_includes_contract_headers_and_payload() -> None:
     assert json.loads(request.data.decode("utf-8")) == {
         "input": "Hello",
         "sessionId": "session-123",
-        "webhookId": "wh-123",
     }
 
 

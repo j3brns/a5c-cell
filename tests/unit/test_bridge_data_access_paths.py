@@ -131,6 +131,37 @@ def test_resolve_agent_record_skips_promoted_records_with_missing_zip_layer_meta
     assert record.version == "1.0.0"
 
 
+def test_resolve_agent_record_rejects_specific_legacy_async_version() -> None:
+    mock_db = MagicMock()
+    mock_db.get_item.return_value = {
+        "PK": "AGENT#echo-agent",
+        "SK": "VERSION#1.0.0",
+        "agent_name": "echo-agent",
+        "version": "1.0.0",
+        "owner_team": "platform",
+        "tier_minimum": "basic",
+        "layer_hash": "hash-0",
+        "layer_s3_key": "layer-0",
+        "script_s3_key": "script-0",
+        "deployed_at": "2026-01-02T00:00:00Z",
+        "invocation_mode": "async",
+        "streaming_enabled": False,
+        "status": "promoted",
+    }
+
+    record = discovery_service.resolve_agent_record(
+        mock_db,
+        agents_table="platform-agents",
+        agent_name="echo-agent",
+        agent_version="1.0.0",
+    )
+
+    assert record is None
+    mock_db.get_item.assert_called_once_with(
+        "platform-agents", {"PK": "AGENT#echo-agent", "SK": "VERSION#1.0.0"}
+    )
+
+
 def test_get_agent_detail_uses_platform_context_db_factory() -> None:
     mock_db = MagicMock()
     mock_db.query.return_value.items = [

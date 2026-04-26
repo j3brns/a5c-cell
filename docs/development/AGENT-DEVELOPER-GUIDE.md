@@ -116,7 +116,7 @@ name = "my-agent"
 owner_team = "team-commerce"
 tier_minimum = "standard"      # basic | standard | premium
 handler = "handler:invoke"
-invocation_mode = "sync"       # sync | streaming | async
+invocation_mode = "sync"       # sync | streaming
 estimated_duration_seconds = 30
 
 [tool.agentcore.llm]
@@ -149,7 +149,7 @@ Validation rules:
 - The platform does not reject additional agent-owned packaging keys outside the platform-owned `tool.agentcore` tables.
 - `handler` must use `module:function` form.
 - `tier_minimum` must be `basic`, `standard`, or `premium`.
-- `invocation_mode` must be `sync`, `streaming`, or `async`.
+- `invocation_mode` must be `sync` or `streaming` for v0.2.
 - `estimated_duration_seconds` and `max_tokens` must be positive integers.
 - `threshold` must be between `0.0` and `1.0`.
 - ZIP deployment supports only the HTTP runtime contract.
@@ -159,7 +159,9 @@ Validation rules:
 
 ## Invocation Modes
 
-Modes are declared in `pyproject.toml` and enforced by the platform Bridge.
+Modes are declared in `pyproject.toml` and enforced by the platform Bridge. v0.2
+supports sync and streaming only; async is deferred until the platform owns a
+complete native completion path.
 
 ### sync — up to 15 minutes, client waits for full response
 Use for: interactive queries, tool lookups, classification
@@ -192,38 +194,6 @@ def invoke(payload: dict, context: RequestContext):
     # Optional: final sentinel
     yield {"done": True}
 ```
-
-### async — up to 8 hours, 202 returned immediately
-Use for: research agents, batch processing, multi-step workflows
-
-```python
-import threading
-from bedrock_agentcore import BedrockAgentCoreApp
-
-app = BedrockAgentCoreApp()
-
-@app.entrypoint
-def invoke(payload: dict, context: RequestContext):
-    # 1. Register background task (sets /ping to HealthyBusy)
-    task_id = app.add_async_task("my-task", {"prompt": payload.get("prompt")})
-
-    def background_work():
-        try:
-            # 2. Perform long-running work
-            do_long_research(payload.get("prompt"))
-        finally:
-            # 3. Complete task (resets /ping to Healthy)
-            app.complete_async_task(task_id)
-
-    # 4. Start background thread and return acknowledgment immediately
-    threading.Thread(target=background_work, daemon=True).start()
-    return {"accepted": True, "task_id": str(task_id)}
-```
-
-**Important for async agents**:
-- The session stays alive as long as `/ping` returns `HealthyBusy`.
-- After `app.complete_async_task`, `/ping` returns `Healthy`.
-- The session will be destroyed 15 minutes after returning `Healthy` (idle timeout).
 
 ## Dependency Management
 
