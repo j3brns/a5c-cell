@@ -100,8 +100,10 @@ def assume_tenant_role(tenant_id: str, role_arn: str):
     )
 
 
-def log_invocation(*args: Any, **kwargs: Any) -> None:
-    telemetry.log_invocation(get_cloudwatch(), *args, jitter=runtime_calls.get_jitter(), **kwargs)
+def log_invocation(*args: Any, **kwargs: Any):
+    return telemetry.log_invocation(
+        get_cloudwatch(), *args, jitter=runtime_calls.get_jitter(), **kwargs
+    )
 
 
 def emit_invocation_metrics(*args: Any, **kwargs: Any) -> None:

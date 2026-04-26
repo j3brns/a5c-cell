@@ -374,6 +374,40 @@ def record_log_only_tpm(
     return TpmCounterResult(actual, estimated, window_expiry, window_usage, model, skipped=False)
 
 
+def build_rate_limit_headers(
+    *,
+    tpm_result: TpmCounterResult | None,
+    tpm_limit: int | None = None,
+    rpm_limit: int | None = None,
+    rpm_used: int = 0,
+    now: float | None = None,
+) -> dict[str, str]:
+    """Build x-ratelimit-* response headers from TPM counter result and policy limits.
+
+    tpm_result: result from record_log_only_tpm; None means counter was unavailable.
+    tpm_limit: configured TPM limit, or None/0 for unlimited.
+    rpm_limit: API Gateway usage plan RPM limit, or None/0 for unlimited.
+    rpm_used: RPM usage in current window (best-effort; no Redis counter for RPM).
+    """
+    limit_tpm = str(tpm_limit) if tpm_limit and tpm_limit > 0 else "unlimited"
+    limit_rpm = str(rpm_limit) if rpm_limit and rpm_limit > 0 else "unlimited"
+
+    if isinstance(tpm_result, TpmCounterResult) and not tpm_result.skipped:
+        used_tpm = str(tpm_result.window_usage)
+        reset_ts = str(tpm_result.window_expiry)
+    else:
+        used_tpm = "0"
+        reset_ts = str(_window_expiry(now or time.time()))
+
+    return {
+        "x-ratelimit-limit-tpm": limit_tpm,
+        "x-ratelimit-used-tpm": used_tpm,
+        "x-ratelimit-limit-rpm": limit_rpm,
+        "x-ratelimit-used-rpm": str(rpm_used),
+        "x-ratelimit-reset": reset_ts,
+    }
+
+
 def perform_pre_request_check(
     *,
     tenant_context: TenantContext,

@@ -17,6 +17,7 @@ from data_access.models import (
 
 from src.bridge import tpm_limiter
 from src.bridge.constants import INVOCATION_TTL_SECONDS, INVOCATIONS_TABLE, JOBS_TABLE
+from src.bridge.tpm_limiter import TpmCounterResult
 
 logger = Logger(service="bridge-telemetry")
 
@@ -227,8 +228,9 @@ def log_invocation(
     error_code: str | None = None,
     jitter: str | None = None,
     ttft_ms: int | None = None,
-) -> None:
-    """Write invocation audit record to DynamoDB and emit metrics."""
+) -> TpmCounterResult | None:
+    """Write invocation audit record to DynamoDB, emit metrics, and update TPM counter."""
+    tpm_result: TpmCounterResult | None = None
     try:
         db = TenantScopedDynamoDB(tenant_context)
         now_iso = datetime.now(UTC).isoformat()
@@ -292,7 +294,7 @@ def log_invocation(
                 runtime_region=runtime_region,
                 ttft_ms=ttft_ms,
             )
-        tpm_limiter.record_log_only_tpm(
+        tpm_result = tpm_limiter.record_log_only_tpm(
             cloudwatch,
             tenant_context=tenant_context,
             agent=agent,
@@ -302,6 +304,7 @@ def log_invocation(
         )
     except Exception:
         logger.exception("Failed to log invocation")
+    return tpm_result
 
 
 def log_job(tenant_context: TenantContext, record: JobRecord) -> None:

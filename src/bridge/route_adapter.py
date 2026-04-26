@@ -132,12 +132,11 @@ def handle_streaming_invocation(
             timeout=5,
         ) as response:
             response.raise_for_status()
-            send_streaming_response(
-                response_stream,
-                200,
-                b"",
-                {"Content-Type": "text/event-stream"},
+            preamble_headers: dict[str, str] = {"Content-Type": "text/event-stream"}
+            preamble_headers.update(
+                tpm_limiter.build_rate_limit_headers(tpm_result=None, now=start_time)
             )
+            send_streaming_response(response_stream, 200, b"", preamble_headers)
             stream_started = True
             for raw_line in response.iter_lines():
                 if not raw_line:
@@ -218,13 +217,13 @@ def invoke_agent(
     else:
         log_result = _handler_dependency("log_invocation", None)
 
-    # Wrap log_result to include TPM estimate (TASK-903)
-    def log_result_with_tpm(*args: Any, **kwargs: Any) -> None:
+    # Wrap log_result to include TPM estimate (TASK-903); returns TpmCounterResult for headers
+    def log_result_with_tpm(*args: Any, **kwargs: Any) -> tpm_limiter.TpmCounterResult | None:
         kwargs["estimated_tokens"] = estimate
         if log_result is not None:
-            log_result(*args, **kwargs)
+            return log_result(*args, **kwargs)
         else:
-            telemetry.log_invocation(get_cloudwatch(), *args, **kwargs)
+            return telemetry.log_invocation(get_cloudwatch(), *args, **kwargs)
 
     do_failover = _handler_dependency("trigger_failover", None)
 
@@ -302,7 +301,7 @@ def invoke_agent(
         error_code = str(exc.response.get("Error", {}).get("Code", ""))
         if error_code == "ThrottlingException":
             latency_ms = int((time.time() - start_time) * 1000)
-            log_result_with_tpm(
+            throttle_tpm_result = log_result_with_tpm(
                 tenant_context,
                 agent,
                 invocation_id,
@@ -315,6 +314,9 @@ def invoke_agent(
             )
             response = error_response(429, "THROTTLED", "Agent runtime throttled", request_id)
             response["headers"]["Retry-After"] = "1"
+            response["headers"].update(
+                tpm_limiter.build_rate_limit_headers(tpm_result=throttle_tpm_result, now=start_time)
+            )
             return response
         if is_runtime_unavailable_error(exc):
             if do_failover is None:
