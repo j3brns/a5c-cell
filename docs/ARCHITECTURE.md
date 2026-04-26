@@ -106,6 +106,10 @@ This modular design ensures that the business logic is independent of the physic
 Lambda deployment topology, allowing for easy consolidation or further splitting
 without major code changes.
 
+Tenant lifecycle handlers translate API Gateway body/query details into typed service
+inputs before invoking record services. Authorisation remains in the service boundary,
+so pure tenant lifecycle tests do not need to construct full Lambda event payloads.
+
 ## Request Lifecycle (Synchronous)
 
 ![Request lifecycle: client through CloudFront, API Gateway, Authoriser, Bridge, AgentCore Runtime, Gateway interceptors, Tool Lambdas, and response stream](images/tf_acore_aas_request_lifecycle_engineer.drawio.png)
