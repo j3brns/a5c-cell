@@ -18,6 +18,59 @@ from scripts.issue_tool.shared import CliError
 from scripts.issue_tool.tracker_client import list_issues
 
 
+def choose_next_runnable(selection: QueueSelection) -> QueueItem:
+    for item in selection.items:
+        if item.runnable:
+            return item
+    raise CliError(
+        f"No runnable issues found in queue (source={selection.source_mode}). "
+        "Resolve dependencies or adjust labels."
+    )
+
+
+def build_task_issue_body(*, seq: int, depends: str, problem: str = "") -> str:
+    return "\n".join(
+        [
+            f"Seq: {seq}",
+            f"Depends on: {depends.strip() or 'none'}",
+            "",
+            "## Problem",
+            "",
+            problem.strip() or "Describe the problem to solve and why it matters.",
+            "",
+            "## Scope",
+            "",
+            "Keep the change narrowly scoped to this issue.",
+            "",
+            "## Acceptance Criteria",
+            "",
+            "- [ ] The requested behaviour is implemented.",
+            "- [ ] Existing behaviour outside this scope is unchanged.",
+            (
+                "- [ ] Security, tenant isolation, and operability constraints in "
+                "CLAUDE.md are preserved."
+            ),
+            "",
+            "## Test Plan",
+            "",
+            "List the smallest command(s) that prove the change works.",
+            "",
+            "## Definition of Done",
+            "",
+            "- [ ] Implementation and tests are complete for this issue.",
+            "- [ ] `make validate-local` passes, or the accepted equivalent is recorded.",
+            (
+                "- [ ] Senior engineer review is complete and findings are resolved or "
+                "explicitly accepted."
+            ),
+            "- [ ] `make preflight-session` and `make pre-validate-session` pass before push.",
+            "- [ ] Merge request is merged.",
+            "- [ ] `make finish-worktree-close` closes and normalizes the issue.",
+            "",
+        ]
+    )
+
+
 def parse_issue_meta(body: str) -> tuple[int | None, list[str]]:
     seq = int(m.group(1)) if (m := SEQ_RE.search(body or "")) else None
     depends = parse_depends(m.group(1)) if (m := DEPENDS_RE.search(body or "")) else []

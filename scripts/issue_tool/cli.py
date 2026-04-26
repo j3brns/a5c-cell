@@ -36,6 +36,7 @@ from scripts.issue_tool.agent_launch import (
     launch_interactive_session,
     resolve_launch_request,
 )
+from scripts.issue_tool.audit import audit_issues
 from scripts.issue_tool.closeout import (
     cleanup_finished_worktree as _cleanup_finished_worktree,
 )
@@ -106,6 +107,8 @@ from scripts.issue_tool.git_utils import (
 )
 from scripts.issue_tool.issue_queue import (
     build_queue,
+    build_task_issue_body,
+    choose_next_runnable,
     fetch_repo_issues,
     parse_issue_meta,
 )
@@ -171,208 +174,6 @@ def print_queue(
         print(f"    labels: {labels}")
         if item.blocked_reasons:
             print(f"    why:    {'; '.join(item.blocked_reasons)}")
-
-
-def build_task_issue_body(*, seq: int, depends: str, problem: str = "") -> str:
-    return "\n".join(
-        [
-            f"Seq: {seq}",
-            f"Depends on: {depends.strip() or 'none'}",
-            "",
-            "## Problem",
-            "",
-            problem.strip() or "Describe the problem to solve and why it matters.",
-            "",
-            "## Scope",
-            "",
-            "Keep the change narrowly scoped to this issue.",
-            "",
-            "## Acceptance Criteria",
-            "",
-            "- [ ] The requested behaviour is implemented.",
-            "- [ ] Existing behaviour outside this scope is unchanged.",
-            (
-                "- [ ] Security, tenant isolation, and operability constraints in "
-                "CLAUDE.md are preserved."
-            ),
-            "",
-            "## Test Plan",
-            "",
-            "List the smallest command(s) that prove the change works.",
-            "",
-            "## Definition of Done",
-            "",
-            "- [ ] Implementation and tests are complete for this issue.",
-            "- [ ] `make validate-local` passes, or the accepted equivalent is recorded.",
-            (
-                "- [ ] Senior engineer review is complete and findings are resolved or "
-                "explicitly accepted."
-            ),
-            "- [ ] `make preflight-session` and `make pre-validate-session` pass before push.",
-            "- [ ] Merge request is merged.",
-            "- [ ] `make finish-worktree-close` closes and normalizes the issue.",
-            "",
-        ]
-    )
-
-
-def choose_next_runnable(selection: QueueSelection) -> QueueItem:
-    for item in selection.items:
-        if item.runnable:
-            return item
-    raise CliError(
-        f"No runnable issues found in queue (source={selection.source_mode}). "
-        "Resolve dependencies or adjust labels."
-    )
-
-
-def audit_issues(issues: list[Issue]) -> list[AuditFinding]:
-    findings: list[AuditFinding] = []
-    task_issues = queue_task_issues(issues)
-
-    for issue in issues:
-        if issue.is_parent_cr and "type:task" in issue.labels:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=(
-                        "parent CR issue must not carry type:task; only child issues are queueable"
-                    ),
-                )
-            )
-        parent_statuses = status_labels(issue) if issue.is_parent_cr else []
-        if issue.is_parent_cr and "status:in-progress" in parent_statuses:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=(
-                        "parent CR issue must not carry status:in-progress; "
-                        "WIP is tracked on child task issues"
-                    ),
-                )
-            )
-        if issue.is_parent_cr and any(
-            status in parent_statuses for status in ("status:not-started", "status:blocked")
-        ):
-            findings.append(
-                AuditFinding(
-                    severity="warning",
-                    issue_number=issue.number,
-                    message="parent CR issue should generally avoid task lifecycle labels",
-                )
-            )
-        if issue.is_parent_cr and issue.seq is not None:
-            findings.append(
-                AuditFinding(
-                    severity="warning",
-                    issue_number=issue.number,
-                    message=(
-                        "parent CR issue should not carry Seq; "
-                        "ordering belongs on child task issues"
-                    ),
-                )
-            )
-        if issue.is_parent_cr and issue.depends_on:
-            findings.append(
-                AuditFinding(
-                    severity="warning",
-                    issue_number=issue.number,
-                    message=(
-                        "parent CR issue should not carry Depends on; "
-                        "dependency gating belongs on child task issues"
-                    ),
-                )
-            )
-
-    for issue in task_issues:
-        states = status_labels(issue)
-        state_set = set(states)
-        if len(state_set) != 1:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=(
-                        f"expected exactly one status:* label, found {sorted(state_set) or 'none'}"
-                    ),
-                )
-            )
-            continue
-
-        status = states[0]
-        if issue.state == "open" and status == "status:done":
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message="open task cannot be status:done",
-                )
-            )
-        if issue.state == "closed" and status != "status:done":
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=f"closed task must be status:done (found {status})",
-                )
-            )
-        if "ready" in issue.labels and status != "status:not-started":
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=f"ready label requires status:not-started (found {status})",
-                )
-            )
-        if issue.state == "open" and issue.seq is None:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message="open task is missing Seq marker",
-                )
-            )
-        if issue.state == "open" and issue.task_id is None:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message="open task is missing TASK-### title prefix or managed task marker",
-                )
-            )
-        for dependency in issue.depends_on:
-            if dependency.startswith("TASK-") and dependency == issue.task_id:
-                findings.append(
-                    AuditFinding(
-                        severity="error",
-                        issue_number=issue.number,
-                        message=f"task cannot depend on itself ({dependency})",
-                    )
-                )
-
-    # Objective gate: next runnable item must be a startable task, never in-progress/blocked/done.
-    selection = build_queue(issues, mode="auto")
-    try:
-        next_item = choose_next_runnable(selection)
-        next_status = lifecycle_status(next_item.issue)
-        if next_status != "not-started":
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=next_item.issue.number,
-                    message=(
-                        "next runnable queue item must be status:not-started "
-                        f"(found status:{next_status})"
-                    ),
-                )
-            )
-    except CliError:
-        # Empty/runnable-none queue is valid during full blockage or completion.
-        pass
-
-    return findings
 
 
 def slugify_text(text: str) -> str:
