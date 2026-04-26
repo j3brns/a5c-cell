@@ -59,6 +59,7 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-019](decisions/ADR-019-tenant-execution-role-account-boundary.md) | Tenant execution roles are same-account only today; any future cross-account mode requires a successor allow-list design |
 | [ADR-020](decisions/ADR-020-eu-west-2-runtime-collapse.md) | Collapse AgentCore Runtime to eu-west-2 (London home region); remove the Dublin zigzag; gated migration, implementation tracked separately |
 | [ADR-021](decisions/ADR-021-spa-cloudfront-logging-model.md) | CloudFront standard access logging with environment-aware retention |
+| [ADR-022](decisions/ADR-022-independent-platform-and-agent-developer-clis.md) | Independent Platform and Agent Developer CLIs |
 | [ADR-701](decisions/ADR-701-tenant-agent-inference-chargeback-and-tagging.md) | Tenant inference chargeback and tagging model |
 | [ADR-702](decisions/ADR-702-bedrock-proxy-gateway-as-additive-internal-model-gateway.md) | Bedrock proxy gateway as additive internal model gateway |
 
