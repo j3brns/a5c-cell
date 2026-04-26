@@ -160,6 +160,52 @@ def test_invoke_real_runtime_uses_arn_from_record(
 
 @patch("src.bridge.handler.get_runtime_client")
 @patch("src.bridge.handler.get_tenant_record")
+@patch("src.bridge.handler.assume_tenant_role")
+def test_invoke_real_runtime_logs_actual_and_estimated_tokens(
+    mock_assume, mock_get_record, mock_get_runtime_client, mock_aws_services
+):
+    tenant_context = _tenant_context()
+    agent = _agent()
+    runtime_client = MagicMock()
+    runtime_client.invoke_agent_runtime.return_value = _runtime_response(
+        b'{"usage":{"inputTokens":7,"outputTokens":11},"modelId":"anthropic.test-model"}'
+    )
+    mock_get_runtime_client.return_value = runtime_client
+    mock_assume.return_value = {
+        "AccessKeyId": "assumed-akid",
+        "SecretAccessKey": "assumed-secret",  # pragma: allowlist secret
+        "SessionToken": "assumed-token",
+    }
+    mock_get_record.return_value = {
+        "account_id": "123456789012",
+        "executionRoleArn": "arn:aws:iam::123456789012:role/record-role",
+    }
+    log_invocation = MagicMock()
+
+    response = invoke_real_runtime(
+        "eu-west-1",
+        agent,
+        tenant_context,
+        "123456789",
+        None,
+        None,
+        "req-1",
+        None,
+        "inv-1",
+        0.0,
+        log_invocation=log_invocation,
+    )
+
+    assert response["statusCode"] == 200
+    _, kwargs = log_invocation.call_args
+    assert kwargs["input_tokens"] == 7
+    assert kwargs["output_tokens"] == 11
+    assert kwargs["estimated_tokens"] == 3
+    assert kwargs["model_id"] == "anthropic.test-model"
+
+
+@patch("src.bridge.handler.get_runtime_client")
+@patch("src.bridge.handler.get_tenant_record")
 @patch("src.bridge.handler._get_execution_role_arn_from_ssm")
 @patch("src.bridge.handler.assume_tenant_role")
 def test_invoke_real_runtime_uses_ssm_arn_when_record_missing(

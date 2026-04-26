@@ -276,6 +276,7 @@ export function createPlatformCompute(
       FAILOVER_LOCK_NAME: 'platform-runtime-failover',
       RUNTIME_REGION_PARAM: '/platform/config/runtime-region',
       TENANT_EXECUTION_ROLE_PARAM_TEMPLATE: '/platform/tenants/{tenant_id}/execution-role-arn',
+      VALKEY_ENDPOINT: storage.valkeyCluster.attrEndpointAddress,
       APPCONFIG_APPLICATION_ID: storage.appconfigApp.ref,
       APPCONFIG_ENVIRONMENT_ID: storage.appconfigEnv.ref,
       APPCONFIG_PROFILE_ID: storage.capabilityProfile.ref,
