@@ -94,6 +94,9 @@ export function createPlatformCompute(
 
   const dlqs: Record<string, sqs.IQueue> = {};
   const stack = cdk.Stack.of(scope);
+  const capabilityConfigurationArn =
+    `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}` +
+    `/environment/${storage.appconfigEnv.ref}/configuration/${storage.capabilityProfile.ref}`;
 
   const appConfigExtension = lambda.LayerVersion.fromLayerVersionArn(
     scope,
@@ -322,11 +325,7 @@ export function createPlatformCompute(
   bridgeFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['appconfig:GetLatestConfiguration', 'appconfig:StartConfigurationSession'],
-      resources: [
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/environment/${storage.appconfigEnv.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/configurationprofile/${storage.capabilityProfile.ref}`,
-      ],
+      resources: [capabilityConfigurationArn],
     }),
   );
 
@@ -422,11 +421,7 @@ export function createPlatformCompute(
   authoriserFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['appconfig:GetLatestConfiguration', 'appconfig:StartConfigurationSession'],
-      resources: [
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/environment/${storage.appconfigEnv.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/configurationprofile/${storage.capabilityProfile.ref}`,
-      ],
+      resources: [capabilityConfigurationArn],
     }),
   );
   storage.tenantsTable.grantReadData(webhookDeliveryFn);
@@ -467,11 +462,7 @@ export function createPlatformCompute(
   requestInterceptorFn.addToRolePolicy(
     new iam.PolicyStatement({
       actions: ['appconfig:GetLatestConfiguration', 'appconfig:StartConfigurationSession'],
-      resources: [
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/environment/${storage.appconfigEnv.ref}`,
-        `arn:aws:appconfig:${stack.region}:${stack.account}:application/${storage.appconfigApp.ref}/configurationprofile/${storage.capabilityProfile.ref}`,
-      ],
+      resources: [capabilityConfigurationArn],
     }),
   );
   storage.toolsTable.grantReadData(requestInterceptorFn);
@@ -485,9 +476,18 @@ export function createPlatformCompute(
     memorySize: 512,
     environment: {
       POWERTOOLS_SERVICE_NAME: 'gateway-response-interceptor',
+      TOOLS_TABLE: storage.toolsTable.tableName,
+      PII_PATTERNS_PARAM: '/platform/gateway/pii-patterns/default',
     },
     // ADR-014: non-VPC by default for control plane
   });
+  storage.toolsTable.grantReadData(responseInterceptorFn);
+  responseInterceptorFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [`arn:aws:ssm:${stack.region}:${stack.account}:parameter/platform/gateway/pii-patterns/*`],
+    }),
+  );
 
   const billingFn = createPythonLambda({
     assetPath: path.join(__dirname, '../../../src/billing'),
@@ -570,11 +570,43 @@ export function createPlatformCompute(
       resources: [`arn:aws:ssm:${stack.region}:${stack.account}:parameter/platform/tenants/*`],
     }),
   );
+  const tenantMemoryArn = `arn:aws:bedrock-agentcore:${stack.region}:${stack.account}:memory/*`;
+
   tenantProvisionerFn.addToRolePolicy(
     new iam.PolicyStatement({
-      sid: 'TenantStackBedrockAccess',
-      actions: ['bedrock-agentcore:CreateMemory', 'bedrock-agentcore:UpdateMemory', 'bedrock-agentcore:DeleteMemory', 'bedrock-agentcore:GetMemory', 'bedrock-agentcore:TagResource'],
-      resources: [`arn:aws:bedrock-agentcore:${stack.region}:${stack.account}:memory/*`],
+      sid: 'TenantStackCreateTaggedMemory',
+      actions: ['bedrock-agentcore:CreateMemory'],
+      resources: ['*'],
+      conditions: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+        },
+      },
+    }),
+  );
+  tenantProvisionerFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      sid: 'TenantStackManageTaggedMemory',
+      actions: ['bedrock-agentcore:UpdateMemory', 'bedrock-agentcore:DeleteMemory', 'bedrock-agentcore:GetMemory'],
+      resources: [tenantMemoryArn],
+      conditions: {
+        StringEquals: {
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
+      },
+    }),
+  );
+  tenantProvisionerFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      sid: 'TenantStackTagManagedMemory',
+      actions: ['bedrock-agentcore:TagResource'],
+      resources: [tenantMemoryArn],
+      conditions: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
+      },
     }),
   );
   tenantProvisionerFn.addToRolePolicy(

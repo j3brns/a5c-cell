@@ -188,6 +188,7 @@ export class TenantStack extends cdk.Stack {
         MemoryStrategies: tenantMemory.memoryStrategies,
         Tags: {
           TenantId: tenantId,
+          TenantManaged: 'true',
           Tier: tier,
         },
       },

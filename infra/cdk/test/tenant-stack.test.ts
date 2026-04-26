@@ -131,6 +131,11 @@ describe('TenantStack (TASK-025)', () => {
           }),
         }),
       ],
+      Tags: {
+        TenantId: 't-test123',
+        TenantManaged: 'true',
+        Tier: 'basic',
+      },
     });
   });
 

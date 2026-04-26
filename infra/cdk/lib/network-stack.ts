@@ -80,11 +80,11 @@ export class NetworkStack extends cdk.Stack {
       'Allow DNS (TCP) to VPC resolver',
     );
 
-    const s3GatewayEndpoint = this.vpc.addGatewayEndpoint('S3GatewayEndpoint', {
+    this.vpc.addGatewayEndpoint('S3GatewayEndpoint', {
       service: ec2.GatewayVpcEndpointAwsService.S3,
       subnets: [privateSubnetSelection],
     });
-    const dynamoDbGatewayEndpoint = this.vpc.addGatewayEndpoint('DynamoDbGatewayEndpoint', {
+    this.vpc.addGatewayEndpoint('DynamoDbGatewayEndpoint', {
       service: ec2.GatewayVpcEndpointAwsService.DYNAMODB,
       subnets: [privateSubnetSelection],
     });
@@ -119,72 +119,6 @@ export class NetworkStack extends cdk.Stack {
       securityGroups: [endpointSecurityGroup],
       subnets: privateSubnetSelection,
     });
-
-    // CloudWatch, X-Ray, STS, AppConfig, CloudFormation, SQS interface endpoints (rectification)
-    this.vpc.addInterfaceEndpoint('CloudWatchLogsInterfaceEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
-      privateDnsEnabled: true,
-      securityGroups: [endpointSecurityGroup],
-      subnets: privateSubnetSelection,
-    });
-    this.vpc.addInterfaceEndpoint('CloudWatchMetricsInterfaceEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_MONITORING,
-      privateDnsEnabled: true,
-      securityGroups: [endpointSecurityGroup],
-      subnets: privateSubnetSelection,
-    });
-    this.vpc.addInterfaceEndpoint('EventBridgeInterfaceEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.EVENTBRIDGE,
-      privateDnsEnabled: true,
-      securityGroups: [endpointSecurityGroup],
-      subnets: privateSubnetSelection,
-    });
-    this.vpc.addInterfaceEndpoint('XRayInterfaceEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.XRAY,
-      privateDnsEnabled: true,
-      securityGroups: [endpointSecurityGroup],
-      subnets: privateSubnetSelection,
-    });
-    this.vpc.addInterfaceEndpoint('StsInterfaceEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.STS,
-      privateDnsEnabled: true,
-      securityGroups: [endpointSecurityGroup],
-      subnets: privateSubnetSelection,
-    });
-    this.vpc.addInterfaceEndpoint('AppConfigInterfaceEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.APPCONFIG,
-      privateDnsEnabled: true,
-      securityGroups: [endpointSecurityGroup],
-      subnets: privateSubnetSelection,
-    });
-    this.vpc.addInterfaceEndpoint('CloudFormationInterfaceEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.CLOUDFORMATION,
-      privateDnsEnabled: true,
-      securityGroups: [endpointSecurityGroup],
-      subnets: privateSubnetSelection,
-    });
-    this.vpc.addInterfaceEndpoint('SqsInterfaceEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.SQS,
-      privateDnsEnabled: true,
-      securityGroups: [endpointSecurityGroup],
-      subnets: privateSubnetSelection,
-    });
-
-    // ADR-014 / Issue #48: Allow egress to Gateway endpoints via prefix lists
-    // (required when allowAllOutbound=false and Lambdas are in the VPC).
-    const s3CfnEndpoint = s3GatewayEndpoint.node.defaultChild as ec2.CfnVPCEndpoint;
-    const dynamoDbCfnEndpoint = dynamoDbGatewayEndpoint.node.defaultChild as ec2.CfnVPCEndpoint;
-
-    lambdaSecurityGroup.addEgressRule(
-      ec2.Peer.prefixList(s3CfnEndpoint.getAtt('PrefixListId').toString()),
-      ec2.Port.tcp(443),
-      'Allow HTTPS to S3 Gateway endpoint',
-    );
-    lambdaSecurityGroup.addEgressRule(
-      ec2.Peer.prefixList(dynamoDbCfnEndpoint.getAtt('PrefixListId').toString()),
-      ec2.Port.tcp(443),
-      'Allow HTTPS to DynamoDB Gateway endpoint',
-    );
 
     const publicNetworkAcl = new ec2.NetworkAcl(this, 'PublicSubnetNetworkAcl', { vpc: this.vpc });
     const privateNetworkAcl = new ec2.NetworkAcl(this, 'PrivateSubnetNetworkAcl', { vpc: this.vpc });

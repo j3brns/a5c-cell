@@ -878,6 +878,72 @@ describe('PlatformStack (TASK-023)', () => {
     });
   });
 
+  test('scopes AppConfig retrieval permissions to deployed configuration resources', () => {
+    const appConfigStatements = getIamPolicyStatements(template).filter((statement) =>
+      JSON.stringify(statement.Action).includes('StartConfigurationSession'),
+    );
+
+    expect(appConfigStatements.length).toBeGreaterThanOrEqual(3);
+    for (const statement of appConfigStatements) {
+      const resources = JSON.stringify(statement.Resource);
+      expect(resources).toContain('/environment/');
+      expect(resources).toContain('/configuration/');
+      expect(resources).not.toContain('/configurationprofile/');
+    }
+  });
+
+  test('wires response interceptor tool filtering and PII pattern permissions', () => {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'platform-core-dev-interceptor-response',
+      Environment: {
+        Variables: Match.objectLike({
+          TOOLS_TABLE: Match.anyValue(),
+          PII_PATTERNS_PARAM: '/platform/gateway/pii-patterns/default',
+        }),
+      },
+    });
+
+    const policyJson = JSON.stringify(template.findResources('AWS::IAM::Policy'));
+    expect(policyJson).toContain('parameter/platform/gateway/pii-patterns/*');
+    expect(policyJson).toContain('ToolsTable');
+  });
+
+  test('limits tenant provisioner AgentCore memory access to tagged tenant memories', () => {
+    const statements = getIamPolicyStatements(template);
+    const createMemory = statements.find((statement) => statement.Sid === 'TenantStackCreateTaggedMemory');
+    const manageMemory = statements.find((statement) => statement.Sid === 'TenantStackManageTaggedMemory');
+    const tagMemory = statements.find((statement) => statement.Sid === 'TenantStackTagManagedMemory');
+
+    expect(createMemory).toMatchObject({
+      Action: 'bedrock-agentcore:CreateMemory',
+      Resource: '*',
+      Condition: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+        },
+      },
+    });
+    expect(manageMemory).toMatchObject({
+      Action: ['bedrock-agentcore:UpdateMemory', 'bedrock-agentcore:DeleteMemory', 'bedrock-agentcore:GetMemory'],
+      Resource: 'arn:aws:bedrock-agentcore:eu-west-2:123456789012:memory/*',
+      Condition: {
+        StringEquals: {
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
+      },
+    });
+    expect(tagMemory).toMatchObject({
+      Action: 'bedrock-agentcore:TagResource',
+      Resource: 'arn:aws:bedrock-agentcore:eu-west-2:123456789012:memory/*',
+      Condition: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
+      },
+    });
+  });
+
   test('provisions SPA resources: S3 bucket, CloudFront distribution, and identifiers', () => {
     template.hasResourceProperties('AWS::S3::Bucket', {
       BucketEncryption: {
