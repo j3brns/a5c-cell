@@ -430,7 +430,7 @@ See [ADR-012](decisions/ADR-012-dynamodb-capacity.md) for capacity mode rational
   last-activity markers, or session heartbeat state in this row.
 - Excludes dynamic capability policy. Capability flags, kill switches, and
   rollout-managed model/tool availability live in AppConfig, not in this table.
-- Capacity: provisioned, auto-scaling, 5 RCU/WCU minimum
+- Capacity: on-demand
 - Tenant ID policy (create boundary):
   - Canonicalized to lowercase before persistence
   - Regex: `^[a-z](?:[a-z0-9-]{1,30}[a-z0-9])$` (3–32 chars)
@@ -460,7 +460,7 @@ requires an explicit ADR because it changes the tenant identity boundary.
   layerS3Key, scriptS3Key, runtimeArn, deployedAt, invocationMode,
   streamingEnabled, estimatedDurationSeconds, status, approvedBy,
   approvedAt, releaseNotes
-- Capacity: provisioned, auto-scaling
+- Capacity: on-demand
 
 ### Agent Release State Source Of Truth
 
@@ -561,7 +561,7 @@ documented response in the [operator runbooks](README.md#operator-runbooks).
 | 1 | REST API usage plans | basic: 10 rps / 1K/day, standard: 50 rps / 10K/day, premium: 500 rps / unlimited | Native API Gateway 429 |
 | 2 | Bridge Lambda concurrency | 200 prod, 50 staging | Alert at 80%; provisioned concurrency 10 on authoriser |
 | 3 | AgentCore Runtime | Auto-scales, per-account quota | 70%: [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md); 90%: [RUNBOOK-004](operations/RUNBOOK-004-quota-increase.md) |
-| 4 | DynamoDB | On-demand for invocations, provisioned for config | Jitter suffix on high-volume tenant SKs |
+| 4 | DynamoDB | All tables on-demand | Jitter suffix on high-volume tenant SKs |
 | 5 | Account topology | Option A (single) → B (tier-split) → C (per-tenant) | Escalate when quota thresholds require |
 
 ## Platform-Controlled Cross-Tenant Actions

@@ -134,19 +134,29 @@ describe('PlatformStack (TASK-023)', () => {
       });
   };
 
-  test('creates all required DynamoDB tables with PITR and encryption', () => {
+  test('creates all required DynamoDB tables with on-demand billing, PITR, and encryption', () => {
     template.resourceCountIs('AWS::DynamoDB::Table', 8);
 
-    template.hasResourceProperties('AWS::DynamoDB::Table', {
-      TableName: 'platform-tenants',
-      ProvisionedThroughput: {
-        ReadCapacityUnits: 5,
-        WriteCapacityUnits: 5,
-      },
-      PointInTimeRecoverySpecification: {
-        PointInTimeRecoveryEnabled: true,
-      },
-    });
+    const tableNames = [
+      'platform-tenants',
+      'platform-agents',
+      'platform-tools',
+      'platform-ops-locks',
+      'platform-gateway-idempotency',
+      'platform-invocations',
+      'platform-jobs',
+      'platform-sessions',
+    ];
+
+    for (const tableName of tableNames) {
+      template.hasResourceProperties('AWS::DynamoDB::Table', {
+        TableName: tableName,
+        BillingMode: 'PAY_PER_REQUEST',
+        PointInTimeRecoverySpecification: {
+          PointInTimeRecoveryEnabled: true,
+        },
+      });
+    }
 
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       TableName: 'platform-invocations',
@@ -166,12 +176,13 @@ describe('PlatformStack (TASK-023)', () => {
 
     const tables = template.findResources('AWS::DynamoDB::Table') as Record<
       string,
-      { Properties?: { SSESpecification?: Record<string, unknown> } }
+      { Properties?: { SSESpecification?: Record<string, unknown>; ProvisionedThroughput?: unknown } }
     >;
     for (const table of Object.values(tables)) {
       expect(table.Properties?.SSESpecification).toEqual({
         SSEEnabled: true,
       });
+      expect(table.Properties?.ProvisionedThroughput).toBeUndefined();
     }
   });
 
