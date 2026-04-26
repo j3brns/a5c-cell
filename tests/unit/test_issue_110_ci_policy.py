@@ -41,14 +41,20 @@ def test_ci_test_matrix_covers_unit_integration_and_cdk() -> None:
         assert "extends: .test_job_base" in block or "extends: .aws_auth_base" in block
 
 
-def test_workflow_suppresses_duplicate_branch_pipelines_when_mr_exists() -> None:
+def test_workflow_pauses_pipelines_by_default_and_preserves_opt_in_deduping() -> None:
     content = CI_FILE.read_text(encoding="utf-8")
     workflow = _job_block("workflow", content)
 
-    assert 'if: $CI_PIPELINE_SOURCE == "merge_request_event"' in workflow
-    assert "if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS" in workflow
+    assert 'GITLAB_PIPELINES_ENABLED: "0"' in content
+    assert (
+        'if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_PIPELINE_SOURCE == "merge_request_event"'
+    ) in workflow
+    assert 'if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_COMMIT_BRANCH' in workflow
+    assert "GitLab CI is paused by default" in workflow
+    assert (
+        'if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+    ) in workflow
     assert "when: never" in workflow
-    assert "if: $CI_COMMIT_BRANCH" in workflow
 
 
 def test_expensive_jobs_are_gated_by_relevant_file_changes() -> None:
