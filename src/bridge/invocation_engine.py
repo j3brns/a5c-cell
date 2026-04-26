@@ -5,8 +5,13 @@ from typing import Any
 
 from data_access.models import TenantContext, TenantTier
 
-from src.bridge import route_adapter
+from src.bridge import route_adapter, telemetry
 from src.bridge.runtime_dependencies import get_agent_record as default_get_agent_record
+from src.bridge.runtime_dependencies import (
+    get_cloudwatch,
+    get_limiter,
+)
+from src.bridge.utils import estimate_tokens
 from src.platform_utils import coerce_optional_string as _coerce_optional_string
 
 
@@ -90,6 +95,45 @@ def handle_invoke_request(
                 request_id,
             )
 
+    # TPM Check (TASK-904)
+    estimate = estimate_tokens(prompt)
+    model_id = agent.model_id or "unknown"
+    tpm_limit = 0
+    if capability_policy is not None:
+        try:
+            tpm_limit = int(capability_policy.get_tpm_limit(model_id, tenant_context.tier))
+        except (ValueError, TypeError, AttributeError):
+            tpm_limit = 0
+
+    if tpm_limit > 0 or get_limiter()._redis is not None:
+        limiter = get_limiter()
+        result = limiter.check_and_increment(
+            tenant_context.tenant_id, model_id, tpm_limit, estimate
+        )
+        if not result.allowed:
+            telemetry.emit_tpm_limit_exceeded_metric(
+                get_cloudwatch(), tenant_context=tenant_context, agent_name=agent_name or "unknown"
+            )
+            return {
+                "statusCode": 429,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "x-amzn-RequestId": request_id,
+                    "X-RateLimit-Limit-TPM": str(result.limit),
+                    "X-RateLimit-Used-TPM": str(result.used),
+                    "X-RateLimit-Reset": str(result.reset_seconds),
+                },
+                "body": json.dumps(
+                    {
+                        "error": {
+                            "code": "THROTTLED_TPM",
+                            "message": f"TPM limit exceeded for model '{model_id}'",
+                            "requestId": request_id,
+                        }
+                    }
+                ),
+            }
+
     return call_agent(
         agent,
         tenant_context,
@@ -98,4 +142,5 @@ def handle_invoke_request(
         webhook_id,
         request_id,
         response_stream,
+        estimate=estimate,
     )

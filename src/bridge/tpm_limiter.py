@@ -7,11 +7,11 @@ import socket
 import ssl
 import time
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, NamedTuple, Protocol
 from urllib.parse import urlparse
 
 from aws_lambda_powertools import Logger
-from data_access.models import AgentRecord, TenantContext
+from data_access.models import AgentRecord, InvocationMode, TenantContext
 
 logger = Logger(service="bridge-tpm-limiter")
 
@@ -19,6 +19,107 @@ WINDOW_SECONDS = 60
 COUNTER_TTL_SECONDS = 90
 CHARS_PER_TOKEN_ESTIMATE = 4
 DEFAULT_VALKEY_PORT = 6379
+
+# Lua script for atomic pre-request check and increment.
+# KEYS[1]: counter key
+# ARGV[1]: limit (number)
+# ARGV[2]: estimate (number)
+# ARGV[3]: expiry seconds (number)
+# Returns: {current_value_after_incr, success_flag}
+PRE_REQUEST_LUA = """
+local current = redis.call('GET', KEYS[1])
+local limit = tonumber(ARGV[1])
+local estimate = tonumber(ARGV[2])
+local expiry = tonumber(ARGV[3])
+
+if limit > 0 and current and (tonumber(current) + estimate) > limit then
+    return {tonumber(current), 0}
+end
+
+local newVal = redis.call('INCRBY', KEYS[1], estimate)
+if newVal == estimate then
+    redis.call('EXPIRE', KEYS[1], expiry)
+end
+return {newVal, 1}
+"""
+
+
+class RateLimitResult(NamedTuple):
+    allowed: bool
+    limit: int
+    used: int
+    reset_seconds: int
+
+
+class TokenLimiter:
+    """Compatibility wrapper for TPM enforcement logic."""
+
+    def __init__(self, counter_client: CounterClient | None = None) -> None:
+        self._client = counter_client
+
+    @property
+    def _redis(self) -> Any | None:
+        """Simulate redis client presence for logic gates."""
+        return self._client or _default_counter_client()
+
+    def check_and_increment(
+        self,
+        tenant_id: str,
+        model_id: str,
+        limit: int,
+        estimate: int,
+    ) -> RateLimitResult:
+        now_val = time.time()
+        window_expiry = _window_expiry(now_val)
+        reset_seconds = window_expiry - int(now_val)
+        key = _counter_key(tenant_id, model_id, "tpm", window_expiry)
+
+        client = self._client or _default_counter_client()
+        if not client:
+            return RateLimitResult(True, limit if limit > 0 else -1, estimate, reset_seconds)
+
+        try:
+            used, success = client.check_and_increment(
+                key=key,
+                limit=limit,
+                estimate=estimate,
+                ttl_seconds=COUNTER_TTL_SECONDS,
+            )
+            return RateLimitResult(
+                allowed=bool(success),
+                limit=limit if limit > 0 else -1,
+                used=used,
+                reset_seconds=reset_seconds,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Valkey unavailable for pre-request check, failing open",
+                extra={"event.name": "valkey_unavailable", "error": str(exc)},
+            )
+            return RateLimitResult(True, limit if limit > 0 else -1, estimate, reset_seconds)
+
+    def correct_usage(
+        self,
+        tenant_id: str,
+        model_id: str,
+        estimate: int,
+        actual: int,
+    ) -> int:
+        window_expiry = _window_expiry(time.time())
+        key = _counter_key(tenant_id, model_id, "tpm", window_expiry)
+
+        client = self._client or _default_counter_client()
+        if not client:
+            return actual
+
+        try:
+            return client.correct_usage(key=key, estimate=estimate, actual=actual)
+        except Exception as exc:
+            logger.warning(
+                "Valkey unavailable for post-request correction",
+                extra={"event.name": "valkey_unavailable", "error": str(exc)},
+            )
+            return actual
 
 
 class CounterClient(Protocol):
@@ -30,6 +131,23 @@ class CounterClient(Protocol):
         estimated_key: str,
         estimated_tokens: int,
         ttl_seconds: int,
+    ) -> int: ...
+
+    def check_and_increment(
+        self,
+        *,
+        key: str,
+        limit: int,
+        estimate: int,
+        ttl_seconds: int,
+    ) -> tuple[int, bool]: ...
+
+    def correct_usage(
+        self,
+        *,
+        key: str,
+        estimate: int,
+        actual: int,
     ) -> int: ...
 
 
@@ -95,6 +213,35 @@ class SocketValkeyCounterClient:
         if not isinstance(results, list) or len(results) < 1:
             raise RuntimeError("Valkey transaction returned no results")
         return int(results[0])
+
+    def check_and_increment(
+        self,
+        *,
+        key: str,
+        limit: int,
+        estimate: int,
+        ttl_seconds: int,
+    ) -> tuple[int, bool]:
+        # Using EVAL for atomic check-and-set
+        result = self._execute(
+            "EVAL", PRE_REQUEST_LUA, "1", key, str(limit), str(estimate), str(ttl_seconds)
+        )
+        if not isinstance(result, list) or len(result) < 2:
+            raise RuntimeError(f"Valkey EVAL returned malformed result: {result}")
+        return int(result[0]), bool(result[1])
+
+    def correct_usage(
+        self,
+        *,
+        key: str,
+        estimate: int,
+        actual: int,
+    ) -> int:
+        diff = actual - estimate
+        if diff == 0:
+            return 0  # No change needed
+        response = self._execute("INCRBY", key, str(diff))
+        return int(response)
 
     def _execute(self, *parts: str) -> Any:
         command = _encode_resp_command(parts)
@@ -225,6 +372,87 @@ def record_log_only_tpm(
         },
     )
     return TpmCounterResult(actual, estimated, window_expiry, window_usage, model, skipped=False)
+
+
+def perform_pre_request_check(
+    *,
+    tenant_context: TenantContext,
+    agent: AgentRecord,
+    prompt: str,
+    capability_policy: Any = None,
+    counter_client: CounterClient | None = None,
+    now: float | None = None,
+) -> RateLimitResult:
+    """Perform pre-request TPM check and increment."""
+    model_id = _metric_model_id(None, agent)
+    tpm_limit = 0
+    if capability_policy is not None:
+        tpm_limit = capability_policy.get_tpm_limit(model_id, tenant_context.tier)
+
+    estimate = estimate_tokens_from_prompt(prompt)
+    now_val = now or time.time()
+    window_expiry = _window_expiry(now_val)
+    reset_seconds = window_expiry - int(now_val)
+    key = _counter_key(tenant_context.tenant_id, model_id, "tpm", window_expiry)
+
+    if tpm_limit <= 0:
+        # Still track usage even if unlimited if Valkey is available
+        client = counter_client or _default_counter_client()
+        if client:
+            try:
+                used, _ = client.check_and_increment(
+                    key=key, limit=0, estimate=estimate, ttl_seconds=COUNTER_TTL_SECONDS
+                )
+                return RateLimitResult(True, -1, used, reset_seconds)
+            except Exception:
+                pass
+        return RateLimitResult(True, -1, estimate, reset_seconds)
+
+    try:
+        client = counter_client or _default_counter_client()
+        if client is None:
+            return RateLimitResult(True, tpm_limit, estimate, reset_seconds)
+
+        used, success = client.check_and_increment(
+            key=key, limit=tpm_limit, estimate=estimate, ttl_seconds=COUNTER_TTL_SECONDS
+        )
+        return RateLimitResult(bool(success), tpm_limit, used, reset_seconds)
+    except Exception as exc:
+        logger.warning(
+            "Valkey unavailable for pre-request check, failing open",
+            extra={"event.name": "valkey_unavailable", "error": str(exc)},
+        )
+        return RateLimitResult(True, tpm_limit, estimate, reset_seconds)
+
+
+def perform_post_request_correction(
+    *,
+    tenant_context: TenantContext,
+    agent: AgentRecord,
+    estimate: int,
+    actual: int,
+    counter_client: CounterClient | None = None,
+    now: float | None = None,
+) -> int:
+    """Correct estimated usage with actual usage after response."""
+    if agent.invocation_mode == InvocationMode.STREAMING:
+        return actual
+
+    model_id = _metric_model_id(None, agent)
+    window_expiry = _window_expiry(now or time.time())
+    key = _counter_key(tenant_context.tenant_id, model_id, "tpm", window_expiry)
+
+    try:
+        client = counter_client or _default_counter_client()
+        if client is None:
+            return actual
+        return client.correct_usage(key=key, estimate=estimate, actual=actual)
+    except Exception as exc:
+        logger.warning(
+            "Valkey unavailable for post-request correction",
+            extra={"event.name": "valkey_unavailable", "error": str(exc)},
+        )
+        return actual
 
 
 def _coerce_int(value: Any) -> int:

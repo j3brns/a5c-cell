@@ -153,6 +153,7 @@ def invoke_agent(
     webhook_id: str | None,
     request_id: str,
     response_stream: Any | None,
+    estimate: int = 0,
 ):
     return route_adapter.invoke_agent(
         agent=agent,
@@ -162,6 +163,7 @@ def invoke_agent(
         webhook_id=webhook_id,
         request_id=request_id,
         response_stream=response_stream,
+        estimate=estimate,
     )
 
 

@@ -146,6 +146,31 @@ def emit_bedrock_throttle_metric(
         logger.warning("Failed to emit Bedrock throttle metric", extra={"error": str(exc)})
 
 
+def emit_tpm_limit_exceeded_metric(
+    cloudwatch: Any,
+    *,
+    tenant_context: TenantContext,
+    agent_name: str,
+) -> None:
+    try:
+        cloudwatch.put_metric_data(
+            Namespace="Platform/Bridge",
+            MetricData=[
+                {
+                    "MetricName": "event.name=tpm_limit_exceeded",
+                    "Value": 1.0,
+                    "Unit": "Count",
+                    "Dimensions": [
+                        {"Name": "TenantId", "Value": tenant_context.tenant_id},
+                        {"Name": "AgentName", "Value": agent_name},
+                    ],
+                }
+            ],
+        )
+    except Exception as exc:
+        logger.warning("Failed to emit TPM limit exceeded metric", extra={"error": str(exc)})
+
+
 def emit_ttft_metric(
     cloudwatch: Any,
     *,
