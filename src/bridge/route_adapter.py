@@ -120,6 +120,7 @@ def handle_streaming_invocation(
         )
 
     stream_started = False
+    ttft_ms: int | None = None
     http_session_factory = _local_or_handler_dependency(
         "get_http_session", _DEFAULT_GET_HTTP_SESSION
     )
@@ -143,6 +144,8 @@ def handle_streaming_invocation(
             for raw_line in response.iter_lines():
                 if not raw_line:
                     continue
+                if ttft_ms is None:
+                    ttft_ms = max(1, int((time.time() - start_time) * 1000))
                 response_stream.write(raw_line + b"\n\n")
             latency_ms = int((time.time() - start_time) * 1000)
             if log_result is not None:
@@ -155,6 +158,7 @@ def handle_streaming_invocation(
                     agent.invocation_mode,
                     session_id=session_id or "mock-session-id",
                     runtime_region="mock-runtime",
+                    ttft_ms=ttft_ms,
                 )
             else:
                 telemetry.log_invocation(
@@ -168,6 +172,7 @@ def handle_streaming_invocation(
                     session_id=session_id or "mock-session-id",
                     runtime_region="mock-runtime",
                     jitter=runtime_calls.get_jitter(),
+                    ttft_ms=ttft_ms,
                 )
             return None
     except Exception as exc:
@@ -187,37 +192,7 @@ def handle_streaming_invocation(
 
 
 def mock_runtime_response_body(response: Any, session_id: str | None) -> tuple[str, str | None]:
-    text = getattr(response, "text", None)
-    if isinstance(text, str):
-        return text, session_id
-
-    runtime_session_id = session_id
-    parts: list[str] = []
-    for raw_line in response.iter_lines():
-        if not raw_line:
-            continue
-        line = (
-            raw_line.decode("utf-8") if isinstance(raw_line, (bytes, bytearray)) else str(raw_line)
-        )
-        payload = line[5:].strip() if line.startswith("data:") else line.strip()
-        if payload == "[DONE]":
-            continue
-        try:
-            data = json.loads(payload)
-        except ValueError:
-            continue
-        if data.get("type") == "session" and data.get("sessionId"):
-            runtime_session_id = str(data["sessionId"])
-        if data.get("type") == "text":
-            parts.append(str(data.get("content", "")))
-
-    body = {
-        "output": "".join(parts),
-        "usage": {"inputTokens": 0, "outputTokens": 0},
-    }
-    if runtime_session_id:
-        body["sessionId"] = runtime_session_id
-    return json.dumps(body), runtime_session_id
+    return runtime_calls.mock_runtime_response_body(response, session_id)
 
 
 def is_runtime_unavailable_error(exc: Exception) -> bool:
@@ -326,36 +301,6 @@ def invoke_agent(
             build_runtime_payload=runtime_calls.build_runtime_payload,
             log_invocation=log_result,
         )
-        if response is not None and response.get("statusCode") == 200:
-            mock_response = get_http_session().post(mock_url.rstrip("/"))
-            body_text, resolved_session_id = mock_runtime_response_body(mock_response, session_id)
-            response["body"] = body_text
-            if resolved_session_id:
-                latency_ms = int((time.time() - start_time) * 1000)
-                if log_result is not None:
-                    log_result(
-                        tenant_context,
-                        agent,
-                        invocation_id,
-                        InvocationStatus.SUCCESS,
-                        latency_ms,
-                        agent.invocation_mode,
-                        session_id=resolved_session_id,
-                        runtime_region="mock-runtime",
-                    )
-                else:
-                    telemetry.log_invocation(
-                        get_cloudwatch(),
-                        tenant_context,
-                        agent,
-                        invocation_id,
-                        InvocationStatus.SUCCESS,
-                        latency_ms,
-                        agent.invocation_mode,
-                        session_id=resolved_session_id,
-                        runtime_region="mock-runtime",
-                        jitter=runtime_calls.get_jitter(),
-                    )
         return response
 
     try:

@@ -1,6 +1,8 @@
 import * as cdk from 'aws-cdk-lib';
 import * as appconfig from 'aws-cdk-lib/aws-appconfig';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as elasticache from 'aws-cdk-lib/aws-elasticache';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
@@ -17,13 +19,20 @@ export interface PlatformStorageResources {
   readonly appconfigEnv: appconfig.CfnEnvironment;
   readonly capabilityProfile: appconfig.CfnConfigurationProfile;
   readonly capabilityDeploymentStrategy: appconfig.CfnDeploymentStrategy;
+  readonly valkeyCluster: elasticache.CfnServerlessCache;
+  readonly valkeyCacheName: string;
+  readonly valkeySecurityGroup: ec2.SecurityGroup;
 }
 
 export function createPlatformStorage(
   scope: Construct,
-  props: { envName: string },
+  props: {
+    envName: string;
+    vpc: ec2.IVpc;
+    valkeyClientSecurityGroup: ec2.ISecurityGroup;
+  },
 ): PlatformStorageResources {
-  const { envName } = props;
+  const { envName, vpc, valkeyClientSecurityGroup } = props;
   const pointInTimeRecoverySpecification = {
     pointInTimeRecoveryEnabled: true,
   } satisfies dynamodb.PointInTimeRecoverySpecification;
@@ -237,6 +246,34 @@ export function createPlatformStorage(
   defaultCapabilityDeployment.addDependency(defaultCapabilityConfiguration);
   defaultCapabilityDeployment.addDependency(capabilityDeploymentStrategy);
 
+  // --- Valkey (ElastiCache Serverless) for TPM rate limiting (TASK-902) ---
+
+  const valkeySecurityGroup = new ec2.SecurityGroup(scope, 'ValkeySecurityGroup', {
+    vpc,
+    allowAllOutbound: false,
+    description: 'Security group for platform Valkey cluster (ElastiCache Serverless)',
+  });
+
+  valkeySecurityGroup.addIngressRule(
+    valkeyClientSecurityGroup,
+    ec2.Port.tcp(6379),
+    'Allow Redis/Valkey access from Bridge Lambda',
+  );
+
+  const valkeyCacheName = `platform-valkey-${envName}`;
+  const valkeyCluster = new elasticache.CfnServerlessCache(scope, 'ValkeyCluster', {
+    engine: 'valkey',
+    serverlessCacheName: valkeyCacheName,
+    subnetIds: vpc.isolatedSubnets.map((subnet) => subnet.subnetId),
+    securityGroupIds: [valkeySecurityGroup.securityGroupId],
+  });
+
+  new ssm.StringParameter(scope, 'ValkeyEndpointParam', {
+    parameterName: `/platform/${envName}/config/valkey-endpoint`,
+    stringValue: valkeyCluster.attrEndpointAddress,
+    description: 'Valkey cluster endpoint for TPM rate limiting',
+  });
+
   return {
     tenantsTable,
     agentsTable,
@@ -250,5 +287,8 @@ export function createPlatformStorage(
     appconfigEnv,
     capabilityProfile,
     capabilityDeploymentStrategy,
+    valkeyCluster,
+    valkeyCacheName,
+    valkeySecurityGroup,
   };
 }

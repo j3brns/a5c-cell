@@ -76,6 +76,14 @@ def _runtime_response(
     }
 
 
+class _ChunkedRuntimeBody:
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = chunks
+
+    def iter_chunks(self):
+        yield from self._chunks
+
+
 def test_assume_tenant_role_uses_provided_arn(mock_aws_services):
     tenant_id = "t-123"
     provided_arn = "arn:aws:iam::123456789012:role/custom-role"
@@ -148,6 +156,52 @@ def test_invoke_real_runtime_uses_arn_from_record(
             "agentVersion": "1.0.0",
         }
     ).encode("utf-8")
+
+
+@patch("src.bridge.handler.get_runtime_client")
+@patch("src.bridge.handler.get_tenant_record")
+@patch("src.bridge.handler.assume_tenant_role")
+def test_invoke_real_runtime_logs_actual_and_estimated_tokens(
+    mock_assume, mock_get_record, mock_get_runtime_client, mock_aws_services
+):
+    tenant_context = _tenant_context()
+    agent = _agent()
+    runtime_client = MagicMock()
+    runtime_client.invoke_agent_runtime.return_value = _runtime_response(
+        b'{"usage":{"inputTokens":7,"outputTokens":11},"modelId":"anthropic.test-model"}'
+    )
+    mock_get_runtime_client.return_value = runtime_client
+    mock_assume.return_value = {
+        "AccessKeyId": "assumed-akid",
+        "SecretAccessKey": "assumed-secret",  # pragma: allowlist secret
+        "SessionToken": "assumed-token",
+    }
+    mock_get_record.return_value = {
+        "account_id": "123456789012",
+        "executionRoleArn": "arn:aws:iam::123456789012:role/record-role",
+    }
+    log_invocation = MagicMock()
+
+    response = invoke_real_runtime(
+        "eu-west-1",
+        agent,
+        tenant_context,
+        "123456789",
+        None,
+        None,
+        "req-1",
+        None,
+        "inv-1",
+        0.0,
+        log_invocation=log_invocation,
+    )
+
+    assert response["statusCode"] == 200
+    _, kwargs = log_invocation.call_args
+    assert kwargs["input_tokens"] == 7
+    assert kwargs["output_tokens"] == 11
+    assert kwargs["estimated_tokens"] == 3
+    assert kwargs["model_id"] == "anthropic.test-model"
 
 
 @patch("src.bridge.handler.get_runtime_client")
@@ -319,6 +373,42 @@ def test_invoke_real_runtime_rewrites_runtime_arn_to_active_region(
     assert kwargs["agentRuntimeArn"] == (
         "arn:aws:bedrock-agentcore:eu-central-1:210987654321:runtime/echo-agent"
     )
+
+
+def test_invoke_real_runtime_records_streaming_ttft_from_first_chunk(mock_aws_services):
+    tenant_context = _tenant_context()
+    agent = _agent(InvocationMode.STREAMING)
+    runtime_client = MagicMock()
+    runtime_client.invoke_agent_runtime.return_value = _runtime_response(
+        b"",
+        content_type="text/event-stream",
+    )
+    runtime_client.invoke_agent_runtime.return_value["response"] = _ChunkedRuntimeBody(
+        [b"data: first", b"data: second"]
+    )
+    mock_log = MagicMock()
+
+    with patch("src.bridge.runtime_calls.time.time", side_effect=[100.021, 100.050]):
+        response = invoke_real_runtime(
+            "eu-west-1",
+            agent,
+            tenant_context,
+            "prompt",
+            "sess-1",
+            None,
+            "req-1",
+            None,
+            "inv-1",
+            100.0,
+            runtime_credentials={"AccessKeyId": "assumed-akid"},
+            get_runtime_client=lambda *_args, **_kwargs: runtime_client,
+            log_invocation=mock_log,
+        )
+
+    assert response["statusCode"] == 200
+    assert response["body"] == "data: firstdata: second"
+    _, kwargs = mock_log.call_args
+    assert kwargs["ttft_ms"] == 21
 
 
 def test_invoke_agent_maps_runtime_throttling_to_platform_error():

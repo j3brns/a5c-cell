@@ -13,12 +13,7 @@ from scripts.issue_tool.models import WorktreeInfo
 
 
 def cleanup_timeout_seconds() -> float:
-    raw = os.environ.get("ISSUE_TOOL_CLEANUP_TIMEOUT_SECONDS", "30")
-    try:
-        value = float(raw)
-    except ValueError:
-        return 30.0
-    return max(value, 1.0)
+    return 30.0
 
 
 def cleanup_finished_worktree(

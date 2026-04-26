@@ -42,6 +42,11 @@ export class ObservabilityStack extends cdk.Stack {
       'AuthoriserLogGroup',
       `/aws/lambda/${props.authoriserFn.functionName}`,
     );
+    const bridgeLogGroup = logs.LogGroup.fromLogGroupName(
+      this,
+      'BridgeLogGroup',
+      `/aws/lambda/${props.bridgeFn.functionName}`,
+    );
 
     // --- 1. Platform Operations Dashboard ---
 
@@ -263,6 +268,28 @@ export class ObservabilityStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     });
 
+    new cloudwatch.Alarm(this, 'Fm2StreamingTtftPlaceholderAlarm', {
+      alarmName: `${alarmNamePrefix}-FM-2-StreamingTTFTPlaceholder`,
+      alarmDescription:
+        'Placeholder for streaming Time-to-First-Token p99. Actions remain disabled until the AG-UI SLO threshold is defined from production data.',
+      metric: new cloudwatch.Metric({
+        namespace: 'Platform/Bridge',
+        metricName: 'gen_ai.ttft_ms',
+        dimensionsMap: {
+          AgentName: 'all',
+          InvocationMode: 'streaming',
+          RuntimeRegion: 'all',
+        },
+        period: cdk.Duration.minutes(5),
+        statistic: 'p99',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      actionsEnabled: false,
+    });
+
     new cloudwatch.Alarm(this, 'AuthoriserHardFailureAlarm', {
       alarmName: `${alarmNamePrefix}-Authoriser-HardFailures`,
       alarmDescription:
@@ -440,6 +467,34 @@ export class ObservabilityStack extends cdk.Stack {
         namespace: 'Platform/Bridge',
         metricName: 'Invocation.Throttled.Bedrock',
         period: cdk.Duration.minutes(5),
+        statistic: 'Sum',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    new logs.MetricFilter(this, 'Fm12ValkeyUnavailableMetricFilter', {
+      logGroup: bridgeLogGroup,
+      metricNamespace: 'Platform/Bridge',
+      metricName: 'ValkeyUnavailableCount',
+      metricValue: '1',
+      filterPattern: logs.FilterPattern.stringValue(
+        '$.event.name',
+        '=',
+        'valkey_unavailable',
+      ),
+    });
+
+    new cloudwatch.Alarm(this, 'Fm12ValkeyUnavailableAlarm', {
+      alarmName: `${alarmNamePrefix}-FM-12-ValkeyUnavailable`,
+      alarmDescription:
+        'Bridge emitted valkey_unavailable and failed open; restore Valkey connectivity before TPM enforcement.',
+      metric: new cloudwatch.Metric({
+        namespace: 'Platform/Bridge',
+        metricName: 'ValkeyUnavailableCount',
+        period: cdk.Duration.minutes(1),
         statistic: 'Sum',
       }),
       threshold: 1,

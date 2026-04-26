@@ -1549,9 +1549,12 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
             ),
             (
                 "Execution loop: inspect; form the smallest defensible plan; add or update "
-                "tests before behavior changes when practical; implement; run the narrowest "
-                "useful checks; then run make preflight-session and make pre-validate-session "
-                "before push. Fix failures and repeat until the issue is actually complete."
+                "tests before behavior changes when practical; run make worktree-probe MODE=test "
+                "before attempting tests; if it fails, stop the test attempt and run make "
+                "ensure-tools before continuing; run make worktree-probe before agent handoff; "
+                "implement; run the narrowest useful checks; then run make preflight-session and "
+                "make pre-validate-session before push. Fix failures and repeat until the issue "
+                "is actually complete."
             ),
             (
                 "Change shape: keep diffs small and reversible; prefer deletion over addition; "
@@ -3061,6 +3064,7 @@ def cmd_issue_queue(args: argparse.Namespace) -> int:
         issues,
         stream_label=args.stream_label,
         from_issue=getattr(args, "from_issue", None),
+        from_seq=getattr(args, "from_seq", None),
         mode=args.mode,
     )
     print_queue(selection, limit=args.limit, show_blocked=not args.runnable_only)
@@ -3329,6 +3333,7 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
         issues,
         stream_label=args.stream_label,
         from_issue=getattr(args, "from_issue", None),
+        from_seq=getattr(args, "from_seq", None),
         mode=args.mode,
     )
     if args.choose:
@@ -3579,6 +3584,7 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
         issues,
         stream_label=args.stream_label,
         from_issue=getattr(args, "from_issue", None),
+        from_seq=getattr(args, "from_seq", None),
         mode=args.mode,
     )
     item = next((x for x in selection.items if x.issue.number == issue.number), None)
@@ -3866,6 +3872,7 @@ def cmd_wt_batch(args: argparse.Namespace) -> int:
         issues,
         stream_label=args.stream_label,
         from_issue=getattr(args, "from_issue", None),
+        from_seq=getattr(args, "from_seq", None),
         mode=args.mode,
     )
     base_dir = (
@@ -4065,6 +4072,7 @@ def cmd_menu(args: argparse.Namespace) -> int:
                     repo=args.repo,
                     stream_label=args.stream_label,
                     from_issue=args.from_issue,
+                    from_seq=args.from_seq,
                     mode=args.mode,
                     limit=None,
                     runnable_only=False,
@@ -4077,6 +4085,7 @@ def cmd_menu(args: argparse.Namespace) -> int:
                     repo=args.repo,
                     stream_label=args.stream_label,
                     from_issue=args.from_issue,
+                    from_seq=args.from_seq,
                     mode=args.mode,
                     choose=False,
                     allow_blocked=False,
@@ -4102,6 +4111,7 @@ def cmd_menu(args: argparse.Namespace) -> int:
                     repo=args.repo,
                     stream_label=args.stream_label,
                     from_issue=args.from_issue,
+                    from_seq=args.from_seq,
                     mode=args.mode,
                     choose=True,
                     allow_blocked=False,
@@ -4196,6 +4206,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--from-issue",
         type=int,
         help="Lower bound issue number for queue selection (e.g. start from issue #310).",
+    )
+    queue_common.add_argument(
+        "--from-seq",
+        type=int,
+        help="Lower bound Seq metadata for queue selection (e.g. start from Seq:901).",
     )
 
     q = sub.add_parser("issue-queue", parents=[common_repo, queue_common], help="Show issue queue")

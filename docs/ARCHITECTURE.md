@@ -33,6 +33,7 @@ eu-west-2 London (HOME — owns everything)
 ├── AppConfig
 ├── EventBridge
 ├── SQS (webhook delivery retry queue only, not async invocation routing)
+├── ElastiCache Serverless Valkey (TPM counter coordination)
 ├── Bridge Lambda
 ├── Authoriser Lambda
 ├── Tenant API Lambda (Modular: lifecycle, webhooks, agents, ops)
@@ -149,7 +150,18 @@ Implementation note: the Bridge still deploys as one Lambda, but the package is
 now split internally into `config_provider`, `discovery_service`,
 `invocation_engine`, `runtime_orchestrator`, and `runtime_invoker` so routing,
 discovery, and failover logic can evolve independently without changing the
-public invoke contract.
+public invoke contract. TASK-902 provisions the eu-west-2 ElastiCache Serverless
+Valkey counter store and publishes its endpoint per environment at
+`/platform/{env}/config/valkey-endpoint`; the Bridge receives the same resolved
+endpoint through `VALKEY_ENDPOINT` so TPM log-only accounting does not require a
+new request-path SSM permission. ElastiCache Serverless places the cache
+endpoint in the selected subnets and security groups; no additional user-managed
+ElastiCache interface endpoint is required for counter traffic. Bridge remains
+outside the VPC under ADR-014; TASK-903's counter client is fail-open and
+endpoint-gated, while any move to hard enforcement still requires an approved
+narrow adapter or runtime-network design. Pulling the whole Bridge into isolated
+subnets would break the current eu-west-1 AgentCore Runtime path without the
+gated ADR-020 network work.
 
 Current SPA edge posture: the public SPA distribution is protected by a dedicated
 CloudFront-scope WebACL that must be provisioned in **us-east-1**. AWS WAF requires
@@ -507,10 +519,13 @@ Operational consumers:
 - PK: `TENANT#{tenantId}`, SK: `INV#{timestamp}#{invocationId}`
 - Attributes: invocationId, tenantId, appId, agentName, agentVersion,
   sessionId, inputTokens, outputTokens, latencyMs, status, errorCode,
-  runtimeRegion, invocationMode, jobId
+  runtimeRegion, invocationMode, jobId, ttftMs
 - This is the high-frequency tenant activity record for invocations. Do not
   mirror per-request counters or last-seen markers into `platform-tenants`.
-- TTL: 90 days. Capacity: on-demand
+- `ttftMs` is populated only for streaming invocations after the first non-empty
+  runtime chunk arrives. Non-streaming records store it as null; streaming records
+  that complete without a chunk also leave it null.
+- TTL: 90 days. Capacity: on-demand (unpredictable volume)
 - Hot partition protection: SK includes random jitter suffix for high-volume tenants
 
 **platform-jobs** — async job tracking
@@ -529,7 +544,7 @@ Operational consumers:
 
 **platform-tools** — Gateway tool registry
 - PK: `TOOL#{toolName}`, SK: `TENANT#{tenantId}` or `GLOBAL`
-- Attributes: toolName, tierMinimum, lambdaArn, gatewayTargetId, enabled
+- Attributes: tool_name, tier_minimum, lambda_arn, gateway_target_id, enabled
 
 **platform-ops-locks** — distributed operation locks
 - PK: `LOCK#{lockName}`, SK: `METADATA`
@@ -718,6 +733,16 @@ is represented today by the AgentCoreStack metric stream into eu-west-2 dashboar
 | FM-9 | DLQ message arrival | DLQ CloudWatch alarm | `FM-9-DLQ-Arrival-{name}` | [RUNBOOK-005](operations/RUNBOOK-005-dlq-management.md) |
 | FM-10 | Billing Lambda failure | Billing Lambda errors | `FM-10-BillingLambdaFailure` | [RUNBOOK-006](operations/RUNBOOK-006-budget-and-suspension.md) |
 | FM-11 | Bedrock runtime throttle pressure | Bridge emits `Invocation.Throttled.Bedrock` | `FM-11-BedrockThrottlePressure` | Investigate noisy tenants, concurrency pressure, and runtime quota headroom |
+| FM-12 | Valkey unavailable | Bridge emits `valkey_unavailable` fail-open metric/log | `FM-12-ValkeyUnavailable` | Bridge continues with fail-open (TPM check skipped, metric emitted) |
+
+Streaming TTFT uses `gen_ai.ttft_ms` in `Platform/Bridge`. The Bridge publishes
+the operational series with `AgentName`, `InvocationMode=streaming`, and
+`RuntimeRegion`; a matching `AgentName=all` / `RuntimeRegion=all` series feeds the
+disabled placeholder alarm. CloudWatch custom metric dimensions are part of metric
+identity and are not aggregated automatically, so both supported query shapes are
+published deliberately. ObservabilityStack includes a disabled
+`FM-2-StreamingTTFTPlaceholder` alarm shell on p99 TTFT. Operators must set the
+AG-UI SLO threshold from production data before enabling alarm actions.
 
 ## Security Model
 

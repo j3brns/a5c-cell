@@ -50,6 +50,14 @@ alternative. Never silently work around them.
 
 ## How To Work
 
+### Environment Constraints
+
+Issue worktrees are not assumed to be hydrated. Before running tests or type checks,
+run `make worktree-probe MODE=test`. Before launching or handing off to an agent, run
+`make worktree-probe`. If either probe reports missing `.venv`, `node_modules`, or
+required command-line tools, stop that attempted path and run `make ensure-tools` from
+the worktree root before continuing.
+
 Before writing any code:
 1. Read this file
 2. Read docs/ARCHITECTURE.md
@@ -160,6 +168,12 @@ try:
 except TenantAccessViolation as e:
     logger.error("Tenant access violation", extra={"tenant_id": tenant_id})
     return error_response(403, "UNAUTHORISED")
+
+# FORBIDDEN: physical resource ID in application code
+guardrail_id = "abc123def456"
+
+# REQUIRED: resolve through the platform registry
+guardrail_id = registry.resolve("baseline-security", account_id)
 ```
 
 ## Issue Workflow (Canonical)

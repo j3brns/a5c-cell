@@ -9,7 +9,7 @@ from typing import Any
 from botocore.exceptions import ClientError
 from data_access.models import AgentRecord, InvocationMode, InvocationStatus, TenantContext
 
-from src.bridge import role_resolver, telemetry
+from src.bridge import role_resolver, telemetry, tpm_limiter
 from src.bridge.constants import IAM_ROLE_ARN_PATTERN, RUNTIME_ARN_PATTERN
 from src.bridge.runtime_dependencies import (
     get_cloudwatch,
@@ -162,6 +162,68 @@ def runtime_failure_response(
     return build_error_response(status_code, error_code, message, request_id)
 
 
+def read_runtime_response_body(
+    response_body: Any,
+    *,
+    start_time: float,
+) -> tuple[bytes, int | None]:
+    """Read a streaming runtime body and capture TTFT from its first non-empty chunk."""
+    if hasattr(response_body, "iter_chunks"):
+        chunks: list[bytes] = []
+        ttft_ms: int | None = None
+        for chunk in response_body.iter_chunks():
+            if not chunk:
+                continue
+            if ttft_ms is None:
+                ttft_ms = max(1, int((time.time() - start_time) * 1000))
+            if isinstance(chunk, (bytes, bytearray)):
+                chunks.append(bytes(chunk))
+            else:
+                chunks.append(str(chunk).encode("utf-8"))
+        return b"".join(chunks), ttft_ms
+
+    if hasattr(response_body, "read"):
+        body_bytes = response_body.read()
+        ttft_ms = max(1, int((time.time() - start_time) * 1000)) if body_bytes else None
+        return bytes(body_bytes) if isinstance(body_bytes, (bytes, bytearray)) else b"", ttft_ms
+
+    return bytes(response_body) if isinstance(response_body, (bytes, bytearray)) else b"", None
+
+
+def mock_runtime_response_body(response: Any, session_id: str | None) -> tuple[str, str | None]:
+    text = getattr(response, "text", None)
+    if isinstance(text, str):
+        return text, session_id
+
+    runtime_session_id = session_id
+    parts: list[str] = []
+    for raw_line in response.iter_lines():
+        if not raw_line:
+            continue
+        line = (
+            raw_line.decode("utf-8") if isinstance(raw_line, (bytes, bytearray)) else str(raw_line)
+        )
+        payload = line[5:].strip() if line.startswith("data:") else line.strip()
+        if payload == "[DONE]":
+            continue
+        try:
+            data = json.loads(payload)
+        except ValueError:
+            continue
+        if data.get("type") == "session" and data.get("sessionId"):
+            runtime_session_id = str(data["sessionId"])
+        if data.get("type") == "text":
+            parts.append(str(data.get("content", "")))
+
+    body: dict[str, Any] = {
+        "output": "".join(parts),
+        "usage": {"inputTokens": 0, "outputTokens": 0},
+    }
+    if runtime_session_id:
+        body["sessionId"] = runtime_session_id
+    return json.dumps(body), runtime_session_id
+
+
 def invoke_real_runtime(
     region: str,
     agent: AgentRecord,
@@ -291,10 +353,20 @@ def invoke_real_runtime(
             ).encode("utf-8"),
         )
         response_body = runtime_response.get("response")
-        if hasattr(response_body, "read"):
-            body_bytes = response_body.read()
+        ttft_ms: int | None = None
+        if agent.invocation_mode == InvocationMode.STREAMING:
+            body_bytes, ttft_ms = read_runtime_response_body(
+                response_body,
+                start_time=start_time,
+            )
         else:
-            body_bytes = response_body if isinstance(response_body, (bytes, bytearray)) else b""
+            if hasattr(response_body, "read"):
+                raw_body = response_body.read()
+                body_bytes = bytes(raw_body) if isinstance(raw_body, (bytes, bytearray)) else b""
+            else:
+                body_bytes = response_body if isinstance(response_body, (bytes, bytearray)) else b""
+        body_text = body_bytes.decode("utf-8") if isinstance(body_bytes, (bytes, bytearray)) else ""
+        token_usage = tpm_limiter.extract_token_usage(body_text)
         latency_ms = int((time.time() - start_time) * 1000)
         log_result(
             tenant_context,
@@ -305,6 +377,11 @@ def invoke_real_runtime(
             agent.invocation_mode,
             session_id=session_id,
             runtime_region=region,
+            ttft_ms=ttft_ms,
+            input_tokens=token_usage.input_tokens,
+            output_tokens=token_usage.output_tokens,
+            estimated_tokens=tpm_limiter.estimate_tokens_from_prompt(prompt),
+            model_id=token_usage.model_id,
         )
         headers = {"Content-Type": str(runtime_response.get("contentType", "application/json"))}
         runtime_session_id = coerce(runtime_response.get("runtimeSessionId"))
@@ -313,9 +390,7 @@ def invoke_real_runtime(
         return {
             "statusCode": int(runtime_response.get("statusCode", 200)),
             "headers": headers,
-            "body": (
-                body_bytes.decode("utf-8") if isinstance(body_bytes, (bytes, bytearray)) else ""
-            ),
+            "body": body_text,
         }
     except Exception as exc:
         return failure_response(
@@ -374,6 +449,8 @@ def invoke_mock_runtime(
         )
         latency_ms = int((time.time() - start_time) * 1000)
         status = InvocationStatus.SUCCESS if response.ok else InvocationStatus.ERROR
+        response_text, resolved_session_id = mock_runtime_response_body(response, session_id)
+        token_usage = tpm_limiter.extract_token_usage(response_text)
         log_result(
             tenant_context,
             agent,
@@ -381,13 +458,17 @@ def invoke_mock_runtime(
             status,
             latency_ms,
             agent.invocation_mode,
-            session_id=session_id,
+            session_id=resolved_session_id,
             runtime_region="mock-runtime",
+            input_tokens=token_usage.input_tokens,
+            output_tokens=token_usage.output_tokens,
+            estimated_tokens=tpm_limiter.estimate_tokens_from_prompt(prompt),
+            model_id=token_usage.model_id,
         )
         return {
             "statusCode": response.status_code,
             "headers": {"Content-Type": response.headers.get("Content-Type", "application/json")},
-            "body": response.text,
+            "body": response_text,
         }
     except Exception as exc:
         return failure_response(
