@@ -120,6 +120,7 @@ def handle_streaming_invocation(
         )
 
     stream_started = False
+    ttft_ms: int | None = None
     http_session_factory = _local_or_handler_dependency(
         "get_http_session", _DEFAULT_GET_HTTP_SESSION
     )
@@ -143,6 +144,8 @@ def handle_streaming_invocation(
             for raw_line in response.iter_lines():
                 if not raw_line:
                     continue
+                if ttft_ms is None:
+                    ttft_ms = max(1, int((time.time() - start_time) * 1000))
                 response_stream.write(raw_line + b"\n\n")
             latency_ms = int((time.time() - start_time) * 1000)
             if log_result is not None:
@@ -155,6 +158,7 @@ def handle_streaming_invocation(
                     agent.invocation_mode,
                     session_id=session_id or "mock-session-id",
                     runtime_region="mock-runtime",
+                    ttft_ms=ttft_ms,
                 )
             else:
                 telemetry.log_invocation(
@@ -168,6 +172,7 @@ def handle_streaming_invocation(
                     session_id=session_id or "mock-session-id",
                     runtime_region="mock-runtime",
                     jitter=runtime_calls.get_jitter(),
+                    ttft_ms=ttft_ms,
                 )
             return None
     except Exception as exc:

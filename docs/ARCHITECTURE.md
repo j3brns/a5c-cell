@@ -516,9 +516,12 @@ Operational consumers:
 - PK: `TENANT#{tenantId}`, SK: `INV#{timestamp}#{invocationId}`
 - Attributes: invocationId, tenantId, appId, agentName, agentVersion,
   sessionId, inputTokens, outputTokens, latencyMs, status, errorCode,
-  runtimeRegion, invocationMode, jobId
+  runtimeRegion, invocationMode, jobId, ttftMs
 - This is the high-frequency tenant activity record for invocations. Do not
   mirror per-request counters or last-seen markers into `platform-tenants`.
+- `ttftMs` is populated only for streaming invocations after the first non-empty
+  runtime chunk arrives. Non-streaming records store it as null; streaming records
+  that complete without a chunk also leave it null.
 - TTL: 90 days. Capacity: on-demand (unpredictable volume)
 - Hot partition protection: SK includes random jitter suffix for high-volume tenants
 
@@ -728,6 +731,15 @@ is represented today by the AgentCoreStack metric stream into eu-west-2 dashboar
 | FM-10 | Billing Lambda failure | Billing Lambda errors | `FM-10-BillingLambdaFailure` | [RUNBOOK-006](operations/RUNBOOK-006-budget-and-suspension.md) |
 | FM-11 | Bedrock runtime throttle pressure | Bridge emits `Invocation.Throttled.Bedrock` | `FM-11-BedrockThrottlePressure` | Investigate noisy tenants, concurrency pressure, and runtime quota headroom |
 | FM-12 | Valkey unavailable | Bridge emits `valkey_unavailable` fail-open metric/log | `FM-12-ValkeyUnavailable` | Bridge continues with fail-open (TPM check skipped, metric emitted) |
+
+Streaming TTFT uses `gen_ai.ttft_ms` in `Platform/Bridge`. The Bridge publishes
+the operational series with `AgentName`, `InvocationMode=streaming`, and
+`RuntimeRegion`; a matching `AgentName=all` / `RuntimeRegion=all` series feeds the
+disabled placeholder alarm. CloudWatch custom metric dimensions are part of metric
+identity and are not aggregated automatically, so both supported query shapes are
+published deliberately. ObservabilityStack includes a disabled
+`FM-2-StreamingTTFTPlaceholder` alarm shell on p99 TTFT. Operators must set the
+AG-UI SLO threshold from production data before enabling alarm actions.
 
 ## Security Model
 

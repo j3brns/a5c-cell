@@ -162,6 +162,34 @@ def runtime_failure_response(
     return build_error_response(status_code, error_code, message, request_id)
 
 
+def read_runtime_response_body(
+    response_body: Any,
+    *,
+    start_time: float,
+) -> tuple[bytes, int | None]:
+    """Read a streaming runtime body and capture TTFT from its first non-empty chunk."""
+    if hasattr(response_body, "iter_chunks"):
+        chunks: list[bytes] = []
+        ttft_ms: int | None = None
+        for chunk in response_body.iter_chunks():
+            if not chunk:
+                continue
+            if ttft_ms is None:
+                ttft_ms = max(1, int((time.time() - start_time) * 1000))
+            if isinstance(chunk, (bytes, bytearray)):
+                chunks.append(bytes(chunk))
+            else:
+                chunks.append(str(chunk).encode("utf-8"))
+        return b"".join(chunks), ttft_ms
+
+    if hasattr(response_body, "read"):
+        body_bytes = response_body.read()
+        ttft_ms = max(1, int((time.time() - start_time) * 1000)) if body_bytes else None
+        return bytes(body_bytes) if isinstance(body_bytes, (bytes, bytearray)) else b"", ttft_ms
+
+    return bytes(response_body) if isinstance(response_body, (bytes, bytearray)) else b"", None
+
+
 def invoke_real_runtime(
     region: str,
     agent: AgentRecord,
@@ -291,10 +319,17 @@ def invoke_real_runtime(
             ).encode("utf-8"),
         )
         response_body = runtime_response.get("response")
-        if hasattr(response_body, "read"):
-            body_bytes = response_body.read()
+        ttft_ms: int | None = None
+        if agent.invocation_mode == InvocationMode.STREAMING:
+            body_bytes, ttft_ms = read_runtime_response_body(
+                response_body,
+                start_time=start_time,
+            )
         else:
-            body_bytes = response_body if isinstance(response_body, (bytes, bytearray)) else b""
+            if hasattr(response_body, "read"):
+                body_bytes = response_body.read()
+            else:
+                body_bytes = response_body if isinstance(response_body, (bytes, bytearray)) else b""
         latency_ms = int((time.time() - start_time) * 1000)
         log_result(
             tenant_context,
@@ -305,6 +340,7 @@ def invoke_real_runtime(
             agent.invocation_mode,
             session_id=session_id,
             runtime_region=region,
+            ttft_ms=ttft_ms,
         )
         headers = {"Content-Type": str(runtime_response.get("contentType", "application/json"))}
         runtime_session_id = coerce(runtime_response.get("runtimeSessionId"))
