@@ -24,8 +24,8 @@ coherent end-to-end:
 - the Bridge call path does not currently pass `ExternalId`
 - the Terraform vended-account role name does not match the Bridge IAM allow
   pattern
-- tenant create/provision paths currently accept arbitrary `accountId` values
-  without an allow-list contract
+- tenant create/provision paths must reject non-home `accountId` values unless
+  a successor allow-list contract exists
 - no supported repo path writes Terraform vended-account outputs back into the
   control-plane `executionRoleArn`/SSM source of truth
 
@@ -128,8 +128,9 @@ This issue is decision-only. The following follow-up issues are required:
    - Tests must prove matching roles in unrelated accounts are denied.
 
 2. **Reject non-home `accountId` on the supported tenant create/provision path.**
-   - Tenant create/provision currently accepts arbitrary `accountId`.
-   - The supported same-account path must enforce the home-account invariant.
+   - Implemented by TASK-915 / GitLab issue `#64`.
+   - The supported same-account path enforces the home-account invariant before
+     tenant metadata is written or TenantStack provisioning starts.
 
 3. **Document the Terraform vended-account execution-role lane as future/incomplete, not current Bridge behavior.**
    - Architecture and operator docs must not imply that the current Bridge path
@@ -159,7 +160,11 @@ The decision is based on the current repository behavior:
   `executionRoleArn` on `gsi-execution-role-arn`
 - `infra/cdk/lib/tenant-stack.ts` creates the same-account tenant execution role
   and writes its ARN to SSM
-- `src/tenant_provisioner/handler.py` propagates `accountId` without enforcing a
-  home-account invariant
+- `src/tenant_api/tenant_records.py` rejects create requests whose `accountId`
+  does not equal the configured platform home account
+- `src/tenant_api/tenant_lifecycle.py` rejects provisioning completion events
+  that carry a non-home `accountId`
+- `src/tenant_provisioner/handler.py` rejects non-home `accountId` before
+  starting TenantStack provisioning
 - `infra/terraform/modules/vended-account/main.tf` defines a cross-account role
   that currently requires trust behavior the Bridge path does not supply

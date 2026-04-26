@@ -247,6 +247,10 @@ def handle_tenant_provisioning_event(
     if status not in constants.TENANT_PROVISIONING_STATUSES:
         raise ValueError(f"Invalid provisioning status: {status}")
 
+    detail_account_id = utils.str_or_none(detail.get("accountId"))
+    if detail_account_id is not None:
+        validation.require_platform_home_account_id(detail_account_id)
+
     now = utils.now_utc()
     updates: dict[str, Any] = {
         "provisioningStatus": status,

@@ -420,6 +420,7 @@ def fixed_now_value() -> datetime:
 def apply_common_tenant_api_env(monkeypatch: Any, *, include_agents_table: bool = False) -> None:
     monkeypatch.setenv("AWS_REGION", "eu-west-2")
     monkeypatch.setenv("PLATFORM_ENV", "dev")
+    monkeypatch.setenv("PLATFORM_ACCOUNT_ID", "123456789012")
     monkeypatch.setenv("TENANTS_TABLE_NAME", "platform-tenants")
     if include_agents_table:
         monkeypatch.setenv("AGENTS_TABLE_NAME", "platform-agents")

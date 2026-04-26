@@ -1801,6 +1801,7 @@ components:
         accountId:
           type: string
           pattern: "^[0-9]{12}$"
+          description: Must equal the platform home AWS account for the supported same-account tenant path.
         executionRoleArn:
           type: [string, "null"]
         memoryStoreArn:

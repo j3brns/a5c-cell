@@ -783,6 +783,7 @@ describe('PlatformStack (TASK-023)', () => {
         AUDIT_EXPORT_BUCKET: {
           Ref: 'ResultsBucketA95A2103',
         },
+        PLATFORM_ACCOUNT_ID: '123456789012',
         TENANT_API_KEY_SECRET_PREFIX: 'platform/tenants', // pragma: allowlist secret
       }),
     );

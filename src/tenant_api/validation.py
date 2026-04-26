@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from typing import Any
 
 from src.tenant_api.constants import (
     AWS_ACCOUNT_ID_PATTERN,
+    PLATFORM_ACCOUNT_ID_ENV,
     RESERVED_TENANT_IDS,
     TENANT_ID_MAX_LENGTH,
     TENANT_ID_MIN_LENGTH,
@@ -36,6 +38,17 @@ def require_aws_account_id(value: Any, *, field: str) -> str:
         raise ValueError(f"{field} is required")
     if not AWS_ACCOUNT_ID_PATTERN.fullmatch(account_id):
         raise ValueError(f"{field} must match ^[0-9]{{12}}$")
+    return account_id
+
+
+def require_platform_home_account_id(value: Any, *, field: str = "accountId") -> str:
+    account_id = require_aws_account_id(value, field=field)
+    home_account_id = require_aws_account_id(
+        os.environ.get(PLATFORM_ACCOUNT_ID_ENV),
+        field=PLATFORM_ACCOUNT_ID_ENV,
+    )
+    if account_id != home_account_id:
+        raise ValueError(f"{field} must equal the platform home account")
     return account_id
 
 

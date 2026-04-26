@@ -116,6 +116,7 @@ export function createPlatformCompute(
       INVOCATIONS_TABLE_NAME: storage.invocationsTable.tableName,
       AUDIT_EXPORT_BUCKET: resultsBucketName,
       EVENT_BUS_NAME: 'default',
+      PLATFORM_ACCOUNT_ID: stack.account,
       TENANT_API_KEY_SECRET_PREFIX: 'platform/tenants', // pragma: allowlist secret
     },
     // ADR-014: non-VPC by default for control-plane administrative APIs
