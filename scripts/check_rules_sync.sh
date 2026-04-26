@@ -23,6 +23,21 @@ if [[ -d "$ROOT/ai-context" ]]; then
   fail=1
 fi
 
+if [[ -f "$ROOT/scripts/worktree_issues.py" ]]; then
+  echo "ERROR: retired compatibility shim still exists: scripts/worktree_issues.py"
+  fail=1
+fi
+
+if [[ -d "$ROOT/scripts/codex_flow" ]]; then
+  echo "ERROR: retired legacy directory still exists: scripts/codex_flow"
+  fail=1
+fi
+
+if [[ -d "$ROOT/infra/cdk/generated" ]]; then
+  echo "ERROR: retired generated cache directory still exists: infra/cdk/generated"
+  fail=1
+fi
+
 if ! grep -q "Read \[CLAUDE.md\](CLAUDE.md)" "$ROOT/AGENTS.md"; then
   echo "ERROR: AGENTS.md must point to CLAUDE.md"
   fail=1
