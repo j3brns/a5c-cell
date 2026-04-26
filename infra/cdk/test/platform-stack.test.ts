@@ -291,7 +291,7 @@ describe('PlatformStack (TASK-023)', () => {
     );
   });
 
-  test('deploys control-plane Lambdas outside the VPC by default as per ADR-014', () => {
+  test('deploys control-plane Lambdas outside the VPC unless they have a private dependency', () => {
     const template = synthTemplate('dev');
 
     const lambdaFunctions = template.findResources('AWS::Lambda::Function') as Record<
@@ -305,8 +305,6 @@ describe('PlatformStack (TASK-023)', () => {
     >;
 
     for (const resource of Object.values(lambdaFunctions)) {
-      // All control-plane Lambdas should now be non-VPC by default.
-      // Exception class would have VpcConfig, but none are currently in that class.
       expect(resource.Properties?.VpcConfig).toBeUndefined();
     }
   });
@@ -1325,5 +1323,57 @@ describe('PlatformStack (TASK-023)', () => {
   test('does not create API Gateway custom domain when context is absent', () => {
     template.resourceCountIs('AWS::ApiGateway::DomainName', 0);
     template.resourceCountIs('AWS::ApiGateway::BasePathMapping', 0);
+  });
+
+  test('provisions Valkey cluster (ElastiCache Serverless) for TPM rate limiting', () => {
+    template.hasResourceProperties('AWS::ElastiCache::ServerlessCache', {
+      Engine: 'valkey',
+      ServerlessCacheName: 'platform-valkey-dev',
+      SubnetIds: Match.anyValue(),
+      SecurityGroupIds: Match.anyValue(),
+    });
+
+    template.hasResourceProperties('AWS::EC2::SecurityGroup', {
+      GroupDescription: 'Security group for platform Valkey cluster (ElastiCache Serverless)',
+    });
+
+    template.hasResourceProperties('AWS::EC2::SecurityGroup', {
+      GroupDescription: 'Bridge Lambda client access to platform Valkey',
+    });
+
+    template.hasResourceProperties('AWS::EC2::SecurityGroupIngress', {
+      FromPort: 6379,
+      ToPort: 6379,
+      IpProtocol: 'tcp',
+      SourceSecurityGroupId: {
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('BridgeValkeyClientSecurityGroup')]),
+      },
+      GroupId: {
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('ValkeySecurityGroup')]),
+      },
+    });
+
+    template.hasResourceProperties('AWS::EC2::SecurityGroupEgress', {
+      FromPort: 6379,
+      ToPort: 6379,
+      IpProtocol: 'tcp',
+      DestinationSecurityGroupId: {
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('ValkeySecurityGroup')]),
+      },
+      GroupId: {
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('BridgeValkeyClientSecurityGroup')]),
+      },
+    });
+
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/platform/dev/config/valkey-endpoint',
+      Type: 'String',
+    });
+
+    const stagingTemplate = synthTemplate('staging');
+    stagingTemplate.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/platform/staging/config/valkey-endpoint',
+      Type: 'String',
+    });
   });
 });
