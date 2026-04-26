@@ -48,6 +48,11 @@ RUNTIME_ARN_PATTERN = re.compile(
     r"^arn:(?P<partition>aws|aws-us-gov|aws-cn):bedrock-agentcore:(?P<region>[a-z0-9-]+):"
     r"(?P<account_id>\d{12}):runtime/(?P<runtime_id>[\w+=,.@\-_/]+)$"
 )
+RUNTIME_ENDPOINT_ARN_PATTERN = re.compile(
+    r"^arn:(?P<partition>aws|aws-us-gov|aws-cn):bedrock-agentcore:(?P<region>[a-z0-9-]+):"
+    r"(?P<account_id>\d{12}):runtime/(?P<runtime_id>[A-Za-z][A-Za-z0-9_]{0,99}-[A-Za-z0-9]{10})"
+    r"/runtime-endpoint/(?P<endpoint_id>[A-Za-z][A-Za-z0-9_]{0,47}-[A-Za-z0-9]{10})$"
+)
 
 # Validation
 VALID_WEBHOOK_EVENTS = {"job.completed", "job.failed"}

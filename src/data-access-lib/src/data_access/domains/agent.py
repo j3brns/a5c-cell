@@ -104,6 +104,9 @@ class AgentRecord:
     commit_sha: str | None = None
     pipeline_url: str | None = None
     job_id: str | None = None
+    runtime_endpoint_arn: str | None = None
+    runtime_endpoint_name: str | None = None
+    runtime_endpoint_version: str | None = None
     evaluation_score: float | None = None
     evaluation_report_url: str | None = None
     rolled_back_by: str | None = None

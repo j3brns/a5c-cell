@@ -1528,6 +1528,15 @@ components:
           description: Immutable approval evidence recorded when the release reaches `approved`.
         runtimeArn:
           type: string
+        runtimeEndpointArn:
+          type: string
+          description: ARN of the AgentCore RuntimeEndpoint selected for this immutable agent version.
+        runtimeEndpointName:
+          type: string
+          description: Endpoint qualifier passed to AgentCore Runtime invocation.
+        runtimeEndpointVersion:
+          type: string
+          description: Runtime version observed behind the endpoint when the version was registered.
         estimatedDurationSeconds:
           type: integer
 

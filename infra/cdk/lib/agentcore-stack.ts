@@ -140,6 +140,10 @@ export class AgentCoreStack extends cdk.Stack {
     });
     runtimeEndpoint.addDependency(runtime);
 
+    const runtimeArn = runtime.getAtt('AgentRuntimeArn').toString();
+    const runtimeEndpointArn = runtimeEndpoint.ref;
+    const runtimeEndpointVersion = runtimeEndpoint.getAtt('LiveVersion').toString();
+
     const memoryTemplateParameter = new ssm.StringParameter(this, 'TenantMemoryTemplateParameter', {
       parameterName: TENANT_MEMORY_TEMPLATE_PARAMETER_NAME,
       description:
@@ -152,6 +156,34 @@ export class AgentCoreStack extends cdk.Stack {
       parameterName: '/platform/auth/jwks-url',
       description: 'Entra JWKS URL consumed by platform identity and runtime integrations',
       stringValue: entra.jwksUrl,
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'AgentCoreRuntimeArnParameter', {
+      parameterName: `/platform/${envName}/agentcore/runtime-arn`,
+      description: 'AgentCore Runtime ARN used for agent registry drift checks',
+      stringValue: runtimeArn,
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'AgentCoreRuntimeEndpointArnParameter', {
+      parameterName: `/platform/${envName}/agentcore/runtime-endpoint-arn`,
+      description: 'AgentCore Runtime endpoint ARN used by agent registration',
+      stringValue: runtimeEndpointArn,
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'AgentCoreRuntimeEndpointNameParameter', {
+      parameterName: `/platform/${envName}/agentcore/runtime-endpoint-name`,
+      description: 'AgentCore Runtime endpoint qualifier used by Bridge invocation',
+      stringValue: runtimeEndpointName,
+      tier: ssm.ParameterTier.STANDARD,
+    });
+
+    new ssm.StringParameter(this, 'AgentCoreRuntimeEndpointVersionParameter', {
+      parameterName: `/platform/${envName}/agentcore/runtime-endpoint-version`,
+      description: 'Live AgentCore Runtime version behind the configured endpoint',
+      stringValue: runtimeEndpointVersion,
       tier: ssm.ParameterTier.STANDARD,
     });
 
@@ -172,6 +204,15 @@ export class AgentCoreStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'AgentCoreRuntimeEndpointName', {
       value: runtimeEndpointName,
+    });
+    new cdk.CfnOutput(this, 'AgentCoreRuntimeArn', {
+      value: runtimeArn,
+    });
+    new cdk.CfnOutput(this, 'AgentCoreRuntimeEndpointArn', {
+      value: runtimeEndpointArn,
+    });
+    new cdk.CfnOutput(this, 'AgentCoreRuntimeEndpointVersion', {
+      value: runtimeEndpointVersion,
     });
     new cdk.CfnOutput(this, 'TenantMemoryTemplateParameterName', {
       value: memoryTemplateParameter.parameterName,

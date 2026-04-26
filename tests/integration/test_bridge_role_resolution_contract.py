@@ -89,6 +89,36 @@ def _seed_agent(ddb: Any) -> None:
     )
 
 
+def _seed_endpoint_agent(ddb: Any) -> None:
+    ddb.Table("platform-agents").put_item(
+        Item={
+            "PK": "AGENT#echo-agent",
+            "SK": "VERSION#1.0.0",
+            "agent_name": "echo-agent",
+            "version": "1.0.0",
+            "owner_team": "platform-test",
+            "tier_minimum": "basic",
+            "layer_hash": "hash",
+            "layer_s3_key": "layer.zip",
+            "script_s3_key": "script.zip",
+            "deployed_at": "2026-01-01T00:00:00Z",
+            "status": "promoted",
+            "invocation_mode": "sync",
+            "streaming_enabled": False,
+            "runtime_arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa"
+            ),
+            "runtime_endpoint_arn": (
+                "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/"
+                "PlatformdevRuntime-aaaaaaaaaa/runtime-endpoint/PlatformdevEndpoint-bbbbbbbbbb"
+            ),
+            "runtime_endpoint_name": "PlatformdevEndpoint",
+            "runtime_endpoint_version": "7",
+        }
+    )
+
+
 def _invoke_event() -> dict[str, Any]:
     return {
         "httpMethod": "POST",
@@ -195,3 +225,52 @@ def test_handler_assume_role_uses_ssm_arn_when_tenant_record_missing_field(mock_
     assert response["statusCode"] == 200
     _, kwargs = mock_sts.assume_role.call_args
     assert kwargs["RoleArn"] == "arn:aws:iam::123456789012:role/custom-ssm-role"
+
+
+def test_handler_invokes_registered_runtime_endpoint_with_session_id(mock_aws_services):
+    ddb = boto3.resource("dynamodb", region_name="eu-west-2")
+    _create_table(ddb, "platform-agents")
+    _create_table(ddb, "platform-tenants")
+    _seed_endpoint_agent(ddb)
+
+    ddb.Table("platform-tenants").put_item(
+        Item={
+            "PK": "TENANT#t-001",
+            "SK": "METADATA",
+            "tenantId": "t-001",
+            "accountId": "123456789012",
+            "executionRoleArn": "arn:aws:iam::123456789012:role/custom-record-role",
+        }
+    )
+    event = _invoke_event()
+    event["body"] = json.dumps({"input": "hello", "sessionId": "session-123"})
+
+    with (
+        patch(
+            "src.bridge.handler.get_config",
+            return_value={"runtime_region": "eu-west-2", "mock_runtime_url": None},
+        ),
+        patch("src.bridge.handler.get_sts") as mock_get_sts,
+        patch("src.bridge.handler.get_runtime_client") as mock_get_runtime_client,
+    ):
+        mock_sts = MagicMock()
+        mock_get_sts.return_value = mock_sts
+        mock_sts.assume_role.return_value = {"Credentials": {"AccessKeyId": "foo"}}
+        runtime_client = MagicMock()
+        runtime_client.invoke_agent_runtime.return_value = {
+            "contentType": "application/json",
+            "runtimeSessionId": "runtime-session-id-123456789012345",
+            "response": MagicMock(read=MagicMock(return_value=b'{"echo":"hello"}')),
+            "statusCode": 200,
+        }
+        mock_get_runtime_client.return_value = runtime_client
+
+        response = handler(event, FakeLambdaContext())
+
+    assert response["statusCode"] == 200
+    _, kwargs = runtime_client.invoke_agent_runtime.call_args
+    assert kwargs["agentRuntimeArn"] == (
+        "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/PlatformdevRuntime-aaaaaaaaaa"
+    )
+    assert kwargs["qualifier"] == "PlatformdevEndpoint"
+    assert kwargs["runtimeSessionId"] == "session-123"

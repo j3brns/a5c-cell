@@ -100,6 +100,28 @@ describe('AgentCoreStack (TASK-024)', () => {
       Type: 'String',
       Value: 'https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/discovery/v2.0/keys',
     });
+
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/platform/dev/agentcore/runtime-endpoint-name',
+      Type: 'String',
+      Value: 'PlatformdevEndpoint',
+    });
+
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/platform/dev/agentcore/runtime-endpoint-arn',
+      Type: 'String',
+      Value: {
+        Ref: 'AgentCoreRuntimeEndpoint',
+      },
+    });
+
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/platform/dev/agentcore/runtime-endpoint-version',
+      Type: 'String',
+      Value: {
+        'Fn::GetAtt': ['AgentCoreRuntimeEndpoint', 'LiveVersion'],
+      },
+    });
   });
 
   test('does not create a cross-region AgentCore metric stream', () => {
