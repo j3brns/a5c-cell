@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { PlatformApi } from '../lib/platform-api';
 import { PlatformGateway } from '../lib/platform-gateway';
@@ -126,6 +127,12 @@ function synthGateway(enforcementMode: 'LOG_ONLY' | 'ENFORCE' = 'LOG_ONLY') {
     policyName: `PlatformGatewayTenantRoleAccess${enforcementMode}`,
     requestInterceptorFn: createNodejsFunction(stack, 'RequestInterceptorFn'),
     responseInterceptorFn: createNodejsFunction(stack, 'ResponseInterceptorFn'),
+    diagnosticsToolFn: createNodejsFunction(stack, 'DiagnosticsToolFn'),
+    toolsTable: dynamodb.Table.fromTableArn(
+      stack,
+      'ToolsTable',
+      'arn:aws:dynamodb:eu-west-2:123456789012:table/platform-tools',
+    ),
   });
 
   return Template.fromStack(stack);
@@ -624,5 +631,65 @@ describe('PlatformGateway', () => {
         Mode: 'ENFORCE',
       }),
     });
+  });
+
+  test('registers the platform diagnostics Lambda as an MCP Gateway target', () => {
+    const template = synthGateway();
+
+    template.hasResourceProperties('AWS::BedrockAgentCore::GatewayTarget', {
+      Name: 'platform-diagnostics',
+      GatewayIdentifier: Match.anyValue(),
+      MetadataConfiguration: {
+        AllowedRequestHeaders: ['x-tenant-id', 'x-app-id'],
+      },
+      CredentialProviderConfigurations: [
+        {
+          CredentialProviderType: 'GATEWAY_IAM_ROLE',
+          CredentialProvider: {
+            IamCredentialProvider: {
+              Service: 'lambda',
+              Region: 'eu-west-2',
+            },
+          },
+        },
+      ],
+      TargetConfiguration: {
+        Mcp: {
+          Lambda: {
+            LambdaArn: Match.anyValue(),
+            ToolSchema: {
+              InlinePayload: Match.arrayWith([
+                Match.objectLike({
+                  Name: 'get_platform_health',
+                  InputSchema: { Type: 'object', Properties: {}, Required: [] },
+                }),
+                Match.objectLike({
+                  Name: 'get_tenant_status',
+                  InputSchema: Match.objectLike({
+                    Type: 'object',
+                    Required: ['tenant_id'],
+                  }),
+                }),
+                Match.objectLike({ Name: 'get_recent_errors' }),
+                Match.objectLike({ Name: 'get_runbook_guidance' }),
+              ]),
+            },
+          },
+        },
+      },
+    });
+
+    const policyJson = JSON.stringify(template.findResources('AWS::IAM::Policy'));
+    expect(policyJson).toContain('DiagnosticsToolFn');
+    expect(policyJson).toContain('lambda:InvokeFunction');
+
+    const customResources = template.findResources('Custom::AWS');
+    const customResourceJson = JSON.stringify(customResources);
+    expect(Object.keys(customResources)).toHaveLength(4);
+    expect(customResourceJson).toContain('TOOL#get_platform_health');
+    expect(customResourceJson).toContain('TOOL#get_tenant_status');
+    expect(customResourceJson).toContain('TOOL#get_recent_errors');
+    expect(customResourceJson).toContain('TOOL#get_runbook_guidance');
+    expect(customResourceJson).toContain('TENANT#platform');
   });
 });

@@ -49,6 +49,7 @@ export interface PlatformComputeResources {
   readonly authoriserFn: lambda.Function;
   readonly requestInterceptorFn: lambda.Function;
   readonly responseInterceptorFn: lambda.Function;
+  readonly diagnosticsToolFn: lambda.Function;
   readonly billingFn: lambda.Function;
   readonly dlqs: Record<string, sqs.IQueue>;
 }
@@ -483,6 +484,22 @@ export function createPlatformCompute(
     }),
   );
 
+  const diagnosticsToolFn = createPythonLambda({
+    assetPath: path.join(__dirname, '../../../src/platform_tools'),
+    handler: 'diagnostics_handler.lambda_handler',
+    functionNameSuffix: 'platform-diagnostics-tool',
+    timeout: cdk.Duration.seconds(30),
+    memorySize: 512,
+    environment: {
+      POWERTOOLS_SERVICE_NAME: 'platform-diagnostics-tool',
+      TENANTS_TABLE_NAME: storage.tenantsTable.tableName,
+      INVOCATIONS_TABLE_NAME: storage.invocationsTable.tableName,
+    },
+    // ADR-014: read-only control-plane diagnostics stay non-VPC by default.
+  });
+  storage.tenantsTable.grantReadData(diagnosticsToolFn);
+  storage.invocationsTable.grantReadData(diagnosticsToolFn);
+
   const billingFn = createPythonLambda({
     assetPath: path.join(__dirname, '../../../src/billing'),
     handler: 'handler.lambda_handler',
@@ -742,6 +759,7 @@ export function createPlatformCompute(
     authoriserFn,
     requestInterceptorFn,
     responseInterceptorFn,
+    diagnosticsToolFn,
     billingFn,
     dlqs,
   };

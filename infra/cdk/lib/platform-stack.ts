@@ -161,6 +161,7 @@ export class PlatformStack extends cdk.Stack {
   public readonly webhookDeliveryFn: lambda.Function;
   public readonly requestInterceptorFn: lambda.Function;
   public readonly responseInterceptorFn: lambda.Function;
+  public readonly diagnosticsToolFn: lambda.Function;
   public readonly billingFn: lambda.Function;
 
   public readonly apiWebAcl: wafv2.CfnWebACL;
@@ -280,6 +281,7 @@ export class PlatformStack extends cdk.Stack {
     this.authoriserFn = compute.authoriserFn;
     this.requestInterceptorFn = compute.requestInterceptorFn;
     this.responseInterceptorFn = compute.responseInterceptorFn;
+    this.diagnosticsToolFn = compute.diagnosticsToolFn;
     this.billingFn = compute.billingFn;
     Object.assign(this.dlqs, compute.dlqs);
 
@@ -378,6 +380,8 @@ export class PlatformStack extends cdk.Stack {
       policyName: gatewayPolicyConfiguration.policyName,
       requestInterceptorFn: this.requestInterceptorFn,
       responseInterceptorFn: this.responseInterceptorFn,
+      diagnosticsToolFn: this.diagnosticsToolFn,
+      toolsTable: this.toolsTable,
     });
 
     new cdk.CfnOutput(this, 'AgentCoreGatewayPolicyMode', {
