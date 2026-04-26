@@ -326,11 +326,17 @@ returns 403 before the tool Lambda is invoked. The agent sees a tool error, not 
 
 ## Pipeline Promotion
 
-Pushing any branch triggers validate and test.
-Merge requests also run the plan stage.
-Merge to `main` triggers `deploy-dev` automatically.
-`deploy-staging` is a manual gate on `main` and keeps the evaluation score check.
-`deploy-prod` is a manual gate on `main` and requires two-reviewer approval in GitLab.
+The root GitLab pipeline explicitly triggers the agent child pipeline for checked-in
+agents when agent code or agent pipeline configuration changes. Branch and merge
+request pipelines run the child pipeline in validation mode. On `main`, one child
+pipeline runs validation before `deploy-dev`; a separate promotion child pipeline
+surfaces the manual staging gate, and a stage-aligned production child pipeline waits
+on staging before surfacing the manual production gate. `deploy-staging` keeps the
+evaluation score check. `deploy-prod` requires two-reviewer approval in GitLab.
+
+Agent validation and deployment jobs fail closed when the expected GitLab OIDC token
+or AWS role ARN is missing. A misconfigured pipeline stops before packaging,
+evaluation, or deployment rather than continuing without AWS authority.
 
 Production deploys fail closed unless the GitLab project protects the `prod`
 environment and requires at least two approvals. CI verifies that state by
