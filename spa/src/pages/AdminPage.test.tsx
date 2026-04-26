@@ -38,7 +38,7 @@ describe("AdminPage", () => {
         displayName: "Acme",
         tier: "premium",
         status: "active",
-        runtimeRegion: "eu-west-1",
+        runtimeRegion: "eu-west-2",
         accountId: "123456789012",
         monthlyBudgetUsd: 250,
       },
@@ -48,7 +48,7 @@ describe("AdminPage", () => {
         displayName: "Beta",
         tier: "basic",
         status: "suspended",
-        runtimeRegion: "eu-west-1",
+        runtimeRegion: "eu-west-2",
         accountId: "210987654321",
         monthlyBudgetUsd: 50,
       },
@@ -362,12 +362,7 @@ describe("AdminPage", () => {
     });
   });
 
-  it("triggers failover, supports cancellation, and surfaces failures", async () => {
-    confirmMock
-      .mockReturnValueOnce(false)
-      .mockReturnValueOnce(true)
-      .mockReturnValueOnce(true);
-
+  it("shows failover as disabled in the ADR-023 topology", async () => {
     const request = vi
       .fn()
       .mockResolvedValueOnce(healthOk)
@@ -375,42 +370,12 @@ describe("AdminPage", () => {
       .mockResolvedValueOnce(quotaRows)
       .mockResolvedValueOnce({ tenants: [] })
       .mockResolvedValueOnce({ events: [] })
-      .mockResolvedValueOnce({ errorRate: 0.02, threshold: 0.05 })
-      .mockResolvedValueOnce({ ok: true })
-      .mockResolvedValueOnce(healthOk)
-      .mockResolvedValueOnce(richTenantRows)
-      .mockResolvedValueOnce(quotaRows)
-      .mockResolvedValueOnce({ tenants: [] })
-      .mockResolvedValueOnce({ events: [] })
-      .mockResolvedValueOnce({ errorRate: 0.02, threshold: 0.05 })
-      .mockRejectedValueOnce(new Error("failover failed hard"));
+      .mockResolvedValueOnce({ errorRate: 0.02, threshold: 0.05 });
 
     await renderAdminPageWithData(request);
 
-    fireEvent.click(screen.getByRole("button", { name: /trigger failover/i }));
-
+    expect(screen.getByRole("button", { name: /failover disabled/i })).toBeDisabled();
     expect(request).not.toHaveBeenCalledWith("/v1/platform/failover", expect.anything());
-
-    fireEvent.click(screen.getByRole("button", { name: /trigger failover/i }));
-
-    await waitFor(() => {
-      expect(request).toHaveBeenCalledWith("/v1/platform/failover", expect.objectContaining({
-        method: "POST",
-      }));
-    });
-    expect(notifyMock).toHaveBeenCalledWith(expect.objectContaining({
-      title: "Failover Initiated",
-      severity: "success",
-    }));
-
-    fireEvent.click(screen.getByRole("button", { name: /trigger failover/i }));
-
-    await waitFor(() => {
-      expect(notifyMock).toHaveBeenCalledWith(expect.objectContaining({
-        title: "Failover Failed",
-        message: "failover failed hard",
-        severity: "error",
-      }));
-    });
+    expect(confirmMock).not.toHaveBeenCalled();
   });
 });

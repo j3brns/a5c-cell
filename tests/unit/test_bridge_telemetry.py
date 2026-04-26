@@ -91,7 +91,7 @@ def test_emit_bedrock_throttle_metric_logs_structured_warning_on_cloudwatch_fail
             cloudwatch,
             tenant_context=_tenant_context(),
             agent=_agent(),
-            runtime_region="eu-west-1",
+            runtime_region="eu-west-2",
         )
 
     _assert_warning_record(
@@ -115,7 +115,7 @@ def test_log_invocation_persists_streaming_ttft_and_emits_metric() -> None:
             InvocationStatus.SUCCESS,
             42,
             InvocationMode.STREAMING,
-            runtime_region="eu-west-1",
+            runtime_region="eu-west-2",
             session_id="sess-ttft",
             ttft_ms=17,
         )
@@ -148,7 +148,7 @@ def test_log_invocation_persists_streaming_ttft_and_emits_metric() -> None:
     assert {
         "AgentName": "echo-agent",
         "InvocationMode": "streaming",
-        "RuntimeRegion": "eu-west-1",
+        "RuntimeRegion": "eu-west-2",
     } in dimension_sets
     assert {
         "AgentName": "all",
@@ -172,7 +172,7 @@ def test_log_invocation_persists_null_ttft_for_non_streaming_modes(mode: Invocat
             InvocationStatus.SUCCESS,
             42,
             mode,
-            runtime_region="eu-west-1",
+            runtime_region="eu-west-2",
             session_id=f"sess-{mode.value}",
         )
 

@@ -33,6 +33,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from platform_config import env_optional, get_settings
+from platform_config.runtime_topology import SERVING_RUNTIME_REGION
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -302,8 +303,7 @@ def _ssm_parameters(*, mock_jwks_url: str, localstack_endpoint: str) -> list[tup
         ]
     )
     return [
-        ("/platform/config/runtime-region", "eu-west-1"),
-        ("/platform/config/fallback-region", "eu-central-1"),
+        ("/platform/config/runtime-region", SERVING_RUNTIME_REGION),
         ("/platform/config/jwks-url", f"{mock_jwks_url}/.well-known/jwks.json"),
         ("/platform/config/api-audience", "api://platform-local"),
         ("/platform/config/api-issuer", mock_jwks_url),

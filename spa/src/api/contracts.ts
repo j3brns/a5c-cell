@@ -451,13 +451,6 @@ export const SPA_OPENAPI_CONTRACTS: OpenApiContractExpectation[] = [
     requiredFieldPaths: ["errorRate", "periodMinutes", "threshold"],
   },
   {
-    name: "platformFailover",
-    path: "/v1/platform/failover",
-    method: "post",
-    statusCode: "200",
-    requiredFieldPaths: ["status", "region", "previousRegion", "lockId", "changed"],
-  },
-  {
     name: "health",
     path: "/v1/health",
     method: "get",

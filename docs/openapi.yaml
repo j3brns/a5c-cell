@@ -645,10 +645,12 @@ paths:
     post:
       tags: [Platform]
       operationId: triggerFailover
-      summary: Trigger region failover
+      summary: Runtime failover control
       description: >
-        Triggers a region failover from primary to fallback region or vice versa.
-        Requires distributed lock to be acquired before calling.
+        Runtime regional failover is disabled in the ADR-023 v0.2 topology.
+        The route remains for backward-compatible operator clients and returns
+        RUNTIME_FAILOVER_DISABLED until a later approved design reintroduces a
+        serving failover target.
       x-required-roles:
         - Platform.Admin
         - Platform.Operator
@@ -666,7 +668,7 @@ paths:
                   type: string
       responses:
         "200":
-          description: Failover completed or confirmed idempotent
+          description: Reserved for a future approved failover design
           content:
             application/json:
               schema:

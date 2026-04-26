@@ -135,7 +135,7 @@ describe('ObservabilityStack (TASK-026)', () => {
     });
   });
 
-  test('includes both primary and failover AgentCore runtime regions in the dashboard view', () => {
+  test('includes the serving AgentCore runtime region in the dashboard view', () => {
     const template = synthStack();
     const dashboards = template.findResources('AWS::CloudWatch::Dashboard') as Record<
       string,
@@ -144,12 +144,12 @@ describe('ObservabilityStack (TASK-026)', () => {
     const dashboard = Object.values(dashboards)[0];
     const dashboardBody = JSON.stringify(dashboard.Properties?.DashboardBody);
 
-    expect(dashboardBody).toContain('AgentCore Runtime (Primary + Failover)');
+    expect(dashboardBody).toContain('AgentCore Runtime (Serving)');
     expect(dashboardBody).toContain('AWS/BedrockAgentCore');
-    expect(dashboardBody).toContain('eu-west-1 ConcurrentSessions');
-    expect(dashboardBody).toContain('eu-central-1 ConcurrentSessions');
-    expect(dashboardBody).toContain('eu-west-1 ExecutionErrors');
-    expect(dashboardBody).toContain('eu-central-1 ExecutionErrors');
+    expect(dashboardBody).toContain('eu-west-2 ConcurrentSessions');
+    expect(dashboardBody).toContain('eu-west-2 ExecutionErrors');
+    expect(dashboardBody).not.toContain('eu-west-1 ConcurrentSessions');
+    expect(dashboardBody).not.toContain('eu-west-1 ExecutionErrors');
   });
 
   test('creates FM-1 Runtime Region Unavailable alarm', () => {

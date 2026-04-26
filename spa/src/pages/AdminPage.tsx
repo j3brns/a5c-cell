@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   AuditExportResponseDto,
   ErrorRateResponseDto,
-  FailoverRequestDto,
-  FailoverResponseDto,
   HealthResponseDto,
   PlatformQuotaResponseDto,
   SecurityEventsResponseDto,
@@ -40,7 +38,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ initialSection = "overview
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTenant, setSelectedTenant] = useState<TenantDto | null>(null);
-  const [isFailoverLoading, setIsFailoverLoading] = useState(false);
   
   const { getAccessToken, account, isAuthenticated } = useAuth();
   const { notify } = useNotifications();
@@ -127,41 +124,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ initialSection = "overview
         message: err instanceof Error ? err.message : "Failed to generate audit export.",
         severity: "error",
       });
-    }
-  };
-
-  const handleFailover = async () => {
-    const targetRegion = health?.runtimeRegion.includes("eu-west-1") ? "eu-central-1" : "eu-west-1";
-    if (!window.confirm(`Are you sure you want to trigger failover to ${targetRegion}?`)) {
-      return;
-    }
-
-    try {
-      setIsFailoverLoading(true);
-      const client = getApiClient(getAccessToken);
-      
-      await client.request<FailoverResponseDto>("/v1/platform/failover", {
-        method: "POST",
-        body: JSON.stringify({ 
-          targetRegion,
-          lockId: `ui-failover-${Date.now()}` 
-        } as FailoverRequestDto),
-      });
-
-      notify({
-        title: "Failover Initiated",
-        message: `Routing shifted to ${targetRegion}.`,
-        severity: "success",
-      });
-      void fetchData();
-    } catch (err: unknown) {
-      notify({
-        title: "Failover Failed",
-        message: err instanceof Error ? err.message : "Region failover failed.",
-        severity: "error",
-      });
-    } finally {
-      setIsFailoverLoading(false);
     }
   };
 
@@ -303,20 +265,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ initialSection = "overview
         </section>
       </div>
 
-      {/* Health and Failover Control */}
+      {/* Health and Runtime Control */}
       <section className="bg-white shadow sm:rounded-lg border border-gray-200 overflow-hidden">
         <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">Postural Control / Region Failover</h3>
+          <h3 className="text-lg leading-6 font-medium text-gray-900">Postural Control / Runtime Degradation</h3>
           <button
-            onClick={() => void handleFailover()}
-            disabled={isFailoverLoading}
-            className={`px-3 py-1 text-xs font-semibold rounded border ${
-              isFailoverLoading 
-                ? "bg-gray-100 text-gray-400 border-gray-200" 
-                : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-            }`}
+            disabled
+            className="px-3 py-1 text-xs font-semibold rounded border bg-gray-100 text-gray-500 border-gray-200"
           >
-            {isFailoverLoading ? "Processing..." : "Trigger Failover"}
+            Failover Disabled
           </button>
         </div>
         <div className="px-4 py-5 sm:p-6 flex flex-wrap gap-x-12 gap-y-6">

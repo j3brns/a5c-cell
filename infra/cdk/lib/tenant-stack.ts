@@ -22,17 +22,16 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { resolveTenantMemoryProperties } from './agentcore-memory-template';
+import { AUTHORIZED_RUNTIME_REGIONS } from './runtime-topology';
 
 export interface TenantStackProps extends cdk.StackProps {
   readonly authorizedRuntimeRegions?: readonly string[];
 }
 
-const DEFAULT_AUTHORIZED_RUNTIME_REGIONS = ['eu-west-1', 'eu-central-1'] as const;
-
 function resolveAuthorizedRuntimeRegions(
   configuredRegions?: readonly string[],
 ): string[] {
-  const regions = (configuredRegions ?? DEFAULT_AUTHORIZED_RUNTIME_REGIONS)
+  const regions = (configuredRegions ?? AUTHORIZED_RUNTIME_REGIONS)
     .map((region) => region.trim())
     .filter((region) => region.length > 0);
 
@@ -164,7 +163,7 @@ export class TenantStack extends cdk.Stack {
       }),
     );
 
-    // Permission to invoke AgentCore Runtime only in the approved primary/failover regions.
+    // Permission to invoke AgentCore Runtime only in the approved serving region.
     executionRole.addToPolicy(
       new iam.PolicyStatement({
         sid: 'AgentCoreRuntimeAccess',

@@ -115,12 +115,12 @@ class TestTenantRecord:
     def test_optional_fields_accept_values(self):
         tenant = _make_tenant(
             memory_store_arn="arn:aws:bedrock:eu-west-2:123:memory/m-1",
-            runtime_region="eu-west-1",
+            runtime_region="eu-west-2",
             fallback_region="eu-central-1",
             api_key_secret_arn="arn:aws:secretsmanager:eu-west-2:123:secret:k",
             monthly_budget_usd=1000.0,
         )
-        assert tenant.runtime_region == "eu-west-1"
+        assert tenant.runtime_region == "eu-west-2"
         assert tenant.monthly_budget_usd == 1000.0
 
     def test_frozen(self):
@@ -347,7 +347,7 @@ def _make_invocation(**overrides) -> InvocationRecord:
         output_tokens=120,
         latency_ms=340,
         status=InvocationStatus.SUCCESS,
-        runtime_region="eu-west-1",
+        runtime_region="eu-west-2",
         invocation_mode=InvocationMode.SYNC,
         timestamp="2026-02-24T12:00:00Z",
         ttl=int(time.time()) + INVOCATION_TTL_SECONDS,

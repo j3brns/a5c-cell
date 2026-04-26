@@ -6,7 +6,7 @@ import { TenantStack } from '../lib/tenant-stack';
 describe('TenantStack (TASK-025)', () => {
   const synthTemplate = (
     context: Record<string, string>,
-    authorizedRuntimeRegions = ['eu-west-1', 'eu-central-1'],
+    authorizedRuntimeRegions = ['eu-west-2'],
   ) => {
     const app = new cdk.App({ context });
     const stack = new TenantStack(app, 'platform-tenant-test', {
@@ -185,14 +185,13 @@ describe('TenantStack (TASK-025)', () => {
     });
   });
 
-  test('limits runtime invocation permissions to the approved primary and failover regions', () => {
+  test('limits runtime invocation permissions to the approved serving region', () => {
     const template = synthTemplate(defaultContext);
     const statement = runtimeAccessStatement(template);
 
     expect(asArray(statement.Action)).toEqual(['bedrock-agentcore:InvokeAgentRuntime']);
     expect(asArray(statement.Resource)).toEqual([
-      'arn:aws:bedrock-agentcore:eu-west-1:123456789012:runtime/*',
-      'arn:aws:bedrock-agentcore:eu-central-1:123456789012:runtime/*',
+      'arn:aws:bedrock-agentcore:eu-west-2:123456789012:runtime/*',
     ]);
     expect(asArray(statement.Resource)).not.toContain(
       'arn:aws:bedrock-agentcore:*:123456789012:runtime/*',
@@ -200,11 +199,11 @@ describe('TenantStack (TASK-025)', () => {
   });
 
   test('supports explicit runtime allowlists without widening beyond the configured regions', () => {
-    const template = synthTemplate(defaultContext, ['eu-west-1']);
+    const template = synthTemplate(defaultContext, ['eu-west-2']);
     const statement = runtimeAccessStatement(template);
 
     expect(asArray(statement.Resource)).toEqual([
-      'arn:aws:bedrock-agentcore:eu-west-1:123456789012:runtime/*',
+      'arn:aws:bedrock-agentcore:eu-west-2:123456789012:runtime/*',
     ]);
   });
 

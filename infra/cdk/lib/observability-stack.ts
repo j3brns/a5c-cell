@@ -9,6 +9,7 @@ import * as oam from 'aws-cdk-lib/aws-oam';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
+import { AUTHORIZED_RUNTIME_REGIONS } from './runtime-topology';
 
 export interface ObservabilityStackProps extends cdk.StackProps {
   readonly api: apigateway.RestApi;
@@ -36,7 +37,7 @@ export class ObservabilityStack extends cdk.Stack {
     const alarmNamePrefix = this.stackName;
     const agentCoreMetricNamespace = 'AWS/BedrockAgentCore';
     const authoriserMetricNamespace = 'Platform/Authoriser';
-    const runtimeRegions = ['eu-west-1', 'eu-central-1'];
+    const runtimeRegions = [...AUTHORIZED_RUNTIME_REGIONS];
     const authoriserLogGroup = logs.LogGroup.fromLogGroupName(
       this,
       'AuthoriserLogGroup',
@@ -171,7 +172,7 @@ export class ObservabilityStack extends cdk.Stack {
         height: 1,
       }),
       new cloudwatch.GraphWidget({
-        title: 'AgentCore Runtime (Primary + Failover)',
+        title: 'AgentCore Runtime (Serving)',
         left: runtimeRegions.map(
           (region) =>
             new cloudwatch.Metric({
@@ -443,7 +444,7 @@ export class ObservabilityStack extends cdk.Stack {
     });
 
     // FM-7: AgentCore Memory unavailable (Degraded mode metric)
-    // Keep alarm reads aligned with the namespace exported by AgentCoreStack metric streams.
+    // Keep alarm reads aligned with AgentCore's native runtime metric namespace.
     new cloudwatch.Alarm(this, 'Fm7AgentCoreMemoryDegradedAlarm', {
       alarmName: `${alarmNamePrefix}-FM-7-AgentCoreMemoryDegraded`,
       alarmDescription: 'AgentCore Memory is in degraded mode',

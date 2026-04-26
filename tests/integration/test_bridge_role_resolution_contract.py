@@ -84,7 +84,7 @@ def _seed_agent(ddb: Any) -> None:
             "status": "promoted",
             "invocation_mode": "sync",
             "streaming_enabled": False,
-            "runtime_arn": "arn:aws:bedrock-agentcore:eu-west-1:210987654321:runtime/echo-agent",
+            "runtime_arn": "arn:aws:bedrock-agentcore:eu-west-2:210987654321:runtime/echo-agent",
         }
     )
 
@@ -125,7 +125,7 @@ def test_handler_assume_role_uses_tenant_record_arn(mock_aws_services):
     with (
         patch(
             "src.bridge.handler.get_config",
-            return_value={"runtime_region": "eu-west-1", "mock_runtime_url": None},
+            return_value={"runtime_region": "eu-west-2", "mock_runtime_url": None},
         ),
         patch("src.bridge.handler.get_sts") as mock_get_sts,
         patch("src.bridge.handler.get_runtime_client") as mock_get_runtime_client,
@@ -173,7 +173,7 @@ def test_handler_assume_role_uses_ssm_arn_when_tenant_record_missing_field(mock_
     with (
         patch(
             "src.bridge.handler.get_config",
-            return_value={"runtime_region": "eu-west-1", "mock_runtime_url": None},
+            return_value={"runtime_region": "eu-west-2", "mock_runtime_url": None},
         ),
         patch("src.bridge.handler.get_sts") as mock_get_sts,
         patch("src.bridge.handler.get_runtime_client") as mock_get_runtime_client,

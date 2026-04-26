@@ -63,8 +63,7 @@ make logs-bridge ENV=prod MINUTES=5   # Should return recent bridge telemetry
 
 ### 5. Read all runbooks (in order)
 RUNBOOK-000 through RUNBOOK-009. Understand each trigger and response.
-Complete a dry-run of RUNBOOK-001 (failover) in the dev environment only while the
-pre-v0.2 runtime-failover path remains implemented.
+Complete a dry-run of RUNBOOK-001's degradation checklist in the dev environment.
 
 ## Success Criteria
 Operator is considered onboarded when:

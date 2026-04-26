@@ -7,6 +7,7 @@ from typing import Any
 
 from aws_lambda_powertools import Logger
 
+from platform_config.runtime_topology import SERVING_RUNTIME_REGION
 from src.bridge.constants import MOCK_RUNTIME_URL_PARAM, RUNTIME_REGION_PARAM, VALKEY_ENDPOINT_PARAM
 
 logger = Logger(service="bridge-config-provider")
@@ -61,7 +62,7 @@ def fetch_appconfig_config(http_session: Any) -> dict[str, Any] | None:
         if response.status_code == 200:
             config = response.json()
             return {
-                "runtime_region": config.get("runtime_region", "eu-west-1"),
+                "runtime_region": config.get("runtime_region", SERVING_RUNTIME_REGION),
                 "mock_runtime_url": config.get("mock_runtime_url"),
                 "valkey_endpoint": config.get("valkey_endpoint"),
             }
@@ -85,7 +86,7 @@ def fetch_ssm_config(ssm: Any, http_session: Any) -> dict[str, Any]:
             if p.get("Name") and p.get("Value")
         }
         return {
-            "runtime_region": params.get(RUNTIME_REGION_PARAM, "eu-west-1"),
+            "runtime_region": params.get(RUNTIME_REGION_PARAM, SERVING_RUNTIME_REGION),
             "mock_runtime_url": params.get(MOCK_RUNTIME_URL_PARAM),
             "valkey_endpoint": params.get(VALKEY_ENDPOINT_PARAM),
         }
@@ -95,4 +96,8 @@ def fetch_ssm_config(ssm: Any, http_session: Any) -> dict[str, Any]:
 
 
 def config_defaults() -> dict[str, Any]:
-    return {"runtime_region": "eu-west-1", "mock_runtime_url": None, "valkey_endpoint": None}
+    return {
+        "runtime_region": SERVING_RUNTIME_REGION,
+        "mock_runtime_url": None,
+        "valkey_endpoint": None,
+    }

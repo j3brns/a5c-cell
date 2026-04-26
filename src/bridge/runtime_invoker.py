@@ -18,7 +18,7 @@ class RuntimeInvoker:
         invoke_mock_runtime: Callable[..., Any],
         invoke_real_runtime: Callable[..., Any],
         is_runtime_unavailable_error: Callable[[Exception], bool],
-        trigger_failover: Callable[[str], str],
+        trigger_failover: Callable[[str], str | None],
         runtime_failure_response: Callable[..., dict[str, Any]],
         log_warning: Callable[[str], None] | None = None,
         log_exception: Callable[[str], None] | None = None,
@@ -67,6 +67,20 @@ class RuntimeInvoker:
                 if self._log_warning is not None:
                     self._log_warning("Runtime unavailable, attempting failover")
                 new_region = self._trigger_failover(str(config["runtime_region"]))
+                if new_region is None:
+                    if self._log_exception is not None:
+                        self._log_exception("Runtime unavailable and no failover region configured")
+                    return self._runtime_failure_response(
+                        tenant_context,
+                        agent,
+                        invocation_id,
+                        start_time,
+                        agent.invocation_mode,
+                        str(config["runtime_region"]),
+                        request_id,
+                        exc,
+                        session_id=session_id,
+                    )
                 retry_config = self._get_config(force_refresh=True)
                 retry_mock_url = retry_config.get("mock_runtime_url")
                 try:

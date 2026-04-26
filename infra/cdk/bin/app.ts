@@ -10,7 +10,7 @@
  *   3. PlatformStack   — REST API, WAF, Lambdas, Gateway  (TASK-023)
  *   4. TenantStack     — per-tenant (EventBridge-triggered) (TASK-025)
  *   5. ObservabilityStack — dashboards, alarms            (TASK-026)
- *   6. AgentCoreStack  — Runtime config eu-west-1         (TASK-024)
+ *   6. AgentCoreStack  — Runtime config eu-west-2         (TASK-024)
  */
 import * as cdk from 'aws-cdk-lib';
 import { AgentCoreStack } from '../lib/agentcore-stack';
@@ -19,6 +19,13 @@ import { NetworkStack } from '../lib/network-stack';
 import { ObservabilityStack } from '../lib/observability-stack';
 import { PlatformEdgeSecurityStack } from '../lib/platform-edge-security-stack';
 import { PlatformStack } from '../lib/platform-stack';
+import {
+  AUTHORIZED_RUNTIME_REGIONS,
+  EDGE_REGION,
+  HOME_REGION,
+  RUNTIME_NETWORK_MODE,
+  SERVING_RUNTIME_REGION,
+} from '../lib/runtime-topology';
 import { TenantStack } from '../lib/tenant-stack';
 
 const app = new cdk.App();
@@ -28,12 +35,7 @@ if (!env) {
   throw new Error('env context is required. Use: --context env=dev|staging|prod');
 }
 
-// eu-west-2 is the platform home region (see ARCHITECTURE.md, ADR-009).
-// This is an architectural constant, not runtime configuration.
-const HOME_REGION = 'eu-west-2';
-const PRIMARY_RUNTIME_REGION = 'eu-west-1';
-const FAILOVER_RUNTIME_REGION = 'eu-central-1';
-const EDGE_REGION = 'us-east-1';
+// These are architectural constants, not runtime configuration.
 
 const awsEnv: cdk.Environment = {
   account: process.env['CDK_DEFAULT_ACCOUNT'],
@@ -41,7 +43,7 @@ const awsEnv: cdk.Environment = {
 };
 const runtimeEnv: cdk.Environment = {
   account: process.env['CDK_DEFAULT_ACCOUNT'],
-  region: PRIMARY_RUNTIME_REGION,
+  region: SERVING_RUNTIME_REGION,
 };
 const edgeEnv: cdk.Environment = {
   account: process.env['CDK_DEFAULT_ACCOUNT'],
@@ -52,18 +54,6 @@ const edgeEnv: cdk.Environment = {
 const networkStack = new NetworkStack(app, `platform-network-${env}`, {
   env: awsEnv,
   description: `Platform network infrastructure — ${env}`,
-  runtimePeerRegion: PRIMARY_RUNTIME_REGION,
-});
-
-const failoverRuntimeEnv: cdk.Environment = {
-  account: process.env['CDK_DEFAULT_ACCOUNT'],
-  region: FAILOVER_RUNTIME_REGION,
-};
-
-new NetworkStack(app, `platform-network-shadow-${env}`, {
-  env: failoverRuntimeEnv,
-  description: `Platform failover runtime network shadow — ${env}`,
-  runtimePeerRegion: HOME_REGION,
 });
 
 // 2. IdentityStack
@@ -100,7 +90,7 @@ new TenantStack(app, stackId, {
   description: tenantId
     ? `Platform resources for tenant ${tenantId} — ${env}`
     : `Platform per-tenant resources stub — ${env}`,
-  authorizedRuntimeRegions: [PRIMARY_RUNTIME_REGION, FAILOVER_RUNTIME_REGION],
+  authorizedRuntimeRegions: AUTHORIZED_RUNTIME_REGIONS,
 });
 
 // 5. ObservabilityStack
@@ -126,10 +116,12 @@ new ObservabilityStack(app, `platform-observability-${env}`, {
   dlqs: platformStack.dlqs,
 });
 
-// 6. AgentCoreStack (cross-region: deploys config for eu-west-1 Runtime)
+// 6. AgentCoreStack
 new AgentCoreStack(app, `platform-agentcore-${env}`, {
   env: runtimeEnv,
-  description: `Platform AgentCore configuration (${PRIMARY_RUNTIME_REGION}) — ${env}`,
+  description: `Platform AgentCore configuration (${SERVING_RUNTIME_REGION}) — ${env}`,
   homeRegion: HOME_REGION,
-  runtimeNetworkPosture: 'PUBLIC_WITH_COMPENSATING_CONTROLS',
+  runtimeNetworkMode: RUNTIME_NETWORK_MODE,
+  runtimeSubnetIds: networkStack.vpc.isolatedSubnets.map((subnet) => subnet.subnetId),
+  runtimeSecurityGroupIds: [networkStack.agentCoreRuntimeSecurityGroup.securityGroupId],
 });

@@ -33,7 +33,7 @@ Every **a5c-cell** maps 1:1 to an AWS account, a service boundary, an operations
 - **Three invocation modes** — synchronous up to 15 minutes, streaming SSE up to 15 minutes, and asynchronous execution with webhooks up to 8 hours
 - **Self-service agent pipeline** — `make agent-push` supports a fast path when dependencies are unchanged
 - **SPA frontend** — React application with OIDC login, streaming responses, and session keepalive
-- **EU-only data residency** — approved topology keeps data in London and runtime in Dublin, with evaluation capability in Frankfurt
+- **EU-only data residency** — approved topology keeps data and serving runtime in London, with evaluation capability outside the serving path when required
 - **LocalStack developer loop** — full local inner loop without AWS credentials
 
 ## Architecture
@@ -66,7 +66,7 @@ flowchart LR
         SEC[Secrets Manager + KMS]
     end
 
-    subgraph RUNTIME[Runtime Plane - eu-west-1]
+    subgraph RUNTIME[Runtime Plane - eu-west-2]
         AC[AgentCore Runtime]
         INT[Gateway Interceptors]
         TOOLS[Tool Lambdas + AWS Services]
@@ -88,7 +88,7 @@ flowchart LR
     INT --> TOOLS
 ```
 
-*System topology: three actor types enter through the platform edge. The control plane in London resolves identity, policy, and routing. The runtime plane in Dublin executes agents under scoped controls. Regions reflect the current deployment topology defined in ADR-009.*
+*System topology: three actor types enter through the platform edge. The control plane and serving runtime plane are in London under the ADR-023 v0.2 contract.*
 
 ### Request lifecycle
 
@@ -157,7 +157,8 @@ A single-layer failure is not sufficient to compromise tenant data boundaries. T
 
 ### Regional topology
 
-The control plane and the runtime plane are in different regions. This is not an accident.
+The control plane and the runtime plane are separate responsibilities, even when v0.2
+places both in London.
 
 #### Why separate the planes
 
@@ -169,13 +170,12 @@ The [Fault Isolation Boundaries](https://docs.aws.amazon.com/whitepapers/latest/
 
 | Region | Role | Key services |
 |--------|------|-------------|
-| **eu-west-2** London | HOME — control and data plane | REST API Gateway, WAF, CloudFront, DynamoDB, S3, Secrets Manager, SSM, Lambda, KMS |
-| **eu-west-1** Dublin | COMPUTE — primary runtime | AgentCore Runtime arm64 Firecracker, Observability, Browser, Code Interpreter |
-| **eu-central-1** Frankfurt | EVALUATION and failover | AgentCore Evaluations, runtime failover target |
+| **eu-west-2** London | HOME + RUNTIME — control, data, and serving compute plane | REST API Gateway, WAF, CloudFront, DynamoDB, S3, Secrets Manager, SSM, Lambda, KMS, AgentCore Runtime |
+| **eu-central-1** Frankfurt | EVALUATION | AgentCore Evaluations when AWS regional support requires it |
 
 #### Intentional optionality
 
-This regional split was intentional optionality: at the time of ADR-009, AgentCore Runtime was not available in London, so the architecture treats the runtime region as a policy-driven parameter rather than a hardcoded assumption. AWS has since expanded AgentCore availability across multiple EU regions, largely superseding the original availability constraint. The topology remains in place pending an architecture review and controlled migration decision — but the separation of concerns it enforces is worth preserving regardless of which region hosts what.
+The old Dublin zigzag was intentional optionality: at the time of ADR-009, AgentCore Runtime was not available in London. ADR-023 supersedes that deployment shape for v0.2: Runtime is in `eu-west-2`, VPC mode is required for staging and production, and there is no `eu-west-1` serving fallback.
 
 ### Entity lifecycle and CDK dependencies
 
@@ -329,8 +329,6 @@ make spa-push ENV=dev         # Build, publish to S3, invalidate CloudFront
 make ops-top-tenants ENV=prod
 make ops-quota-report ENV=prod
 make ops-backfill-tenant-role-arn APPLY=1
-make failover-lock-acquire && \
-  make infra-set-runtime-region REGION=eu-central-1 ENV=prod
 ```
 
 See [Operator Runbooks](docs/operations/) for incident procedures and operational detail.
@@ -350,7 +348,7 @@ Platform Lambda source directories use `snake_case`. The shared `src/data-access
 
 | Concern | Technology |
 |---------|-----------|
-| Agent runtime | Amazon Bedrock AgentCore Runtime arm64 Firecracker; primary runtime region is eu-west-1 |
+| Agent runtime | Amazon Bedrock AgentCore Runtime arm64 Firecracker; serving runtime region is eu-west-2 |
 | Human authentication | Microsoft Entra ID OIDC |
 | Machine authentication | AWS SigV4 |
 | Platform IaC | AWS CDK with strict TypeScript |

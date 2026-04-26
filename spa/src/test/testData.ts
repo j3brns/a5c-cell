@@ -82,14 +82,14 @@ export const sessionsList: SessionsListResponseDto = {
 export const healthOk: HealthResponseDto = {
   status: "ok",
   version: "0.1.0",
-  runtimeRegion: "eu-west-1",
+  runtimeRegion: "eu-west-2",
   timestamp: "2026-03-01T09:00:00Z",
 };
 
 export const healthFail: HealthResponseDto = {
   status: "fail",
   version: "0.1.0",
-  runtimeRegion: "eu-west-1",
+  runtimeRegion: "eu-west-2",
   timestamp: "2026-03-01T09:00:00Z",
 };
 
@@ -101,7 +101,7 @@ export const tenantRows: TenantsListResponseDto = {
       displayName: "Acme",
       tier: "premium",
       status: "active",
-      runtimeRegion: "eu-west-1",
+      runtimeRegion: "eu-west-2",
     },
     {
       tenantId: "t-002",
@@ -109,7 +109,7 @@ export const tenantRows: TenantsListResponseDto = {
       displayName: "Beta",
       tier: "basic",
       status: "suspended",
-      runtimeRegion: "eu-west-1",
+      runtimeRegion: "eu-west-2",
     },
   ],
 };
@@ -117,7 +117,7 @@ export const tenantRows: TenantsListResponseDto = {
 export const quotaRows: PlatformQuotaResponseDto = {
   utilisation: [
     {
-      region: "eu-west-1",
+      region: "eu-west-2",
       quotaName: "ConcurrentSessions",
       currentValue: 5,
       limit: 25,

@@ -36,7 +36,7 @@ describe("contracts adapters", () => {
       displayName: "Acme",
       tier: "premium",
       status: "active",
-      runtimeRegion: "eu-west-1",
+      runtimeRegion: "eu-west-2",
     };
 
     expect(toTenantAdminRow(dto)).toEqual({
@@ -44,7 +44,7 @@ describe("contracts adapters", () => {
       displayName: "Acme",
       tier: "premium",
       status: "active",
-      runtimeRegion: "eu-west-1",
+      runtimeRegion: "eu-west-2",
     });
   });
 });

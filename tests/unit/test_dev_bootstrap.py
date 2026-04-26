@@ -226,7 +226,7 @@ def test_seed_ssm_runtime_region() -> None:
         localstack_endpoint="http://localhost:4566",
     )
     resp = ssm_client.get_parameter(Name="/platform/config/runtime-region")  # type: ignore[union-attr]
-    assert resp["Parameter"]["Value"] == "eu-west-1"
+    assert resp["Parameter"]["Value"] == "eu-west-2"
 
 
 @mock_aws

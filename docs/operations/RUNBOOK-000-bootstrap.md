@@ -4,7 +4,7 @@
 Bootstrap the platform from scratch into a new AWS environment. Run once per environment.
 
 ## Prerequisites
-- AWS account ID for target environment (single-account, multi-region deployment)
+- AWS account ID for target environment (single-account, eu-west-2 serving deployment)
 - AWS CLI configured with bootstrap IAM user credentials (AdministratorAccess, temp)
 - Node 20 LTS, uv, Docker, GitLab project access
 - Entra app registration completed (see docs/entra-setup.md)
@@ -23,12 +23,12 @@ Bootstrap now fails closed when the active caller account does not match
 
 ## Steps (run in order — each must succeed before proceeding)
 
-### Step 1: CDK Bootstrap (all regions)
+### Step 1: CDK Bootstrap
 ```bash
 make bootstrap-cdk ENV=dev
-# Runs: cdk bootstrap in eu-west-2, eu-west-1, eu-central-1
-# Creates: CDKToolkit stacks in each region
-# Expected output: Successfully bootstrapped (3 regions)
+# Runs: cdk bootstrap in eu-west-2
+# Creates: CDKToolkit stack in the home/serving region
+# Expected output: Successfully bootstrapped
 ```
 
 ### Step 2: Seed Initial Secrets

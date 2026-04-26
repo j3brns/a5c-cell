@@ -9,7 +9,7 @@ import pytest
 from botocore.exceptions import EndpointConnectionError
 
 from src.tenant_api import handler as tenant_api_handler
-from src.tenant_api import ops_control, tenant_lifecycle
+from src.tenant_api import tenant_lifecycle
 from tests.unit.tenant_api_test_support import (
     FailingPlatformQuotaClient,
     FakeAwsSession,
@@ -1003,171 +1003,18 @@ def test_audit_export_requires_bucket_configuration(
     assert error["message"] == "Audit export bucket is not configured"
 
 
-def test_platform_failover_updates_runtime_region_when_lock_is_valid(
-    fake_state: dict[str, Any], fixed_now: datetime
-) -> None:
-    _seed_failover_lock(fake_state, ttl=int(fixed_now.timestamp()) + 300)
+def test_platform_failover_is_disabled_for_v0_2_topology(fake_state: dict[str, Any]) -> None:
     event = _event(
         method="POST",
         body={"targetRegion": "eu-central-1", "lockId": "lock-123"},
         caller_tenant_id="platform",
     )
     event["path"] = "/v1/platform/failover"
-    response = _invoke(event)
-
-    assert response["statusCode"] == 200
-    assert _body(response) == {
-        "status": "completed",
-        "region": "eu-central-1",
-        "previousRegion": "eu-west-1",
-        "lockId": "lock-123",
-        "changed": True,
-        "audit": {
-            "schemaVersion": 1,
-            "occurredAt": "2026-02-25T12:00:00Z",
-            "actorTenantId": "platform",
-            "actorAppId": "app-admin",
-            "actorSub": "user-123",
-            "operationType": "runtime_failover",
-            "outcome": "succeeded",
-        },
-    }
-    assert fake_state["deps"].ssm.parameters["/platform/config/runtime-region"] == "eu-central-1"
-    assert fake_state["deps"].ssm.put_calls == [
-        {
-            "Name": "/platform/config/runtime-region",
-            "Value": "eu-central-1",
-            "Type": "String",
-            "Overwrite": True,
-        }
-    ]
-
-
-def test_platform_failover_is_idempotent_when_target_region_is_already_active(
-    fake_state: dict[str, Any], fixed_now: datetime
-) -> None:
-    _seed_failover_lock(fake_state, ttl=int(fixed_now.timestamp()) + 300)
-    fake_state["deps"].ssm.parameters["/platform/config/runtime-region"] = "eu-central-1"
-    event = _event(
-        method="POST",
-        body={"targetRegion": "eu-central-1", "lockId": "lock-123"},
-        caller_tenant_id="platform",
-    )
-    event["path"] = "/v1/platform/failover"
-
-    response = _invoke(event)
-
-    assert response["statusCode"] == 200
-    assert _body(response) == {
-        "status": "completed",
-        "region": "eu-central-1",
-        "previousRegion": "eu-central-1",
-        "lockId": "lock-123",
-        "changed": False,
-        "audit": {
-            "schemaVersion": 1,
-            "occurredAt": "2026-02-25T12:00:00Z",
-            "actorTenantId": "platform",
-            "actorAppId": "app-admin",
-            "actorSub": "user-123",
-            "operationType": "runtime_failover",
-            "outcome": "succeeded",
-        },
-    }
-    assert fake_state["deps"].ssm.put_calls == []
-
-
-def test_platform_failover_rejects_missing_lock(fake_state: dict[str, Any]) -> None:
-    event = _event(
-        method="POST",
-        body={"targetRegion": "eu-central-1", "lockId": "lock-123"},
-        caller_tenant_id="platform",
-    )
-    event["path"] = "/v1/platform/failover"
-
     response = _invoke(event)
 
     assert response["statusCode"] == 409
-    assert _body(response)["error"]["code"] == "LOCK_NOT_HELD"
+    assert _body(response)["error"]["code"] == "RUNTIME_FAILOVER_DISABLED"
     assert fake_state["deps"].ssm.put_calls == []
-
-
-def test_platform_failover_rejects_expired_lock(
-    fake_state: dict[str, Any], fixed_now: datetime
-) -> None:
-    _seed_failover_lock(fake_state, ttl=int(fixed_now.timestamp()) - 1)
-    event = _event(
-        method="POST",
-        body={"targetRegion": "eu-central-1", "lockId": "lock-123"},
-        caller_tenant_id="platform",
-    )
-    event["path"] = "/v1/platform/failover"
-
-    response = _invoke(event)
-
-    assert response["statusCode"] == 409
-    assert _body(response)["error"]["code"] == "LOCK_EXPIRED"
-    assert fake_state["deps"].ssm.put_calls == []
-
-
-def test_platform_failover_rejects_lock_owned_by_another_actor(
-    fake_state: dict[str, Any], fixed_now: datetime
-) -> None:
-    _seed_failover_lock(fake_state, lock_id="other-lock", ttl=int(fixed_now.timestamp()) + 300)
-    event = _event(
-        method="POST",
-        body={"targetRegion": "eu-central-1", "lockId": "lock-123"},
-        caller_tenant_id="platform",
-    )
-    event["path"] = "/v1/platform/failover"
-
-    response = _invoke(event)
-
-    assert response["statusCode"] == 409
-    assert _body(response)["error"]["code"] == "LOCK_MISMATCH"
-    assert fake_state["deps"].ssm.put_calls == []
-
-
-def test_platform_failover_ssm_update_failure_returns_error_and_logs_context(
-    fake_state: dict[str, Any], fixed_now: datetime, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _seed_failover_lock(fake_state, ttl=int(fixed_now.timestamp()) + 300)
-    fake_state["deps"].ssm.put_error = tenant_api_handler.ClientError(
-        {"Error": {"Code": "AccessDeniedException", "Message": "denied"}},
-        "PutParameter",
-    )
-    logged: list[tuple[str, dict[str, Any]]] = []
-
-    def _capture_exception(message: str, *args: Any, **kwargs: Any) -> None:
-        extra = kwargs.get("extra")
-        if message == "Platform failover SSM update failed" and isinstance(extra, dict):
-            logged.append((message, dict(extra)))
-
-    monkeypatch.setattr(ops_control.logger, "exception", _capture_exception)
-    event = _event(
-        method="POST",
-        body={"targetRegion": "eu-central-1", "lockId": "lock-123"},
-        caller_tenant_id="platform",
-    )
-    event["path"] = "/v1/platform/failover"
-
-    response = _invoke(event)
-
-    assert response["statusCode"] == 502
-    assert _body(response)["error"]["code"] == "AWS_CLIENT_ERROR"
-    assert fake_state["deps"].ssm.parameters["/platform/config/runtime-region"] == "eu-west-1"
-    assert logged == [
-        (
-            "Platform failover SSM update failed",
-            {
-                "actor": "user-123",
-                "lock_id": "lock-123",
-                "lock_owner": "ops@example.com",
-                "previous_region": "eu-west-1",
-                "target_region": "eu-central-1",
-            },
-        )
-    ]
 
 
 def test_platform_failover_requires_platform_admin_role(fake_state: dict[str, Any]) -> None:
@@ -1251,8 +1098,8 @@ def test_platform_quota_report(fake_state: dict[str, Any]) -> None:
     assert body["audit"]["operationType"] == "quota_report"
     assert fake_state["deps"].platform_quota_client.calls == [
         {
-            "active_region": "eu-west-1",
-            "fallback_region": "eu-central-1",
+            "active_region": "eu-west-2",
+            "fallback_region": None,
         }
     ]
 
@@ -1282,11 +1129,11 @@ def test_platform_quota_report_returns_explicit_aws_error(fake_state: dict[str, 
 def test_aws_platform_quota_client_reads_metrics_and_service_quotas() -> None:
     session = FakeAwsSession(
         cloudwatch_clients={
-            "eu-west-1": FakeCloudWatchClient([{"Maximum": 7.0}, {"Maximum": 11.0}]),
+            "eu-west-2": FakeCloudWatchClient([{"Maximum": 7.0}, {"Maximum": 11.0}]),
             "eu-central-1": FakeCloudWatchClient([]),
         },
         service_quotas_clients={
-            "eu-west-1": FakeServiceQuotasClient(
+            "eu-west-2": FakeServiceQuotasClient(
                 [
                     {
                         "Quotas": [{"QuotaName": "Other quota", "Value": 1.0}],
@@ -1319,11 +1166,11 @@ def test_aws_platform_quota_client_reads_metrics_and_service_quotas() -> None:
 
     client = tenant_api_handler._AwsPlatformQuotaClient(session)
 
-    utilisation = client.get_utilisation(active_region="eu-west-1", fallback_region="eu-central-1")
+    utilisation = client.get_utilisation(active_region="eu-west-2", fallback_region="eu-central-1")
 
     assert utilisation == [
         {
-            "region": "eu-west-1",
+            "region": "eu-west-2",
             "quotaName": "ConcurrentSessions",
             "currentValue": 11.0,
             "limit": 600.0,
@@ -1337,7 +1184,7 @@ def test_aws_platform_quota_client_reads_metrics_and_service_quotas() -> None:
             "utilisationPercentage": 0.0,
         },
     ]
-    eu_west_service_quotas = session.service_quotas_clients["eu-west-1"]
+    eu_west_service_quotas = session.service_quotas_clients["eu-west-2"]
     assert eu_west_service_quotas.calls == [
         {"ServiceCode": "bedrock-agentcore"},
         {"ServiceCode": "bedrock-agentcore", "NextToken": "next-page"},

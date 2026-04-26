@@ -17,9 +17,11 @@ describe('AgentCoreStack (TASK-024)', () => {
     });
 
     const stack = new AgentCoreStack(app, 'platform-agentcore-dev', {
-      env: { region: 'eu-west-1' },
+      env: { region: 'eu-west-2' },
       homeRegion: 'eu-west-2',
-      runtimeNetworkPosture: 'PUBLIC_WITH_COMPENSATING_CONTROLS',
+      runtimeNetworkMode: 'VPC',
+      runtimeSubnetIds: ['subnet-11111111', 'subnet-22222222'],
+      runtimeSecurityGroupIds: ['sg-11111111'],
     });
 
     return Template.fromStack(stack);
@@ -34,7 +36,13 @@ describe('AgentCoreStack (TASK-024)', () => {
     template.hasResourceProperties('AWS::BedrockAgentCore::Runtime', {
       AgentRuntimeName: 'PlatformdevRuntime',
       NetworkConfiguration: {
-        NetworkMode: 'PUBLIC',
+        NetworkMode: 'VPC',
+        NetworkModeConfig: {
+          VpcConfig: {
+            Subnets: ['subnet-11111111', 'subnet-22222222'],
+            SecurityGroups: ['sg-11111111'],
+          },
+        },
       },
       ProtocolConfiguration: 'HTTP',
       AuthorizerConfiguration: {
@@ -50,22 +58,21 @@ describe('AgentCoreStack (TASK-024)', () => {
     });
   });
 
-  test('records the public runtime posture as an explicit, reviewable exception', () => {
+  test('records the VPC runtime posture as an explicit, reviewable decision', () => {
     template.hasResource('AWS::BedrockAgentCore::Runtime', {
       Metadata: {
         RuntimeNetworkPosture: {
-          Decision: 'PUBLIC_WITH_COMPENSATING_CONTROLS',
-          Justification: 'ADR-009_NO_RUNTIME_REGION_VPC',
-          RevisitTrigger: Match.stringLikeRegexp('NetworkMode=VPC'),
+          Decision: 'ADR-023_VPC',
+          Justification: 'ADR-023_SECURE_RUNTIME_BASELINE',
         },
       },
       Properties: {
         NetworkConfiguration: {
-          NetworkMode: 'PUBLIC',
+          NetworkMode: 'VPC',
         },
         Tags: Match.objectLike({
-          networkMode: 'PUBLIC',
-          networkPosture: 'PUBLIC_WITH_COMPENSATING_CONTROLS',
+          networkMode: 'VPC',
+          networkPosture: 'ADR-023_VPC',
         }),
       },
     });
@@ -95,33 +102,19 @@ describe('AgentCoreStack (TASK-024)', () => {
     });
   });
 
-  test('creates AgentCore metric stream scoped to AgentCore namespace', () => {
-    template.resourceCountIs('AWS::CloudWatch::MetricStream', 1);
-    template.hasResourceProperties('AWS::CloudWatch::MetricStream', {
-      OutputFormat: 'json',
-      IncludeFilters: [
-        {
-          Namespace: 'AWS/BedrockAgentCore',
-        },
-      ],
-      FirehoseArn: {
-        Ref: 'AgentCoreMetricStreamFirehoseArn',
-      },
-      RoleArn: {
-        Ref: 'AgentCoreMetricStreamRoleArn',
-      },
-    });
+  test('does not create a cross-region AgentCore metric stream', () => {
+    template.resourceCountIs('AWS::CloudWatch::MetricStream', 0);
   });
 
   test('exports runtime region and memory template parameter name', () => {
     template.hasOutput('AgentCoreRuntimeRegion', {
-      Value: 'eu-west-1',
+      Value: 'eu-west-2',
     });
     template.hasOutput('AgentCoreRuntimeNetworkMode', {
-      Value: 'PUBLIC',
+      Value: 'VPC',
     });
     template.hasOutput('AgentCoreRuntimeNetworkPostureDecision', {
-      Value: 'PUBLIC_WITH_COMPENSATING_CONTROLS',
+      Value: 'ADR-023_VPC',
     });
 
     template.hasOutput('TenantMemoryTemplateParameterName', {

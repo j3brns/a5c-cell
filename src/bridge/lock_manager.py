@@ -9,6 +9,7 @@ from typing import Any
 from aws_lambda_powertools import Logger
 from data_access import ControlPlaneDynamoDB, TenantContext, TenantTier
 
+from platform_config.runtime_topology import RUNTIME_FAILOVER_REGION
 from src.bridge.constants import (
     FAILOVER_LOCK_NAME,
     OPS_LOCKS_TABLE,
@@ -84,13 +85,22 @@ def trigger_failover(
     ssm: Any | None = None,
     get_config_fn: Any | None = None,
     runtime_region_param: str = RUNTIME_REGION_PARAM,
-) -> str:
-    """Failover from eu-west-1 to eu-central-1 (or vice versa).
+) -> str | None:
+    """Move to the configured runtime failover region, when one is approved.
 
     Uses distributed lock to ensure only one Lambda instance performs the update.
     Returns the new active region.
     """
-    new_region = "eu-central-1" if current_region == "eu-west-1" else "eu-west-1"
+    if RUNTIME_FAILOVER_REGION is None:
+        logger.warning(
+            "Runtime failover is disabled by the v0.2 topology",
+            extra={"current_region": current_region},
+        )
+        return None
+
+    new_region = RUNTIME_FAILOVER_REGION
+    if current_region == new_region:
+        return current_region
     lock_name = FAILOVER_LOCK_NAME
     identity = f"bridge-lambda-{os.environ.get('AWS_LAMBDA_LOG_STREAM_NAME', 'local')}"
     db = ControlPlaneDynamoDB(_platform_context())

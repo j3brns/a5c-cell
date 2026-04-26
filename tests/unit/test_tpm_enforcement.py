@@ -14,7 +14,7 @@ from src.bridge.tpm_limiter import RateLimitResult
 class TestTPMEnforcement:
     @pytest.fixture(autouse=True)
     def aws_env(self):
-        with patch.dict(os.environ, {"AWS_REGION": "eu-west-1"}):
+        with patch.dict(os.environ, {"AWS_REGION": "eu-west-2"}):
             yield
 
     @pytest.fixture

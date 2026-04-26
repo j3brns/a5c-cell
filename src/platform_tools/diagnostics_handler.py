@@ -23,6 +23,8 @@ from aws_lambda_powertools import Logger
 from boto3.dynamodb.conditions import Key
 from data_access import ControlPlaneDynamoDB, TenantContext, TenantTier
 
+from platform_config.runtime_topology import SERVING_RUNTIME_REGION
+
 logger = Logger(service="platform-diagnostics-tool")
 
 # ---------------------------------------------------------------------------
@@ -37,15 +39,17 @@ RUNTIME_REGION_PARAM = os.environ.get("RUNTIME_REGION_PARAM", "/platform/config/
 # ---------------------------------------------------------------------------
 RUNBOOKS = {
     "RUNBOOK-001": {
-        "title": "Runtime Region Failover",
-        "trigger": "ServiceUnavailableException from the active runtime region (e.g., eu-west-1).",
+        "title": "Runtime Region Degradation",
+        "trigger": (
+            "ServiceUnavailableException from the active runtime region "
+            f"({SERVING_RUNTIME_REGION})."
+        ),
         "steps": [
             "1. Verify regional outage via Service Health Dashboard or CloudWatch metrics.",
-            "2. Acquire the platform-runtime-failover lock via the Platform API.",
-            "3. Trigger failover to the fallback region (e.g., eu-central-1) "
-            "via POST /v1/platform/failover.",
-            "4. Verify traffic is flowing in the new region.",
-            "5. Release the lock and update status.",
+            "2. Confirm the platform is in degraded runtime mode.",
+            "3. Pause tenant-impacting release activity while the outage is active.",
+            "4. Track AWS recovery and update tenant communications.",
+            "5. Verify new invocations succeed in the serving region after recovery.",
         ],
     },
     "RUNBOOK-002": {
@@ -103,8 +107,7 @@ def get_platform_health(db: ControlPlaneDynamoDB) -> dict[str, Any]:
     return {
         "status": "healthy",
         "regions": [
-            {"region": "eu-west-1", "status": "operational", "latency_ms": 12},
-            {"region": "eu-central-1", "status": "operational", "latency_ms": 25},
+            {"region": SERVING_RUNTIME_REGION, "status": "operational", "latency_ms": 0},
         ],
         "services": {
             "AgentCore": "operational",
