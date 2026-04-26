@@ -278,8 +278,10 @@ Echo agent invocable end-to-end in local environment in all three modes.
               Done: 2026-03-01
 
 [x] TASK-026  ObservabilityStack
-              Per-tenant CloudWatch dashboard (provisioned in TenantStack)
+              Parameterized tenant usage CloudWatch dashboard (provisioned once in ObservabilityStack)
               Platform operations dashboard
+              Shared tenant dashboard name exported by ObservabilityStack; TenantStack no longer
+              exports per-tenant DashboardName
               All 10 FM alarms (see ARCHITECTURE.md failure modes table)
               Budget alarm per tenant against monthlyBudgetUsd
               Metric streams AgentCore Observability eu-west-1 → CloudWatch eu-west-2
@@ -561,7 +563,7 @@ task. Result delivered via webhook and available via poll endpoint.
 
 ## Phase 9 — Tech Debt Elimination (Current)
 
-[ ] TASK-056  Implement Unified Python CLI with Typer (Issue #40)
+[x] TASK-056  Implement Unified Python CLI with Typer (Issue #40)
               Consolidate Makefile wrappers and scattered scripts into a single
               platform-cli. Improve argument parsing and documentation.
               ADRs: TBD | Tests: CLI coverage
@@ -575,7 +577,8 @@ task. Result delivered via webhook and available via poll endpoint.
 
 [ ] TASK-058  Implement Modular Pydantic Configuration Models (Issue #42)
               Centralize environment variable loading and validation using
-              pydantic-settings. Remove os.environ calls from business logic.
+              pydantic-settings. Remove direct os.environ reads from scripts while
+              preserving fail-closed process-env checks for AWS-mutating commands.
               ADRs: TBD | Tests: validation coverage
               Seq: 704
 

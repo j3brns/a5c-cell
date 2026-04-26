@@ -50,6 +50,14 @@ alternative. Never silently work around them.
 
 ## How To Work
 
+### Environment Constraints
+
+Issue worktrees are not assumed to be hydrated. Before running tests or type checks,
+run `make worktree-probe MODE=test`. Before launching or handing off to an agent, run
+`make worktree-probe`. If either probe reports missing `.venv`, `node_modules`, or
+required command-line tools, stop that attempted path and run `make ensure-tools` from
+the worktree root before continuing.
+
 Before writing any code:
 1. Read this file
 2. Read docs/ARCHITECTURE.md
@@ -61,8 +69,7 @@ Before writing any code:
 8. If you are in local WSL with the repo checked out, run `make validate-local` — confirm it passes
    (use `make validate-local-full` when a full-repo secret scan is required)
 9. State which issue/task you are working on explicitly
-10. Do not use `make task-*` unless the operator explicitly asks for the legacy snapshot workflow.
-11. If branch validation exposes unrelated breakage or drift outside the active issue scope, stop bundling it into the same branch: queue/fix it separately or refresh onto a mainline that already contains that fix, then restart from a fresh worktree.
+10. If branch validation exposes unrelated breakage or drift outside the active issue scope, stop bundling it into the same branch: queue/fix it separately or refresh onto a mainline that already contains that fix, then restart from a fresh worktree.
 
 Before marking any task complete:
 1. All tests pass
@@ -161,6 +168,12 @@ try:
 except TenantAccessViolation as e:
     logger.error("Tenant access violation", extra={"tenant_id": tenant_id})
     return error_response(403, "UNAUTHORISED")
+
+# FORBIDDEN: physical resource ID in application code
+guardrail_id = "abc123def456"
+
+# REQUIRED: resolve through the platform registry
+guardrail_id = registry.resolve("baseline-security", account_id)
 ```
 
 ## Issue Workflow (Canonical)
@@ -246,123 +259,6 @@ Never leave a task in a merge-conflicted state.
 2. Re-run targeted tests plus `make preflight-session` and `make pre-validate-session`.
 3. Push the conflict-resolution commit(s) and confirm the MR is mergeable before closing the issue.
 4. If a required permission/policy blocks merge, stop and report the blocker with the exact next command.
-
-## Task Workflow (Legacy / Snapshot-Driven)
-
-Every task runs in its own git branch and for local dev (WSL) a worktree. This is so main stays clean and multiple tasks
-can be in flight at the same time without conflicts. When operating in Claude Code mobile / remote prompt mode, worktrees are not required.
-
-Always begin implementation from a known fresh worktree created from the current mainline. If an older issue worktree already exists, refresh or recreate it before coding rather than resuming on a stale base.
-Do not mix unrelated branch-tip cleanup into the active issue just to get green. If current mainline has unrelated breakage, resolve it in its own issue/branch and then restart the active issue from a fresh worktree.
-
-This deprecated flow (`make task-*`) is only for explicit legacy/snapshot work. GitLab Issues are canonical; use the issue worktree flow by default.
-
-### Selecting a task
-
-```bash
-make task-next            # show the next not-started task
-make task-list            # list all tasks and their status
-```
-
-### Starting a task
-
-```bash
-make task-start              # auto-selects the next [ ] task
-make task-start TASK=TASK-011  # explicit task
-```
-
-This will (local WSL mode / default when WSL is detected):
-1. Auto-select the next `[ ]` task (or use the explicit TASK argument)
-2. Create a git worktree at `../worktrees/TASK-NNN-<slug>/`
-3. Create branch `task/NNN-<slug>` from `origin/main`
-4. Update `docs/TASKS.md` in the worktree: mark the task `[~]` and commit it
-5. Run `make validate-local` in the worktree — abort if it fails
-6. Launch Claude Code: `claude --dangerously-skip-permissions <prompt>`
-
-In remote/mobile mode (`make task-start ... -- --env remote`, or when not running in WSL):
-1. Auto-select the task (same rules)
-2. Generate and print the structured prompt for copy/paste into Claude Code mobile
-3. Do not create a worktree
-4. Do not mark `docs/TASKS.md` `[~]` automatically
-
-The prompt instructs the agent to read CLAUDE.md, ARCHITECTURE.md, the task's
-ADRs, state the task name, and work the loop. In local WSL mode it also requires
-`make validate-local`; in remote/mobile mode it first confirms repo path and tool availability.
-
-If the worktree already exists, use `make task-resume` instead.
-
-### Local WSL Safety Rule (mandatory)
-
-In local WSL mode, do not implement task changes directly on `main` in the
-primary repo working tree. Use the worktree protocol (`make task-start` /
-`make task-resume`) by default.
-
-Only work in-place if the operator explicitly instructs that exception in
-writing.
-
-Before implementation in local WSL mode, state:
-- current branch
-- whether you are in a task worktree (or remote/mobile prompt mode)
-
-If task implementation has already started in the wrong location (for example,
-on `main` in the primary repo working tree):
-- Stop creating new edits
-- Create a task branch immediately from the current state
-- Continue on the task branch (or move to a worktree if practical)
-- State the deviation and correction in your session output
-
-### Resuming a task
-
-```bash
-make task-resume              # auto-selects first [~] task with an existing worktree
-make task-resume TASK=TASK-011  # explicit task
-```
-
-Relaunches Claude Code in the existing worktree with the same structured prompt (local WSL mode).
-In remote/mobile mode, it prints the prompt for copy/paste and does not require a worktree.
-
-### Finishing a task
-
-```bash
-make task-finish TASK=TASK-011
-```
-
-Prints the finish checklist and the exact `git push` / `glab mr create` commands.
-The agent is responsible for:
-1. Running `make validate-local` — must pass clean
-   - Use `make validate-local-full` when you need a full-repo secret scan (the default is diff-only secrets)
-2. Running a senior engineer review (bugs/regressions/risks/missing tests first)
-3. Actioning review findings and re-running relevant tests/validation
-4. Re-running senior engineer review until findings are cleared (or explicitly accepted)
-5. Committing all changes with a message referencing `TASK-NNN`
-6. Updating `docs/TASKS.md`: mark `[x]` with today's date and commit SHA
-7. Closing only when errors are cleared, then pushing and opening an MR titled `TASK-NNN: <title>`
-
-### Gate tasks
-
-Some tasks have a Gate field (see docs/TASKS.md). When a gate is present:
-- The agent stops at the gate and presents findings
-- The operator reviews and gives written sign-off.
-- Only then does the agent proceed (or close if that was the final step)
-- Never advance past a gate unilaterally
-
-### Naming conventions for worktrees
-
-| Item       | Pattern                              | Example                              |
-|------------|--------------------------------------|--------------------------------------|
-| Directory  | `../worktrees/TASK-NNN-<slug>/`     | `../worktrees/TASK-011-dynamo-schema/` |
-| Branch     | `task/NNN-<slug>`                    | `task/011-dynamo-schema`             |
-
-The slug is derived from the task title: lowercase, non-alphanumeric → `-`,
-max 50 chars.
-
-### After merge
-
-```bash
-git worktree remove ../worktrees/TASK-NNN-<slug>
-git branch -d task/NNN-<slug>
-git worktree prune
-```
 
 ## Technology Stack
 
@@ -468,8 +364,9 @@ Running analyze without `--embeddings` deletes previously generated embeddings.
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
+| Task | Read this skill file / Command |
+|------|-------------------------------|
+| Issue/worktree health check | `make issue-status` |
 | Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
 | Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
 | Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |

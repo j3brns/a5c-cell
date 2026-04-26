@@ -1,30 +1,13 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 from src.tenant_api import bootstrap
 from src.tenant_api.models import CallerIdentity, TenantApiDependencies
 
 
-def _deps() -> TenantApiDependencies:
-    return TenantApiDependencies(
-        secretsmanager=object(),
-        events=object(),
-        ssm=object(),
-        awslambda=object(),
-        usage_client=object(),
-        memory_provisioner=object(),
-        platform_quota_client=object(),
-    )
-
-
-def test_build_runtime_assembles_http_request_context(monkeypatch) -> None:
-    monkeypatch.setenv("AWS_REGION", "eu-west-2")
+def test_build_runtime_assembles_http_request_context(
+    tenant_api_env: None,
+    fake_deps: TenantApiDependencies,
+) -> None:
     runtime = bootstrap.build_runtime(
         {
             "httpMethod": "GET",
@@ -38,7 +21,7 @@ def test_build_runtime_assembles_http_request_context(monkeypatch) -> None:
                 }
             },
         },
-        dependency_builder=lambda _region: _deps(),
+        dependencies=fake_deps,
     )
 
     assert runtime.method == "GET"
@@ -54,15 +37,17 @@ def test_build_runtime_assembles_http_request_context(monkeypatch) -> None:
     )
 
 
-def test_build_runtime_preserves_eventbridge_tenant_provisioner_payload(monkeypatch) -> None:
-    monkeypatch.setenv("AWS_REGION", "eu-west-2")
+def test_build_runtime_preserves_eventbridge_tenant_provisioner_payload(
+    tenant_api_env: None,
+    fake_deps: TenantApiDependencies,
+) -> None:
     event = {
         "detail-type": "tenant.provisioned",
         "source": "platform.tenant_provisioner",
         "detail": {"tenantId": "tenant-001", "appId": "app-001"},
     }
 
-    runtime = bootstrap.build_runtime(event, dependency_builder=lambda _region: _deps())
+    runtime = bootstrap.build_runtime(event, dependencies=fake_deps)
 
     assert runtime.detail_type == "tenant.provisioned"
     assert runtime.source == "platform.tenant_provisioner"
@@ -71,7 +56,7 @@ def test_build_runtime_preserves_eventbridge_tenant_provisioner_payload(monkeypa
     assert runtime.path == ""
 
 
-def test_build_runtime_requires_aws_region(monkeypatch) -> None:
-    monkeypatch.delenv("AWS_REGION", raising=False)
-    with pytest.raises(KeyError):
-        bootstrap.build_runtime({}, dependency_builder=lambda _region: _deps())
+def test_build_runtime_uses_injected_dependencies(fake_deps: TenantApiDependencies) -> None:
+    runtime = bootstrap.build_runtime({}, dependencies=fake_deps)
+
+    assert runtime.deps is fake_deps

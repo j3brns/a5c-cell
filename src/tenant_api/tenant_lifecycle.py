@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import secrets
@@ -25,6 +26,7 @@ try:
         tenant_records,
         tenant_sessions,
         utils,
+        validation,
     )
 except (ImportError, ValueError):  # pragma: no cover
     from src.tenant_api import (
@@ -42,6 +44,64 @@ except (ImportError, ValueError):  # pragma: no cover
         tenant_records,
         tenant_sessions,
         utils,
+        validation,
+    )
+
+
+def _tenant_create_input_from_event(event: dict[str, Any]) -> models.TenantCreateInput:
+    body = http_utils.require_json_body(event)
+    required = ["tenantId", "appId", "displayName", "tier", "ownerEmail", "ownerTeam", "accountId"]
+    missing = [field for field in required if utils.str_or_none(body.get(field)) is None]
+    if missing:
+        raise ValueError(f"Missing required field(s): {', '.join(missing)}")
+
+    return models.TenantCreateInput(
+        tenant_id=validation.canonical_tenant_id(body["tenantId"]),
+        app_id=str(body["appId"]).strip(),
+        display_name=str(body["displayName"]).strip(),
+        tier=str(body["tier"]).strip(),
+        owner_email=str(body["ownerEmail"]).strip(),
+        owner_team=str(body["ownerTeam"]).strip(),
+        account_id=str(body["accountId"]).strip(),
+        monthly_budget_usd=body.get("monthlyBudgetUsd"),
+    )
+
+
+def _encode_pagination_token(last_evaluated_key: dict[str, Any]) -> str:
+    return base64.urlsafe_b64encode(json.dumps(last_evaluated_key, default=str).encode()).decode()
+
+
+def _decode_pagination_token(token: str) -> dict[str, Any]:
+    return json.loads(base64.urlsafe_b64decode(token.encode()))
+
+
+def _tenant_list_input_from_event(event: dict[str, Any]) -> models.TenantListInput:
+    query = event.get("queryStringParameters") or {}
+    if not isinstance(query, dict):
+        query = {}
+    limit: int | None = None
+    limit_raw = utils.str_or_none(query.get("limit"))
+    if limit_raw is not None:
+        try:
+            limit = int(limit_raw)
+        except (ValueError, TypeError):
+            pass
+    return models.TenantListInput(
+        status_filter=utils.str_or_none(query.get("status")),
+        tier_filter=utils.str_or_none(query.get("tier")),
+        limit=limit,
+        next_token=utils.str_or_none(query.get("nextToken")),
+    )
+
+
+def _tenant_update_input_from_event(event: dict[str, Any]) -> models.TenantUpdateInput:
+    body = http_utils.require_json_body(event)
+    return models.TenantUpdateInput(
+        provided_fields=frozenset(body),
+        display_name=body.get("displayName"),
+        status=body.get("status"),
+        tier=body.get("tier"),
+        monthly_budget_usd=body.get("monthlyBudgetUsd"),
     )
 
 
@@ -50,7 +110,7 @@ def handle_create(
     caller: models.CallerIdentity,
     deps: models.TenantApiDependencies,
 ) -> dict[str, Any]:
-    response = tenant_records.handle_create(event, caller, deps)
+    response = tenant_records.handle_create(_tenant_create_input_from_event(event), caller, deps)
     if response["statusCode"] == 201:
         body = json.loads(response["body"])
         if "tenant" not in body:
@@ -75,7 +135,7 @@ def handle_read(
 
 
 def handle_list_tenants(
-    event: dict[str, Any],
+    request: models.TenantListInput,
     caller: models.CallerIdentity,
     deps: models.TenantApiDependencies,
 ) -> dict[str, Any]:
@@ -88,20 +148,45 @@ def handle_list_tenants(
                 return http_utils.response(200, {"items": [body["tenant"]], "nextToken": None})
         return http_utils.response(200, {"items": [], "nextToken": None})
 
-    query = event.get("queryStringParameters") or {}
-    status_filter = utils.str_or_none(query.get("status")) if isinstance(query, dict) else None
-    tier_filter = utils.str_or_none(query.get("tier")) if isinstance(query, dict) else None
-    db = db_factory.control_plane_db(caller)
-    items = db.scan_all(db_factory.tenants_table_name())
-    records = [
-        serialization.serialize_tenant(item) for item in items if item.get("SK") == "METADATA"
-    ]
-    if status_filter:
-        records = [r for r in records if r.get("status") == status_filter]
-    if tier_filter:
-        records = [r for r in records if r.get("tier") == tier_filter]
+    limit = request.limit
+    if limit is not None:
+        if limit < 1 or limit > constants.TENANT_LIST_MAX_PAGE_SIZE:
+            return http_utils.error(
+                400,
+                "INVALID_LIMIT",
+                f"limit must be between 1 and {constants.TENANT_LIST_MAX_PAGE_SIZE}",
+            )
+    else:
+        limit = constants.TENANT_LIST_DEFAULT_PAGE_SIZE
 
-    return http_utils.response(200, {"items": records, "nextToken": None})
+    exclusive_start_key: dict[str, Any] | None = None
+    if request.next_token:
+        try:
+            exclusive_start_key = _decode_pagination_token(request.next_token)
+        except Exception:
+            return http_utils.error(400, "INVALID_TOKEN", "Invalid pagination token")
+
+    db = db_factory.control_plane_db(caller)
+    result = db.scan(
+        db_factory.tenants_table_name(),
+        limit=limit,
+        exclusive_start_key=exclusive_start_key,
+    )
+
+    records = [
+        serialization.serialize_tenant(item)
+        for item in result.items
+        if item.get("SK") == "METADATA"
+    ]
+    if request.status_filter:
+        records = [r for r in records if r.get("status") == request.status_filter]
+    if request.tier_filter:
+        records = [r for r in records if r.get("tier") == request.tier_filter]
+
+    next_token = (
+        _encode_pagination_token(result.last_evaluated_key) if result.last_evaluated_key else None
+    )
+    return http_utils.response(200, {"items": records, "nextToken": next_token})
 
 
 def handle_update(
@@ -111,7 +196,9 @@ def handle_update(
     *,
     tenant_id: str,
 ) -> dict[str, Any]:
-    response = tenant_records.handle_update(event, caller, deps, tenant_id=tenant_id)
+    response = tenant_records.handle_update(
+        _tenant_update_input_from_event(event), caller, deps, tenant_id=tenant_id
+    )
     if response["statusCode"] == 200:
         body = json.loads(response["body"])
         if "tenant" not in body:
@@ -586,7 +673,7 @@ def dispatch_routes(
     if path == "/v1/tenants" and method == "POST":
         return handle_create(event, caller, deps)
     if path == "/v1/tenants" and method == "GET":
-        return handle_list_tenants(event, caller, deps)
+        return handle_list_tenants(_tenant_list_input_from_event(event), caller, deps)
 
     if tenant_id:
         if path == f"/v1/tenants/{tenant_id}" and method == "GET":

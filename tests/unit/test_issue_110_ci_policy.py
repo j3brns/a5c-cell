@@ -31,6 +31,46 @@ def test_ci_test_matrix_covers_unit_integration_and_cdk() -> None:
         assert "extends: .test_job_base" in block or "extends: .aws_auth_base" in block
 
 
+def test_workflow_suppresses_duplicate_branch_pipelines_when_mr_exists() -> None:
+    content = CI_FILE.read_text(encoding="utf-8")
+    workflow = _job_block("workflow", content)
+
+    assert 'if: $CI_PIPELINE_SOURCE == "merge_request_event"' in workflow
+    assert "if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS" in workflow
+    assert "when: never" in workflow
+    assert "if: $CI_COMMIT_BRANCH" in workflow
+
+
+def test_expensive_jobs_are_gated_by_relevant_file_changes() -> None:
+    content = CI_FILE.read_text(encoding="utf-8")
+
+    expected_rule_refs = {
+        "validate": ".platform_change_rules",
+        "test-unit": ".python_change_rules",
+        "test-integration": ".python_change_rules",
+        "test-cdk": ".cdk_change_rules",
+        "test-spa": ".spa_change_rules",
+        "plan-infra": ".deployable_change_rules",
+    }
+    for job, rule_ref in expected_rule_refs.items():
+        block = _job_block(job, content)
+        assert f"!reference [{rule_ref}, rules]" in block
+
+    deploy_base = _job_block(".deploy_job_base", content)
+    assert "!reference [.main_deployable_change_rules, rules]" in deploy_base
+
+
+def test_deployable_changes_exclude_docs_only_pipeline_noise() -> None:
+    content = CI_FILE.read_text(encoding="utf-8")
+    deployable_rules = _job_block(".deployable_change_rules", content)
+
+    assert "src/**/*" in deployable_rules
+    assert "infra/**/*" in deployable_rules
+    assert "spa/**/*" in deployable_rules
+    assert "docs/openapi.yaml" in deployable_rules
+    assert "docs/**/*" not in deployable_rules
+
+
 def test_validate_pipeline_policy_runs_ci_contract_and_protection_script_tests() -> None:
     content = CI_FILE.read_text(encoding="utf-8")
     validate = _job_block("validate-pipeline-policy", content)

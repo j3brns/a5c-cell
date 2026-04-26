@@ -262,16 +262,56 @@ def _emit_completion(event: dict[str, Any]) -> dict[str, Any]:
     return {"status": "EMITTED", "detailType": detail_type, "tenantId": detail.get("tenantId")}
 
 
+class TenantProvisionerRetryableError(Exception):
+    """Raised when a transient error occurs that should be retried by the orchestrator."""
+
+    pass
+
+
+def _is_retryable(exc: Exception) -> bool:
+    if isinstance(exc, ClientError):
+        error_code = exc.response.get("Error", {}).get("Code", "")
+        if error_code in {
+            "Throttling",
+            "ThrottlingException",
+            "RequestLimitExceeded",
+            "ProvisionedThroughputExceededException",
+            "ServiceUnavailable",
+            "InternalFailure",
+        }:
+            return True
+
+        # CloudFormation specific retryable errors
+        if error_code == "ValidationError" and "Another update is currently in progress" in str(
+            exc
+        ):
+            return True
+
+    return False
+
+
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     action = str(event.get("action") or "").strip().lower()
     if not action and isinstance(event.get("detail"), dict):
         action = "start"
-    if action in {"start", "poll"}:
-        try:
-            if action == "start":
-                return _start_provisioning(event, context)
+
+    try:
+        if action == "start":
+            return _start_provisioning(event, context)
+        if action == "poll":
             return _poll_provisioning(event)
-        except Exception as exc:
+        if action == "emit-result":
+            return _emit_completion(event)
+        raise ValueError(f"Unsupported action: {action}")
+    except Exception as exc:
+        if _is_retryable(exc):
+            logger.warning(
+                "Retryable transient failure encountered",
+                extra={"action": action, "error": str(exc), "type": type(exc).__name__},
+            )
+            raise TenantProvisionerRetryableError(str(exc)) from exc
+
+        if action in {"start", "poll"}:
             detail = _event_detail(event)
             fallback_tenant_id = str(detail.get("tenantId") or event.get("tenantId") or "").strip()
             return {
@@ -285,6 +325,4 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "stackStatus": "ERROR",
                 "outputs": {},
             }
-    if action == "emit-result":
-        return _emit_completion(event)
-    raise ValueError("Unsupported action")
+        raise

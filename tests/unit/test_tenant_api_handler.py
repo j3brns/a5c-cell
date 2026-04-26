@@ -1,154 +1,25 @@
 from __future__ import annotations
 
 import json
-import sys
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from botocore.exceptions import EndpointConnectionError
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-
 from src.tenant_api import handler as tenant_api_handler
 from src.tenant_api import ops_control, tenant_lifecycle
 from tests.unit.tenant_api_test_support import (
-    build_handler_state,
-    fixed_now_value,
-    invoke_handler,
+    FailingPlatformQuotaClient,
+    FakeAwsSession,
+    FakeCloudWatchClient,
+    FakeServiceQuotasClient,
+    FakeTenantScopedS3,
     response_body,
 )
 
-
-class _FailingPlatformQuotaClient:
-    def __init__(self, error: Exception) -> None:
-        self.error = error
-
-    def get_utilisation(
-        self,
-        *,
-        active_region: str,
-        fallback_region: str | None,
-    ) -> list[dict[str, Any]]:
-        _ = active_region, fallback_region
-        raise self.error
-
-
-class FakeTenantScopedS3:
-    def __init__(self) -> None:
-        self.put_calls: list[dict[str, Any]] = []
-        self.presign_calls: list[dict[str, Any]] = []
-
-    def put_object(self, bucket: str, key: str, body: bytes, **kwargs: Any) -> None:
-        self.put_calls.append(
-            {
-                "bucket": bucket,
-                "key": key,
-                "body": body,
-                "kwargs": dict(kwargs),
-            }
-        )
-
-    def generate_presigned_url(
-        self,
-        bucket: str,
-        key: str,
-        *,
-        expires_in: int = 3600,
-        client_method: str = "get_object",
-    ) -> str:
-        self.presign_calls.append(
-            {
-                "bucket": bucket,
-                "key": key,
-                "expires_in": expires_in,
-                "client_method": client_method,
-            }
-        )
-        return f"https://example.com/download/{key}?expires={expires_in}"
-
-
-class FakeDynamoDbTable:
-    def __init__(self) -> None:
-        self.scan_calls: list[dict[str, Any]] = []
-
-    def scan(self, **kwargs: Any) -> dict[str, Any]:
-        self.scan_calls.append(dict(kwargs))
-        return {"Items": []}
-
-
-class FakeDynamoDbResource:
-    def __init__(self) -> None:
-        self.tables: dict[str, FakeDynamoDbTable] = {}
-
-    def Table(self, name: str) -> FakeDynamoDbTable:  # noqa: N802 - boto3 compatibility
-        if name not in self.tables:
-            self.tables[name] = FakeDynamoDbTable()
-        return self.tables[name]
-
-
-class FakeCloudWatchClient:
-    def __init__(self, datapoints: list[dict[str, Any]], error: Exception | None = None) -> None:
-        self.datapoints = datapoints
-        self.error = error
-        self.calls: list[dict[str, Any]] = []
-
-    def get_metric_statistics(self, **kwargs: Any) -> dict[str, Any]:
-        self.calls.append(dict(kwargs))
-        if self.error is not None:
-            raise self.error
-        return {"Datapoints": [dict(point) for point in self.datapoints]}
-
-
-class FakeServiceQuotasClient:
-    def __init__(self, pages: list[dict[str, Any]], error: Exception | None = None) -> None:
-        self.pages = pages
-        self.error = error
-        self.calls: list[dict[str, Any]] = []
-        self.index = 0
-
-    def list_service_quotas(self, **kwargs: Any) -> dict[str, Any]:
-        self.calls.append(dict(kwargs))
-        if self.error is not None:
-            raise self.error
-        if self.index >= len(self.pages):
-            return {"Quotas": []}
-        page = self.pages[self.index]
-        self.index += 1
-        return dict(page)
-
-
-class FakeAwsSession:
-    def __init__(
-        self,
-        *,
-        cloudwatch_clients: dict[str, FakeCloudWatchClient],
-        service_quotas_clients: dict[str, FakeServiceQuotasClient],
-    ) -> None:
-        self.cloudwatch_clients = cloudwatch_clients
-        self.service_quotas_clients = service_quotas_clients
-
-    def client(self, service_name: str, *, region_name: str | None = None) -> Any:
-        assert region_name is not None
-        if service_name == "cloudwatch":
-            return self.cloudwatch_clients[region_name]
-        if service_name == "service-quotas":
-            return self.service_quotas_clients[region_name]
-        raise AssertionError(f"Unexpected service {service_name}")
-
-
-@pytest.fixture
-def fixed_now() -> datetime:
-    return fixed_now_value()
-
-
-@pytest.fixture
-def fake_state(monkeypatch: pytest.MonkeyPatch, fixed_now: datetime) -> dict[str, Any]:
-    return build_handler_state(monkeypatch, fixed_now)
+RESERVED_TENANT_IDS = ("platform", "admin", "root", "system", "stub")
 
 
 def _event(
@@ -188,7 +59,19 @@ def _event(
 
 
 _body = response_body
-_invoke = invoke_handler
+
+_CURRENT_STATE: dict[str, Any] | None = None
+
+
+@pytest.fixture(autouse=True)
+def _setup_state(fake_state: dict[str, Any]) -> None:
+    global _CURRENT_STATE
+    _CURRENT_STATE = fake_state
+
+
+def _invoke(event: dict[str, Any]) -> dict[str, Any]:
+    assert _CURRENT_STATE is not None
+    return tenant_api_handler.handle_event(event, dependencies=_CURRENT_STATE["deps"])
 
 
 def _last_event_detail(fake_state: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -309,12 +192,7 @@ def test_tenant_provisioned_event_updates_tenant_record(fake_state: dict[str, An
         "accountId": "123456789012",
     }
 
-    context = MagicMock()
-    context.function_name = "tenant-api"
-    context.memory_limit_in_mb = 512
-    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
-    context.aws_request_id = "req-1"
-    response = tenant_api_handler.lambda_handler(
+    response = tenant_api_handler.handle_event(
         {
             "source": "platform.tenant_provisioner",
             "detail-type": "tenant.provisioned",
@@ -325,7 +203,7 @@ def test_tenant_provisioned_event_updates_tenant_record(fake_state: dict[str, An
                 "MemoryStoreArn": "arn:mem",
             },
         },
-        context,
+        dependencies=fake_state["deps"],
     )
 
     assert response["statusCode"] == 200
@@ -352,12 +230,7 @@ def test_tenant_provisioning_failed_event_updates_tenant_record(fake_state: dict
         "accountId": "123456789012",
     }
 
-    context = MagicMock()
-    context.function_name = "tenant-api"
-    context.memory_limit_in_mb = 512
-    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
-    context.aws_request_id = "req-2"
-    response = tenant_api_handler.lambda_handler(
+    response = tenant_api_handler.handle_event(
         {
             "source": "platform.tenant_provisioner",
             "detail-type": "tenant.provisioning_failed",
@@ -367,7 +240,7 @@ def test_tenant_provisioning_failed_event_updates_tenant_record(fake_state: dict
                 "reason": "ROLLBACK_COMPLETE",
             },
         },
-        context,
+        dependencies=fake_state["deps"],
     )
 
     assert response["statusCode"] == 200
@@ -393,12 +266,7 @@ def test_reserved_platform_provisioning_event_is_accepted(fake_state: dict[str, 
         "accountId": "123456789012",
     }
 
-    context = MagicMock()
-    context.function_name = "tenant-api"
-    context.memory_limit_in_mb = 512
-    context.invoked_function_arn = "arn:aws:lambda:eu-west-2:123456789012:function:tenant-api"
-    context.aws_request_id = "req-platform"
-    response = tenant_api_handler.lambda_handler(
+    response = tenant_api_handler.handle_event(
         {
             "source": "platform.tenant_provisioner",
             "detail-type": "tenant.provisioned",
@@ -408,7 +276,7 @@ def test_reserved_platform_provisioning_event_is_accepted(fake_state: dict[str, 
                 "ExecutionRoleArn": "arn:platform-role",
             },
         },
-        context,
+        dependencies=fake_state["deps"],
     )
 
     assert response["statusCode"] == 200
@@ -449,8 +317,7 @@ def test_create_tenant_normalizes_tenant_id_to_lowercase(fake_state: dict[str, A
         ("a" * 33, "tenantId must be 3-32 characters"),
         ("tenant--one", "tenantId must not contain consecutive hyphens"),
         ("tenant_one", "tenantId must match ^[a-z](?:[a-z0-9-]{1,30}[a-z0-9])$"),
-        ("stub", "tenantId is reserved"),
-        ("platform", "tenantId is reserved"),
+        *[(tenant_id, "tenantId is reserved") for tenant_id in RESERVED_TENANT_IDS],
     ],
 )
 def test_create_tenant_rejects_invalid_tenant_id_values(
@@ -477,7 +344,7 @@ def test_create_tenant_rejects_invalid_tenant_id_values(
     assert error["message"] == expected_error
 
 
-def test_admin_can_read_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+def _seed_platform_tenant(fake_state: dict[str, Any]) -> None:
     fake_state["db"].items[("TENANT#platform", "METADATA")] = {
         "PK": "TENANT#platform",
         "SK": "METADATA",
@@ -489,11 +356,106 @@ def test_admin_can_read_reserved_platform_tenant(fake_state: dict[str, Any]) -> 
         "status": "active",
     }
 
+
+def test_admin_can_read_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+    _seed_platform_tenant(fake_state)
+
     response = _invoke(_event(method="GET", tenant_id="platform"))
 
     assert response["statusCode"] == 200
     tenant = _body(response)["tenant"]
     assert tenant["tenantId"] == "platform"
+
+
+@pytest.mark.parametrize("roles", [[], ["Platform.Operator"]])
+def test_non_admin_cannot_read_reserved_platform_tenant(
+    fake_state: dict[str, Any], roles: list[str]
+) -> None:
+    _seed_platform_tenant(fake_state)
+
+    response = _invoke(
+        _event(
+            method="GET",
+            tenant_id="platform",
+            caller_tenant_id="platform",
+            roles=roles,
+            app_id="platform-agent",
+        )
+    )
+
+    assert response["statusCode"] == 400
+    error = _body(response)["error"]
+    assert error["code"] == "BAD_REQUEST"
+    assert error["message"] == "tenantId is reserved"
+
+
+def test_admin_can_update_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+    _seed_platform_tenant(fake_state)
+
+    response = _invoke(
+        _event(
+            method="PATCH",
+            tenant_id="platform",
+            body={"displayName": "Platform Internal Updated"},
+        )
+    )
+
+    assert response["statusCode"] == 200
+    tenant = _body(response)["tenant"]
+    assert tenant["tenantId"] == "platform"
+    assert tenant["displayName"] == "Platform Internal Updated"
+
+
+@pytest.mark.parametrize("roles", [[], ["Platform.Operator"]])
+def test_non_admin_cannot_update_reserved_platform_tenant(
+    fake_state: dict[str, Any], roles: list[str]
+) -> None:
+    _seed_platform_tenant(fake_state)
+
+    response = _invoke(
+        _event(
+            method="PATCH",
+            tenant_id="platform",
+            body={"displayName": "Platform Internal Updated"},
+            caller_tenant_id="platform",
+            roles=roles,
+            app_id="platform-agent",
+        )
+    )
+
+    assert response["statusCode"] == 400
+    error = _body(response)["error"]
+    assert error["code"] == "BAD_REQUEST"
+    assert error["message"] == "tenantId is reserved"
+
+
+def test_admin_cannot_delete_reserved_platform_tenant(fake_state: dict[str, Any]) -> None:
+    _seed_platform_tenant(fake_state)
+
+    response = _invoke(_event(method="DELETE", tenant_id="platform"))
+
+    assert response["statusCode"] == 403
+    error = _body(response)["error"]
+    assert error["code"] == "FORBIDDEN"
+    assert error["message"] == "Reserved tenant IDs cannot be deleted"
+    assert fake_state["db"].items[("TENANT#platform", "METADATA")]["status"] == "active"
+
+
+@pytest.mark.parametrize("method", ["GET", "PATCH", "DELETE"])
+@pytest.mark.parametrize("tenant_id", ["admin", "root", "system", "stub"])
+def test_admin_cannot_use_non_platform_reserved_tenant_ids(
+    fake_state: dict[str, Any],
+    method: str,
+    tenant_id: str,
+) -> None:
+    body = {"displayName": "Reserved"} if method == "PATCH" else None
+
+    response = _invoke(_event(method=method, tenant_id=tenant_id, body=body))
+
+    assert response["statusCode"] == 400
+    error = _body(response)["error"]
+    assert error["code"] == "BAD_REQUEST"
+    assert error["message"] == "tenantId is reserved"
 
 
 def test_create_tenant_detects_collision_after_tenant_id_normalization(
@@ -795,6 +757,126 @@ def test_list_tenants_admin_only(fake_state: dict[str, Any]) -> None:
     items = _body(response)["items"]
     assert len(items) == 1
     assert items[0]["tenantId"] == "t-1"
+
+
+def test_list_tenants_pagination_limit_and_token(fake_state: dict[str, Any]) -> None:
+    for i in range(1, 6):
+        fake_state["db"].items[(f"TENANT#t-{i}", "METADATA")] = {
+            "PK": f"TENANT#t-{i}",
+            "SK": "METADATA",
+            "tenantId": f"t-{i}",
+            "status": "active",
+            "tier": "basic",
+        }
+        # non-METADATA items must be excluded from list results
+        fake_state["db"].items[(f"TENANT#t-{i}", "INVITE#inv-1")] = {
+            "PK": f"TENANT#t-{i}",
+            "SK": "INVITE#inv-1",
+        }
+
+    # Exhaust all pages with a small limit and collect every tenant ID returned.
+    # DynamoDB Limit applies before SK filtering, so each page may return fewer
+    # METADATA items than the limit; all items must nonetheless be reachable.
+    all_ids: set[str] = set()
+    qs: dict[str, str] = {"limit": "2"}
+    page_count = 0
+    while True:
+        ev = _event(method="GET", tenant_id=None)
+        ev["queryStringParameters"] = dict(qs)
+        resp = _invoke(ev)
+        assert resp["statusCode"] == 200
+        b = _body(resp)
+        # All returned items must be tenant records, not INVITE records
+        for item in b["items"]:
+            assert "tenantId" in item
+        all_ids.update(item["tenantId"] for item in b["items"])
+        page_count += 1
+        if not b["nextToken"]:
+            break
+        qs["nextToken"] = b["nextToken"]
+        assert page_count < 20, "pagination loop did not terminate"
+
+    assert all_ids == {"t-1", "t-2", "t-3", "t-4", "t-5"}
+
+
+def test_list_tenants_invalid_limit_rejected(fake_state: dict[str, Any]) -> None:
+    event = _event(method="GET", tenant_id=None)
+    event["queryStringParameters"] = {"limit": "0"}
+    response = _invoke(event)
+    assert response["statusCode"] == 400
+
+    event["queryStringParameters"] = {"limit": "101"}
+    response = _invoke(event)
+    assert response["statusCode"] == 400
+
+
+def test_list_tenants_invalid_token_rejected(fake_state: dict[str, Any]) -> None:
+    event = _event(method="GET", tenant_id=None)
+    event["queryStringParameters"] = {"nextToken": "not-valid-base64!!"}
+    response = _invoke(event)
+    assert response["statusCode"] == 400
+
+
+def test_list_tenants_nexttoken_is_opaque(fake_state: dict[str, Any]) -> None:
+    import base64
+    import json as _json
+
+    # Seed enough items so that limit=1 guarantees a nextToken on the first page
+    for i in range(1, 4):
+        fake_state["db"].items[(f"TENANT#t-{i}", "METADATA")] = {
+            "PK": f"TENANT#t-{i}",
+            "SK": "METADATA",
+            "tenantId": f"t-{i}",
+            "status": "active",
+            "tier": "basic",
+        }
+
+    # Find a page that actually returns a nextToken (scan Limit=1 may hit a non-METADATA item
+    # first, but will eventually produce a token because items remain)
+    token = None
+    qs: dict[str, str] = {"limit": "1"}
+    for _ in range(10):
+        ev = _event(method="GET", tenant_id=None)
+        ev["queryStringParameters"] = dict(qs)
+        resp = _invoke(ev)
+        assert resp["statusCode"] == 200
+        b = _body(resp)
+        if b["nextToken"]:
+            token = b["nextToken"]
+            break
+        if not b["nextToken"]:
+            break
+
+    assert token is not None, "expected at least one page with a nextToken"
+    # Token must be decodable base64 JSON and contain a DynamoDB resume key
+    decoded = _json.loads(base64.urlsafe_b64decode(token.encode()))
+    assert "PK" in decoded
+
+
+def test_list_tenants_status_filter_with_pagination(fake_state: dict[str, Any]) -> None:
+    fake_state["db"].items[("TENANT#t-a", "METADATA")] = {
+        "PK": "TENANT#t-a",
+        "SK": "METADATA",
+        "tenantId": "t-a",
+        "status": "active",
+        "tier": "basic",
+    }
+    fake_state["db"].items[("TENANT#t-s", "METADATA")] = {
+        "PK": "TENANT#t-s",
+        "SK": "METADATA",
+        "tenantId": "t-s",
+        "status": "suspended",
+        "tier": "basic",
+    }
+
+    event = _event(method="GET", tenant_id=None)
+    event["queryStringParameters"] = {"status": "active"}
+    response = _invoke(event)
+    assert response["statusCode"] == 200
+    items = _body(response)["items"]
+    assert all(i["status"] == "active" for i in items)
+    assert any(i["tenantId"] == "t-a" for i in items)
+    assert not any(i["tenantId"] == "t-s" for i in items)
 
 
 def test_audit_export_writes_real_s3_export_and_returns_presigned_url(
@@ -1181,7 +1263,7 @@ def test_platform_quota_report_returns_explicit_aws_error(fake_state: dict[str, 
     object.__setattr__(
         fake_state["deps"],
         "platform_quota_client",
-        _FailingPlatformQuotaClient(
+        FailingPlatformQuotaClient(
             tenant_api_handler.ClientError(
                 {"Error": {"Code": "AccessDeniedException", "Message": "nope"}},
                 "GetMetricStatistics",

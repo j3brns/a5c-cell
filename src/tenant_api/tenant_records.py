@@ -37,22 +37,28 @@ except (ImportError, ValueError):  # pragma: no cover
     )
 
 
+def _require_non_empty_text(value: Any, *, field: str) -> str:
+    text = utils.str_or_none(value)
+    if text is None:
+        raise ValueError(f"{field} is required")
+    return text
+
+
 def handle_create(
-    event: dict[str, Any],
+    request: models.TenantCreateInput,
     caller: models.CallerIdentity,
     deps: models.TenantApiDependencies,
 ) -> dict[str, Any]:
     auth.require_admin(caller)
-    body = http_utils.require_json_body(event)
-    required = ["tenantId", "appId", "displayName", "tier", "ownerEmail", "ownerTeam", "accountId"]
-    missing = [field for field in required if utils.str_or_none(body.get(field)) is None]
-    if missing:
-        raise ValueError(f"Missing required field(s): {', '.join(missing)}")
 
-    tenant_id = validation.canonical_tenant_id(body["tenantId"])
-    app_id = str(body["appId"]).strip()
+    tenant_id = validation.canonical_tenant_id(request.tenant_id)
+    app_id = _require_non_empty_text(request.app_id, field="appId")
+    display_name = _require_non_empty_text(request.display_name, field="displayName")
+    owner_email = _require_non_empty_text(request.owner_email, field="ownerEmail")
+    owner_team = _require_non_empty_text(request.owner_team, field="ownerTeam")
+    account_id = _require_non_empty_text(request.account_id, field="accountId")
     now = utils.now_utc()
-    tier = lifecycle_logic.normalize_tier(body.get("tier"))
+    tier = lifecycle_logic.normalize_tier(request.tier)
 
     if db_utils.read_tenant_record(tenant_id=tenant_id, caller=caller, app_id=app_id) is not None:
         return http_utils.error(409, "CONFLICT", "Tenant already exists")
@@ -66,21 +72,21 @@ def handle_create(
         **db_utils.tenant_key(tenant_id),
         "tenantId": tenant_id,
         "appId": app_id,
-        "displayName": str(body["displayName"]).strip(),
+        "displayName": display_name,
         "tier": tier,
         "status": TenantStatus.ACTIVE.value,
         "createdAt": utils.iso(now),
         "updatedAt": utils.iso(now),
         "provisioningStatus": "pending",
         "provisioningUpdatedAt": utils.iso(now),
-        "ownerEmail": str(body["ownerEmail"]).strip(),
-        "ownerTeam": str(body["ownerTeam"]).strip(),
-        "accountId": str(body["accountId"]).strip(),
+        "ownerEmail": owner_email,
+        "ownerTeam": owner_team,
+        "accountId": account_id,
         "apiKeySecretArn": api_key_secret_arn,
     }
-    if body.get("monthlyBudgetUsd") is not None:
+    if request.monthly_budget_usd is not None:
         attributes["monthlyBudgetUsd"] = utils.as_float(
-            body["monthlyBudgetUsd"], field="monthlyBudgetUsd"
+            request.monthly_budget_usd, field="monthlyBudgetUsd"
         )
     memory_store_arn = utils.str_or_none(memory_info.get("memoryStoreArn"))
     if memory_store_arn is not None:
@@ -127,14 +133,13 @@ def handle_read(
 
 
 def handle_update(
-    event: dict[str, Any],
+    request: models.TenantUpdateInput,
     caller: models.CallerIdentity,
     deps: models.TenantApiDependencies,
     *,
     tenant_id: str,
 ) -> dict[str, Any]:
     auth.require_admin(caller)
-    body = http_utils.require_json_body(event)
 
     item = db_utils.read_tenant_record(tenant_id=tenant_id, caller=caller)
     if item is None:
@@ -142,15 +147,15 @@ def handle_update(
 
     now = utils.now_utc()
     updates: dict[str, Any] = {"updatedAt": utils.iso(now)}
-    if "displayName" in body:
-        updates["displayName"] = str(body["displayName"]).strip()
-    if "status" in body:
-        updates["status"] = lifecycle_logic.normalize_status(body["status"])
-    if "tier" in body:
-        updates["tier"] = lifecycle_logic.normalize_tier(body["tier"])
-    if "monthlyBudgetUsd" in body:
+    if request.includes("displayName"):
+        updates["displayName"] = str(request.display_name).strip()
+    if request.includes("status"):
+        updates["status"] = lifecycle_logic.normalize_status(request.status)
+    if request.includes("tier"):
+        updates["tier"] = lifecycle_logic.normalize_tier(request.tier)
+    if request.includes("monthlyBudgetUsd"):
         updates["monthlyBudgetUsd"] = utils.as_float(
-            body["monthlyBudgetUsd"], field="monthlyBudgetUsd"
+            request.monthly_budget_usd, field="monthlyBudgetUsd"
         )
 
     expression, names, values = db_utils.build_update_expression(updates)
@@ -185,6 +190,8 @@ def handle_delete(
 ) -> dict[str, Any]:
     _ = deps
     auth.require_admin(caller)
+    if tenant_id in constants.RESERVED_TENANT_IDS:
+        raise PermissionError("Reserved tenant IDs cannot be deleted")
 
     item = db_utils.read_tenant_record(tenant_id=tenant_id, caller=caller)
     if item is None:

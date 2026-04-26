@@ -1,0 +1,78 @@
+{
+  "tools": [
+    {
+      "name": "aws",
+      "version": "2.15.30",
+      "description": "AWS Command Line Interface v2",
+      "platforms": {
+        "x86_64": {
+          "url": "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.15.30.zip",
+          "sha256": [
+            "023588dd-",
+            "585299ea-",
+            "78bec745-",
+            "2152bb8c-",
+            "b15eebd4-",
+            "4e9f0a08-",
+            "38f0cdaa-",
+            "c1b087f6"
+          ]
+        }
+      },
+      "install_command": "chmod +x ./aws/install && sudo ./aws/install --install-dir {install_dir} --bin-dir {bin_dir} --update",
+      "binary": "aws"
+    },
+    {
+      "name": "glab",
+      "version": "1.53.0",
+      "description": "GitLab CLI",
+      "platforms": {
+        "x86_64": {
+          "url": "https://gitlab.com/gitlab-org/cli/-/releases/v1.53.0/downloads/glab_1.53.0_linux_amd64.tar.gz",
+          "sha256": [
+            "e6b8bf71-",
+            "44cf4215-",
+            "a7a3e208-",
+            "ba049c27-",
+            "fb444d23-",
+            "aa28d738-",
+            "cc7ee990-",
+            "058cbb2f"
+          ]
+        }
+      },
+      "install_command": "cp bin/glab {bin_dir}/glab && chmod +x {bin_dir}/glab",
+      "binary": "glab"
+    },
+    {
+      "name": "cfn-guard",
+      "version": "3.2.0",
+      "description": "CloudFormation Guard",
+      "platforms": {
+        "x86_64": {
+          "url": "https://github.com/aws-cloudformation/cloudformation-guard/releases/download/3.2.0/cfn-guard-v3-x86_64-linux-latest.tar.gz",
+          "sha256": [
+            "c78f7a1a-",
+            "6c2674f7-",
+            "edbf0ebd-",
+            "c0590126-",
+            "487a14b1-",
+            "03e434ae-",
+            "a31205a4-",
+            "d1034d21"
+          ]
+        }
+      },
+      "install_command": "cp */cfn-guard {bin_dir}/cfn-guard && chmod +x {bin_dir}/cfn-guard",
+      "binary": "cfn-guard"
+    },
+    {
+      "name": "claude",
+      "version": "0.2.29",
+      "description": "Claude Code CLI",
+      "type": "npm",
+      "package": "@anthropic-ai/claude-code",
+      "binary": "claude"
+    }
+  ]
+}

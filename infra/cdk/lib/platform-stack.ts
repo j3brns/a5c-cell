@@ -48,6 +48,8 @@ type PythonLambdaProps = {
   timeout: cdk.Duration;
   memorySize: number;
   environment?: Record<string, string>;
+  vpc?: ec2.IVpc;
+  securityGroups?: ec2.ISecurityGroup[];
 };
 
 type BridgeCanaryPolicy = {
@@ -106,18 +108,15 @@ function ensureTenantStubTemplate(
   stackEnv: cdk.Environment,
   authorizedRuntimeRegions: readonly string[],
 ): string {
-  const generatedDir = path.join(__dirname, '../generated');
+  // Use a subdirectory within cdk.out to avoid persistent "generated" directories in the source tree.
+  const outDir = path.join(process.cwd(), 'cdk.out', 'tenant-templates');
   const stackId = `platform-tenant-stub-${env}`;
-  const templatePath = path.join(generatedDir, `${stackId}.template.json`);
+  const templatePath = path.join(outDir, `${stackId}.template.json`);
 
-  if (fs.existsSync(templatePath)) {
-    return templatePath;
-  }
-
-  fs.mkdirSync(generatedDir, { recursive: true });
+  fs.mkdirSync(outDir, { recursive: true });
 
   const tempApp = new cdk.App({
-    outdir: generatedDir,
+    outdir: outDir,
     context: {
       env,
     },
@@ -151,6 +150,7 @@ export class PlatformStack extends cdk.Stack {
   public readonly toolsTable: dynamodb.Table;
   public readonly opsLocksTable: dynamodb.Table;
   public readonly gatewayIdempotencyTable: dynamodb.Table;
+  public readonly valkeyCacheName: string;
 
   public readonly bridgeFn: lambda.Function;
   public readonly bffFn: lambda.Function;
@@ -202,7 +202,26 @@ export class PlatformStack extends cdk.Stack {
       },
     });
 
-    const storage = createPlatformStorage(this, { envName: env });
+    const bridgeValkeyClientSecurityGroup = new ec2.SecurityGroup(
+      this,
+      'BridgeValkeyClientSecurityGroup',
+      {
+        vpc: this.vpc,
+        allowAllOutbound: false,
+        description: 'Bridge Lambda client access to platform Valkey',
+      },
+    );
+
+    const storage = createPlatformStorage(this, {
+      envName: env,
+      vpc: this.vpc,
+      valkeyClientSecurityGroup: bridgeValkeyClientSecurityGroup,
+    });
+    bridgeValkeyClientSecurityGroup.addEgressRule(
+      storage.valkeySecurityGroup,
+      ec2.Port.tcp(6379),
+      'Allow Redis/Valkey egress to platform Valkey cluster',
+    );
     this.tenantsTable = storage.tenantsTable;
     this.agentsTable = storage.agentsTable;
     this.toolsTable = storage.toolsTable;
@@ -211,6 +230,7 @@ export class PlatformStack extends cdk.Stack {
     this.invocationsTable = storage.invocationsTable;
     this.jobsTable = storage.jobsTable;
     this.sessionsTable = storage.sessionsTable;
+    this.valkeyCacheName = storage.valkeyCacheName;
 
     // The TenantStack template is synthesized during 'cdk synth' and needs to be
     // available to the provisioner Lambda via S3.
@@ -247,6 +267,8 @@ export class PlatformStack extends cdk.Stack {
       entra,
       scopedTokenSigningKeySecret,
       tenantStackTemplateAsset,
+      vpc: this.vpc,
+      lambdaSecurityGroup: this.lambdaSecurityGroup,
       createPythonLambda: (lambdaProps) => this.createPythonLambda(lambdaProps),
     });
     this.tenantMgmtFn = compute.tenantMgmtFn;
@@ -383,9 +405,9 @@ export class PlatformStack extends cdk.Stack {
       deadLetterQueue: dlq,
       timeout: props.timeout,
       memorySize: props.memorySize,
-      vpc: this.vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [this.lambdaSecurityGroup],
+      vpc: props.vpc,
+      vpcSubnets: props.vpc ? { subnetType: ec2.SubnetType.PRIVATE_ISOLATED } : undefined,
+      securityGroups: props.securityGroups,
       environment: {
         LOG_LEVEL: 'INFO',
         ...props.environment,

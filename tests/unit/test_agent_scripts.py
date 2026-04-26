@@ -123,16 +123,9 @@ def test_package_agent_creates_zip(tmp_path, monkeypatch):
         assert "__pycache__/test.pyc" not in names
 
 
-def test_agent_push_runs_tests_before_deploy_and_register():
+def test_agent_push_uses_unified_cli():
     recipe_lines = _makefile_recipe_lines("agent-push")
-
-    test_index = recipe_lines.index("$(MAKE) test-agent AGENT=$(AGENT)")
-    deploy_index = recipe_lines.index("uv run python scripts/deploy_agent.py $(AGENT) --env $(ENV)")
-    register_index = recipe_lines.index(
-        "uv run python scripts/register_agent.py $(AGENT) --env $(ENV)"
-    )
-
-    assert test_index < deploy_index < register_index
+    assert any("platform-cli agent push" in line for line in recipe_lines)
 
 
 def test_agentcore_dev_target_runs_toolkit_in_agent_directory():

@@ -13,6 +13,14 @@ stages:
   - deploy-staging
   - deploy-prod
 
+workflow:
+  rules:
+    # Avoid paying for both a branch pipeline and an MR pipeline for the same commit.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
 variables:
   AWS_REGION: "eu-west-2"
   UV_LINK_MODE: "copy"
@@ -100,7 +108,105 @@ default:
   extends: .aws_auth_base
   allow_failure: false
   rules:
+    - !reference [.main_deployable_change_rules, rules]
+
+.platform_change_rules:
+  rules:
     - if: $CI_COMMIT_BRANCH == "main"
+      changes: &platform_changes
+        - .gitlab-ci.yml
+        - .secrets.baseline
+        - .spectral.yaml
+        - Makefile
+        - docker-compose.yml
+        - pyproject.toml
+        - pyrightconfig.json
+        - uv.lock
+        - agents/**/*
+        - gateway/**/*
+        - infra/**/*
+        - scripts/**/*
+        - spa/**/*
+        - src/**/*
+        - tests/**/*
+        - docs/openapi.yaml
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *platform_changes
+    - if: $CI_COMMIT_BRANCH
+      changes: *platform_changes
+
+.python_change_rules:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes: &python_changes
+        - .gitlab-ci.yml
+        - .secrets.baseline
+        - Makefile
+        - pyproject.toml
+        - pyrightconfig.json
+        - uv.lock
+        - agents/**/*.py
+        - gateway/**/*
+        - scripts/**/*.py
+        - src/**/*
+        - tests/**/*
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *python_changes
+    - if: $CI_COMMIT_BRANCH
+      changes: *python_changes
+
+.cdk_change_rules:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes: &cdk_changes
+        - .gitlab-ci.yml
+        - Makefile
+        - infra/**/*
+        - src/**/*
+        - agents/**/*
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *cdk_changes
+    - if: $CI_COMMIT_BRANCH
+      changes: *cdk_changes
+
+.spa_change_rules:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes: &spa_changes
+        - .gitlab-ci.yml
+        - Makefile
+        - spa/**/*
+        - src/bff/**/*
+        - docs/openapi.yaml
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *spa_changes
+    - if: $CI_COMMIT_BRANCH
+      changes: *spa_changes
+
+.deployable_change_rules:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes: &deployable_changes
+        - .gitlab-ci.yml
+        - Makefile
+        - agents/**/*
+        - gateway/**/*
+        - infra/**/*
+        - scripts/deploy_frontend.py
+        - scripts/bootstrap.py
+        - scripts/register_agent.py
+        - spa/**/*
+        - src/**/*
+        - docs/openapi.yaml
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *deployable_changes
+    - if: $CI_COMMIT_BRANCH
+      changes: *deployable_changes
+
+.main_deployable_change_rules:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes: *deployable_changes
 
 # --- VALIDATE STAGE ---
 
@@ -112,6 +218,8 @@ validate:
     - make validate-cdk
     - make validate-secrets-full
   interruptible: true
+  rules:
+    - !reference [.platform_change_rules, rules]
 
 validate-pipeline-policy:
   stage: validate
@@ -130,6 +238,8 @@ test-unit:
   extends: .test_job_base
   script:
     - make test-unit PYTEST_ARGS="--junitxml=junit-report.xml -n auto --dist loadfile"
+  rules:
+    - !reference [.python_change_rules, rules]
   artifacts:
     when: always
     reports:
@@ -167,11 +277,15 @@ test-integration:
       export AWS_DEFAULT_REGION=${AWS_REGION}
       export AWS_REGION=${AWS_REGION}
     - make test-int
+  rules:
+    - !reference [.python_change_rules, rules]
 
 test-cdk:
   extends: .test_job_base
   script:
     - cd infra/cdk && npm test -- --runInBand
+  rules:
+    - !reference [.cdk_change_rules, rules]
 
 test-spa:
   extends: .test_job_base
@@ -179,6 +293,8 @@ test-spa:
     - cd spa
     - npm ci
     - npm test
+  rules:
+    - !reference [.spa_change_rules, rules]
   artifacts:
     when: always
     paths:
@@ -229,8 +345,7 @@ plan-infra:
       - staging-diff.txt
       - prod-diff.txt
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "main"
+    - !reference [.deployable_change_rules, rules]
 
 # --- DEPLOY DEV ---
 
@@ -271,6 +386,7 @@ deploy-staging:
   allow_failure: false
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+      changes: *deployable_changes
       when: manual
 
 staging-rollout-window:
@@ -282,6 +398,7 @@ staging-rollout-window:
   allow_failure: false
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+      changes: *deployable_changes
       when: delayed
       start_in: 30 minutes
 
@@ -310,6 +427,7 @@ deploy-prod:
   allow_failure: false
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+      changes: *deployable_changes
       when: manual
 
 prod-rollout-window:
@@ -321,5 +439,6 @@ prod-rollout-window:
   allow_failure: false
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+      changes: *deployable_changes
       when: delayed
       start_in: 15 minutes

@@ -14,7 +14,6 @@ import argparse
 import datetime
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -22,6 +21,8 @@ from urllib.request import Request, urlopen
 
 import boto3
 from botocore.exceptions import ClientError
+
+from platform_config import get_settings, process_env_required
 
 try:
     from agent_manifest import ManifestValidationError, load_agent_manifest
@@ -35,10 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def require_aws_region() -> str:
-    region = os.environ.get("AWS_REGION", "").strip()
-    if not region:
-        raise RuntimeError("AWS_REGION must be set")
-    return region
+    return process_env_required("AWS_REGION")
 
 
 def parse_args() -> argparse.Namespace:
@@ -115,16 +113,21 @@ def register_agent(agent_name: str, env: str, api_base_url: str | None, token: s
         layer_s3_key = ""
         script_s3_key = ""
     else:
-        layer_hash = get_ssm_param(ssm, f"/platform/layers/{env}/{agent_name}/hash")
-        layer_s3_key = get_ssm_param(ssm, f"/platform/layers/{env}/{agent_name}/s3-key")
-        script_s3_key = get_ssm_param(ssm, f"/platform/agents/{env}/{agent_name}/script-s3-key")
+        resolved_layer_hash = get_ssm_param(ssm, f"/platform/layers/{env}/{agent_name}/hash")
+        resolved_layer_s3_key = get_ssm_param(ssm, f"/platform/layers/{env}/{agent_name}/s3-key")
+        resolved_script_s3_key = get_ssm_param(
+            ssm, f"/platform/agents/{env}/{agent_name}/script-s3-key"
+        )
 
-        if not layer_hash or not layer_s3_key or not script_s3_key:
+        if not resolved_layer_hash or not resolved_layer_s3_key or not resolved_script_s3_key:
             logger.error(
                 f"Deployment metadata not found for agent '{agent_name}' in env '{env}'. "
                 "Run build_layer and deploy_agent first."
             )
             return False
+        layer_hash = resolved_layer_hash
+        layer_s3_key = resolved_layer_s3_key
+        script_s3_key = resolved_script_s3_key
 
     deployed_at = datetime.datetime.now(datetime.UTC).isoformat()
 
@@ -142,9 +145,9 @@ def register_agent(agent_name: str, env: str, api_base_url: str | None, token: s
         "status": "built",
         "runtimeArn": runtime_arn,
         "estimatedDurationSeconds": manifest.estimated_duration_seconds,
-        "commitSha": os.environ.get("CI_COMMIT_SHA"),
-        "pipelineUrl": os.environ.get("CI_PIPELINE_URL"),
-        "jobId": os.environ.get("CI_JOB_ID"),
+        "commitSha": get_settings().gitlab.commit_sha,
+        "pipelineUrl": get_settings().gitlab.pipeline_url,
+        "jobId": get_settings().gitlab.job_id,
         "agUi": {
             "enabled": manifest.ag_ui.enabled,
             "transport": manifest.ag_ui.transport.value,
@@ -153,14 +156,12 @@ def register_agent(agent_name: str, env: str, api_base_url: str | None, token: s
     }
 
     # Resolve API Base URL and Token
-    api_url = api_base_url or os.environ.get("API_BASE_URL") or os.environ.get("VITE_API_BASE_URL")
+    api_url = api_base_url or get_settings().agents.resolved_api_base_url
     if not api_url:
         logger.error("API_BASE_URL environment variable is not set")
         return False
 
-    api_token = (
-        token or os.environ.get("PLATFORM_ACCESS_TOKEN") or os.environ.get("OPS_ACCESS_TOKEN")
-    )
+    api_token = token or get_settings().agents.resolved_access_token
     if not api_token:
         # Try to load from local credentials if in dev
         creds_path = Path.home() / ".platform" / "credentials"

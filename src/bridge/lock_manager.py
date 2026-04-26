@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import time
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -7,7 +9,12 @@ from typing import Any
 from aws_lambda_powertools import Logger
 from data_access import ControlPlaneDynamoDB, TenantContext, TenantTier
 
-from src.bridge.constants import FAILOVER_LOCK_NAME, OPS_LOCKS_TABLE
+from src.bridge.constants import (
+    FAILOVER_LOCK_NAME,
+    OPS_LOCKS_TABLE,
+    RUNTIME_REGION_PARAM,
+)
+from src.bridge.runtime_dependencies import get_config, get_ssm
 
 logger = Logger(service="bridge-lock-manager")
 
@@ -72,20 +79,17 @@ def release_lock(
 
 
 def trigger_failover(
-    *,
-    ssm: Any,
     current_region: str,
-    get_config_fn: Any,
-    runtime_region_param: str,
+    *,
+    ssm: Any | None = None,
+    get_config_fn: Any | None = None,
+    runtime_region_param: str = RUNTIME_REGION_PARAM,
 ) -> str:
     """Failover from eu-west-1 to eu-central-1 (or vice versa).
 
     Uses distributed lock to ensure only one Lambda instance performs the update.
     Returns the new active region.
     """
-    import os
-    import time
-
     new_region = "eu-central-1" if current_region == "eu-west-1" else "eu-west-1"
     lock_name = FAILOVER_LOCK_NAME
     identity = f"bridge-lambda-{os.environ.get('AWS_LAMBDA_LOG_STREAM_NAME', 'local')}"
@@ -98,12 +102,14 @@ def trigger_failover(
         from src.bridge.utils import get_retry_jitter
 
         time.sleep(get_retry_jitter(2.0))
-        config = get_config_fn(force_refresh=True)
+        config_fetcher = get_config_fn or get_config
+        config = config_fetcher(force_refresh=True)
         return config.get("runtime_region", current_region)
 
     try:
+        ssm_client = ssm or get_ssm()
         # Re-fetch config to ensure we still need to failover
-        param_response = ssm.get_parameter(Name=runtime_region_param)
+        param_response = ssm_client.get_parameter(Name=runtime_region_param)
         current_ssm_region = str(param_response.get("Parameter", {}).get("Value", current_region))
 
         if current_ssm_region != current_region:
@@ -116,7 +122,7 @@ def trigger_failover(
         logger.warning(
             "Triggering region failover", extra={"from": current_region, "to": new_region}
         )
-        ssm.put_parameter(
+        ssm_client.put_parameter(
             Name=runtime_region_param, Value=new_region, Type="String", Overwrite=True
         )
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 import uuid
 from datetime import UTC, datetime
@@ -23,12 +24,66 @@ from data_access.models import (
     TenantContext,
 )
 
+from src.bridge import runtime_calls, telemetry
 from src.bridge.constants import (
+    AG_UI_SCOPE_NAME,
     BFF_SESSION_KEEPALIVE_PATH,
     BFF_TOKEN_REFRESH_PATH,
+    ENTRA_AUDIENCE,
     JOBS_TABLE,
     SESSIONS_TABLE,
 )
+from src.bridge.runtime_dependencies import (
+    get_agent_record,
+    get_cloudwatch,
+    get_config,
+    get_http_session,
+    get_platform_context,
+    get_webhook_registration,
+)
+from src.platform_utils import coerce_optional_string as _coerce_optional_string
+
+_DEFAULT_GET_HTTP_SESSION = get_http_session
+_DEFAULT_GET_CLOUDWATCH = get_cloudwatch
+_DEFAULT_GET_CONFIG = get_config
+
+
+def _handler_dependency(name: str, fallback: Any) -> Any:
+    handler_module = sys.modules.get("src.bridge.handler")
+    if handler_module is not None and hasattr(handler_module, name):
+        return getattr(handler_module, name)
+    return fallback
+
+
+def _local_or_handler_dependency(name: str, default: Any) -> Any:
+    current = globals().get(name, default)
+    if current is not default:
+        return current
+    return _handler_dependency(name, default)
+
+
+def error_response(status_code: int, code: str, message: str, request_id: str) -> dict[str, Any]:
+    return {
+        "statusCode": status_code,
+        "headers": {"Content-Type": "application/json", "x-amzn-RequestId": request_id},
+        "body": json.dumps({"error": {"code": code, "message": message, "requestId": request_id}}),
+    }
+
+
+def get_authorizer_map(event: dict[str, Any]) -> dict[str, str]:
+    request_context = event.get("requestContext", {})
+    authorizer = request_context.get("authorizer", {})
+    if not isinstance(authorizer, dict):
+        return {}
+    if "lambda" in authorizer and isinstance(authorizer["lambda"], dict):
+        return authorizer["lambda"]
+    return authorizer
+
+
+def is_invoke_contract_path(path: str, agent_name: str | None) -> bool:
+    if not agent_name:
+        return False
+    return path.endswith(f"/agents/{agent_name}/invoke")
 
 
 def send_streaming_response(
@@ -46,7 +101,7 @@ def send_streaming_response(
 def handle_streaming_invocation(
     *,
     url: str,
-    headers: dict[str, str] | None,
+    headers: dict[str, str] | None = None,
     payload: dict[str, Any],
     agent: AgentRecord,
     tenant_context: TenantContext,
@@ -55,10 +110,6 @@ def handle_streaming_invocation(
     response_stream: Any | None,
     request_id: str,
     session_id: str | None,
-    get_http_session: Any,
-    log_invocation: Any,
-    runtime_failure_response: Any,
-    error_response: Any,
 ) -> dict[str, Any] | None:
     if response_stream is None:
         return error_response(
@@ -69,8 +120,13 @@ def handle_streaming_invocation(
         )
 
     stream_started = False
+    ttft_ms: int | None = None
+    http_session_factory = _local_or_handler_dependency(
+        "get_http_session", _DEFAULT_GET_HTTP_SESSION
+    )
+    log_result = _handler_dependency("log_invocation", None)
     try:
-        with get_http_session().post(
+        with http_session_factory().post(
             url.rstrip("/"),
             headers=headers or {},
             json=payload,
@@ -88,23 +144,41 @@ def handle_streaming_invocation(
             for raw_line in response.iter_lines():
                 if not raw_line:
                     continue
+                if ttft_ms is None:
+                    ttft_ms = max(1, int((time.time() - start_time) * 1000))
                 response_stream.write(raw_line + b"\n\n")
             latency_ms = int((time.time() - start_time) * 1000)
-            log_invocation(
-                tenant_context,
-                agent,
-                invocation_id,
-                InvocationStatus.SUCCESS,
-                latency_ms,
-                agent.invocation_mode,
-                session_id=session_id or "mock-session-id",
-                runtime_region="mock-runtime",
-            )
+            if log_result is not None:
+                log_result(
+                    tenant_context,
+                    agent,
+                    invocation_id,
+                    InvocationStatus.SUCCESS,
+                    latency_ms,
+                    agent.invocation_mode,
+                    session_id=session_id or "mock-session-id",
+                    runtime_region="mock-runtime",
+                    ttft_ms=ttft_ms,
+                )
+            else:
+                telemetry.log_invocation(
+                    get_cloudwatch(),
+                    tenant_context,
+                    agent,
+                    invocation_id,
+                    InvocationStatus.SUCCESS,
+                    latency_ms,
+                    agent.invocation_mode,
+                    session_id=session_id or "mock-session-id",
+                    runtime_region="mock-runtime",
+                    jitter=runtime_calls.get_jitter(),
+                    ttft_ms=ttft_ms,
+                )
             return None
     except Exception as exc:
         if not stream_started:
             raise
-        return runtime_failure_response(
+        return runtime_calls.runtime_failure_response(
             tenant_context,
             agent,
             invocation_id,
@@ -118,37 +192,7 @@ def handle_streaming_invocation(
 
 
 def mock_runtime_response_body(response: Any, session_id: str | None) -> tuple[str, str | None]:
-    text = getattr(response, "text", None)
-    if isinstance(text, str):
-        return text, session_id
-
-    runtime_session_id = session_id
-    parts: list[str] = []
-    for raw_line in response.iter_lines():
-        if not raw_line:
-            continue
-        line = (
-            raw_line.decode("utf-8") if isinstance(raw_line, (bytes, bytearray)) else str(raw_line)
-        )
-        payload = line[5:].strip() if line.startswith("data:") else line.strip()
-        if payload == "[DONE]":
-            continue
-        try:
-            data = json.loads(payload)
-        except ValueError:
-            continue
-        if data.get("type") == "session" and data.get("sessionId"):
-            runtime_session_id = str(data["sessionId"])
-        if data.get("type") == "text":
-            parts.append(str(data.get("content", "")))
-
-    body = {
-        "output": "".join(parts),
-        "usage": {"inputTokens": 0, "outputTokens": 0},
-    }
-    if runtime_session_id:
-        body["sessionId"] = runtime_session_id
-    return json.dumps(body), runtime_session_id
+    return runtime_calls.mock_runtime_response_body(response, session_id)
 
 
 def is_runtime_unavailable_error(exc: Exception) -> bool:
@@ -158,7 +202,6 @@ def is_runtime_unavailable_error(exc: Exception) -> bool:
 
 
 def invoke_agent(
-    *,
     agent: AgentRecord,
     tenant_context: TenantContext,
     prompt: str,
@@ -166,21 +209,19 @@ def invoke_agent(
     webhook_id: str | None,
     request_id: str,
     response_stream: Any | None,
-    get_config: Any,
-    coerce_optional_string: Any,
-    get_webhook_registration: Any,
-    error_response: Any,
-    build_runtime_payload: Any,
-    get_http_session: Any,
-    invoke_mock_runtime: Any,
-    handle_streaming_invocation: Any,
-    log_invocation: Any,
-    invoke_real_runtime: Any,
-    runtime_failure_response: Any,
-    trigger_failover: Any,
 ) -> Any:
-    config = get_config()
-    mock_url = coerce_optional_string(config.get("mock_runtime_url"))
+    get_runtime_config = _local_or_handler_dependency("get_config", _DEFAULT_GET_CONFIG)
+    call_real_runtime = _handler_dependency(
+        "invoke_real_runtime", runtime_calls.invoke_real_runtime
+    )
+    if globals().get("get_cloudwatch") is not _DEFAULT_GET_CLOUDWATCH:
+        log_result = None
+    else:
+        log_result = _handler_dependency("log_invocation", None)
+    do_failover = _handler_dependency("trigger_failover", None)
+
+    config = get_runtime_config()
+    mock_url = _coerce_optional_string(config.get("mock_runtime_url"))
     runtime_region = str(config["runtime_region"])
     invocation_id = str(uuid.uuid4())
     start_time = time.time()
@@ -210,7 +251,7 @@ def invoke_agent(
                 "status": JobStatus.PENDING.value,
                 "created_at": datetime.now(UTC).isoformat(),
                 "webhook_id": webhook_id,
-                "webhook_url": coerce_optional_string(
+                "webhook_url": _coerce_optional_string(
                     webhook_record.get("callback_url") if webhook_record else None
                 ),
             },
@@ -231,7 +272,7 @@ def invoke_agent(
         if response_stream is not None and agent.invocation_mode == InvocationMode.STREAMING:
             return handle_streaming_invocation(
                 url=mock_url,
-                payload=build_runtime_payload(
+                payload=runtime_calls.build_runtime_payload(
                     agent,
                     tenant_context,
                     prompt,
@@ -244,12 +285,8 @@ def invoke_agent(
                 response_stream=response_stream,
                 request_id=request_id,
                 session_id=session_id,
-                get_http_session=get_http_session,
-                log_invocation=log_invocation,
-                runtime_failure_response=runtime_failure_response,
-                error_response=error_response,
             )
-        response = invoke_mock_runtime(
+        response = runtime_calls.invoke_mock_runtime(
             mock_url,
             agent,
             tenant_context,
@@ -260,27 +297,14 @@ def invoke_agent(
             response_stream,
             invocation_id,
             start_time,
+            get_http_session=get_http_session,
+            build_runtime_payload=runtime_calls.build_runtime_payload,
+            log_invocation=log_result,
         )
-        if response is not None and response.get("statusCode") == 200:
-            mock_response = get_http_session().post(mock_url.rstrip("/"))
-            body_text, resolved_session_id = mock_runtime_response_body(mock_response, session_id)
-            response["body"] = body_text
-            if resolved_session_id:
-                latency_ms = int((time.time() - start_time) * 1000)
-                log_invocation(
-                    tenant_context,
-                    agent,
-                    invocation_id,
-                    InvocationStatus.SUCCESS,
-                    latency_ms,
-                    agent.invocation_mode,
-                    session_id=resolved_session_id,
-                    runtime_region="mock-runtime",
-                )
         return response
 
     try:
-        return invoke_real_runtime(
+        return call_real_runtime(
             runtime_region,
             agent,
             tenant_context,
@@ -296,23 +320,41 @@ def invoke_agent(
         error_code = str(exc.response.get("Error", {}).get("Code", ""))
         if error_code == "ThrottlingException":
             latency_ms = int((time.time() - start_time) * 1000)
-            log_invocation(
-                tenant_context,
-                agent,
-                invocation_id,
-                InvocationStatus.ERROR,
-                latency_ms,
-                agent.invocation_mode,
-                session_id=session_id,
-                error_code="THROTTLED",
-                runtime_region=runtime_region,
-            )
+            if log_result is not None:
+                log_result(
+                    tenant_context,
+                    agent,
+                    invocation_id,
+                    InvocationStatus.ERROR,
+                    latency_ms,
+                    agent.invocation_mode,
+                    session_id=session_id,
+                    error_code="THROTTLED",
+                    runtime_region=runtime_region,
+                )
+            else:
+                telemetry.log_invocation(
+                    get_cloudwatch(),
+                    tenant_context,
+                    agent,
+                    invocation_id,
+                    InvocationStatus.ERROR,
+                    latency_ms,
+                    agent.invocation_mode,
+                    session_id=session_id,
+                    error_code="THROTTLED",
+                    runtime_region=runtime_region,
+                    jitter=runtime_calls.get_jitter(),
+                )
             response = error_response(429, "THROTTLED", "Agent runtime throttled", request_id)
             response["headers"]["Retry-After"] = "1"
             return response
         if is_runtime_unavailable_error(exc):
-            new_region = trigger_failover(runtime_region)
-            return invoke_real_runtime(
+            if do_failover is None:
+                from .lock_manager import trigger_failover as do_failover
+
+            new_region = do_failover(runtime_region)
+            return call_real_runtime(
                 new_region,
                 agent,
                 tenant_context,
@@ -324,7 +366,7 @@ def invoke_agent(
                 invocation_id,
                 start_time,
             )
-        return runtime_failure_response(
+        return runtime_calls.runtime_failure_response(
             tenant_context,
             agent,
             invocation_id,
@@ -337,8 +379,11 @@ def invoke_agent(
         )
     except Exception as exc:
         if is_runtime_unavailable_error(exc):
-            new_region = trigger_failover(runtime_region)
-            return invoke_real_runtime(
+            if do_failover is None:
+                from .lock_manager import trigger_failover as do_failover
+
+            new_region = do_failover(runtime_region)
+            return call_real_runtime(
                 new_region,
                 agent,
                 tenant_context,
@@ -350,7 +395,7 @@ def invoke_agent(
                 invocation_id,
                 start_time,
             )
-        return runtime_failure_response(
+        return runtime_calls.runtime_failure_response(
             tenant_context,
             agent,
             invocation_id,
@@ -397,41 +442,15 @@ def bootstrap_agent_session(
     agent_name: str,
     tenant_context: TenantContext,
     request_id: str,
-    get_agent_record: Any,
-    get_platform_context: Any,
-    coerce_optional_string: Any,
-    entra_audience: str | None,
-    ag_ui_scope_name: str,
 ) -> dict[str, Any]:
     agent = get_agent_record(agent_name)
     if not agent:
-        return {
-            "statusCode": 404,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps(
-                {
-                    "error": {
-                        "code": "NOT_FOUND",
-                        "message": f"Agent '{agent_name}' not found",
-                        "requestId": request_id,
-                    }
-                }
-            ),
-        }
-    if not agent.ag_ui.enabled or not agent.ag_ui.endpoint:
-        return {
-            "statusCode": 404,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps(
-                {
-                    "error": {
-                        "code": "NOT_FOUND",
-                        "message": f"Agent '{agent_name}' is not AG-UI enabled",
-                        "requestId": request_id,
-                    }
-                }
-            ),
-        }
+        return error_response(404, "NOT_FOUND", f"Agent '{agent_name}' not found", request_id)
+
+    if not agent.ag_ui or not agent.ag_ui.enabled or not agent.ag_ui.endpoint:
+        return error_response(
+            404, "NOT_FOUND", f"Agent '{agent_name}' is not AG-UI enabled", request_id
+        )
 
     session_id = str(uuid.uuid4())
     runtime_session_id = str(uuid.uuid4())
@@ -451,10 +470,10 @@ def bootstrap_agent_session(
             get_platform_context(),
             dynamodb_resource=dynamodb_resource,
         ).put_item(SESSIONS_TABLE, session_item)
-        dynamodb_resource.Table(SESSIONS_TABLE).put_item(Item=session_item)
     except Exception:
         pass
-    scope = f"{entra_audience}/{ag_ui_scope_name}" if entra_audience else ag_ui_scope_name
+
+    scope = f"{ENTRA_AUDIENCE}/{AG_UI_SCOPE_NAME}" if ENTRA_AUDIENCE else AG_UI_SCOPE_NAME
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
+import time
 from pathlib import Path
 
 
@@ -30,18 +32,29 @@ class _Completed:
 def test_build_task_set_fast_and_full() -> None:
     fast = validate_local.build_task_set("fast")
     full = validate_local.build_task_set("full")
+    legacy_fast = validate_local.build_legacy_benchmark_task_set("fast")
 
     assert [task.target for task in fast] == [
         "rules-sync-audit",
-        "validate-python",
+        "validate-lint",
+        "validate-typecheck",
+        "validate-contract",
         "validate-cdk-ts-local",
         "validate-secrets-diff",
     ]
     assert [task.target for task in full] == [
         "rules-sync-audit",
-        "validate-python",
+        "validate-lint",
+        "validate-typecheck",
+        "validate-contract",
         "validate-cdk",
         "validate-secrets-full",
+    ]
+    assert [task.target for task in legacy_fast] == [
+        "rules-sync-audit",
+        "validate-python",
+        "validate-cdk-ts-local",
+        "validate-secrets-diff",
     ]
 
 
@@ -59,15 +72,110 @@ def test_run_validation_mode_fails_when_one_subtask_fails(tmp_path: Path, capsys
     exit_code = validate_local.run_validation_mode(mode="fast", repo_root=tmp_path, runner=_runner)
 
     assert exit_code == 1
-    assert seen == [
+    assert len(seen) == len(validate_local.FAST_TASKS)
+    output = capsys.readouterr().out
+    assert "[FAIL] CDK TypeScript (validate-cdk-ts-local)" in output
+    assert "validate-cdk-ts-local.log" in output
+    assert "cdk failed" in output
+
+    log_file = tmp_path / ".build" / "validate-local"
+    cdk_logs = list(log_file.glob("fast-*/validate-cdk-ts-local.log"))
+    assert len(cdk_logs) == 1
+    assert "cdk failed" in cdk_logs[0].read_text(encoding="utf-8")
+
+
+def test_run_validation_mode_reports_multiple_failures_with_log_paths(
+    tmp_path: Path, capsys
+) -> None:
+    def _runner(cmd, *, cwd, text, capture_output, check):
+        _ = cwd, text, capture_output, check
+        target = cmd[-1]
+        if target == "validate-lint":
+            return _Completed(1, stdout="lint failed", stderr="lint stderr")
+        if target == "validate-secrets-diff":
+            return _Completed(1, stdout=f"{target} failed", stderr=f"{target} stderr")
+        return _Completed(0, stdout=f"{target} ok")
+
+    exit_code = validate_local.run_validation_mode(mode="fast", repo_root=tmp_path, runner=_runner)
+
+    assert exit_code == 1
+    output = capsys.readouterr().out
+    assert "[FAIL] Lint (validate-lint)" in output
+    assert "[FAIL] Secrets diff (validate-secrets-diff)" in output
+    assert "--- Lint (validate-lint) failed with exit 1; log:" in output
+    assert "--- Secrets diff (validate-secrets-diff) failed with exit 1; log:" in output
+    assert "validate-lint.log" in output
+    assert "validate-secrets-diff.log" in output
+
+    log_root = tmp_path / ".build" / "validate-local"
+    assert len(list(log_root.glob("fast-*/validate-lint.log"))) == 1
+    assert len(list(log_root.glob("fast-*/validate-secrets-diff.log"))) == 1
+
+
+def test_run_validation_mode_runs_tasks_in_parallel(tmp_path: Path, capsys) -> None:
+    def _runner(cmd, *, cwd, text, capture_output, check):
+        _ = cmd, cwd, text, capture_output, check
+        time.sleep(0.05)
+        return _Completed(0, stdout="ok")
+
+    started = time.perf_counter()
+    exit_code = validate_local.run_validation_mode(mode="fast", repo_root=tmp_path, runner=_runner)
+    duration = time.perf_counter() - started
+
+    assert exit_code == 0
+    assert duration < 0.16
+    output = capsys.readouterr().out
+    assert "==> Parallel wall time:" in output
+    assert "==> Aggregate task runtime:" in output
+    assert "Benchmark improvement" not in output
+
+
+def test_run_validation_mode_benchmark_measures_sequential_baseline(tmp_path: Path, capsys) -> None:
+    def _runner(cmd, *, cwd, text, capture_output, check):
+        _ = cmd, cwd, text, capture_output, check
+        time.sleep(0.02)
+        return _Completed(0, stdout="ok")
+
+    exit_code = validate_local.run_validation_mode(
+        mode="fast", repo_root=tmp_path, runner=_runner, benchmark=True
+    )
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert "==> Benchmark: measuring legacy sequential baseline" in output
+    assert "==> Benchmark improvement:" in output
+    match = re.search(r"Benchmark improvement: (\d+)%", output)
+    assert match is not None
+    assert int(match.group(1)) >= 30
+    assert list((tmp_path / ".build" / "validate-local").glob("fast-benchmark-*/sequential/*.log"))
+    assert list((tmp_path / ".build" / "validate-local").glob("fast-benchmark-*/parallel/*.log"))
+
+
+def test_run_validation_mode_normalizes_task_startup_exceptions(tmp_path: Path, capsys) -> None:
+    def _runner(cmd, *, cwd, text, capture_output, check):
+        _ = cmd, cwd, text, capture_output, check
+        raise FileNotFoundError("uv missing")
+
+    exit_code = validate_local.run_validation_mode(mode="fast", repo_root=tmp_path, runner=_runner)
+
+    assert exit_code == 1
+    output = capsys.readouterr().out
+    assert "==> Failure summary" in output
+    assert "FileNotFoundError: uv missing" in output
+    logs = list((tmp_path / ".build" / "validate-local").glob("fast-*/*.log"))
+    assert len(logs) == len(validate_local.FAST_TASKS)
+    assert "FileNotFoundError: uv missing" in logs[0].read_text(encoding="utf-8")
+
+
+def test_build_task_set_fast_and_full_order_is_stable_for_public_targets() -> None:
+    assert [task.target for task in validate_local.FAST_TASKS] == [
         "rules-sync-audit",
-        "validate-python",
+        "validate-lint",
+        "validate-typecheck",
+        "validate-contract",
         "validate-cdk-ts-local",
         "validate-secrets-diff",
     ]
-    output = capsys.readouterr().out
-    assert "[FAIL] CDK TypeScript (validate-cdk-ts-local)" in output
-    assert "cdk failed" in output
 
 
 def test_run_validation_mode_prints_summary_for_success(tmp_path: Path, capsys) -> None:
@@ -82,3 +190,5 @@ def test_run_validation_mode_prints_summary_for_success(tmp_path: Path, capsys) 
     assert "==> Validation summary" in output
     assert "[PASS] Rules sync (rules-sync-audit)" in output
     assert "[PASS] Secrets full (validate-secrets-full)" in output
+    assert "==> Validation passed" in output
+    assert list((tmp_path / ".build" / "validate-local").glob("full-*/validate-cdk.log"))

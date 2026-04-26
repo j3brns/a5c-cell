@@ -124,12 +124,88 @@ def _emit_tenant_violation_metric(
         )
 
 
+class _DynamoDBClientBase:
+    """Shared DynamoDB operation plumbing without tenant-scope semantics."""
+
+    def __init__(
+        self,
+        context: TenantContext,
+        *,
+        dynamodb_resource: Any = None,
+        cloudwatch_client: Any = None,
+    ) -> None:
+        self._tenant_id = context.tenant_id
+        self._app_id = context.app_id
+        self._dynamodb: Any = dynamodb_resource or _get_dynamodb_resource()
+        self._cloudwatch: Any = cloudwatch_client or _get_cloudwatch_client()
+
+    def _validate_pk(self, key: dict[str, Any]) -> None:
+        raise NotImplementedError
+
+    def get_item(
+        self, table_name: str, key: dict[str, Any], **extra_kwargs: Any
+    ) -> dict[str, Any] | None:
+        """Get a single item after applying the concrete client's key policy."""
+        self._validate_pk(key)
+        table = self._dynamodb.Table(table_name)
+        response = table.get_item(Key=key, **extra_kwargs)
+        return response.get("Item")
+
+    def put_item(
+        self,
+        table_name: str,
+        item: dict[str, Any],
+        *,
+        condition_expression: str | None = None,
+        **extra_kwargs: Any,
+    ) -> None:
+        """Write an item after applying the concrete client's key policy."""
+        self._validate_pk(item)
+        table = self._dynamodb.Table(table_name)
+        kwargs: dict[str, Any] = {"Item": item}
+        if condition_expression:
+            kwargs["ConditionExpression"] = condition_expression
+        kwargs.update(extra_kwargs)
+        table.put_item(**kwargs)
+
+    def update_item(
+        self,
+        table_name: str,
+        key: dict[str, Any],
+        update_expression: str,
+        expression_attribute_values: dict[str, Any],
+        *,
+        expression_attribute_names: dict[str, str] | None = None,
+        condition_expression: str | None = None,
+    ) -> dict[str, Any]:
+        """Update an item after applying the concrete client's key policy."""
+        self._validate_pk(key)
+        table = self._dynamodb.Table(table_name)
+        kwargs: dict[str, Any] = {
+            "Key": key,
+            "UpdateExpression": update_expression,
+            "ExpressionAttributeValues": expression_attribute_values,
+            "ReturnValues": "ALL_NEW",
+        }
+        if expression_attribute_names is not None:
+            kwargs["ExpressionAttributeNames"] = expression_attribute_names
+        if condition_expression is not None:
+            kwargs["ConditionExpression"] = condition_expression
+        return table.update_item(**kwargs)
+
+    def delete_item(self, table_name: str, key: dict[str, Any], **extra_kwargs: Any) -> None:
+        """Delete an item after applying the concrete client's key policy."""
+        self._validate_pk(key)
+        table = self._dynamodb.Table(table_name)
+        table.delete_item(Key=key, **extra_kwargs)
+
+
 # ---------------------------------------------------------------------------
 # TenantScopedDynamoDB
 # ---------------------------------------------------------------------------
 
 
-class TenantScopedDynamoDB:
+class TenantScopedDynamoDB(_DynamoDBClientBase):
     """
     DynamoDB client scoped to a single tenant partition.
 
@@ -144,18 +220,6 @@ class TenantScopedDynamoDB:
 
     Implemented in TASK-013.
     """
-
-    def __init__(
-        self,
-        context: TenantContext,
-        *,
-        dynamodb_resource: Any = None,
-        cloudwatch_client: Any = None,
-    ) -> None:
-        self._tenant_id = context.tenant_id
-        self._app_id = context.app_id
-        self._dynamodb: Any = dynamodb_resource or _get_dynamodb_resource()
-        self._cloudwatch: Any = cloudwatch_client or _get_cloudwatch_client()
 
     def _validate_pk(self, key: dict[str, Any]) -> None:
         """Raise TenantAccessViolation if a TENANT#-prefixed PK doesn't match caller.
@@ -194,70 +258,6 @@ class TenantScopedDynamoDB:
             caller_tenant_id=self._tenant_id,
             attempted_key=attempted_key,
         )
-
-    def get_item(
-        self, table_name: str, key: dict[str, Any], **extra_kwargs: Any
-    ) -> dict[str, Any] | None:
-        """Get a single item, enforcing tenant partition on PK.
-
-        Returns the item dict, or None if the item does not exist.
-        """
-        self._validate_pk(key)
-        table = self._dynamodb.Table(table_name)
-        response = table.get_item(Key=key, **extra_kwargs)
-        return response.get("Item")
-
-    def put_item(
-        self,
-        table_name: str,
-        item: dict[str, Any],
-        *,
-        condition_expression: str | None = None,
-        **extra_kwargs: Any,
-    ) -> None:
-        """Write an item, enforcing tenant partition on PK."""
-        self._validate_pk(item)
-        table = self._dynamodb.Table(table_name)
-        kwargs: dict[str, Any] = {"Item": item}
-        if condition_expression:
-            kwargs["ConditionExpression"] = condition_expression
-        kwargs.update(extra_kwargs)
-        table.put_item(**kwargs)
-
-    def update_item(
-        self,
-        table_name: str,
-        key: dict[str, Any],
-        update_expression: str,
-        expression_attribute_values: dict[str, Any],
-        *,
-        expression_attribute_names: dict[str, str] | None = None,
-        condition_expression: str | None = None,
-    ) -> dict[str, Any]:
-        """Update an item, enforcing tenant partition on PK.
-
-        Returns the raw boto3 response dict.  The updated attributes are
-        under the "Attributes" key (ReturnValues=ALL_NEW).
-        """
-        self._validate_pk(key)
-        table = self._dynamodb.Table(table_name)
-        kwargs: dict[str, Any] = {
-            "Key": key,
-            "UpdateExpression": update_expression,
-            "ExpressionAttributeValues": expression_attribute_values,
-            "ReturnValues": "ALL_NEW",
-        }
-        if expression_attribute_names is not None:
-            kwargs["ExpressionAttributeNames"] = expression_attribute_names
-        if condition_expression is not None:
-            kwargs["ConditionExpression"] = condition_expression
-        return table.update_item(**kwargs)
-
-    def delete_item(self, table_name: str, key: dict[str, Any], **extra_kwargs: Any) -> None:
-        """Delete an item, enforcing tenant partition on PK."""
-        self._validate_pk(key)
-        table = self._dynamodb.Table(table_name)
-        table.delete_item(Key=key, **extra_kwargs)
 
     def query(
         self,
@@ -381,8 +381,13 @@ class TenantScopedDynamoDB:
         )
 
 
-class ControlPlaneDynamoDB(TenantScopedDynamoDB):
-    """Administrative DynamoDB client for explicit control-plane scans and writes."""
+class ControlPlaneDynamoDB(_DynamoDBClientBase):
+    """Scan-capable DynamoDB client for explicit platform control-plane paths.
+
+    This client intentionally does not inherit from TenantScopedDynamoDB. It bypasses
+    tenant partition validation and may scan tables, so Lambda handlers should only
+    obtain it through documented control-plane factories or audited platform-only paths.
+    """
 
     def _validate_pk(self, key: dict[str, Any]) -> None:
         _ = key

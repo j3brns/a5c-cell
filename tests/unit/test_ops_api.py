@@ -1,32 +1,15 @@
 from __future__ import annotations
 
 import json
-import sys
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 from src.tenant_api import ops_control
 from tests.unit.tenant_api_test_support import (
-    build_handler_state,
-    fixed_now_value,
     invoke_handler,
     response_body,
 )
-
-
-@pytest.fixture
-def fixed_now() -> datetime:
-    return fixed_now_value()
-
-
-@pytest.fixture
-def fake_state(monkeypatch: pytest.MonkeyPatch, fixed_now: datetime) -> dict[str, Any]:
-    return build_handler_state(monkeypatch, fixed_now)
 
 
 def _ops_event(
@@ -66,7 +49,10 @@ def test_ops_billing_status_returns_real_summary_shape(fake_state: dict[str, Any
         "updatedAt": "2026-02-25T11:00:00Z",
     }
 
-    response = invoke_handler(_ops_event("GET", "/v1/platform/billing/status"))
+    response = invoke_handler(
+        _ops_event("GET", "/v1/platform/billing/status"),
+        dependencies=fake_state["deps"],
+    )
 
     assert response["statusCode"] == 200
     assert response_body(response) == {
@@ -98,9 +84,7 @@ def test_ops_billing_status_returns_real_summary_shape(fake_state: dict[str, Any
 def test_de_scoped_ops_routes_do_not_expose_placeholder_success(
     fake_state: dict[str, Any], path: str, method: str
 ) -> None:
-    del fake_state
-
-    response = invoke_handler(_ops_event(method, path))
+    response = invoke_handler(_ops_event(method, path), dependencies=fake_state["deps"])
 
     assert response["statusCode"] == 405
     assert response_body(response)["error"]["code"] == "METHOD_NOT_ALLOWED"

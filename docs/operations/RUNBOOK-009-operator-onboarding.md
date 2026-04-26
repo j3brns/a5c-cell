@@ -13,9 +13,29 @@ Steps for a platform engineer to follow when a new operator joins.
 ### 1. Get access verified
 ```bash
 # Operator logs in via Entra on the SPA admin view
-# Should see: Platform.Operator role, platform health dashboard
+# Should see: Platform.Operator role, platform health dashboard, and tenant usage dashboard access
 # Should NOT see: tenant data, individual invocation content
 ```
+
+### Tenant usage dashboard migration note
+TenantStack no longer creates one CloudWatch dashboard per tenant and no longer exports
+`DashboardName`. Use the shared dashboard exported from ObservabilityStack as
+`TenantUsageDashboardName` instead. In a standard environment its dashboard name is
+`platform-tenant-usage-platform-observability-{env}`.
+
+Set the dashboard `tenantId` variable to the tenant id under investigation and set
+`tenantTier` to the tenant's current tier. The tenant id is a text input so idle,
+newly provisioned, or recently suspended tenants remain inspectable even when they have
+not emitted recent API request metrics.
+
+Repository audit for TASK-205 found no in-repo automation depending on the removed
+TenantStack `DashboardName` output. External scripts should migrate to the shared
+dashboard output before removing references to per-tenant dashboard names.
+
+CloudWatch dashboard variable behavior was verified against AWS documentation:
+[dashboard body variables](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/CloudWatch-Dashboard-Body-Structure.html#CloudWatch-Dashboard-Properties-Variables-Structure),
+[dashboard variables](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_dashboard_variables.html),
+and [search expression limits](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/search-expression-syntax.html).
 
 ### 2. Install CLI tools
 ```bash
@@ -49,7 +69,8 @@ Complete a dry-run of RUNBOOK-001 (failover) in the dev environment.
 Operator is considered onboarded when:
 - They can complete RUNBOOK-001 (failover) in dev without assistance
 - They can answer: "How do I identify the tenant driving the most quota pressure?"
-  Use CloudWatch AgentCore concurrent-session metrics together with tenant audit and usage records.
+  Use the parameterized CloudWatch tenant usage dashboard together with AgentCore concurrent-session metrics,
+  tenant audit records, and usage records.
 - They have NOT needed direct AWS console access for any of the above
 
 ## What Operators Cannot Do

@@ -44,8 +44,8 @@ def make_dynamo_db(
     ctx: TenantContext,
     *,
     cw: Any = None,
-    db_cls: type[TenantScopedDynamoDB] = TenantScopedDynamoDB,
-) -> tuple[TenantScopedDynamoDB, Any]:
+    db_cls: Any = TenantScopedDynamoDB,
+) -> tuple[Any, Any]:
     dynamodb = boto3.resource("dynamodb", region_name=REGION)
     dynamodb.create_table(
         TableName=TABLE_NAME,

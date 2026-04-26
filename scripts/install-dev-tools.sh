@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # install-dev-tools.sh — Idempotent pre-agent environment setup
 #
-# Called automatically by `make validate-local`, `make task-start`, and
-# `make task-resume`. Safe to run repeatedly — skips anything already present.
+# Called automatically by `make validate-local` and worktree provisioning.
+# Safe to run repeatedly — skips anything already present.
 #
 # Hard requirements for `make validate-local`:
 #   uv     — ruff, detect-secrets (installed to ~/.local/bin, no sudo)
@@ -100,97 +100,17 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. AWS CLI v2 (soft requirement — needed for ops/deploy, not validate-local)
+# 3. Declarative Tool Installation (aws, glab, cfn-guard, claude)
 # ---------------------------------------------------------------------------
-if command -v aws &>/dev/null; then
-    skip "aws $(aws --version 2>&1 | head -1)"
-elif $CAN_SUDO; then
-    info "Installing AWS CLI v2..."
-    apt_install unzip curl
-    AWS_ZIP="awscli-exe-linux-$( [[ "$OS_ARCH" == "aarch64" ]] && echo "aarch64" || echo "x86_64" ).zip"
-    if curl -fsSL "https://awscli.amazonaws.com/${AWS_ZIP}" -o /tmp/awscliv2.zip \
-        && unzip -q /tmp/awscliv2.zip -d /tmp/awscli-install \
-        && sudo /tmp/awscli-install/aws/install; then
-        ok "aws $(aws --version 2>&1 | head -1)"
-    else
-        fail "aws"
-    fi
-    rm -rf /tmp/awscliv2.zip /tmp/awscli-install 2>/dev/null || true
+info "Installing tools from declarative manifest..."
+if uv run python scripts/install_tools.py; then
+    ok "Declarative tools ready"
 else
-    warn "aws CLI not installed — needed for ops/deploy targets, not validate-local"
+    warn "Some declarative tools failed to install"
 fi
 
 # ---------------------------------------------------------------------------
-# 4. GitLab CLI (soft requirement — needed for issue and MR workflow)
-# ---------------------------------------------------------------------------
-if command -v glab &>/dev/null; then
-    skip "glab $(glab --version | head -1)"
-elif $CAN_SUDO; then
-    info "Installing GitLab CLI..."
-    apt_install ca-certificates curl
-    curl -fsSL https://gitlab.com/gitlab-org/cli/-/raw/main/scripts/install.sh \
-        | sudo bash 2>/dev/null || true
-    if command -v glab &>/dev/null; then
-        ok "glab $(glab --version | head -1)"
-    else
-        fail "glab"
-    fi
-else
-    warn "glab not installed — needed for issue and MR workflow"
-fi
-
-# ---------------------------------------------------------------------------
-# 5. cfn-guard (soft requirement — needed for infra validation, not validate-local)
-# ---------------------------------------------------------------------------
-if command -v cfn-guard &>/dev/null; then
-    skip "cfn-guard $(cfn-guard --version 2>&1)"
-else
-    info "Installing cfn-guard..."
-    CFN_ARCH="$( [[ "$OS_ARCH" == "aarch64" ]] && echo "aarch64-unknown-linux-musl" || echo "x86_64-unknown-linux-musl" )"
-    INSTALL_DIR="$( $CAN_SUDO && echo /usr/local/bin || { mkdir -p "$HOME/.local/bin"; echo "$HOME/.local/bin"; } )"
-    # Find latest release tag
-    CFN_TAG="$(curl -fsSL https://api.github.com/repos/aws-cloudformation/cloudformation-guard/releases/latest \
-        2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
-    CFN_TAG="${CFN_TAG:-3.2.0}"
-    CFN_FILE="cfn-guard-v3-$( [[ "$OS_ARCH" == "aarch64" ]] && echo "aarch64" || echo "x86_64" )-linux-latest.tar.gz"
-    if curl -fsSL \
-        "https://github.com/aws-cloudformation/cloudformation-guard/releases/download/${CFN_TAG}/${CFN_FILE}" \
-        | tar -xz -C "$INSTALL_DIR" --wildcards --strip-components=1 "*/cfn-guard" 2>/dev/null \
-        && chmod +x "$INSTALL_DIR/cfn-guard"; then
-        ok "cfn-guard $(cfn-guard --version 2>&1)"
-    else
-        fail "cfn-guard"
-        warn "cfn-guard install failed — needed for infra validation, not validate-local"
-    fi
-fi
-
-# ---------------------------------------------------------------------------
-# 6. Claude Code (needed for task-start/task-resume to launch agent)
-# ---------------------------------------------------------------------------
-if command -v claude &>/dev/null; then
-    skip "claude already installed"
-elif $CAN_SUDO; then
-    info "Installing Claude Code (global)..."
-    if sudo npm install -g @anthropic-ai/claude-code --quiet 2>/dev/null; then
-        ok "claude installed"
-    else
-        fail "claude"
-    fi
-else
-    info "Installing Claude Code (~/.npm-global)..."
-    NPM_GLOBAL="$HOME/.npm-global"
-    mkdir -p "$NPM_GLOBAL"
-    if npm install --prefix "$NPM_GLOBAL" @anthropic-ai/claude-code --quiet 2>/dev/null; then
-        export PATH="$NPM_GLOBAL/bin:$PATH"
-        ok "claude installed to ~/.npm-global/bin"
-        warn "Add ~/.npm-global/bin to your PATH for claude to be available in new shells"
-    else
-        fail "claude"
-    fi
-fi
-
-# ---------------------------------------------------------------------------
-# 7. Project deps — HARD REQUIREMENTS (validate-local fails without these)
+# 4. Project deps — HARD REQUIREMENTS (validate-local fails without these)
 # ---------------------------------------------------------------------------
 cd "$REPO_ROOT"
 

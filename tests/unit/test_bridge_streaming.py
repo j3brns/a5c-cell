@@ -10,7 +10,13 @@ from data_access.models import AgentRecord, InvocationMode, TenantContext
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "data-access-lib" / "src"))
 
-from src.bridge.handler import _send_streaming_response, handle_streaming_invocation, handler
+from src.bridge.handler import handler
+from src.bridge.route_adapter import (
+    handle_streaming_invocation,
+)
+from src.bridge.route_adapter import (
+    send_streaming_response as _send_streaming_response,
+)
 
 
 class FakeLambdaContext:
@@ -196,6 +202,64 @@ def test_handle_streaming_invocation_streams_lines(
 
 @patch("src.bridge.handler.log_invocation")
 @patch("src.bridge.handler.get_http_session")
+def test_handle_streaming_invocation_records_ttft_from_first_chunk(
+    mock_get_http_session, mock_log, fake_agent, fake_tenant
+):
+    mock_stream = MagicMock()
+    mock_response = MagicMock()
+    mock_response.iter_lines.return_value = [b"data: first", b"data: second"]
+    mock_get_http_session.return_value.post.return_value.__enter__ = lambda s: mock_response
+    mock_get_http_session.return_value.post.return_value.__exit__ = MagicMock(return_value=False)
+
+    with patch("src.bridge.route_adapter.time.time", side_effect=[100.012, 100.050]):
+        handle_streaming_invocation(
+            url="http://runtime:8080",
+            headers={},
+            payload={},
+            agent=fake_agent,
+            tenant_context=fake_tenant,
+            invocation_id="inv-ttft",
+            start_time=100.0,
+            response_stream=mock_stream,
+            request_id="req-ttft",
+            session_id="sess-ttft",
+        )
+
+    _, kwargs = mock_log.call_args
+    assert kwargs["ttft_ms"] == 12
+
+
+@patch("src.bridge.handler.log_invocation")
+@patch("src.bridge.handler.get_http_session")
+def test_handle_streaming_invocation_records_minimum_ttft(
+    mock_get_http_session, mock_log, fake_agent, fake_tenant
+):
+    mock_stream = MagicMock()
+    mock_response = MagicMock()
+    mock_response.iter_lines.return_value = [b"data: first"]
+    mock_get_http_session.return_value.post.return_value.__enter__ = lambda s: mock_response
+    mock_get_http_session.return_value.post.return_value.__exit__ = MagicMock(return_value=False)
+
+    with patch("src.bridge.route_adapter.time.time", side_effect=[100.0, 100.0]):
+        handle_streaming_invocation(
+            url="http://runtime:8080",
+            headers={},
+            payload={},
+            agent=fake_agent,
+            tenant_context=fake_tenant,
+            invocation_id="inv-min-ttft",
+            start_time=100.0,
+            response_stream=mock_stream,
+            request_id="req-min-ttft",
+            session_id="sess-min-ttft",
+        )
+
+    _, kwargs = mock_log.call_args
+    assert kwargs["ttft_ms"] == 1
+
+
+@patch("src.bridge.handler.log_invocation")
+@patch("src.bridge.handler.get_http_session")
 def test_handle_streaming_invocation_empty_stream(
     mock_get_http_session, mock_log, fake_agent, fake_tenant
 ):
@@ -224,6 +288,8 @@ def test_handle_streaming_invocation_empty_stream(
     assert mock_stream.write.call_count == 1
     preamble = json.loads(mock_stream.write.call_args_list[0][0][0].decode("utf-8").rstrip("\0"))
     assert preamble["statusCode"] == 200
+    _, kwargs = mock_log.call_args
+    assert kwargs["ttft_ms"] is None
 
 
 def test_handle_streaming_invocation_no_response_stream_returns_error(fake_agent, fake_tenant):

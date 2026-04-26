@@ -1,5 +1,5 @@
 """
-tests/unit/test_dev_bootstrap.py — Tests for scripts/dev-bootstrap.py
+tests/unit/test_dev_bootstrap.py — Tests for scripts/dev_bootstrap.py
 
 Validates:
   - All DynamoDB tables are created on first run
@@ -25,10 +25,10 @@ from moto import mock_aws
 
 
 def _load_bootstrap_module() -> object:
-    """Load scripts/dev-bootstrap.py as a Python module via importlib."""
+    """Load scripts/dev_bootstrap.py as a Python module via importlib."""
     repo_root = Path(__file__).resolve().parents[2]
     spec = importlib.util.spec_from_file_location(
-        "dev_bootstrap", repo_root / "scripts" / "dev-bootstrap.py"
+        "dev_bootstrap", repo_root / "scripts" / "dev_bootstrap.py"
     )
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -41,6 +41,18 @@ bootstrap = _load_bootstrap_module()
 
 _REGION = "eu-west-2"
 _EXPECTED_TABLE_NAMES = {d["TableName"] for d in bootstrap.TABLE_DEFINITIONS}  # type: ignore[attr-defined]
+_TENANT_DUAL_KEY_PAIRS = {
+    "tenant_id": "tenantId",
+    "app_id": "appId",
+    "display_name": "displayName",
+    "created_at": "createdAt",
+    "updated_at": "updatedAt",
+    "owner_email": "ownerEmail",
+    "owner_team": "ownerTeam",
+    "account_id": "accountId",
+    "execution_role_arn": "executionRoleArn",
+    "monthly_budget_usd": "monthlyBudgetUsd",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -103,7 +115,7 @@ def test_seed_tenants_correct_tiers() -> None:
     ddb_client, ddb_resource, _ = _make_aws_clients()
     bootstrap.ensure_tables(ddb_client)  # type: ignore[attr-defined]
     bootstrap.seed_tenants(ddb_resource)  # type: ignore[attr-defined]
-    items = {item["tenant_id"]: item for item in _scan_table(ddb_resource, "platform-tenants")}
+    items = {item["tenantId"]: item for item in _scan_table(ddb_resource, "platform-tenants")}
     assert items["t-test-001"]["tier"] == "basic"
     assert items["t-test-002"]["tier"] == "premium"
     assert items["t-test-001"]["tenantId"] == "t-test-001"
@@ -120,14 +132,22 @@ def test_seed_tenants_both_active() -> None:
 
 
 @mock_aws
-def test_seed_tenants_writes_canonical_aliases() -> None:
+def test_seed_tenants_writes_canonical_fields_only() -> None:
     ddb_client, ddb_resource, _ = _make_aws_clients()
     bootstrap.ensure_tables(ddb_client)  # type: ignore[attr-defined]
     bootstrap.seed_tenants(ddb_resource)  # type: ignore[attr-defined]
     items = _scan_table(ddb_resource, "platform-tenants")
-    assert all("tenantId" in item for item in items)
-    assert all("appId" in item for item in items)
-    assert all("createdAt" in item for item in items)
+    for item in items:
+        assert all(canonical in item for canonical in _TENANT_DUAL_KEY_PAIRS.values())
+        assert not any(legacy in item for legacy in _TENANT_DUAL_KEY_PAIRS)
+
+
+def test_dev_bootstrap_source_does_not_reintroduce_known_dual_key_tenant_writes() -> None:
+    assert not hasattr(bootstrap, "_with_tenant_aliases")
+    for item in bootstrap.TENANT_FIXTURES:  # type: ignore[attr-defined]
+        for legacy, canonical in _TENANT_DUAL_KEY_PAIRS.items():
+            assert legacy not in item
+            assert canonical in item
 
 
 @mock_aws

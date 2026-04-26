@@ -6,13 +6,20 @@
 |--------------|------------|--------------------------------------------------|
 | uv           | latest     | curl -Ls https://astral.sh/uv/install.sh | sh    |
 | Docker       | 24+        | https://docs.docker.com/get-docker/              |
-| AWS CLI      | v2         | https://docs.aws.amazon.com/cli/latest/userguide |
-| Node         | 20 LTS     | https://nodejs.org/ or nvm                       |
 | Git          | 2.30+      | system package manager                           |
+| Node         | 20 LTS     | Handled by `make bootstrap` (or nvm)             |
+| AWS CLI      | v2         | Handled by `make bootstrap` (manifest-based)     |
+| glab         | latest     | Handled by `make bootstrap` (manifest-based)     |
+| cfn-guard    | v3         | Handled by `make bootstrap` (manifest-based)     |
 
 ## .env.local Values
 
-Copy `.env.example` to `.env.local` and fill in these values:
+Copy `.env.example` to `.env.local` and fill in these values. Read-only local
+settings load `.env.example` first, then `.env`, `.env.local`, and `.env.test`;
+real shell environment variables still win. AWS-mutating scripts still require
+critical execution values such as `AWS_REGION` from the real process environment
+so they fail closed in clean shells. Keep new local script settings in
+`.env.example` so the typed `platform_config` models remain the source of truth.
 
 | Variable              | Where to Find It                                        |
 |-----------------------|----------------------------------------------------------|
@@ -21,6 +28,7 @@ Copy `.env.example` to `.env.local` and fill in these values:
 | VITE_ENTRA_SCOPES     | Entra app expose-an-API scopes (space/comma separated)  |
 | VITE_API_BASE_URL     | CDK outputs after infra-deploy, or team-platform Slack   |
 | GITLAB_PROJECT_ID     | GitLab project settings → General → Project ID           |
+| AWS_REGION            | Local/home region; defaults to `eu-west-2`               |
 
 For local development only (no real AWS needed):
 ```bash

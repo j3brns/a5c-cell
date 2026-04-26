@@ -1,8 +1,4 @@
 # Scratch / local-only tooling
-.scratch/
-.codex
-.codex-flow/
-.omx/
 
 # Python
 __pycache__/
@@ -10,6 +6,7 @@ __pycache__/
 *.pyo
 .python-version
 .venv/
+.ready
 .tox/
 .nox/
 .hypothesis/
@@ -54,7 +51,6 @@ override.tf.json
 *_override.tf.json
 terraform/.terraform/
 infra/cdk/cdk.out/
-infra/cdk/generated/
 infra/cdk/dist/
 
 # Environment / secrets

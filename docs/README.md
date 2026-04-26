@@ -58,6 +58,8 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-018](decisions/ADR-018-agentcore-ag-ui-integration.md) | Additive AG-UI bootstrap and per-agent interactive runtime boundary |
 | [ADR-019](decisions/ADR-019-tenant-execution-role-account-boundary.md) | Tenant execution roles are same-account only today; any future cross-account mode requires a successor allow-list design |
 | [ADR-020](decisions/ADR-020-eu-west-2-runtime-collapse.md) | Collapse AgentCore Runtime to eu-west-2 (London home region); remove the Dublin zigzag; gated migration, implementation tracked separately |
+| [ADR-021](decisions/ADR-021-spa-cloudfront-logging-model.md) | CloudFront standard access logging with environment-aware retention |
+| [ADR-022](decisions/ADR-022-independent-platform-and-agent-developer-clis.md) | Independent Platform and Agent Developer CLIs |
 | [ADR-701](decisions/ADR-701-tenant-agent-inference-chargeback-and-tagging.md) | Tenant inference chargeback and tagging model |
 | [ADR-702](decisions/ADR-702-bedrock-proxy-gateway-as-additive-internal-model-gateway.md) | Bedrock proxy gateway as additive internal model gateway |
 | [ADR-703](decisions/ADR-703-platformstack-split-plan.md) | PlatformStack split plan — storage, compute, and SPA extraction into separate CDK stacks (phased, no big-bang) |
@@ -79,6 +81,7 @@ failure-investigation steps still require external consoles or service UIs.
 | [RUNBOOK-007](operations/RUNBOOK-007-deployment-rollback.md) | Deployment rollback | Failed deployment / regression |
 | [RUNBOOK-008](operations/RUNBOOK-008-developer-onboarding.md) | Developer onboarding | New team member |
 | [RUNBOOK-009](operations/RUNBOOK-009-operator-onboarding.md) | Operator onboarding | New ops team member |
+| [RUNBOOK-010](operations/RUNBOOK-010-spa-edge-investigation.md) | SPA edge failure investigation | High edge error rate / BlockedRequests alarm |
 
 ## Security and Compliance
 

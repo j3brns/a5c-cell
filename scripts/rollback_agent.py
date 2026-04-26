@@ -13,11 +13,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from platform_config import get_settings
 
 logger = logging.getLogger("rollback_agent")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -70,14 +71,12 @@ def rollback_agent(
     notes: str | None = None,
 ) -> bool:
     # Resolve API Base URL and Token
-    api_url = api_base_url or os.environ.get("API_BASE_URL") or os.environ.get("VITE_API_BASE_URL")
+    api_url = api_base_url or get_settings().agents.resolved_api_base_url
     if not api_url:
         logger.error("API_BASE_URL environment variable is not set")
         return False
 
-    api_token = (
-        token or os.environ.get("PLATFORM_ACCESS_TOKEN") or os.environ.get("OPS_ACCESS_TOKEN")
-    )
+    api_token = token or get_settings().agents.resolved_access_token
     if not api_token:
         # Try to load from local credentials if in dev
         creds_path = Path.home() / ".platform" / "credentials"

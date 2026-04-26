@@ -68,11 +68,70 @@ describe('ObservabilityStack (TASK-026)', () => {
     return Template.fromStack(observabilityStack);
   };
 
-  test('creates a CloudWatch Dashboard', () => {
+  test('creates CloudWatch Dashboards (Ops + Tenant Usage)', () => {
     const template = synthStack();
-    template.resourceCountIs('AWS::CloudWatch::Dashboard', 1);
+    template.resourceCountIs('AWS::CloudWatch::Dashboard', 2);
     template.hasResourceProperties('AWS::CloudWatch::Dashboard', {
       DashboardName: Match.stringLikeRegexp('platform-ops-ObservabilityStack'),
+    });
+    template.hasResourceProperties('AWS::CloudWatch::Dashboard', {
+      DashboardName: Match.stringLikeRegexp('platform-tenant-usage-ObservabilityStack'),
+    });
+  });
+
+  test('Tenant Usage Dashboard includes tenant and tier variables', () => {
+    const template = synthStack();
+    const dashboards = template.findResources('AWS::CloudWatch::Dashboard') as Record<
+      string,
+      { Properties?: { DashboardBody?: string | Record<string, unknown>; DashboardName?: string } }
+    >;
+    const tenantDashboard = Object.values(dashboards).find((d) =>
+      d.Properties?.DashboardName?.includes('platform-tenant-usage'),
+    );
+    expect(tenantDashboard).toBeDefined();
+
+    const dashboardBody = JSON.stringify(tenantDashboard!.Properties!.DashboardBody);
+    expect(dashboardBody).toContain('\\"variables\\"');
+    expect(dashboardBody).toContain('\\"id\\":\\"tenantId\\"');
+    expect(dashboardBody).toContain('\\"type\\":\\"pattern\\"');
+    expect(dashboardBody).toContain('\\"pattern\\":\\"TENANT_ID_PLACEHOLDER\\"');
+    expect(dashboardBody).toContain('\\"inputType\\":\\"input\\"');
+    expect(dashboardBody).toContain('\\"defaultValue\\":\\"TENANT_ID\\"');
+    expect(dashboardBody).toContain('\\"id\\":\\"tenantTier\\"');
+    expect(dashboardBody).toContain('\\"pattern\\":\\"TENANT_TIER_PLACEHOLDER\\"');
+    expect(dashboardBody).toContain('\\"inputType\\":\\"select\\"');
+    expect(dashboardBody).toContain('\\"defaultValue\\":\\"basic\\"');
+    expect(dashboardBody).toContain('TENANT_ID_PLACEHOLDER');
+    expect(dashboardBody).toContain('TENANT_TIER_PLACEHOLDER');
+    expect(dashboardBody).not.toContain('\\"search\\"');
+    expect(dashboardBody).not.toContain('\\"populateFrom\\"');
+  });
+
+  test('Tenant Usage Dashboard scopes billing metrics by tenant and tier', () => {
+    const template = synthStack();
+    const dashboards = template.findResources('AWS::CloudWatch::Dashboard') as Record<
+      string,
+      { Properties?: { DashboardBody?: string | Record<string, unknown>; DashboardName?: string } }
+    >;
+    const tenantDashboard = Object.values(dashboards).find((d) =>
+      d.Properties?.DashboardName?.includes('platform-tenant-usage'),
+    );
+    expect(tenantDashboard).toBeDefined();
+
+    const dashboardBody = JSON.stringify(tenantDashboard!.Properties!.DashboardBody);
+    expect(dashboardBody).toContain('\\"Platform/Billing\\"');
+    expect(dashboardBody).toContain('\\"TenantId\\",\\"TENANT_ID_PLACEHOLDER\\"');
+    expect(dashboardBody).toContain('\\"Tier\\",\\"TENANT_TIER_PLACEHOLDER\\"');
+    expect(dashboardBody).toContain('\\"MonthlyCost\\"');
+    expect(dashboardBody).toContain('\\"DailyCost\\"');
+    expect(dashboardBody).toContain('\\"InputTokens\\"');
+    expect(dashboardBody).toContain('\\"OutputTokens\\"');
+  });
+
+  test('exposes shared tenant usage dashboard name output', () => {
+    const template = synthStack();
+    template.hasOutput('TenantUsageDashboardName', {
+      Value: Match.stringLikeRegexp('platform-tenant-usage-ObservabilityStack'),
     });
   });
 
@@ -107,6 +166,31 @@ describe('ObservabilityStack (TASK-026)', () => {
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
       AlarmName: 'ObservabilityStack-FM-2-AuthoriserColdStartSpike',
       Threshold: 500,
+    });
+  });
+
+  test('creates disabled streaming TTFT placeholder alarm pending SLO definition', () => {
+    const template = synthStack();
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'ObservabilityStack-FM-2-StreamingTTFTPlaceholder',
+      MetricName: 'gen_ai.ttft_ms',
+      Namespace: 'Platform/Bridge',
+      ExtendedStatistic: 'p99',
+      ActionsEnabled: false,
+      Dimensions: Match.arrayWith([
+        Match.objectLike({
+          Name: 'AgentName',
+          Value: 'all',
+        }),
+        Match.objectLike({
+          Name: 'InvocationMode',
+          Value: 'streaming',
+        }),
+        Match.objectLike({
+          Name: 'RuntimeRegion',
+          Value: 'all',
+        }),
+      ]),
     });
   });
 
@@ -223,6 +307,29 @@ describe('ObservabilityStack (TASK-026)', () => {
     });
   });
 
+  test('creates FM-12 Valkey unavailable alarm', () => {
+    const template = synthStack();
+    template.hasResourceProperties('AWS::Logs::MetricFilter', {
+      FilterPattern: '{ $.event.name = "valkey_unavailable" }',
+      MetricTransformations: [
+        Match.objectLike({
+          MetricNamespace: 'Platform/Bridge',
+          MetricName: 'ValkeyUnavailableCount',
+          MetricValue: '1',
+        }),
+      ],
+    });
+
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmName: 'ObservabilityStack-FM-12-ValkeyUnavailable',
+      Namespace: 'Platform/Bridge',
+      MetricName: 'ValkeyUnavailableCount',
+      ComparisonOperator: 'GreaterThanOrEqualToThreshold',
+      Threshold: 1,
+      TreatMissingData: 'notBreaching',
+    });
+  });
+
   test('creates FM-8 Usage Plan Quota Exhausted alarm', () => {
     const template = synthStack();
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
@@ -276,6 +383,22 @@ describe('ObservabilityStack (TASK-026)', () => {
     });
     template.hasResourceProperties('AWS::CloudWatch::Alarm', {
       AlarmName: wafBlockedAlarmName,
+      Namespace: 'AWS/WAFV2',
+      MetricName: 'BlockedRequests',
+      Dimensions: Match.arrayWith([
+        Match.objectLike({
+          Name: 'Region',
+          Value: 'eu-west-2',
+        }),
+        Match.objectLike({
+          Name: 'Rule',
+          Value: 'ALL',
+        }),
+        Match.objectLike({
+          Name: 'WebACL',
+          Value: 'PlatformStack-api-waf',
+        }),
+      ]),
     });
   });
 
@@ -290,6 +413,7 @@ describe('ObservabilityStack (TASK-026)', () => {
       'FM-6-InterceptorRetryStorm',
       'FM-7-AgentCoreMemoryDegraded',
       'FM-11-BedrockThrottlePressure',
+      'FM-12-ValkeyUnavailable',
       'FM-8-UsagePlanQuotaExhausted',
       'FM-9-DLQ-Arrival-',
       'FM-10-BillingLambdaFailure',

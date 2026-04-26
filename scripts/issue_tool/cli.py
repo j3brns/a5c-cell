@@ -26,8 +26,9 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, TypeAlias, cast
 
+from platform_config import env_optional
 from scripts.issue_tool.agent_launch import (
     AGENT_CAPABILITIES,
     DEFAULT_INTERACTIVE_AGENT_POOL,
@@ -35,6 +36,7 @@ from scripts.issue_tool.agent_launch import (
     launch_interactive_session,
     resolve_launch_request,
 )
+from scripts.issue_tool.audit import audit_issues
 from scripts.issue_tool.closeout import (
     cleanup_finished_worktree as _cleanup_finished_worktree,
 )
@@ -105,6 +107,8 @@ from scripts.issue_tool.git_utils import (
 )
 from scripts.issue_tool.issue_queue import (
     build_queue,
+    build_task_issue_body,
+    choose_next_runnable,
     fetch_repo_issues,
     parse_issue_meta,
 )
@@ -142,6 +146,12 @@ from scripts.issue_tool.tracker_client import (
     update_issue_labels,
 )
 
+WORKTREE_READY_SENTINEL = ".ready"
+WORKTREE_PREPROVISION_DIR = Path(".build") / "worktree-provision"
+WORKTREE_PREPROVISION_FAILED = "failed"
+WORKTREE_PREPROVISION_LOG = "provision.log"
+WORKTREE_PREPROVISION_PID = "pid"
+
 
 def print_queue(
     selection: QueueSelection, *, limit: int | None = None, show_blocked: bool = True
@@ -164,208 +174,6 @@ def print_queue(
         print(f"    labels: {labels}")
         if item.blocked_reasons:
             print(f"    why:    {'; '.join(item.blocked_reasons)}")
-
-
-def build_task_issue_body(*, seq: int, depends: str, problem: str = "") -> str:
-    return "\n".join(
-        [
-            f"Seq: {seq}",
-            f"Depends on: {depends.strip() or 'none'}",
-            "",
-            "## Problem",
-            "",
-            problem.strip() or "Describe the problem to solve and why it matters.",
-            "",
-            "## Scope",
-            "",
-            "Keep the change narrowly scoped to this issue.",
-            "",
-            "## Acceptance Criteria",
-            "",
-            "- [ ] The requested behaviour is implemented.",
-            "- [ ] Existing behaviour outside this scope is unchanged.",
-            (
-                "- [ ] Security, tenant isolation, and operability constraints in "
-                "CLAUDE.md are preserved."
-            ),
-            "",
-            "## Test Plan",
-            "",
-            "List the smallest command(s) that prove the change works.",
-            "",
-            "## Definition of Done",
-            "",
-            "- [ ] Implementation and tests are complete for this issue.",
-            "- [ ] `make validate-local` passes, or the accepted equivalent is recorded.",
-            (
-                "- [ ] Senior engineer review is complete and findings are resolved or "
-                "explicitly accepted."
-            ),
-            "- [ ] `make preflight-session` and `make pre-validate-session` pass before push.",
-            "- [ ] Merge request is merged.",
-            "- [ ] `make finish-worktree-close` closes and normalizes the issue.",
-            "",
-        ]
-    )
-
-
-def choose_next_runnable(selection: QueueSelection) -> QueueItem:
-    for item in selection.items:
-        if item.runnable:
-            return item
-    raise CliError(
-        f"No runnable issues found in queue (source={selection.source_mode}). "
-        "Resolve dependencies or adjust labels."
-    )
-
-
-def audit_issues(issues: list[Issue]) -> list[AuditFinding]:
-    findings: list[AuditFinding] = []
-    task_issues = queue_task_issues(issues)
-
-    for issue in issues:
-        if issue.is_parent_cr and "type:task" in issue.labels:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=(
-                        "parent CR issue must not carry type:task; only child issues are queueable"
-                    ),
-                )
-            )
-        parent_statuses = status_labels(issue) if issue.is_parent_cr else []
-        if issue.is_parent_cr and "status:in-progress" in parent_statuses:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=(
-                        "parent CR issue must not carry status:in-progress; "
-                        "WIP is tracked on child task issues"
-                    ),
-                )
-            )
-        if issue.is_parent_cr and any(
-            status in parent_statuses for status in ("status:not-started", "status:blocked")
-        ):
-            findings.append(
-                AuditFinding(
-                    severity="warning",
-                    issue_number=issue.number,
-                    message="parent CR issue should generally avoid task lifecycle labels",
-                )
-            )
-        if issue.is_parent_cr and issue.seq is not None:
-            findings.append(
-                AuditFinding(
-                    severity="warning",
-                    issue_number=issue.number,
-                    message=(
-                        "parent CR issue should not carry Seq; "
-                        "ordering belongs on child task issues"
-                    ),
-                )
-            )
-        if issue.is_parent_cr and issue.depends_on:
-            findings.append(
-                AuditFinding(
-                    severity="warning",
-                    issue_number=issue.number,
-                    message=(
-                        "parent CR issue should not carry Depends on; "
-                        "dependency gating belongs on child task issues"
-                    ),
-                )
-            )
-
-    for issue in task_issues:
-        states = status_labels(issue)
-        state_set = set(states)
-        if len(state_set) != 1:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=(
-                        f"expected exactly one status:* label, found {sorted(state_set) or 'none'}"
-                    ),
-                )
-            )
-            continue
-
-        status = states[0]
-        if issue.state == "open" and status == "status:done":
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message="open task cannot be status:done",
-                )
-            )
-        if issue.state == "closed" and status != "status:done":
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=f"closed task must be status:done (found {status})",
-                )
-            )
-        if "ready" in issue.labels and status != "status:not-started":
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message=f"ready label requires status:not-started (found {status})",
-                )
-            )
-        if issue.state == "open" and issue.seq is None:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message="open task is missing Seq marker",
-                )
-            )
-        if issue.state == "open" and issue.task_id is None:
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=issue.number,
-                    message="open task is missing TASK-### title prefix or managed task marker",
-                )
-            )
-        for dependency in issue.depends_on:
-            if dependency.startswith("TASK-") and dependency == issue.task_id:
-                findings.append(
-                    AuditFinding(
-                        severity="error",
-                        issue_number=issue.number,
-                        message=f"task cannot depend on itself ({dependency})",
-                    )
-                )
-
-    # Objective gate: next runnable item must be a startable task, never in-progress/blocked/done.
-    selection = build_queue(issues, mode="auto")
-    try:
-        next_item = choose_next_runnable(selection)
-        next_status = lifecycle_status(next_item.issue)
-        if next_status != "not-started":
-            findings.append(
-                AuditFinding(
-                    severity="error",
-                    issue_number=next_item.issue.number,
-                    message=(
-                        "next runnable queue item must be status:not-started "
-                        f"(found status:{next_status})"
-                    ),
-                )
-            )
-    except CliError:
-        # Empty/runnable-none queue is valid during full blockage or completion.
-        pass
-
-    return findings
 
 
 def slugify_text(text: str) -> str:
@@ -529,6 +337,7 @@ def create_worktree_for_issue(
     auto_claim: bool,
     preflight: bool,
     dry_run: bool,
+    pre_provision: bool = False,
 ) -> Path:
     scope_val = scope or infer_scope(issue)
     slug_val = slug or slugify_text(issue.title)
@@ -580,6 +389,8 @@ def create_worktree_for_issue(
         print(f"Created worktree at {wt_path}")
         ensure_uv_venv(wt_path)
         prepare_gitnexus_for_worktree(wt_path)
+        if pre_provision:
+            start_worktree_pre_provision(wt_path)
     except Exception:
         if claimed:
             try:
@@ -608,6 +419,7 @@ def create_worktree_for_issue(
             "slug": slug_val,
             "auto_claim": auto_claim,
             "preflight": preflight,
+            "pre_provision": pre_provision,
         },
         idempotency_key=f"create:{issue.number}:{branch}:{wt_path}",
     )
@@ -615,7 +427,7 @@ def create_worktree_for_issue(
 
 
 def parse_bool_env(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
+    raw = env_optional(name)
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
@@ -782,6 +594,117 @@ def ensure_uv_venv(path: Path) -> None:
         eprint(f"WARNING: failed to create .venv with uv: {exc}")
 
 
+def worktree_ready_sentinel(path: Path) -> Path:
+    return path / WORKTREE_READY_SENTINEL
+
+
+def worktree_preprovision_dir(path: Path) -> Path:
+    return path / WORKTREE_PREPROVISION_DIR
+
+
+def worktree_preprovision_log(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_LOG
+
+
+def worktree_preprovision_failed(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_FAILED
+
+
+def worktree_preprovision_pid(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_PID
+
+
+def start_worktree_pre_provision(path: Path) -> None:
+    provision_dir = worktree_preprovision_dir(path)
+    provision_dir.mkdir(parents=True, exist_ok=True)
+    ready_path = worktree_ready_sentinel(path)
+    failed_path = worktree_preprovision_failed(path)
+    log_path = worktree_preprovision_log(path)
+    pid_path = worktree_preprovision_pid(path)
+    for marker in (ready_path, failed_path, pid_path):
+        marker.unlink(missing_ok=True)
+
+    script = "\n".join(
+        [
+            "set -e",
+            f'trap "touch {shlex.quote(str(failed_path))}" ERR',
+            "echo '[worktree-pre-provision] start '$(date -Is)",
+            "uv sync",
+            "npm install --prefix infra/cdk",
+            "npm install --prefix spa",
+            f"touch {shlex.quote(str(ready_path))}",
+            f"rm -f {shlex.quote(str(failed_path))}",
+            "echo '[worktree-pre-provision] ready '$(date -Is)",
+        ]
+    )
+    with log_path.open("w", encoding="utf-8") as log_file:
+        try:
+            proc = subprocess.Popen(
+                ["bash", "-lc", script],
+                cwd=path,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            failed_path.write_text(str(exc), encoding="utf-8")
+            raise CliError(f"Failed to start worktree pre-provisioning: {exc}") from exc
+    pid_path.write_text(str(proc.pid), encoding="utf-8")
+    print(f"Started worktree pre-provisioning in background (pid={proc.pid})")
+    print(f"  ready: {ready_path}")
+    print(f"  log:   {log_path}")
+
+
+def process_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def worktree_preprovision_pid_running(path: Path) -> bool:
+    pid_path = worktree_preprovision_pid(path)
+    if not pid_path.exists():
+        return False
+    try:
+        pid = int(pid_path.read_text(encoding="utf-8").strip())
+    except ValueError:
+        return False
+    return process_running(pid)
+
+
+def await_worktree_ready_if_provisioning(path: Path) -> None:
+    ready_path = worktree_ready_sentinel(path)
+    failed_path = worktree_preprovision_failed(path)
+    pid_path = worktree_preprovision_pid(path)
+    log_path = worktree_preprovision_log(path)
+    if ready_path.exists():
+        print(f"Worktree environment ready: {ready_path}")
+        return
+    if failed_path.exists():
+        raise CliError(f"Worktree pre-provisioning failed; see {log_path}")
+    if not pid_path.exists():
+        print("Worktree readiness sentinel missing; continuing with cold environment")
+        return
+
+    wait_seconds = int(env_optional("WORKTREE_READY_WAIT_SECONDS", "900") or "900")
+    deadline = time.monotonic() + max(0, wait_seconds)
+    print(f"Waiting for worktree pre-provisioning to finish (timeout={wait_seconds}s)")
+    while time.monotonic() <= deadline:
+        if ready_path.exists():
+            print(f"Worktree environment ready: {ready_path}")
+            return
+        if failed_path.exists():
+            raise CliError(f"Worktree pre-provisioning failed; see {log_path}")
+        if not worktree_preprovision_pid_running(path):
+            break
+        time.sleep(2)
+    raise CliError(f"Worktree is not ready; see {log_path}")
+
+
 def gitnexus_refresh_enabled() -> bool:
     return parse_bool_env("WORKTREE_GITNEXUS_REFRESH", True)
 
@@ -835,7 +758,7 @@ def gitnexus_analyze_supports(option: str) -> bool:
 
 
 def gitnexus_cli_path() -> Path | None:
-    override = os.environ.get("WORKTREE_GITNEXUS_CLI")
+    override = env_optional("WORKTREE_GITNEXUS_CLI")
     if override:
         candidate = Path(override).expanduser()
         if candidate.exists():
@@ -849,7 +772,7 @@ def gitnexus_cli_path() -> Path | None:
 
 
 def gitnexus_timeout_seconds() -> float:
-    raw = os.environ.get("WORKTREE_GITNEXUS_TIMEOUT_SECONDS", "300")
+    raw = env_optional("WORKTREE_GITNEXUS_TIMEOUT_SECONDS", "300") or "300"
     try:
         value = float(raw)
     except ValueError:
@@ -966,7 +889,7 @@ def prepare_gitnexus_for_worktree(path: Path) -> None:
 
 
 def open_shell(path: Path) -> None:
-    shell = os.environ.get("SHELL") or "bash"
+    shell = env_optional("SHELL", "bash") or "bash"
     ensure_uv_venv(path)
     print(f"Opening shell in {path} (with .venv activation when available)")
     path_q = shell_quote(str(path))
@@ -1567,7 +1490,7 @@ def choose_default_launch_agent(pool: tuple[str, ...] = DEFAULT_INTERACTIVE_AGEN
 
 
 def resolve_cli_launch_request(
-    args: argparse.Namespace, *, default_agent: str = "gemini"
+    args: argparse.Namespace, *, default_agent: str = "codex"
 ) -> tuple[str, str, str, str]:
     agent, agent_mode, handoff, mux = resolve_launch_request(args)
     requested_agent = getattr(args, "agent", None)
@@ -1602,28 +1525,52 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
         )
     prompt_lines.extend(
         [
-            "Scope: only this issue. Do not broaden scope.",
             (
-                "First step: inspect the current branch diff, relevant issue context, and the "
-                "smallest set of files that control the behavior before editing."
+                "Operating mode: you are the implementation owner for this issue worktree. "
+                "Proceed without asking for permission on clear, reversible next steps; ask "
+                "only for destructive actions, production access, or policy/security decisions "
+                "that the repo rules require escalating."
             ),
             (
-                "Use: prefer GitNexus when available. Query unfamiliar flows. "
-                "Use context/impact before editing shared symbols. "
-                "Run detect_changes before commit. "
-                "If GitNexus is unavailable, use rg and direct file reads."
+                "Scope: only this issue. Do not broaden scope, bundle opportunistic cleanup, "
+                "or repair unrelated failures in the same branch. If unrelated drift blocks "
+                "validation, document it as a separate follow-up and keep this branch focused."
             ),
             (
-                "Loop: inspect; plan; implement; run make preflight-session; fix; repeat; "
-                "continue until done. Do not stop at merge request creation, the first "
-                "passing test, or a partial implementation."
+                "First step: inspect the current branch diff, linked GitLab issue, issue "
+                "labels, dependencies, relevant ADRs/docs, and the smallest set of files that "
+                "control the behavior before editing."
+            ),
+            (
+                "Context lookup: prefer GitNexus for unfamiliar flows and blast-radius checks "
+                "when it is available. Use context/impact before editing shared symbols, then "
+                "run detect_changes before commit. If GitNexus is unavailable or stale, fall "
+                "back to rg, git diff/log, and direct file reads; do not block on GitNexus."
+            ),
+            (
+                "Execution loop: inspect; form the smallest defensible plan; add or update "
+                "tests before behavior changes when practical; run make worktree-probe MODE=test "
+                "before attempting tests; if it fails, stop the test attempt and run make "
+                "ensure-tools before continuing; run make worktree-probe before agent handoff; "
+                "implement; run the narrowest useful checks; then run make preflight-session and "
+                "make pre-validate-session before push. Fix failures and repeat until the issue "
+                "is actually complete."
             ),
             (
                 "Change shape: keep diffs small and reversible; prefer deletion over addition; "
                 "reuse existing patterns before introducing new abstractions; do not add "
                 "dependencies without explicit need."
             ),
-            "Push gate: make pre-validate-session must pass before push.",
+            (
+                "Documentation: reconcile implementation with relevant ADRs, runbooks, and "
+                "architecture docs. Adhere to the project's pithy, narrative technical style "
+                "without unduly dehydrating critical content; a feature is incomplete while "
+                "its documentation remains stale."
+            ),
+            (
+                "Do not stop at: MR creation, one passing test, a local commit, a pushed "
+                "branch, or a partial implementation. Those are intermediate states."
+            ),
             (
                 "Review gate: before claiming completion, run a senior-engineer review pass "
                 "focused on bugs, regressions, security/operability risks, and missing tests. "
@@ -1631,17 +1578,19 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
                 "review yourself with the same standard."
             ),
             (
-                "Done: only when the GitLab merge request is merged to the target branch; "
-                "the issue is closed and normalized; validation evidence is recorded; "
-                ".build hand-back evidence is finalized; and make finish-worktree-close "
-                "has completed successfully. Report any cleanup residue explicitly, but "
-                "do not treat worktree or branch deletion as part of semantic completion."
+                "Completion sequence: push through make worktree-push-issue or an equivalent "
+                "prevalidated push; create/update the MR; address review feedback; merge to "
+                "the target branch; close and normalize the issue; record validation evidence; "
+                "finalize .build hand-back evidence; then run make finish-worktree-close. "
+                "Report cleanup residue explicitly, but do not treat worktree or branch "
+                "deletion as semantic completion."
             ),
             (
-                "Pause only if: explicit policy or security blocker; "
-                "missing required permission; external decision cannot be inferred safely. "
-                "Otherwise estimate reasonably, keep moving, and only report a blocker with "
-                "the exact next command when truly blocked."
+                "Pause only if: repo rules mandate escalation, a security/policy decision is "
+                "unsafe to infer, required credentials or permissions are missing, or a "
+                "destructive operation is unavoidable. Otherwise make a reasonable local "
+                "decision, keep moving, and report blockers with the exact failed command, "
+                "evidence, and next command needed."
             ),
         ]
     )
@@ -1677,7 +1626,7 @@ def build_review_prompt_for_worktree(
         ),
         (
             "Review focus: bugs, behavioral regressions, security/operability risks, contract "
-            "drift, cleanup gaps, and missing tests."
+            "drift, cleanup gaps, documentation staleness, and missing tests."
         ),
         (
             "Method: inspect the current branch diff first, then read only the smallest set of "
@@ -1731,6 +1680,7 @@ def handoff_to_agent_or_shell(
     print_only_override: bool = False,
     mux: str | None = None,
 ) -> None:
+    await_worktree_ready_if_provisioning(path)
     ensure_uv_venv(path)
     agent_val = (agent or choose_agent_interactive()).lower()
     mode_val = (agent_mode or choose_agent_mode_interactive()).lower()
@@ -2360,6 +2310,21 @@ def merge_request_for_source_branch(root: Path, repo: str, branch: str, state: s
     return merge_request_for_branch(root, repo, branch, state)
 
 
+def format_merge_request_status(mr: dict[str, object] | None) -> str:
+    if not mr:
+        return "-"
+    number = mr.get("number")
+    state = str(mr.get("state") or "").lower()
+    if not state and mr.get("mergedAt"):
+        state = "merged"
+    if not state:
+        state = "open"
+    if mr.get("isDraft") and state == "opened":
+        state = "draft"
+    prefix = f"!{number}" if number else "mr"
+    return f"{prefix}:{state}"
+
+
 def issue_state_info(root: Path, repo: str, issue_id: int) -> dict | None:
     return get_issue(root, repo, issue_id)
 
@@ -2391,6 +2356,181 @@ def issue_evidence_summary(root: Path, issue_id: int) -> dict[str, object]:
         historical_issue_evidence_fn=historical_issue_evidence,
         linked_worktree_for_issue_fn=find_linked_worktree_for_issue,
     )
+
+
+def local_issue_numbers(root: Path, *, active_only: bool = False) -> set[int]:
+    numbers: set[int] = set()
+    state_root = worktree_state_root(root)
+    terminal_states = {"done", "closed", "cleanup-failed", "handback-failed"}
+    if state_root.exists():
+        for path in state_root.glob("issue-*.json"):
+            match = re.match(r"issue-(\d+)\.json$", path.name)
+            if not match:
+                continue
+            payload = read_json_file(path) or {}
+            if active_only and payload.get("state") in terminal_states:
+                continue
+            numbers.add(int(match.group(1)))
+    for wt in list_resume_candidates(root):
+        issue_id = extract_issue_id_from_branch(wt.branch)
+        if issue_id is not None:
+            numbers.add(issue_id)
+    return numbers
+
+
+def issue_status_rows(
+    root: Path,
+    repo: str | None,
+    issues: list[Issue],
+    *,
+    issue_filter: int | None = None,
+    include_all: bool = False,
+) -> list[dict[str, object]]:
+    issue_map = {issue.number: issue for issue in queue_task_issues(issues)}
+    if issue_filter is not None:
+        numbers = {issue_filter}
+    elif include_all:
+        numbers = set(issue_map) | local_issue_numbers(root)
+    else:
+        active = {
+            issue.number
+            for issue in issue_map.values()
+            if issue.state == "open"
+            and (lifecycle_status(issue) == "in-progress" or "ready" in issue.labels)
+        }
+        numbers = active | local_issue_numbers(root, active_only=True)
+
+    rows: list[dict[str, object]] = []
+    mr_status_cache: dict[str, str] = {}
+    for issue_number in sorted(
+        numbers,
+        key=lambda number: (
+            issue_map[number].seq
+            if number in issue_map and issue_map[number].seq is not None
+            else 10**9,
+            number,
+        ),
+    ):
+        issue = issue_map.get(issue_number)
+        evidence = issue_evidence_summary(root, issue_number)
+        state = cast(
+            dict[str, Any],
+            evidence.get("state") if isinstance(evidence.get("state"), dict) else {},
+        )
+        closeout = cast(
+            dict[str, Any],
+            evidence.get("closeout") if isinstance(evidence.get("closeout"), dict) else {},
+        )
+        validation = cast(
+            dict[str, Any],
+            evidence.get("validation_receipt")
+            if isinstance(evidence.get("validation_receipt"), dict)
+            else {},
+        )
+        linked_worktree = evidence.get("linked_worktree") or state.get("worktree_path")
+        wt_path = Path(str(linked_worktree)) if linked_worktree else None
+        agent_status = worktree_agent_status(wt_path) if wt_path and wt_path.exists() else None
+        details = cast(
+            dict[str, Any],
+            state.get("details") if isinstance(state.get("details"), dict) else {},
+        )
+        agent = (
+            agent_status.get("agent")
+            if isinstance(agent_status, dict)
+            else details.get("agent")
+            if isinstance(details, dict)
+            else None
+        )
+        backend = agent_status.get("backend") if isinstance(agent_status, dict) else None
+        runtime_state = agent_status.get("state") if isinstance(agent_status, dict) else None
+        session_name = agent_status.get("session_name") if isinstance(agent_status, dict) else None
+        live = "-"
+        if wt_path and isinstance(agent_status, dict):
+            live = "yes" if worktree_agent_running(wt_path) else "no"
+        validation_text = "-"
+        if validation:
+            validation_text = f"{validation.get('check', 'check')}:pass"
+        closeout_text = "-"
+        if closeout:
+            stage = closeout.get("stage") or "present"
+            cleanup = closeout.get("cleanup_verified")
+            closeout_text = f"{stage}:{cleanup}" if cleanup is not None else str(stage)
+        branch = (
+            evidence.get("linked_branch")
+            or state.get("branch")
+            or (agent_status.get("branch") if isinstance(agent_status, dict) else None)
+            or "-"
+        )
+        branch_text = str(branch)
+        mr_status = "-"
+        if repo and branch_text != "-":
+            if branch_text not in mr_status_cache:
+                try:
+                    mr_status_cache[branch_text] = format_merge_request_status(
+                        merge_request_for_source_branch(root, repo, branch_text, "all")
+                    )
+                except CliError:
+                    mr_status_cache[branch_text] = "unknown"
+            mr_status = mr_status_cache[branch_text]
+        rows.append(
+            {
+                "issue": issue_number,
+                "seq": issue.seq if issue is not None else None,
+                "title": issue.title if issue is not None else str(state.get("issue_title") or "-"),
+                "issue_status": lifecycle_status(issue) if issue is not None else "-",
+                "issue_state": issue.state if issue is not None else "-",
+                "worktree": str(linked_worktree or "-"),
+                "branch": branch_text,
+                "mr": mr_status,
+                "agent": str(agent or "-"),
+                "runtime": ":".join(
+                    part
+                    for part in (
+                        str(backend or ""),
+                        str(runtime_state or ""),
+                        str(session_name or ""),
+                    )
+                    if part
+                )
+                or "-",
+                "live": live,
+                "validation": validation_text,
+                "closeout": closeout_text,
+                "last_event": str(state.get("last_event_type") or "-"),
+            }
+        )
+    return rows
+
+
+def _clip(value: object, width: int) -> str:
+    text = "-" if value is None else str(value)
+    if len(text) <= width:
+        return text
+    return text[: max(0, width - 1)] + "…"
+
+
+def print_issue_status_rows(rows: list[dict[str, object]]) -> None:
+    columns = [
+        ("issue", "Issue", 7),
+        ("seq", "Seq", 5),
+        ("issue_status", "Status", 12),
+        ("worktree", "Worktree", 34),
+        ("mr", "MR", 12),
+        ("agent", "Agent", 8),
+        ("runtime", "Runtime", 24),
+        ("live", "Live", 5),
+        ("validation", "Validation", 24),
+        ("closeout", "Closeout", 16),
+        ("last_event", "Last event", 24),
+    ]
+    if not rows:
+        print("No issue/worktree/agent status rows found.")
+        return
+    header = "  ".join(label.ljust(width) for _, label, width in columns)
+    print(header)
+    print("  ".join("-" * width for _, _, width in columns))
+    for row in rows:
+        print("  ".join(_clip(row.get(key), width).ljust(width) for key, _, width in columns))
 
 
 def evidence_drift_findings(root: Path, issues: list[Issue]) -> list[AuditFinding]:
@@ -2714,20 +2854,42 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
                     issue_id=issue_id,
                 )
             )
-        cleanup_result = cleanup_finished_worktree(root, target)
-        cleanup_problems = verify_cleanup_finished(root, target)
-        if cleanup_problems:
-            raise CliError("Cleanup verification failed: " + "; ".join(cleanup_problems))
-        if isinstance(events, list):
-            events.append(
-                closeout_event(
-                    stage="cleanup-verified",
-                    message="cleanup verified",
-                    target=target,
-                    repo=repo,
-                    issue_id=issue_id,
+        cleanup_result: dict[str, object] = {}
+        cleanup_verified = False
+        cleanup_error: str | None = None
+        try:
+            cleanup_result = dict(cleanup_finished_worktree(root, target))
+            cleanup_problems = verify_cleanup_finished(root, target)
+            if cleanup_problems:
+                raise CliError("Cleanup verification failed: " + "; ".join(cleanup_problems))
+            cleanup_verified = True
+            if isinstance(events, list):
+                events.append(
+                    closeout_event(
+                        stage="cleanup-verified",
+                        message="cleanup verified",
+                        target=target,
+                        repo=repo,
+                        issue_id=issue_id,
+                    )
                 )
-            )
+        except Exception as exc:
+            cleanup_error = str(exc)
+            print(f"Cleanup deferred: {cleanup_error}")
+            print(f"Manual cleanup: git worktree remove {target.path}")
+            if target.branch and target.branch != "(detached)":
+                print(f"Manual cleanup: git branch -d {target.branch}")
+            print("Manual cleanup: git worktree prune")
+            if isinstance(events, list):
+                events.append(
+                    closeout_event(
+                        stage="cleanup-deferred",
+                        message=cleanup_error,
+                        target=target,
+                        repo=repo,
+                        issue_id=issue_id,
+                    )
+                )
         write_closeout_report(
             root,
             target,
@@ -2736,7 +2898,8 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
                 "stage": "complete",
                 "issue_closed": issue_closed,
                 "cleanup": cleanup_result,
-                "cleanup_verified": True,
+                "cleanup_verified": cleanup_verified,
+                **({"cleanup_error": cleanup_error} if cleanup_error else {}),
             },
         )
         record_issue_handoff_event(
@@ -2748,7 +2911,12 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
             worktree_path=target.path,
             event_type="closeout-complete",
             state="closed",
-            details={"report_path": str(report_path), "issue_closed": issue_closed},
+            details={
+                "report_path": str(report_path),
+                "issue_closed": issue_closed,
+                "cleanup_verified": cleanup_verified,
+                **({"cleanup_error": cleanup_error} if cleanup_error else {}),
+            },
             idempotency_key=f"closeout-complete:{issue_id}:{target.branch}:{target.path}",
         )
         handback_summary = audit_issue_handoff_evidence(
@@ -2896,6 +3064,7 @@ def cmd_issue_queue(args: argparse.Namespace) -> int:
         issues,
         stream_label=args.stream_label,
         from_issue=getattr(args, "from_issue", None),
+        from_seq=getattr(args, "from_seq", None),
         mode=args.mode,
     )
     print_queue(selection, limit=args.limit, show_blocked=not args.runnable_only)
@@ -2994,6 +3163,28 @@ def cmd_issue_evidence(args: argparse.Namespace) -> int:
         log_matches = historical.get("log_matches")
         if isinstance(log_matches, list):
             print(f"  log_matches:     {len(log_matches)}")
+    return 0
+
+
+def cmd_issue_status(args: argparse.Namespace) -> int:
+    root = repo_root()
+    try:
+        repo = args.repo or origin_repo_slug(root)
+        issues = fetch_repo_issues(root, repo, state="all")
+    except CliError:
+        repo = None
+        issues = []
+    rows = issue_status_rows(
+        root,
+        repo,
+        issues,
+        issue_filter=args.issue,
+        include_all=args.all,
+    )
+    if args.json:
+        print(json.dumps(rows, indent=2, sort_keys=True))
+        return 0
+    print_issue_status_rows(rows)
     return 0
 
 
@@ -3142,6 +3333,7 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
         issues,
         stream_label=args.stream_label,
         from_issue=getattr(args, "from_issue", None),
+        from_seq=getattr(args, "from_seq", None),
         mode=args.mode,
     )
     if args.choose:
@@ -3249,6 +3441,7 @@ def cmd_worktree_next(args: argparse.Namespace) -> int:
         auto_claim=auto_claim,
         preflight=(not args.no_preflight),
         dry_run=args.dry_run,
+        pre_provision=bool(getattr(args, "pre_provision", False)),
     )
     if args.open_shell and not args.dry_run:
         record_issue_handoff_event(
@@ -3391,6 +3584,7 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
         issues,
         stream_label=args.stream_label,
         from_issue=getattr(args, "from_issue", None),
+        from_seq=getattr(args, "from_seq", None),
         mode=args.mode,
     )
     item = next((x for x in selection.items if x.issue.number == issue.number), None)
@@ -3413,6 +3607,7 @@ def cmd_worktree_create(args: argparse.Namespace) -> int:
         auto_claim=auto_claim,
         preflight=(not args.no_preflight),
         dry_run=args.dry_run,
+        pre_provision=bool(getattr(args, "pre_provision", False)),
     )
     if args.open_shell and not args.dry_run:
         branch = (
@@ -3677,6 +3872,7 @@ def cmd_wt_batch(args: argparse.Namespace) -> int:
         issues,
         stream_label=args.stream_label,
         from_issue=getattr(args, "from_issue", None),
+        from_seq=getattr(args, "from_seq", None),
         mode=args.mode,
     )
     base_dir = (
@@ -3732,6 +3928,7 @@ def cmd_wt_batch(args: argparse.Namespace) -> int:
                     auto_claim=True,
                     preflight=False,
                     dry_run=args.dry_run,
+                    pre_provision=False,
                 )
 
         if args.dry_run:
@@ -3875,6 +4072,7 @@ def cmd_menu(args: argparse.Namespace) -> int:
                     repo=args.repo,
                     stream_label=args.stream_label,
                     from_issue=args.from_issue,
+                    from_seq=args.from_seq,
                     mode=args.mode,
                     limit=None,
                     runnable_only=False,
@@ -3887,6 +4085,7 @@ def cmd_menu(args: argparse.Namespace) -> int:
                     repo=args.repo,
                     stream_label=args.stream_label,
                     from_issue=args.from_issue,
+                    from_seq=args.from_seq,
                     mode=args.mode,
                     choose=False,
                     allow_blocked=False,
@@ -3912,6 +4111,7 @@ def cmd_menu(args: argparse.Namespace) -> int:
                     repo=args.repo,
                     stream_label=args.stream_label,
                     from_issue=args.from_issue,
+                    from_seq=args.from_seq,
                     mode=args.mode,
                     choose=True,
                     allow_blocked=False,
@@ -4007,6 +4207,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Lower bound issue number for queue selection (e.g. start from issue #310).",
     )
+    queue_common.add_argument(
+        "--from-seq",
+        type=int,
+        help="Lower bound Seq metadata for queue selection (e.g. start from Seq:901).",
+    )
 
     q = sub.add_parser("issue-queue", parents=[common_repo, queue_common], help="Show issue queue")
     q.add_argument("--limit", type=int, help="Limit displayed items")
@@ -4041,6 +4246,16 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--path", help="Path to infer issue number from (default: current path)")
     ev.add_argument("--json", action="store_true", help="Emit JSON output")
     ev.set_defaults(func=cmd_issue_evidence)
+
+    status = sub.add_parser(
+        "issue-status",
+        parents=[common_repo],
+        help="Show joined issue/worktree/agent launch status",
+    )
+    status.add_argument("--issue", type=int, help="Show one issue number")
+    status.add_argument("--all", action="store_true", help="Include all known task issues")
+    status.add_argument("--json", action="store_true", help="Emit JSON output")
+    status.set_defaults(func=cmd_issue_status)
 
     vr = sub.add_parser(
         "write-validation-receipt",
@@ -4114,6 +4329,11 @@ def build_parser() -> argparse.ArgumentParser:
     wt_common.add_argument("--no-preflight", action="store_true", help="Skip post-create preflight")
     wt_common.add_argument(
         "--dry-run", action="store_true", help="Print create plan without changes"
+    )
+    wt_common.add_argument(
+        "--pre-provision",
+        action="store_true",
+        help="Start background dependency install and write .ready when complete",
     )
     wt_common.add_argument(
         "--open-shell", action="store_true", help="Open a shell in the created worktree"

@@ -75,6 +75,7 @@ def _normalise_mr(raw: dict) -> dict:
         "number": raw.get("iid") or raw.get("number"),
         "url": raw.get("web_url") or raw.get("url") or "",
         "title": raw.get("title") or "",
+        "state": raw.get("state") or "",
         "isDraft": bool(raw.get("draft") or raw.get("work_in_progress")),
         "mergedAt": raw.get("merged_at") or raw.get("mergedAt"),
     }
@@ -107,7 +108,7 @@ def _run_text(cmd: list[str], *, root: Path) -> str:
 
 
 def _api(endpoint: str, *, root: Path, paginate: bool = False) -> object:
-    args = ["api", endpoint, "--output", "json"]
+    args = ["api", endpoint]
     if paginate:
         args.append("--paginate")
     return _run_json(args, root=root)
@@ -214,10 +215,12 @@ def merge_request_for_branch(root: Path, repo: str, branch: str, state: str) -> 
         branch,
         "--per-page",
         "1",
-        "--output",
+        "-F",
         "json",
     ]
-    if state == "merged":
+    if state == "all":
+        cmd.append("--all")
+    elif state == "merged":
         cmd.append("--merged")
     elif state == "closed":
         cmd.append("--closed")

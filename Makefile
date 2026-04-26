@@ -3,8 +3,8 @@
 # Run `make help` for a grouped summary, or `make help-all` for the full dump
 # =============================================================================
 
-.PHONY: help help-all bootstrap ensure-tools validate-local validate-local-full
-.PHONY: validate-local-prereqs validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
+.PHONY: help help-all bootstrap ensure-tools worktree-probe validate-local validate-local-full
+.PHONY: validate-local-prereqs validate-lint validate-typecheck validate-unit validate-contract validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
 .PHONY: validate-pre-push validate-secrets-diff validate-secrets-push validate-secrets-full
 .PHONY: docs-sync-audit docs-sync-stamp rules-sync-audit
 .PHONY: dev dev-stop dev-logs dev-invoke
@@ -27,7 +27,6 @@
 .PHONY: ops-update-tenant-budget ops-fail-job ops-audit-export ops-page-security ops-backfill-tenant-role-arn
 .PHONY: logs-bridge logs-authoriser logs-tenant-api logs-bff
 .PHONY: plan-dev
-.PHONY: task-next task-list task-start task-resume task-finish task-prompt
 .PHONY: worktree wt-go wt-batch issue-create issue-queue issue-evidence worktree-next-issue worktree-create-issue worktree-resume-issue
 .PHONY: preflight-session pre-validate-session worktree-push-issue finish-worktree-summary finish-worktree-close finish-worktree-close-json
 .PHONY: issues-audit issues-reconcile issue-repair-stale-locks agent-handoff install-git-hooks hooks-status gitnexus-refresh
@@ -49,6 +48,7 @@ help:
 		echo "  Setup"; \
 		ex "bootstrap" "install tools and check prerequisites"; \
 		ex "ensure-tools" "install missing dev tools"; \
+		ex "worktree-probe" "check worktree dev dependencies"; \
 		echo ""; \
 		echo "  Validation"; \
 		ex "validate-local" "fast local validation"; \
@@ -72,6 +72,7 @@ help:
 		ex "worktree-create-issue" "create a worktree for a specific issue"; \
 		ex "worktree-resume-issue [OPEN_SHELL=off] [CMD='make test-unit']" "resume a linked issue worktree"; \
 		ex "worktree-push-issue" "push the current issue worktree branch"; \
+		ex "dev-status [ISSUE=45]" "show joined issue/worktree/agent status"; \
 		ex "issue-queue" "show the issue queue"; \
 		ex "issues-audit" "check issue lifecycle and queue invariants"; \
 		ex "issues-reconcile" "repair task issue labels"; \
@@ -168,14 +169,19 @@ bootstrap-delete-iam-user:
 ensure-tools:
 	@bash scripts/install-dev-tools.sh
 
+## worktree-probe: Verify worktree dev dependencies before tests or agent handoff
+## Usage: make worktree-probe [MODE=agent|test]
+worktree-probe:
+	@python3 scripts/worktree_probe.py $(if $(MODE),--mode $(MODE),)
+
 ## validate-local: Run local validation checks before commit (fast path)
 ## Uses diff-only secret detection for speed. Run `make validate-local-full` for full repo secret scan.
 validate-local: validate-local-prereqs
-	uv run python scripts/validate_local.py fast
+	uv run platform-cli validate local fast
 
 ## validate-local-full: Full local validation including full-repo secret scan
 validate-local-full: validate-local-prereqs
-	uv run python scripts/validate_local.py full
+	uv run platform-cli validate local full
 
 ## docs-sync-audit: Check docs/code semver sync and drift heuristics
 ## Usage: make docs-sync-audit [JSON=1]
@@ -207,13 +213,29 @@ validate-local-prereqs:
 	@cd infra/cdk && npx --no-install pyright --version >/dev/null 2>&1 || \
 		(echo "ERROR: pyright not installed in infra/cdk. Run: make ensure-tools" && exit 1)
 
-## validate-python: Python lint/format/type checks
-validate-python:
+## validate-lint: Ruff lint and format checks
+validate-lint:
 	uv run ruff check .
 	uv run ruff format --check .
+
+## validate-typecheck: Full Pyright type check (matches CI validate stage)
+validate-typecheck:
 	cd infra/cdk && npx --no-install pyright --project ../../pyrightconfig.json
+
+## validate-contract: OpenAPI route contract and repo guardrail checks
+validate-contract:
 	@$(MAKE) --no-print-directory validate-openapi
 	@$(MAKE) --no-print-directory validate-guardrails
+
+## validate-unit: Run unit test suite
+validate-unit:
+	@$(MAKE) --no-print-directory test-unit
+
+## validate-python: Python lint/format/type checks (delegates to granular targets)
+validate-python:
+	@$(MAKE) --no-print-directory validate-lint
+	@$(MAKE) --no-print-directory validate-typecheck
+	@$(MAKE) --no-print-directory validate-contract
 
 ## validate-openapi: Validate canonical OpenAPI route contract
 validate-openapi:
@@ -348,16 +370,18 @@ validate-secrets-full:
 	@(git ls-files -o --exclude-standard; git ls-files) | sort -u | \
 		grep -Ev '(^|/)(package-lock\.json)$$|\.(lock|log)$$|(^|/)\.build/' | \
 		while IFS= read -r f; do [ -f "$$f" ] && printf '%s\0' "$$f"; done | \
-		xargs -0 -r uv run detect-secrets-hook --baseline .secrets.baseline
+		xargs -0 -r uv run detect-secrets-hook \
+			--filter file://scripts/detect_secrets_filters.py::is_docs_sync_stamp_commit \
+			--baseline .secrets.baseline
 	@echo "==> detect-secrets full scan passed"
 
 ## dev: Start local development environment
 dev:
 	@echo "==> Starting local development environment"
 	docker compose up -d
-	uv run python scripts/wait_for_local_services.py
-	uv run python scripts/dev-bootstrap.py
-	uv run python scripts/wait_for_local_services.py --check-seeded-state
+	uv run platform-cli dev wait-for-services
+	uv run platform-cli dev bootstrap
+	uv run platform-cli dev wait-for-services --check-seeded-state
 	@echo ""
 	@echo "==> Local environment ready"
 	@echo "    Try: make dev-invoke"
@@ -373,7 +397,7 @@ dev-logs:
 ## dev-invoke: Invoke echo agent locally with test tenant
 dev-invoke:
 	@TENANT=$$(grep BASIC_TENANT_ID .env.test 2>/dev/null | cut -d= -f2); \
-	uv run python scripts/dev-invoke.py \
+	uv run platform-cli dev invoke \
 		--agent echo-agent \
 		--tenant "$${TENANT:-t-test-001}" \
 		--prompt "$(or $(PROMPT),Hello from local environment)" \
@@ -521,29 +545,13 @@ tf-apply:
 ## Usage: make agent-evaluate AGENT=my-agent [ENV=staging]
 agent-evaluate:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agent-evaluate AGENT=my-agent" && exit 1)
-	@echo "==> Running evaluation gate for $(AGENT)"
-	uv run python scripts/evaluate_agent.py $(AGENT) --env $(ENV)
+	uv run platform-cli agent evaluate $(AGENT) --env $(ENV)
 
 ## agent-push: Package and deploy an agent
 ## Usage: make agent-push AGENT=my-agent [ENV=dev]
 agent-push:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agent-push AGENT=my-agent" && exit 1)
-	@echo "==> Checking dependency hash for $(AGENT)"
-	@if uv run python scripts/hash_layer.py $(AGENT) --env $(ENV); then \
-		echo "==> Dependencies unchanged (fast path ~15s)"; \
-	else \
-		echo "==> Dependencies changed (cold path ~90s)"; \
-		uv run python scripts/build_layer.py $(AGENT) --env $(ENV); \
-	fi
-	@echo "==> Packaging agent code"
-	uv run python scripts/package_agent.py $(AGENT)
-	@echo "==> Running agent tests"
-	$(MAKE) test-agent AGENT=$(AGENT)
-	@echo "==> Deploying to AgentCore Runtime"
-	uv run python scripts/deploy_agent.py $(AGENT) --env $(ENV)
-	@echo "==> Registering agent"
-	uv run python scripts/register_agent.py $(AGENT) --env $(ENV)
-	@echo "==> Agent $(AGENT) deployed successfully to $(ENV)"
+	uv run platform-cli agent push $(AGENT) --env $(ENV)
 
 ## agentcore-dev: Start AgentCore local dev server inside an agent project
 ## Usage: make agentcore-dev AGENT=my-agent
@@ -586,7 +594,7 @@ agentcore-destroy:
 agent-invoke:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required" && exit 1)
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
-	uv run python scripts/agent-invoke.py \
+	uv run platform-cli agent invoke \
 		--agent $(AGENT) \
 		--tenant $(TENANT) \
 		--env $(ENV) \
@@ -606,7 +614,7 @@ agent-test: test-agent
 ## Usage: make agent-rollback AGENT=my-agent [ENV=prod]
 agent-rollback:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required" && exit 1)
-	uv run python scripts/rollback_agent.py $(AGENT) --env $(ENV)
+	uv run platform-cli agent rollback $(AGENT) --env $(ENV)
 
 # =============================================================================
 # SPA FRONTEND
@@ -633,35 +641,35 @@ spa-push:
 
 ## ops-login: Authenticate as operator via Entra
 ops-login:
-	uv run python scripts/ops.py login --env $(ENV)
+	uv run platform-cli ops login --env $(ENV)
 
 ## ops-top-tenants: List top N tenants by token consumption
 ## Usage: make ops-top-tenants [ENV=prod] [N=10]
 ops-top-tenants:
-	uv run python scripts/ops.py top-tenants --env $(ENV) --n $(or $(N),10)
+	uv run platform-cli ops top-tenants --env $(ENV) --n $(or $(N),10)
 
 ## ops-tenant-sessions: Show active sessions for a tenant
 ## Usage: make ops-tenant-sessions TENANT=t-abc123 [ENV=prod]
 ops-tenant-sessions:
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
-	uv run python scripts/ops.py tenant-sessions --tenant $(TENANT) --env $(ENV)
+	uv run platform-cli ops run-api-command tenant-sessions --tenant $(TENANT) --env $(ENV)
 
 ## ops-suspend-tenant: Suspend a tenant immediately
 ## Usage: make ops-suspend-tenant TENANT=t-abc123 REASON="quota_protection" [ENV=prod]
 ops-suspend-tenant:
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
 	@test -n "$(REASON)" || (echo "ERROR: REASON required" && exit 1)
-	uv run python scripts/ops.py suspend-tenant --tenant $(TENANT) --reason "$(REASON)" --env $(ENV)
+	uv run platform-cli ops suspend-tenant --tenant $(TENANT) --reason "$(REASON)" --env $(ENV)
 
 ## ops-reinstate-tenant: Reinstate a suspended tenant
 ## Usage: make ops-reinstate-tenant TENANT=t-abc123 [ENV=prod]
 ops-reinstate-tenant:
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
-	uv run python scripts/ops.py reinstate-tenant --tenant $(TENANT) --env $(ENV)
+	uv run platform-cli ops reinstate-tenant --tenant $(TENANT) --env $(ENV)
 
 ## ops-quota-report: Show AgentCore quota utilisation
 ops-quota-report:
-	uv run python scripts/ops.py quota-report --env $(ENV)
+	uv run platform-cli ops quota-report --env $(ENV)
 
 ## ops-invocation-report: Show invocation report for a tenant
 ## Usage: make ops-invocation-report TENANT=t-abc123 [DAYS=7] [ENV=prod]
@@ -794,42 +802,6 @@ plan-dev:
 	uv run python scripts/plan_dev.py "$(TASK)"
 
 # =============================================================================
-# DEPRECATED TASK SNAPSHOT FLOW (use only when explicitly requested)
-# =============================================================================
-
-## task-next: Print the next not-started task from docs/TASKS.md
-task-next:
-	uv run python scripts/task.py next
-
-## task-list: List all tasks with their status
-task-list:
-	uv run python scripts/task.py list
-
-## task-start: Create worktree, mark [~], run validate-local, launch Claude Code
-## Usage: make task-start              # auto-selects next [ ] task
-##        make task-start TASK=TASK-011
-task-start:
-	uv run python scripts/task.py start $(TASK)
-
-## task-resume: Resume an existing worktree session for a task
-## Usage: make task-resume             # auto-selects first [~] task with worktree
-##        make task-resume TASK=TASK-011
-task-resume:
-	uv run python scripts/task.py resume $(TASK)
-
-## task-finish: Print finish checklist and git/glab commands for a task
-## Usage: make task-finish TASK=TASK-011
-task-finish:
-	@test -n "$(TASK)" || (echo "ERROR: TASK required. Usage: make task-finish TASK=TASK-011" && exit 1)
-	uv run python scripts/task.py finish $(TASK)
-
-## task-prompt: Print the agent prompt for a task without creating a worktree
-## Usage: make task-prompt TASK=TASK-011
-task-prompt:
-	@test -n "$(TASK)" || (echo "ERROR: TASK required. Usage: make task-prompt TASK=TASK-011" && exit 1)
-	uv run python scripts/task.py prompt $(TASK)
-
-# =============================================================================
 # ISSUE-DRIVEN WORKTREE FLOW (canonical GitLab Issues path)
 # Start here:
 #   1) issue-queue
@@ -840,12 +812,13 @@ task-prompt:
 # =============================================================================
 
 ## issue-queue: Show issue queue ordered by Seq (with dependency blocking)
-## Usage: make issue-queue [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310] [LIMIT=20]
+## Usage: make issue-queue [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310] [FROM_SEQ=901] [LIMIT=20]
 issue-queue:
 	uv run python -m scripts.issue_tool issue-queue \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),) \
 		$(if $(LIMIT),--limit $(LIMIT),)
 
 ## issue-create: Create a canonical GitLab task issue
@@ -893,15 +866,16 @@ gitnexus-refresh:
 	uv run python -m scripts.issue_tool gitnexus-refresh
 
 ## worktree: Interactive issue-driven worktree menu (Seq/Depends on aware)
-## Usage: make worktree [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310]
+## Usage: make worktree [QUEUE_MODE=auto|ready|open-task] [STREAM=a] [FROM_ISSUE=310] [FROM_SEQ=901]
 worktree:
 	uv run python -m scripts.issue_tool menu \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
-		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),)
+		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),)
 
 ## wt-go: Start the next runnable issue worktree and launch an explicit or random agent in tmux
-## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo]
+## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [FROM_SEQ=901] [PRE_PROVISION=1] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo]
 wt-go:
 	$(MAKE) --no-print-directory worktree-next-issue \
 		HANDOFF=execute-now \
@@ -909,19 +883,22 @@ wt-go:
 		$(if $(QUEUE_MODE),QUEUE_MODE=$(QUEUE_MODE),) \
 		$(if $(STREAM),STREAM=$(STREAM),) \
 		$(if $(FROM_ISSUE),FROM_ISSUE=$(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),FROM_SEQ=$(FROM_SEQ),) \
 		AGENT=$(if $(AGENT),$(AGENT),random) \
 		$(if $(REVIEW_AGENT),REVIEW_AGENT=$(REVIEW_AGENT),) \
 		$(if $(REVIEW_AGENT_MODE),REVIEW_AGENT_MODE=$(REVIEW_AGENT_MODE),) \
+		$(if $(PRE_PROVISION),PRE_PROVISION=$(PRE_PROVISION),) \
 		AGENT_MODE=$(if $(AGENT_MODE),$(AGENT_MODE),yolo)
 
 ## worktree-next-issue: Create a worktree for the next runnable issue in the queue
-## Usage: make worktree-next-issue [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [DRY_RUN=1] [OPEN_SHELL=1]
+## Usage: make worktree-next-issue [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [FROM_SEQ=901] [PRE_PROVISION=1] [DRY_RUN=1] [OPEN_SHELL=1]
 ## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-next-issue:
 	uv run python -m scripts.issue_tool worktree-next \
 		--mode "$(if $(QUEUE_MODE),$(QUEUE_MODE),auto)" \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),) \
 		$(if $(DRY_RUN),--dry-run,) \
 		$(if $(OPEN_SHELL),--open-shell,) \
 		$(if $(NO_CLAIM),--no-claim,) \
@@ -931,13 +908,14 @@ worktree-next-issue:
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
 		$(if $(REVIEW_AGENT),--review-agent "$(REVIEW_AGENT)",) \
 		$(if $(REVIEW_AGENT_MODE),--review-agent-mode "$(REVIEW_AGENT_MODE)",) \
+		$(if $(PRE_PROVISION),--pre-provision,) \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
 		$(if $(PRINT_ONLY),--print-only,)
 
 ## wt-batch: Create multiple runnable issue worktrees and start detached agent runs
-## Usage: make wt-batch [COUNT=3] [FROM_ISSUE=310] [AGENTS=gemini] [AGENT_MODE=yolo] [INTERACTIVE=1]
+## Usage: make wt-batch [COUNT=3] [FROM_ISSUE=310] [FROM_SEQ=901] [AGENTS=gemini] [AGENT_MODE=yolo] [INTERACTIVE=1]
 wt-batch:
 	uv run python -m scripts.issue_tool wt-batch \
 		--count $(if $(COUNT),$(COUNT),3) \
@@ -946,12 +924,13 @@ wt-batch:
 		$(if $(QUEUE_MODE),--mode "$(QUEUE_MODE)",--mode auto) \
 		$(if $(STREAM),--stream-label "$(STREAM)",) \
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
+		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),) \
 		$(if $(BASE_DIR),--base-dir "$(BASE_DIR)",) \
 		$(if $(INTERACTIVE),--interactive,) \
 		$(if $(DRY_RUN),--dry-run,)
 
 ## worktree-create-issue: Create a worktree for a specific issue number
-## Usage: make worktree-create-issue ISSUE=23 [DRY_RUN=1] [OPEN_SHELL=1]
+## Usage: make worktree-create-issue ISSUE=23 [PRE_PROVISION=1] [DRY_RUN=1] [OPEN_SHELL=1]
 ## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-create-issue:
 	@test -n "$(ISSUE)" || (echo "ERROR: ISSUE required. Usage: make worktree-create-issue ISSUE=23" && exit 1)
@@ -968,6 +947,7 @@ worktree-create-issue:
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
 		$(if $(REVIEW_AGENT),--review-agent "$(REVIEW_AGENT)",) \
 		$(if $(REVIEW_AGENT_MODE),--review-agent-mode "$(REVIEW_AGENT_MODE)",) \
+		$(if $(PRE_PROVISION),--pre-provision,) \
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
@@ -1013,6 +993,22 @@ worktree-push-issue:
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \
 		$(if $(DRY_RUN),--dry-run,)
 
+## dev-status: Show joined issue/worktree/agent launch status
+## Usage: make dev-status [ISSUE=45] [ALL=1] [JSON=1]
+dev-status:
+	uv run python -m scripts.issue_tool issue-status \
+		$(if $(ISSUE),--issue $(ISSUE),) \
+		$(if $(ALL),--all,) \
+		$(if $(JSON),--json,)
+
+## issue-status: Alias for dev-status
+## Usage: make issue-status [ISSUE=45] [ALL=1] [JSON=1]
+issue-status:
+	$(MAKE) --no-print-directory dev-status \
+		$(if $(ISSUE),ISSUE=$(ISSUE),) \
+		$(if $(ALL),ALL=$(ALL),) \
+		$(if $(JSON),JSON=$(JSON),)
+
 ## finish-worktree-summary: Show guided finish summary for current worktree
 ## Usage: make finish-worktree-summary [WT_PATH=../worktrees/wt23]
 finish-worktree-summary:
@@ -1035,7 +1031,7 @@ finish-worktree-close-json:
 		--json
 
 ## agent-handoff: Launch the issue-worktree agent flow for the current path
-## Usage: make agent-handoff [AGENT=codex|gemini|claude|random] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo] [HANDOFF=execute-now|print-only]
+## Usage: make agent-handoff [AGENT=codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo] [HANDOFF=execute-now|print-only]
 agent-handoff:
 	uv run python -m scripts.issue_tool agent-handoff \
 		$(if $(WT_PATH),--path "$(WT_PATH)",) \

@@ -33,6 +33,7 @@ eu-west-2 London (HOME — owns everything)
 ├── AppConfig
 ├── EventBridge
 ├── SQS (webhook delivery retry queue only, not async invocation routing)
+├── ElastiCache Serverless Valkey (TPM counter coordination)
 ├── Bridge Lambda
 ├── Authoriser Lambda
 ├── Tenant API Lambda (Modular: lifecycle, webhooks, agents, ops)
@@ -106,6 +107,10 @@ This modular design ensures that the business logic is independent of the physic
 Lambda deployment topology, allowing for easy consolidation or further splitting
 without major code changes.
 
+Tenant lifecycle handlers translate API Gateway body/query details into typed service
+inputs before invoking record services. Authorisation remains in the service boundary,
+so pure tenant lifecycle tests do not need to construct full Lambda event payloads.
+
 ## Request Lifecycle (Synchronous)
 
 ![Request lifecycle: client through CloudFront, API Gateway, Authoriser, Bridge, AgentCore Runtime, Gateway interceptors, Tool Lambdas, and response stream](images/tf_acore_aas_request_lifecycle_engineer.drawio.png)
@@ -145,7 +150,18 @@ Implementation note: the Bridge still deploys as one Lambda, but the package is
 now split internally into `config_provider`, `discovery_service`,
 `invocation_engine`, `runtime_orchestrator`, and `runtime_invoker` so routing,
 discovery, and failover logic can evolve independently without changing the
-public invoke contract.
+public invoke contract. TASK-902 provisions the eu-west-2 ElastiCache Serverless
+Valkey counter store and publishes its endpoint per environment at
+`/platform/{env}/config/valkey-endpoint`; the Bridge receives the same resolved
+endpoint through `VALKEY_ENDPOINT` so TPM log-only accounting does not require a
+new request-path SSM permission. ElastiCache Serverless places the cache
+endpoint in the selected subnets and security groups; no additional user-managed
+ElastiCache interface endpoint is required for counter traffic. Bridge remains
+outside the VPC under ADR-014; TASK-903's counter client is fail-open and
+endpoint-gated, while any move to hard enforcement still requires an approved
+narrow adapter or runtime-network design. Pulling the whole Bridge into isolated
+subnets would break the current eu-west-1 AgentCore Runtime path without the
+gated ADR-020 network work.
 
 Current SPA edge posture: the public SPA distribution is protected by a dedicated
 CloudFront-scope WebACL that must be provisioned in **us-east-1**. AWS WAF requires
@@ -371,6 +387,7 @@ team preference:
 | **AppConfig** | Dynamic tenant capability policy: tier feature enablement, capability flags, kill switches, model/tool availability, rollout controls. **Runtime parameters:** active runtime region, mock service URLs. | Tenant state, resource inventory, execution-role ARNs, memory-store ARNs |
 | **SSM Parameter Store** | Operational bootstrap identifiers: AppConfig application/environment/profile IDs. Legacy/fallback platform parameters. | Tenant feature policy, invocation state, hot-path runtime settings |
 | **DynamoDB** | Tenant metadata and transactional state: status, budgets, execution-role ARN, memory-store ARN, audit/job/session records | Rollout-managed capability toggles |
+| **`.env.example` + `platform_config`** | Local script and developer-tool settings validated by Pydantic before use. | Runtime tenant state, secrets storage, rollout policy |
 
 Control-plane Lambdas (Bridge, Authoriser, Admin APIs) leverage the **AWS AppConfig Lambda Extension**
 to cache all policy and runtime configuration locally. This eliminates the high-latency network
@@ -413,7 +430,7 @@ See [ADR-012](decisions/ADR-012-dynamodb-capacity.md) for capacity mode rational
   last-activity markers, or session heartbeat state in this row.
 - Excludes dynamic capability policy. Capability flags, kill switches, and
   rollout-managed model/tool availability live in AppConfig, not in this table.
-- Capacity: provisioned, auto-scaling, 5 RCU/WCU minimum
+- Capacity: on-demand
 - Tenant ID policy (create boundary):
   - Canonicalized to lowercase before persistence
   - Regex: `^[a-z](?:[a-z0-9-]{1,30}[a-z0-9])$` (3–32 chars)
@@ -422,13 +439,28 @@ See [ADR-012](decisions/ADR-012-dynamodb-capacity.md) for capacity mode rational
   - `platform` is reserved for internal control-plane use and must never be created
     through customer or self-service flows
 
+Reserved tenant ID access semantics:
+
+| Tenant ID | Create | Read | Update | Delete | Caller role requirement |
+|-----------|--------|------|--------|--------|-------------------------|
+| `platform` | Denied through tenant creation APIs; seeded only by controlled bootstrap/provisioning paths | Allowed for the seeded `platform` tenant record | Allowed for mutable metadata on the seeded `platform` tenant record | Denied; the platform tenant must remain addressable for audit and control-plane identity | `Platform.Admin` for direct `/v1/tenants/platform` read/update; platform-agent routes require the route-specific platform RBAC documented above |
+| `admin` | Denied | Denied | Denied | Denied | No tenant API caller role may operate on this ID |
+| `root` | Denied | Denied | Denied | Denied | No tenant API caller role may operate on this ID |
+| `system` | Denied | Denied | Denied | Denied | No tenant API caller role may operate on this ID |
+| `stub` | Denied | Denied | Denied | Denied | No tenant API caller role may operate on this ID |
+
+The non-`platform` reserved IDs are guard words only. They must not be backfilled as
+tenant records, exposed as first-class control-plane tenants, or made assignable by
+operator role. Any future change that allows reads or writes for one of these IDs
+requires an explicit ADR because it changes the tenant identity boundary.
+
 **platform-agents** — agent registry
 - PK: `AGENT#{agentName}`, SK: `VERSION#{semver}`
 - Attributes: agentName, version, ownerTeam, tierMinimum, layerHash,
   layerS3Key, scriptS3Key, runtimeArn, deployedAt, invocationMode,
   streamingEnabled, estimatedDurationSeconds, status, approvedBy,
   approvedAt, releaseNotes
-- Capacity: provisioned, auto-scaling
+- Capacity: on-demand
 
 ### Agent Release State Source Of Truth
 
@@ -487,9 +519,12 @@ Operational consumers:
 - PK: `TENANT#{tenantId}`, SK: `INV#{timestamp}#{invocationId}`
 - Attributes: invocationId, tenantId, appId, agentName, agentVersion,
   sessionId, inputTokens, outputTokens, latencyMs, status, errorCode,
-  runtimeRegion, invocationMode, jobId
+  runtimeRegion, invocationMode, jobId, ttftMs
 - This is the high-frequency tenant activity record for invocations. Do not
   mirror per-request counters or last-seen markers into `platform-tenants`.
+- `ttftMs` is populated only for streaming invocations after the first non-empty
+  runtime chunk arrives. Non-streaming records store it as null; streaming records
+  that complete without a chunk also leave it null.
 - TTL: 90 days. Capacity: on-demand (unpredictable volume)
 - Hot partition protection: SK includes random jitter suffix for high-volume tenants
 
@@ -509,7 +544,7 @@ Operational consumers:
 
 **platform-tools** — Gateway tool registry
 - PK: `TOOL#{toolName}`, SK: `TENANT#{tenantId}` or `GLOBAL`
-- Attributes: toolName, tierMinimum, lambdaArn, gatewayTargetId, enabled
+- Attributes: tool_name, tier_minimum, lambda_arn, gateway_target_id, enabled
 
 **platform-ops-locks** — distributed operation locks
 - PK: `LOCK#{lockName}`, SK: `METADATA`
@@ -526,7 +561,7 @@ documented response in the [operator runbooks](README.md#operator-runbooks).
 | 1 | REST API usage plans | basic: 10 rps / 1K/day, standard: 50 rps / 10K/day, premium: 500 rps / unlimited | Native API Gateway 429 |
 | 2 | Bridge Lambda concurrency | 200 prod, 50 staging | Alert at 80%; provisioned concurrency 10 on authoriser |
 | 3 | AgentCore Runtime | Auto-scales, per-account quota | 70%: [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md); 90%: [RUNBOOK-004](operations/RUNBOOK-004-quota-increase.md) |
-| 4 | DynamoDB | On-demand for invocations, provisioned for config | Jitter suffix on high-volume tenant SKs |
+| 4 | DynamoDB | All tables on-demand | Jitter suffix on high-volume tenant SKs |
 | 5 | Account topology | Option A (single) → B (tier-split) → C (per-tenant) | Escalate when quota thresholds require |
 
 ## Platform-Controlled Cross-Tenant Actions
@@ -701,6 +736,16 @@ is represented today by the AgentCoreStack metric stream into eu-west-2 dashboar
 | FM-9 | DLQ message arrival | DLQ CloudWatch alarm | `FM-9-DLQ-Arrival-{name}` | [RUNBOOK-005](operations/RUNBOOK-005-dlq-management.md) |
 | FM-10 | Billing Lambda failure | Billing Lambda errors | `FM-10-BillingLambdaFailure` | [RUNBOOK-006](operations/RUNBOOK-006-budget-and-suspension.md) |
 | FM-11 | Bedrock runtime throttle pressure | Bridge emits `Invocation.Throttled.Bedrock` | `FM-11-BedrockThrottlePressure` | Investigate noisy tenants, concurrency pressure, and runtime quota headroom |
+| FM-12 | Valkey unavailable | Bridge emits `valkey_unavailable` fail-open metric/log | `FM-12-ValkeyUnavailable` | Bridge continues with fail-open (TPM check skipped, metric emitted) |
+
+Streaming TTFT uses `gen_ai.ttft_ms` in `Platform/Bridge`. The Bridge publishes
+the operational series with `AgentName`, `InvocationMode=streaming`, and
+`RuntimeRegion`; a matching `AgentName=all` / `RuntimeRegion=all` series feeds the
+disabled placeholder alarm. CloudWatch custom metric dimensions are part of metric
+identity and are not aggregated automatically, so both supported query shapes are
+published deliberately. ObservabilityStack includes a disabled
+`FM-2-StreamingTTFTPlaceholder` alarm shell on p99 TTFT. Operators must set the
+AG-UI SLO threshold from production data before enabling alarm actions.
 
 ## Security Model
 

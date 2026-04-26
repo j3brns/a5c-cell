@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
 from collections.abc import Callable
@@ -12,6 +11,8 @@ from pathlib import Path
 from urllib.request import urlopen
 
 import boto3
+
+from platform_config import get_settings
 
 
 @dataclass(frozen=True)
@@ -113,15 +114,15 @@ def verify_seeded_state(
         "dynamodb",
         region_name=aws_region,
         endpoint_url=localstack_endpoint,
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "testing"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "testing"),
+        aws_access_key_id=get_settings().aws.access_key_id or "testing",
+        aws_secret_access_key=get_settings().aws.secret_access_key or "testing",
     )
     ssm = boto3.client(
         "ssm",
         region_name=aws_region,
         endpoint_url=localstack_endpoint,
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "testing"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "testing"),
+        aws_access_key_id=get_settings().aws.access_key_id or "testing",
+        aws_secret_access_key=get_settings().aws.secret_access_key or "testing",
     )
 
     table_names = set(ddb.list_tables().get("TableNames", []))
@@ -193,18 +194,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
+def run_wait(
+    timeout_seconds: int = 60,
+    interval_seconds: float = 2.0,
+    check_seeded_state: bool = False,
+    localstack_endpoint: str = DEFAULT_LOCALSTACK_ENDPOINT,
+    aws_region: str = DEFAULT_AWS_REGION,
+    env_test_path: str | Path = DEFAULT_ENV_TEST_PATH,
+) -> int:
     try:
         wait_for_all_services(
-            timeout_seconds=args.timeout_seconds,
-            interval_seconds=args.interval_seconds,
+            timeout_seconds=timeout_seconds,
+            interval_seconds=interval_seconds,
         )
-        if args.check_seeded_state:
+        if check_seeded_state:
             verify_seeded_state(
-                localstack_endpoint=args.localstack_endpoint,
-                aws_region=args.aws_region,
-                env_test_path=Path(args.env_test_path),
+                localstack_endpoint=localstack_endpoint,
+                aws_region=aws_region,
+                env_test_path=Path(env_test_path),
             )
     except TimeoutError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -213,6 +220,18 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    return run_wait(
+        timeout_seconds=args.timeout_seconds,
+        interval_seconds=args.interval_seconds,
+        check_seeded_state=args.check_seeded_state,
+        localstack_endpoint=args.localstack_endpoint,
+        aws_region=args.aws_region,
+        env_test_path=args.env_test_path,
+    )
 
 
 if __name__ == "__main__":

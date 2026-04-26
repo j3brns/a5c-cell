@@ -66,6 +66,34 @@ describe('PlatformStack (TASK-023)', () => {
       ?.ContentSecurityPolicy;
   };
 
+  const getWebAclRules = (stackTemplate: Template): Array<{
+    Name: string;
+    Priority: number;
+    VisibilityConfig?: {
+      MetricName?: string;
+      SampledRequestsEnabled?: boolean;
+    };
+  }> => {
+    const webAcls = stackTemplate.findResources('AWS::WAFv2::WebACL') as Record<
+      string,
+      {
+        Properties?: {
+          Rules?: Array<{
+            Name: string;
+            Priority: number;
+            VisibilityConfig?: {
+              MetricName?: string;
+              SampledRequestsEnabled?: boolean;
+            };
+          }>;
+        };
+      }
+    >;
+
+    const [webAcl] = Object.values(webAcls);
+    return webAcl.Properties?.Rules ?? [];
+  };
+
   const getIamPolicyStatements = (stackTemplate: Template): Array<Record<string, unknown>> => {
     const policies = stackTemplate.findResources('AWS::IAM::Policy') as Record<
       string,
@@ -106,19 +134,29 @@ describe('PlatformStack (TASK-023)', () => {
       });
   };
 
-  test('creates all required DynamoDB tables with PITR and encryption', () => {
+  test('creates all required DynamoDB tables with on-demand billing, PITR, and encryption', () => {
     template.resourceCountIs('AWS::DynamoDB::Table', 8);
 
-    template.hasResourceProperties('AWS::DynamoDB::Table', {
-      TableName: 'platform-tenants',
-      ProvisionedThroughput: {
-        ReadCapacityUnits: 5,
-        WriteCapacityUnits: 5,
-      },
-      PointInTimeRecoverySpecification: {
-        PointInTimeRecoveryEnabled: true,
-      },
-    });
+    const tableNames = [
+      'platform-tenants',
+      'platform-agents',
+      'platform-tools',
+      'platform-ops-locks',
+      'platform-gateway-idempotency',
+      'platform-invocations',
+      'platform-jobs',
+      'platform-sessions',
+    ];
+
+    for (const tableName of tableNames) {
+      template.hasResourceProperties('AWS::DynamoDB::Table', {
+        TableName: tableName,
+        BillingMode: 'PAY_PER_REQUEST',
+        PointInTimeRecoverySpecification: {
+          PointInTimeRecoveryEnabled: true,
+        },
+      });
+    }
 
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       TableName: 'platform-invocations',
@@ -138,12 +176,13 @@ describe('PlatformStack (TASK-023)', () => {
 
     const tables = template.findResources('AWS::DynamoDB::Table') as Record<
       string,
-      { Properties?: { SSESpecification?: Record<string, unknown> } }
+      { Properties?: { SSESpecification?: Record<string, unknown>; ProvisionedThroughput?: unknown } }
     >;
     for (const table of Object.values(tables)) {
       expect(table.Properties?.SSESpecification).toEqual({
         SSEEnabled: true,
       });
+      expect(table.Properties?.ProvisionedThroughput).toBeUndefined();
     }
   });
 
@@ -263,7 +302,7 @@ describe('PlatformStack (TASK-023)', () => {
     );
   });
 
-  test('attaches VPC Lambdas to the endpoint-trusted Lambda security group', () => {
+  test('deploys control-plane Lambdas outside the VPC unless they have a private dependency', () => {
     const template = synthTemplate('dev');
 
     const lambdaFunctions = template.findResources('AWS::Lambda::Function') as Record<
@@ -271,20 +310,14 @@ describe('PlatformStack (TASK-023)', () => {
       {
         Properties?: {
           FunctionName?: string;
-          VpcConfig?: { SecurityGroupIds?: unknown[] };
+          VpcConfig?: unknown;
         };
       }
     >;
 
-    const securityGroupIdTokens = new Set<string>();
-
     for (const resource of Object.values(lambdaFunctions)) {
-      const securityGroupIds = resource.Properties?.VpcConfig?.SecurityGroupIds;
-      expect(securityGroupIds).toHaveLength(1);
-      securityGroupIdTokens.add(JSON.stringify(securityGroupIds?.[0]));
+      expect(resource.Properties?.VpcConfig).toBeUndefined();
     }
-
-    expect(securityGroupIdTokens.size).toBe(1);
   });
 
   test('creates environment-aware bridge rollout policy with auto-rollback alarm', () => {
@@ -359,9 +392,33 @@ describe('PlatformStack (TASK-023)', () => {
     devTemplate.resourceCountIs('AWS::AppConfig::Deployment', 1);
   });
 
-  test('creates WAF WebACL with managed rules, UK rate limit, and API association', () => {
+  test('creates WAF WebACL with managed baselines, rate limits, and API association', () => {
+    const rules = getWebAclRules(template);
+
+    expect(rules.map((rule) => rule.Name)).toEqual([
+      'AWSManagedRulesCommonRuleSet',
+      'AWSManagedRulesAmazonIpReputationList',
+      'AWSManagedRulesKnownBadInputsRuleSet',
+      'GlobalIpRateLimit',
+      'UkIpRateLimit',
+      'BlockSqlmapUserAgent',
+    ]);
+    expect(rules.map((rule) => rule.Priority)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(rules.map((rule) => rule.VisibilityConfig?.MetricName)).toEqual([
+      'aws-managed-common',
+      'aws-managed-amazon-ip-reputation-count',
+      'aws-managed-known-bad-inputs-count',
+      'global-ip-rate-limit',
+      'uk-ip-rate-limit',
+      'block-sqlmap-user-agent',
+    ]);
+    expect(rules.every((rule) => rule.VisibilityConfig?.SampledRequestsEnabled === true)).toBe(true);
+
     template.hasResourceProperties('AWS::WAFv2::WebACL', {
       Scope: 'REGIONAL',
+      VisibilityConfig: Match.objectLike({
+        SampledRequestsEnabled: true,
+      }),
       Rules: Match.arrayWith([
         Match.objectLike({
           Name: 'AWSManagedRulesCommonRuleSet',
@@ -373,10 +430,40 @@ describe('PlatformStack (TASK-023)', () => {
           }),
         }),
         Match.objectLike({
+          Name: 'AWSManagedRulesAmazonIpReputationList',
+          OverrideAction: { Count: {} },
+          Statement: Match.objectLike({
+            ManagedRuleGroupStatement: {
+              VendorName: 'AWS',
+              Name: 'AWSManagedRulesAmazonIpReputationList',
+            },
+          }),
+        }),
+        Match.objectLike({
+          Name: 'AWSManagedRulesKnownBadInputsRuleSet',
+          OverrideAction: { Count: {} },
+          Statement: Match.objectLike({
+            ManagedRuleGroupStatement: {
+              VendorName: 'AWS',
+              Name: 'AWSManagedRulesKnownBadInputsRuleSet',
+            },
+          }),
+        }),
+        Match.objectLike({
+          Name: 'GlobalIpRateLimit',
+          Statement: Match.objectLike({
+            RateBasedStatement: Match.objectLike({
+              AggregateKeyType: 'IP',
+              Limit: 10000,
+            }),
+          }),
+        }),
+        Match.objectLike({
           Name: 'UkIpRateLimit',
           Statement: Match.objectLike({
             RateBasedStatement: Match.objectLike({
               AggregateKeyType: 'IP',
+              Limit: 2000,
               ScopeDownStatement: Match.objectLike({
                 GeoMatchStatement: {
                   CountryCodes: ['GB'],
@@ -754,6 +841,7 @@ describe('PlatformStack (TASK-023)', () => {
           FAILOVER_LOCK_NAME: 'platform-runtime-failover',
           RUNTIME_REGION_PARAM: '/platform/config/runtime-region',
           TENANT_EXECUTION_ROLE_PARAM_TEMPLATE: '/platform/tenants/{tenant_id}/execution-role-arn',
+          VALKEY_ENDPOINT: Match.anyValue(),
         }),
       },
     });
@@ -769,7 +857,7 @@ describe('PlatformStack (TASK-023)', () => {
           Match.objectLike({
             Action: 'sts:AssumeRole',
             Effect: 'Allow',
-            Resource: 'arn:aws:iam::*:role/platform-tenant-*-execution-role',
+            Resource: 'arn:aws:iam::123456789012:role/platform-tenant-*-execution-role',
           }),
         ]),
       },
@@ -796,6 +884,72 @@ describe('PlatformStack (TASK-023)', () => {
             'arn:aws:secretsmanager:eu-west-2:123456789012:secret:platform/dev/entra/client-secret',
           POWERTOOLS_SERVICE_NAME: 'bff',
         }),
+      },
+    });
+  });
+
+  test('scopes AppConfig retrieval permissions to deployed configuration resources', () => {
+    const appConfigStatements = getIamPolicyStatements(template).filter((statement) =>
+      JSON.stringify(statement.Action).includes('StartConfigurationSession'),
+    );
+
+    expect(appConfigStatements.length).toBeGreaterThanOrEqual(3);
+    for (const statement of appConfigStatements) {
+      const resources = JSON.stringify(statement.Resource);
+      expect(resources).toContain('/environment/');
+      expect(resources).toContain('/configuration/');
+      expect(resources).not.toContain('/configurationprofile/');
+    }
+  });
+
+  test('wires response interceptor tool filtering and PII pattern permissions', () => {
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'platform-core-dev-interceptor-response',
+      Environment: {
+        Variables: Match.objectLike({
+          TOOLS_TABLE: Match.anyValue(),
+          PII_PATTERNS_PARAM: '/platform/gateway/pii-patterns/default',
+        }),
+      },
+    });
+
+    const policyJson = JSON.stringify(template.findResources('AWS::IAM::Policy'));
+    expect(policyJson).toContain('parameter/platform/gateway/pii-patterns/*');
+    expect(policyJson).toContain('ToolsTable');
+  });
+
+  test('limits tenant provisioner AgentCore memory access to tagged tenant memories', () => {
+    const statements = getIamPolicyStatements(template);
+    const createMemory = statements.find((statement) => statement.Sid === 'TenantStackCreateTaggedMemory');
+    const manageMemory = statements.find((statement) => statement.Sid === 'TenantStackManageTaggedMemory');
+    const tagMemory = statements.find((statement) => statement.Sid === 'TenantStackTagManagedMemory');
+
+    expect(createMemory).toMatchObject({
+      Action: 'bedrock-agentcore:CreateMemory',
+      Resource: '*',
+      Condition: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+        },
+      },
+    });
+    expect(manageMemory).toMatchObject({
+      Action: ['bedrock-agentcore:UpdateMemory', 'bedrock-agentcore:DeleteMemory', 'bedrock-agentcore:GetMemory'],
+      Resource: 'arn:aws:bedrock-agentcore:eu-west-2:123456789012:memory/*',
+      Condition: {
+        StringEquals: {
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
+      },
+    });
+    expect(tagMemory).toMatchObject({
+      Action: 'bedrock-agentcore:TagResource',
+      Resource: 'arn:aws:bedrock-agentcore:eu-west-2:123456789012:memory/*',
+      Condition: {
+        StringEquals: {
+          'aws:RequestTag/TenantManaged': 'true',
+          'aws:ResourceTag/TenantManaged': 'true',
+        },
       },
     });
   });
@@ -847,10 +1001,19 @@ describe('PlatformStack (TASK-023)', () => {
     });
   });
 
-  test('configures CloudFront access logging for the SPA distribution', () => {
+  test('configures CloudFront access logging for the SPA distribution with 30-day retention in dev', () => {
     template.hasResourceProperties('AWS::S3::Bucket', {
       BucketName: 'platform-spa-logs-dev',
       AccessControl: 'LogDeliveryWrite',
+      LifecycleConfiguration: {
+        Rules: [
+          {
+            ExpirationInDays: 30,
+            Id: 'RetentionRule',
+            Status: 'Enabled',
+          },
+        ],
+      },
       OwnershipControls: {
         Rules: [
           {
@@ -868,6 +1031,22 @@ describe('PlatformStack (TASK-023)', () => {
           Prefix: 'spa-cloudfront/',
         }),
       }),
+    });
+  });
+
+  test('configures CloudFront access logging for the SPA distribution with 365-day retention in prod', () => {
+    const prodTemplate = synthTemplate('prod');
+    prodTemplate.hasResourceProperties('AWS::S3::Bucket', {
+      BucketName: 'platform-spa-logs-prod',
+      LifecycleConfiguration: {
+        Rules: [
+          {
+            ExpirationInDays: 365,
+            Id: 'RetentionRule',
+            Status: 'Enabled',
+          },
+        ],
+      },
     });
   });
 
@@ -1156,5 +1335,57 @@ describe('PlatformStack (TASK-023)', () => {
   test('does not create API Gateway custom domain when context is absent', () => {
     template.resourceCountIs('AWS::ApiGateway::DomainName', 0);
     template.resourceCountIs('AWS::ApiGateway::BasePathMapping', 0);
+  });
+
+  test('provisions Valkey cluster (ElastiCache Serverless) for TPM rate limiting', () => {
+    template.hasResourceProperties('AWS::ElastiCache::ServerlessCache', {
+      Engine: 'valkey',
+      ServerlessCacheName: 'platform-valkey-dev',
+      SubnetIds: Match.anyValue(),
+      SecurityGroupIds: Match.anyValue(),
+    });
+
+    template.hasResourceProperties('AWS::EC2::SecurityGroup', {
+      GroupDescription: 'Security group for platform Valkey cluster (ElastiCache Serverless)',
+    });
+
+    template.hasResourceProperties('AWS::EC2::SecurityGroup', {
+      GroupDescription: 'Bridge Lambda client access to platform Valkey',
+    });
+
+    template.hasResourceProperties('AWS::EC2::SecurityGroupIngress', {
+      FromPort: 6379,
+      ToPort: 6379,
+      IpProtocol: 'tcp',
+      SourceSecurityGroupId: {
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('BridgeValkeyClientSecurityGroup')]),
+      },
+      GroupId: {
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('ValkeySecurityGroup')]),
+      },
+    });
+
+    template.hasResourceProperties('AWS::EC2::SecurityGroupEgress', {
+      FromPort: 6379,
+      ToPort: 6379,
+      IpProtocol: 'tcp',
+      DestinationSecurityGroupId: {
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('ValkeySecurityGroup')]),
+      },
+      GroupId: {
+        'Fn::GetAtt': Match.arrayWith([Match.stringLikeRegexp('BridgeValkeyClientSecurityGroup')]),
+      },
+    });
+
+    template.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/platform/dev/config/valkey-endpoint',
+      Type: 'String',
+    });
+
+    const stagingTemplate = synthTemplate('staging');
+    stagingTemplate.hasResourceProperties('AWS::SSM::Parameter', {
+      Name: '/platform/staging/config/valkey-endpoint',
+      Type: 'String',
+    });
   });
 });

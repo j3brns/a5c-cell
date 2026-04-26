@@ -14,6 +14,12 @@ from data_access.models import (
     is_invokable_agent_status,
 )
 
+from src.bridge.constants import (
+    AGENTS_TABLE,
+    JOB_RESULT_URL_EXPIRY_SECONDS,
+    JOB_RESULTS_BUCKET,
+    JOBS_TABLE,
+)
 from src.platform_utils import coerce_optional_string as _shared_coerce_optional_string
 
 
@@ -63,10 +69,10 @@ def _presigned_result_url(
     tenant_context: TenantContext,
     result_s3_key: str,
     *,
-    job_results_bucket: str | None,
-    expiry_seconds: int,
+    job_results_bucket: str | None = None,
+    expiry_seconds: int | None = None,
 ) -> str:
-    bucket = _coerce_optional_string(job_results_bucket)
+    bucket = _coerce_optional_string(job_results_bucket or JOB_RESULTS_BUCKET)
     if bucket is None:
         raise ValueError("JOB_RESULTS_BUCKET is not configured")
 
@@ -74,19 +80,19 @@ def _presigned_result_url(
     return tenant_s3.generate_presigned_url(
         bucket,
         result_s3_key,
-        expires_in=max(1, expiry_seconds),
+        expires_in=max(1, expiry_seconds or JOB_RESULT_URL_EXPIRY_SECONDS),
     )
 
 
 def list_agents(
     tenant_context: TenantContext,
     *,
-    agents_table: str,
-    db_factory: Any = ControlPlaneDynamoDB,
+    agents_table: str | None = None,
+    db_factory: Any | None = None,
     capability_policy: Any = None,
 ) -> dict[str, Any]:
-    db = db_factory(tenant_context)
-    items = db.scan_all(agents_table)
+    db = (db_factory or ControlPlaneDynamoDB)(tenant_context)
+    items = db.scan_all(agents_table or AGENTS_TABLE)
 
     latest_by_name: dict[str, dict[str, Any]] = {}
     for item in items:
@@ -137,15 +143,16 @@ def list_agents(
 def resolve_agent_record(
     control_plane_db: ControlPlaneDynamoDB,
     *,
-    agents_table: str,
+    agents_table: str | None = None,
     agent_name: str,
     agent_version: str | None = None,
 ) -> AgentRecord | None:
     """Fetch a specific agent version or the latest promoted version."""
+    table = agents_table or AGENTS_TABLE
 
     if agent_version:
         item = control_plane_db.get_item(
-            agents_table, {"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{agent_version}"}
+            table, {"PK": f"AGENT#{agent_name}", "SK": f"VERSION#{agent_version}"}
         )
         if item and is_invokable_agent_status(_coerce_optional_string(item.get("status"))):
             try:
@@ -155,7 +162,7 @@ def resolve_agent_record(
         return None
 
     # Query for all versions and pick latest promoted
-    response = control_plane_db.query(agents_table, pk_value=f"AGENT#{agent_name}")
+    response = control_plane_db.query(table, pk_value=f"AGENT#{agent_name}")
     items = response.items
 
     promoted_items = []
@@ -223,24 +230,23 @@ def get_agent_detail(
     path_params: dict[str, Any],
     request_id: str,
     *,
-    agents_table: str,
-    db_factory: Any = ControlPlaneDynamoDB,
-    error_response: Any,
+    agents_table: str | None = None,
+    db_factory: Any | None = None,
+    error_response: Any | None = None,
     tenant_context: TenantContext | None = None,
     capability_policy: Any = None,
 ) -> dict[str, Any]:
+    from .route_adapter import error_response as default_error_response
+    from .runtime_dependencies import get_platform_context
+
+    build_error_response = error_response or default_error_response
+
     agent_name = _coerce_optional_string(path_params.get("agentName"))
     if not agent_name:
-        return error_response(400, "INVALID_REQUEST", "Missing agentName in path", request_id)
+        return build_error_response(400, "INVALID_REQUEST", "Missing agentName in path", request_id)
 
-    platform_context = TenantContext(
-        tenant_id="platform",
-        app_id="bridge-discovery",
-        tier=TenantTier.PREMIUM,
-        sub="bridge-discovery",
-    )
-    db = db_factory(platform_context)
-    response = db.query(agents_table, pk_value=f"AGENT#{agent_name}")
+    db = (db_factory or ControlPlaneDynamoDB)(get_platform_context())
+    response = db.query(agents_table or AGENTS_TABLE, pk_value=f"AGENT#{agent_name}")
     items = response.items
 
     promoted_items = []
@@ -249,7 +255,7 @@ def get_agent_detail(
         if is_invokable_agent_status(item_status):
             promoted_items.append(item)
     if not promoted_items:
-        return error_response(404, "NOT_FOUND", f"Agent '{agent_name}' not found", request_id)
+        return build_error_response(404, "NOT_FOUND", f"Agent '{agent_name}' not found", request_id)
 
     sorted_items = sorted(promoted_items, key=_agent_record_sort_key, reverse=True)
     latest = sorted_items[0]
@@ -292,21 +298,25 @@ def get_job_status(
     path_params: dict[str, Any],
     request_id: str,
     *,
-    jobs_table: str,
-    job_results_bucket: str | None,
-    job_result_url_expiry_seconds: int,
-    error_response: Any,
-    db_factory: Any = TenantScopedDynamoDB,
+    jobs_table: str | None = None,
+    job_results_bucket: str | None = None,
+    job_result_url_expiry_seconds: int | None = None,
+    error_response: Any | None = None,
+    db_factory: Any | None = None,
 ) -> dict[str, Any]:
+    from .route_adapter import error_response as default_error_response
+
+    build_error_response = error_response or default_error_response
+
     job_id = _coerce_optional_string(path_params.get("jobId"))
     if not job_id:
-        return error_response(400, "INVALID_REQUEST", "Missing jobId in path", request_id)
+        return build_error_response(400, "INVALID_REQUEST", "Missing jobId in path", request_id)
 
-    db = db_factory(tenant_context)
-    record = db.get_item(jobs_table, _job_key(tenant_context.tenant_id, job_id))
+    db = (db_factory or TenantScopedDynamoDB)(tenant_context)
+    record = db.get_item(jobs_table or JOBS_TABLE, _job_key(tenant_context.tenant_id, job_id))
 
     if record is None:
-        return error_response(404, "NOT_FOUND", f"Job '{job_id}' not found", request_id)
+        return build_error_response(404, "NOT_FOUND", f"Job '{job_id}' not found", request_id)
 
     result_url: str | None = None
     status = str(record.get("status", JobStatus.PENDING))
@@ -320,9 +330,9 @@ def get_job_status(
                 expiry_seconds=job_result_url_expiry_seconds,
             )
         except ValueError as exc:
-            return error_response(500, "INTERNAL_ERROR", str(exc), request_id)
+            return build_error_response(500, "INTERNAL_ERROR", str(exc), request_id)
         except Exception:
-            return error_response(
+            return build_error_response(
                 500, "INTERNAL_ERROR", "Failed to generate result URL", request_id
             )
 

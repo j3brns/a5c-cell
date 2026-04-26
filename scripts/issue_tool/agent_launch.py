@@ -22,7 +22,7 @@ DEFAULT_INTERACTIVE_AGENT_POOL = ("codex", "gemini", "claude")
 
 
 def resolve_launch_request(args: argparse.Namespace) -> tuple[str, str, str, str]:
-    agent = args.agent or "gemini"
+    agent = args.agent or "codex"
     agent_mode = args.agent_mode or "yolo"
     handoff = args.handoff or ("execute-now" if not args.print_only else "print-only")
     mux = "no-mux"
