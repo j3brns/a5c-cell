@@ -61,7 +61,7 @@ result delivered via webhook and poll endpoint.
 | A2A cross-agent orchestration   | Delivered (TASK-050, 2026-03-10)               |
 | AgentCore Policy CEDAR tuning   | Baseline shipped; next is fine-grained rules   |
 | Agent marketplace               | After V1.0 — discovery and composition portal  |
-| eu-west-2 Runtime migration     | Explicit architecture review and controlled migration off the current zigzag topology |
+| v0.2 secure runtime baseline    | ADR-023 contract: eu-west-2 Runtime, VPC mode for staging/prod, no Dublin fallback |
 
 ---
 

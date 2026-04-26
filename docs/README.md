@@ -27,6 +27,7 @@ Start here, then follow the links for your role.
 | Document | Purpose |
 |----------|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System topology, request lifecycle, tenant isolation, data model, scaling, failure modes |
+| [v0.2 Secure Deployment Contract](contracts/v0-2-secure-deployment-contract.md) | Target deployment contract for the v0.2 secure runtime baseline |
 | [PLAN.md](PLAN.md) | Phased delivery plan with gates and success criteria (Phase 0–8) |
 | [ROADMAP.md](ROADMAP.md) | North-star vision, milestones M1–M7, V1.x backlog, deliberate exclusions |
 | [bootstrap-guide.md](bootstrap-guide.md) | Day-zero platform deployment to a fresh AWS account |
@@ -60,6 +61,7 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-020](decisions/ADR-020-eu-west-2-runtime-collapse.md) | Collapse AgentCore Runtime to eu-west-2 (London home region); remove the Dublin zigzag; gated migration, implementation tracked separately |
 | [ADR-021](decisions/ADR-021-spa-cloudfront-logging-model.md) | CloudFront standard access logging with environment-aware retention |
 | [ADR-022](decisions/ADR-022-independent-platform-and-agent-developer-clis.md) | Independent Platform and Agent Developer CLIs |
+| [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md) | v0.2 secure deployment contract: eu-west-2 runtime, VPC mode for staging/prod, no Dublin fallback |
 | [ADR-701](decisions/ADR-701-tenant-agent-inference-chargeback-and-tagging.md) | Tenant inference chargeback and tagging model |
 | [ADR-702](decisions/ADR-702-bedrock-proxy-gateway-as-additive-internal-model-gateway.md) | Bedrock proxy gateway as additive internal model gateway |
 
@@ -71,7 +73,7 @@ failure-investigation steps still require external consoles or service UIs.
 | Runbook | Procedure | Trigger |
 |---------|-----------|---------|
 | [RUNBOOK-000](operations/RUNBOOK-000-bootstrap.md) | Platform bootstrap (day zero) | New environment |
-| [RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md) | Runtime region failover | `ServiceUnavailableException` from eu-west-1 |
+| [RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md) | Pre-v0.2 runtime region failover | `ServiceUnavailableException` from eu-west-1 |
 | [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md) | AgentCore quota monitoring | ConcurrentSessions > 70% |
 | [RUNBOOK-003](operations/RUNBOOK-003-tenant-access-violation.md) | Tenant access violation response | `TenantAccessViolation` alarm |
 | [RUNBOOK-004](operations/RUNBOOK-004-quota-increase.md) | AgentCore quota increase request | ConcurrentSessions > 90% |
@@ -103,7 +105,10 @@ See [Diagram Semantics](#diagram-semantics) for colour conventions.
 
 ### Platform Architecture
 
-Canonical view of the platform across three EU regions: control plane, compute, and evaluation.
+Current pre-v0.2 implementation view across three EU regions: control plane, compute,
+and evaluation. The normative secure deployment target is
+[ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md) plus the
+[v0.2 Secure Deployment Contract](contracts/v0-2-secure-deployment-contract.md).
 
 ![Platform architecture: eu-west-2 control plane, eu-west-1 AgentCore compute, eu-central-1 evaluation](images/tf_acore_aas_architecture.drawio.png)
 
@@ -115,7 +120,9 @@ Canonical view of the platform across three EU regions: control plane, compute, 
 
 ### Request Lifecycle
 
-End-to-end request flow: authentication, authorisation, runtime execution, tool invocation via gateway interceptors, async webhook delivery, and region failover path.
+Current pre-v0.2 end-to-end request flow: authentication, authorisation, runtime
+execution, tool invocation via gateway interceptors, async webhook delivery, and region
+failover path. ADR-023 removes `eu-west-1` from the v0.2 serving runtime path.
 
 ![Request lifecycle: client through auth, bridge, runtime, gateway interceptors, tool lambdas, and response](images/tf_acore_aas_request_lifecycle_engineer.drawio.png)
 

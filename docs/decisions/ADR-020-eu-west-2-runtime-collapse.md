@@ -1,8 +1,17 @@
 # ADR-020: eu-west-2 Runtime Collapse — Removing the Dublin Zigzag
 
-## Status: Accepted (migration approved; implementation gated — see go/no-go checklist)
+## Status: Superseded for v0.2 by ADR-023
 ## Date: 2026-04-24
 ## Supersedes: ADR-009
+
+## Status Note (2026-04-26)
+
+ADR-023 replaces this ADR's migration framing for v0.2. The approved v0.2 target is a
+fresh secure deployment baseline: one `eu-west-2` platform VPC, AgentCore Runtime in
+`eu-west-2`, `NetworkMode: VPC` for staging and production, no `eu-west-1` runtime
+fallback, and fail-closed CI gates. This ADR remains useful as historical context for
+why the Dublin zigzag is being removed, but its `eu-west-1` rollback and 14-day
+deprovisioning plan are not part of the v0.2 target state.
 
 ## Context
 

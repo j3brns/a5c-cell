@@ -22,7 +22,8 @@ Add 20% buffer: request 150 concurrent sessions.
 2. Create case: Service limit increase
 3. Service: Amazon Bedrock AgentCore
 4. Quota: InvokeAgentRuntime requests per second (and ConcurrentSessions)
-5. Region: eu-west-1 (Dublin) — this is where Runtime lives
+5. Region: eu-west-1 (Dublin) for the pre-v0.2 runtime; use eu-west-2 after the
+   ADR-023 runtime implementation lands
 6. New limit: calculated value from step 2
 7. Use case: "Production multi-tenant agent platform, organic growth"
 8. Attach quota-report output

@@ -1,5 +1,13 @@
 # RUNBOOK-001: Runtime Region Failover
 
+Status: pre-v0.2 runtime-failover procedure.
+
+[ADR-023](../decisions/ADR-023-v0-2-secure-deployment-contract.md) defines the v0.2
+secure deployment target as a single `eu-west-2` serving runtime with staging/prod
+`NetworkMode: VPC` and no `eu-west-1` fallback. Runtime regional failover is deferred
+for v0.2. Do not use this runbook as approval to preserve Dublin fallback in the v0.2
+implementation; replace it with a degradation procedure in the implementation issue.
+
 ## Trigger
 - CloudWatch alarm: platform-runtime-region-failover fires
 - Bridge Lambda logs: ServiceUnavailableException from eu-west-1
