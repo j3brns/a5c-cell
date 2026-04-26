@@ -62,6 +62,7 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-022](decisions/ADR-022-independent-platform-and-agent-developer-clis.md) | Independent Platform and Agent Developer CLIs |
 | [ADR-701](decisions/ADR-701-tenant-agent-inference-chargeback-and-tagging.md) | Tenant inference chargeback and tagging model |
 | [ADR-702](decisions/ADR-702-bedrock-proxy-gateway-as-additive-internal-model-gateway.md) | Bedrock proxy gateway as additive internal model gateway |
+| [ADR-703](decisions/ADR-703-gateway-efficiency-patterns.md) | Gateway efficiency patterns |
 
 ## Operator Runbooks
 

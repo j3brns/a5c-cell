@@ -541,7 +541,7 @@ Operational consumers:
 
 **platform-tools** — Gateway tool registry
 - PK: `TOOL#{toolName}`, SK: `TENANT#{tenantId}` or `GLOBAL`
-- Attributes: toolName, tierMinimum, lambdaArn, gatewayTargetId, enabled
+- Attributes: tool_name, tier_minimum, lambda_arn, gateway_target_id, enabled
 
 **platform-ops-locks** — distributed operation locks
 - PK: `LOCK#{lockName}`, SK: `METADATA`

@@ -168,6 +168,12 @@ try:
 except TenantAccessViolation as e:
     logger.error("Tenant access violation", extra={"tenant_id": tenant_id})
     return error_response(403, "UNAUTHORISED")
+
+# FORBIDDEN: physical resource ID in application code
+guardrail_id = "abc123def456"
+
+# REQUIRED: resolve through the platform registry
+guardrail_id = registry.resolve("baseline-security", account_id)
 ```
 
 ## Issue Workflow (Canonical)
