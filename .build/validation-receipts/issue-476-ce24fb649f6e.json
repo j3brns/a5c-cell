@@ -1,9 +1,0 @@
-{
-  "branch": "wt/task/476-replace-worktree-issues-exec-shim-with-canonical-package-ent",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-05T03:27:59.917117+00:00",
-  "head_sha": "ce24fb649f6ee30562a1b9b43e2e81178631ff4d",
-  "issue_number": 476,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/wt476"
-}

@@ -1,0 +1,60 @@
+{
+  "branch": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+  "details": {
+    "agent": "claude",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "rate-limit-consumption-headers-on-northbound-responses"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:54:wt/task/54-rate-limit-consumption-headers-on-northbound-responses:/home/julesb/worktrees/wt54",
+      "issue_number": 54,
+      "issue_title": "TASK-905: Rate-limit consumption headers on northbound responses",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T18:33:08.670321+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt54"
+    },
+    {
+      "branch": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:54:/home/julesb/worktrees/wt54:claude:yolo:execute-now:tmux",
+      "issue_number": 54,
+      "issue_title": "TASK-905: Rate-limit consumption headers on northbound responses",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T18:33:08.672337+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt54"
+    }
+  ],
+  "issue_number": 54,
+  "issue_title": "TASK-905: Rate-limit consumption headers on northbound responses",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-26T18:33:08.672337+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt54"
+}

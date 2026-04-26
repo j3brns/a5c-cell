@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T14:58:22.103655+00:00",
+  "head_sha": "6a00b11eaf0b33e79c2a8f296fe4f06fe73c4612",
+  "issue_number": 51,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt51"
+}

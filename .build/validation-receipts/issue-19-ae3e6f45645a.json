@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/19-add-paginated-tenant-list-path",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T16:36:34.634533+00:00",
+  "head_sha": "ae3e6f45645a21df92c373e9dc2b11828f23161b",
+  "issue_number": 19,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt19"
+}

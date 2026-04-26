@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "issue_id": 34,
+      "message": "closeout started",
+      "pid": 108727,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T02:23:04.151014+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "issue_id": 34,
+      "message": "merged MR lookup found",
+      "pid": 108727,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T02:23:05.286461+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "issue_id": 34,
+      "message": "issue already closed; labels normalized",
+      "pid": 108727,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T02:23:09.059115+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "issue_id": 34,
+      "message": "cleanup started",
+      "pid": 108727,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T02:23:09.059680+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "issue_id": 34,
+      "message": "cleanup verified",
+      "pid": 108727,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T02:23:12.369248+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    }
+  ],
+  "generated_at": "2026-04-25T02:23:12.369399+00:00",
+  "issue_closed": true,
+  "issue_id": 34,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt34"
+}

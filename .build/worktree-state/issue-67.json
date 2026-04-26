@@ -1,0 +1,161 @@
+{
+  "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+  "details": {
+    "evidence_hash": "1325dd2697c990a0b7b66afa7b36d0aebc44d2a4c6531968978bd50eff2378ac",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-67-wt_task_67-strengthen-issue-worktree-audit-for-stale-local-evidence.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "strengthen-issue-worktree-audit-for-stale-local-evidence"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:67:wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence:/home/julesb/worktrees/wt67",
+      "issue_number": 67,
+      "issue_title": "TASK-918: Strengthen issue/worktree audit for stale local evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T16:56:29.812550+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    },
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:67:/home/julesb/worktrees/wt67:gemini:yolo:execute-now:tmux",
+      "issue_number": 67,
+      "issue_title": "TASK-918: Strengthen issue/worktree audit for stale local evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T16:56:29.813951+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    },
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-67-wt_task_67-strengthen-issue-worktree-audit-for-stale-local-evidence.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:67:wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence:/home/julesb/worktrees/wt67",
+      "issue_number": 67,
+      "issue_title": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T18:32:31.808665+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    },
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-67-wt_task_67-strengthen-issue-worktree-audit-for-stale-local-evidence.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:67:wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence:/home/julesb/worktrees/wt67",
+      "issue_number": 67,
+      "issue_title": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-26T18:32:32.233259+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    },
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-67-wt_task_67-strengthen-issue-worktree-audit-for-stale-local-evidence.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:67:wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence:/home/julesb/worktrees/wt67:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 67,
+      "issue_title": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-26T18:32:32.233556+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    },
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "force": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-67-wt_task_67-strengthen-issue-worktree-audit-for-stale-local-evidence.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:67:wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence:/home/julesb/worktrees/wt67",
+      "issue_number": 67,
+      "issue_title": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T18:32:38.601761+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    },
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-67-wt_task_67-strengthen-issue-worktree-audit-for-stale-local-evidence.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:67:wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence:/home/julesb/worktrees/wt67",
+      "issue_number": 67,
+      "issue_title": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T18:32:47.484582+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    },
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "evidence_hash": "1325dd2697c990a0b7b66afa7b36d0aebc44d2a4c6531968978bd50eff2378ac",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-67-wt_task_67-strengthen-issue-worktree-audit-for-stale-local-evidence.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:67:1325dd2697c990a0b7b66afa7b36d0aebc44d2a4c6531968978bd50eff2378ac",
+      "issue_number": 67,
+      "issue_title": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T18:32:47.485797+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    },
+    {
+      "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "details": {
+        "evidence_hash": "1325dd2697c990a0b7b66afa7b36d0aebc44d2a4c6531968978bd50eff2378ac",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-67-wt_task_67-strengthen-issue-worktree-audit-for-stale-local-evidence.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:67:1325dd2697c990a0b7b66afa7b36d0aebc44d2a4c6531968978bd50eff2378ac",
+      "issue_number": 67,
+      "issue_title": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T18:32:49.116580+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt67"
+    }
+  ],
+  "issue_number": 67,
+  "issue_title": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T18:32:49.116580+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt67"
+}

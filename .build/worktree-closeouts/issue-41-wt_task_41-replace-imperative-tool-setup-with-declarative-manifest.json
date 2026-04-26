@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "issue_id": 41,
+      "message": "closeout started",
+      "pid": 143927,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T18:20:20.999027+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "issue_id": 41,
+      "message": "merged MR lookup missed",
+      "pid": 143927,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T18:20:21.414954+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "issue_id": 41,
+      "message": "issue already closed; labels normalized",
+      "pid": 143927,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T18:20:23.920103+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "issue_id": 41,
+      "message": "cleanup started",
+      "pid": 143927,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T18:20:23.920634+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    },
+    {
+      "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+      "issue_id": 41,
+      "message": "cleanup verified",
+      "pid": 143927,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T18:20:32.183193+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt41"
+    }
+  ],
+  "generated_at": "2026-04-25T18:20:32.183406+00:00",
+  "issue_closed": true,
+  "issue_id": 41,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt41"
+}

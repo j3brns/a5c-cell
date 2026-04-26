@@ -1,9 +1,0 @@
-{
-  "branch": "wt/task/438-add-shared-utility-helpers-for-time-jitter-json-and-coercion",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-04T16:18:29.629521+00:00",
-  "head_sha": "d3faec593fe60ca567ea3eb98bce6a1a7c149058",
-  "issue_number": 438,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/wt438"
-}

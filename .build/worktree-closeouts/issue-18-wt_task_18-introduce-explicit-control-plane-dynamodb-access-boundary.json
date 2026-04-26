@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "issue_id": 18,
+      "message": "closeout started",
+      "pid": 56088,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T01:43:49.905609+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "issue_id": 18,
+      "message": "merged MR lookup found",
+      "pid": 56088,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T01:43:51.687306+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "issue_id": 18,
+      "message": "issue already closed; labels normalized",
+      "pid": 56088,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T01:43:57.426420+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "issue_id": 18,
+      "message": "cleanup started",
+      "pid": 56088,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T01:43:57.426918+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "issue_id": 18,
+      "message": "cleanup verified",
+      "pid": 56088,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T01:44:01.901790+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    }
+  ],
+  "generated_at": "2026-04-25T01:44:01.901968+00:00",
+  "issue_closed": true,
+  "issue_id": 18,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt18"
+}

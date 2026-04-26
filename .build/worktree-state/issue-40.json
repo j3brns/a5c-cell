@@ -1,0 +1,340 @@
+{
+  "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+  "details": {
+    "evidence_hash": "edd0bde8b32ea431a538c741802592072d39f5a3493177bc3e058230d1b260e9",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "implement-unified-python-cli-with-typer"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "TASK-702: Implement Unified Python CLI with Typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-25T12:53:40.165743+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:40:/home/julesb/worktrees/wt40:gemini:yolo:execute-now:tmux",
+      "issue_number": 40,
+      "issue_title": "TASK-702: Implement Unified Python CLI with Typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-25T12:53:40.166773+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T13:18:54.623469+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T13:18:55.060910+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T13:18:55.062153+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T13:19:09.249355+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T13:19:09.649472+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T13:19:09.650109+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T15:24:49.674607+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T15:24:50.059557+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T15:24:50.059970+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T18:10:16.865479+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T18:10:17.274755+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T18:10:17.276022+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T21:51:19.550048+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-failed",
+      "idempotency_key": "closeout-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "cleanup-failed",
+      "ts": "2026-04-25T21:51:19.962340+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "error": "No merged MR found for branch; refusing to close issue without --force",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "handback-failed",
+      "idempotency_key": "handback-failed:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40:No merged MR found for branch; refusing to close issue without --force",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "handback-failed",
+      "ts": "2026-04-25T21:51:19.963068+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T21:51:34.516179+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:40:wt/task/40-implement-unified-python-cli-with-typer:/home/julesb/worktrees/wt40",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-25T21:51:49.199173+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "evidence_hash": "edd0bde8b32ea431a538c741802592072d39f5a3493177bc3e058230d1b260e9",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:40:edd0bde8b32ea431a538c741802592072d39f5a3493177bc3e058230d1b260e9",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-25T21:51:49.200830+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    },
+    {
+      "branch": "wt/task/40-implement-unified-python-cli-with-typer",
+      "details": {
+        "evidence_hash": "edd0bde8b32ea431a538c741802592072d39f5a3493177bc3e058230d1b260e9",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-40-wt_task_40-implement-unified-python-cli-with-typer.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:40:edd0bde8b32ea431a538c741802592072d39f5a3493177bc3e058230d1b260e9",
+      "issue_number": 40,
+      "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-25T21:51:48.995448+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt40"
+    }
+  ],
+  "issue_number": 40,
+  "issue_title": "wt/task/40-implement-unified-python-cli-with-typer",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-25T21:51:48.995448+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt40"
+}

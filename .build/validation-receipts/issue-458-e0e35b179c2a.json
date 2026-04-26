@@ -1,9 +1,0 @@
-{
-  "branch": "wt/task/458-worktree-closeout-self-removal",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-03T21:32:20.723475+00:00",
-  "head_sha": "e0e35b179c2a0d368f05d2f00c7430bce0e89507",
-  "issue_number": 458,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/wt458b"
-}

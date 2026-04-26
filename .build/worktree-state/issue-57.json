@@ -1,0 +1,60 @@
+{
+  "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+  "details": {
+    "agent": "claude",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "docs",
+        "slug": "verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:57:wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do:/home/julesb/worktrees/wt57",
+      "issue_number": 57,
+      "issue_title": "TASK-908: Verify ADR-020 AgentCore eu-west-2 and VPC gates with AWS docs",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T18:36:15.733017+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt57"
+    },
+    {
+      "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:57:/home/julesb/worktrees/wt57:claude:yolo:execute-now:tmux",
+      "issue_number": 57,
+      "issue_title": "TASK-908: Verify ADR-020 AgentCore eu-west-2 and VPC gates with AWS docs",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T18:36:15.733593+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt57"
+    }
+  ],
+  "issue_number": 57,
+  "issue_title": "TASK-908: Verify ADR-020 AgentCore eu-west-2 and VPC gates with AWS docs",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-26T18:36:15.733593+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt57"
+}

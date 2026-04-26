@@ -1,0 +1,114 @@
+{
+  "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+  "details": {
+    "evidence_hash": "1c79ac859b04008adb12191d2dd70b26a40d021dde082c6ad3ccd58776b313ac",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-34-wt_task_34-retire-deprecated-snapshot-task-workflow.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "retire-deprecated-snapshot-task-workflow"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:34:wt/task/34-retire-deprecated-snapshot-task-workflow:/home/julesb/worktrees/wt34",
+      "issue_number": 34,
+      "issue_title": "TASK-602: Retire deprecated snapshot task workflow",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-25T01:52:40.309679+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:34:/home/julesb/worktrees/wt34:claude:yolo:execute-now:tmux",
+      "issue_number": 34,
+      "issue_title": "TASK-602: Retire deprecated snapshot task workflow",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-25T01:52:40.310991+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-34-wt_task_34-retire-deprecated-snapshot-task-workflow.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:34:wt/task/34-retire-deprecated-snapshot-task-workflow:/home/julesb/worktrees/wt34",
+      "issue_number": 34,
+      "issue_title": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T02:23:04.151215+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-34-wt_task_34-retire-deprecated-snapshot-task-workflow.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:34:wt/task/34-retire-deprecated-snapshot-task-workflow:/home/julesb/worktrees/wt34",
+      "issue_number": 34,
+      "issue_title": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-25T02:23:12.369860+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "details": {
+        "evidence_hash": "1c79ac859b04008adb12191d2dd70b26a40d021dde082c6ad3ccd58776b313ac",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-34-wt_task_34-retire-deprecated-snapshot-task-workflow.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:34:1c79ac859b04008adb12191d2dd70b26a40d021dde082c6ad3ccd58776b313ac",
+      "issue_number": 34,
+      "issue_title": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-25T02:23:12.370484+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    },
+    {
+      "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "details": {
+        "evidence_hash": "1c79ac859b04008adb12191d2dd70b26a40d021dde082c6ad3ccd58776b313ac",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-34-wt_task_34-retire-deprecated-snapshot-task-workflow.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:34:1c79ac859b04008adb12191d2dd70b26a40d021dde082c6ad3ccd58776b313ac",
+      "issue_number": 34,
+      "issue_title": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-25T02:23:17.317895+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt34"
+    }
+  ],
+  "issue_number": 34,
+  "issue_title": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-25T02:23:17.317895+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt34"
+}

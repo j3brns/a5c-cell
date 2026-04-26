@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/41-replace-imperative-tool-setup-with-declarative-manifest",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T13:09:09.664102+00:00",
+  "head_sha": "ab9f8451c07c130357b4dfcd03d282ab42a64456",
+  "issue_number": 41,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt41"
+}

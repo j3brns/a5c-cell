@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T01:20:13.152158+00:00",
+  "head_sha": "57a0569993f5219ab5ec6550cd492f69d43f7257",
+  "issue_number": 20,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt20"
+}

@@ -1,0 +1,62 @@
+{
+  "branch": "wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable",
+  "error": "Command '['git', 'branch', '-d', 'wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable']' returned non-zero exit status 1.",
+  "events": [
+    {
+      "branch": "wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable",
+      "issue_id": 20,
+      "message": "closeout started",
+      "pid": 36873,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T01:27:51.197686+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt20"
+    },
+    {
+      "branch": "wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable",
+      "issue_id": 20,
+      "message": "merged MR lookup found",
+      "pid": 36873,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T01:27:52.306506+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt20"
+    },
+    {
+      "branch": "wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable",
+      "issue_id": 20,
+      "message": "issue closed via glab",
+      "pid": 36873,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T01:27:58.683695+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt20"
+    },
+    {
+      "branch": "wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable",
+      "issue_id": 20,
+      "message": "cleanup started",
+      "pid": 36873,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T01:27:58.684147+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt20"
+    },
+    {
+      "branch": "wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable",
+      "issue_id": 20,
+      "message": "Command '['git', 'branch', '-d', 'wt/task/20-classify-tenant-provisioner-transient-failures-as-retryable']' returned non-zero exit status 1.",
+      "pid": 36873,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-25T01:28:01.584638+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt20"
+    }
+  ],
+  "generated_at": "2026-04-25T01:28:01.584845+00:00",
+  "issue_id": 20,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/home/julesb/worktrees/wt20"
+}

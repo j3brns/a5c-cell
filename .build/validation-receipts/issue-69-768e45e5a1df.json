@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/69-allowlist-docs-sync-stamp-in-full-secret-scan",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T14:02:55.193807+00:00",
+  "head_sha": "768e45e5a1df1a1262a550a3c21bd8fb62c74531",
+  "issue_number": 69,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt69"
+}

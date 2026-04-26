@@ -1,0 +1,114 @@
+{
+  "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+  "details": {
+    "evidence_hash": "eaa969d208d901980433d313edd1bef0e75810212960b4e5f47d7ea6f65fe9ac",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-18-wt_task_18-introduce-explicit-control-plane-dynamodb-access-boundary.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "introduce-explicit-control-plane-dynamodb-access-boundary"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:18:wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary:/home/julesb/worktrees/wt18",
+      "issue_number": 18,
+      "issue_title": "TASK-303: Introduce explicit control-plane DynamoDB access boundary",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-25T01:14:17.460368+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "details": {
+        "agent": "claude",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:18:/home/julesb/worktrees/wt18:claude:yolo:execute-now:tmux",
+      "issue_number": 18,
+      "issue_title": "TASK-303: Introduce explicit control-plane DynamoDB access boundary",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-25T01:14:17.460925+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-18-wt_task_18-introduce-explicit-control-plane-dynamodb-access-boundary.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:18:wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary:/home/julesb/worktrees/wt18",
+      "issue_number": 18,
+      "issue_title": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T01:43:49.905863+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-18-wt_task_18-introduce-explicit-control-plane-dynamodb-access-boundary.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:18:wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary:/home/julesb/worktrees/wt18",
+      "issue_number": 18,
+      "issue_title": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-25T01:44:01.902809+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "details": {
+        "evidence_hash": "eaa969d208d901980433d313edd1bef0e75810212960b4e5f47d7ea6f65fe9ac",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-18-wt_task_18-introduce-explicit-control-plane-dynamodb-access-boundary.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:18:eaa969d208d901980433d313edd1bef0e75810212960b4e5f47d7ea6f65fe9ac",
+      "issue_number": 18,
+      "issue_title": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-25T01:44:01.903857+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    },
+    {
+      "branch": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "details": {
+        "evidence_hash": "eaa969d208d901980433d313edd1bef0e75810212960b4e5f47d7ea6f65fe9ac",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-18-wt_task_18-introduce-explicit-control-plane-dynamodb-access-boundary.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:18:eaa969d208d901980433d313edd1bef0e75810212960b4e5f47d7ea6f65fe9ac",
+      "issue_number": 18,
+      "issue_title": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-25T01:44:07.136795+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt18"
+    }
+  ],
+  "issue_number": 18,
+  "issue_title": "wt/task/18-introduce-explicit-control-plane-dynamodb-access-boundary",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-25T01:44:07.136795+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt18"
+}

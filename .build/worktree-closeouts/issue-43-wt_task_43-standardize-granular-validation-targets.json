@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/43-standardize-granular-validation-targets",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "issue_id": 43,
+      "message": "closeout started",
+      "pid": 370248,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T11:12:06.053254+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "issue_id": 43,
+      "message": "merged MR lookup found",
+      "pid": 370248,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T11:12:06.787458+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "issue_id": 43,
+      "message": "issue already closed; labels normalized",
+      "pid": 370248,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T11:12:07.273364+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "issue_id": 43,
+      "message": "cleanup started",
+      "pid": 370248,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T11:12:07.273862+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    },
+    {
+      "branch": "wt/task/43-standardize-granular-validation-targets",
+      "issue_id": 43,
+      "message": "cleanup verified",
+      "pid": 370248,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-26T11:12:12.221496+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt43"
+    }
+  ],
+  "generated_at": "2026-04-26T11:12:12.221670+00:00",
+  "issue_closed": true,
+  "issue_id": 43,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt43"
+}

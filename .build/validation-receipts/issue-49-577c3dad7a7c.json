@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/49-allowlist-declarative-tool-checksums-in-secret-scan",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T01:16:08.750342+00:00",
+  "head_sha": "577c3dad7a7c8bb4124e2aaaaac1ea2cda350b74",
+  "issue_number": 49,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt49"
+}

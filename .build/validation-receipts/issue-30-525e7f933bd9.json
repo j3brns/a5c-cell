@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/30-standardize-tenant-api-test-fixtures",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T00:36:52.108543+00:00",
+  "head_sha": "525e7f933bd93bb1378ecbb317e867a62be95752",
+  "issue_number": 30,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt30"
+}

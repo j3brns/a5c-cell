@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/67-strengthen-issue-worktree-audit-for-stale-local-evidence",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T17:17:51.029818+00:00",
+  "head_sha": "5754e36304afec26a86ab18c6a5d672151360aec",
+  "issue_number": 67,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt67"
+}

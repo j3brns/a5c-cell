@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/56-define-v0-2-secure-deployment-contract-and-target-state",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T17:06:10.998332+00:00",
+  "head_sha": "0a237bb6f4c054f537de971d4c32a30a21c5a6b8",
+  "issue_number": 56,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt56"
+}

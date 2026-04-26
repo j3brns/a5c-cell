@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/19-add-paginated-tenant-list-path",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "issue_id": 19,
+      "message": "closeout started",
+      "pid": 153094,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T16:43:26.171741+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "issue_id": 19,
+      "message": "merged MR lookup found",
+      "pid": 153094,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T16:43:26.703155+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "issue_id": 19,
+      "message": "issue already closed; labels normalized",
+      "pid": 153094,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T16:43:27.349238+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "issue_id": 19,
+      "message": "cleanup started",
+      "pid": 153094,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T16:43:27.350068+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    },
+    {
+      "branch": "wt/task/19-add-paginated-tenant-list-path",
+      "issue_id": 19,
+      "message": "cleanup verified",
+      "pid": 153094,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-26T16:43:34.496381+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt19"
+    }
+  ],
+  "generated_at": "2026-04-26T16:43:34.496596+00:00",
+  "issue_closed": true,
+  "issue_id": 19,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt19"
+}

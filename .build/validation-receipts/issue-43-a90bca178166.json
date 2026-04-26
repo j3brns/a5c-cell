@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/43-standardize-granular-validation-targets",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T21:59:36.682767+00:00",
+  "head_sha": "a90bca1781664ee7f739f51e44321c524c01c7a1",
+  "issue_number": 43,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt43"
+}

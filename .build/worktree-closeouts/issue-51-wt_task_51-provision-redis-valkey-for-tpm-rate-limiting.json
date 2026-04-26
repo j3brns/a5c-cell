@@ -1,0 +1,65 @@
+{
+  "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+  "cleanup": {},
+  "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt51']' returned non-zero exit status 128.",
+  "cleanup_verified": false,
+  "events": [
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "issue_id": 51,
+      "message": "closeout started",
+      "pid": 28578,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T15:14:04.229757+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "issue_id": 51,
+      "message": "merged MR lookup missed",
+      "pid": 28578,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T15:14:04.696168+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "issue_id": 51,
+      "message": "issue closed via glab",
+      "pid": 28578,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T15:14:08.102984+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "issue_id": 51,
+      "message": "cleanup started",
+      "pid": 28578,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T15:14:08.103452+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    },
+    {
+      "branch": "wt/task/51-provision-redis-valkey-for-tpm-rate-limiting",
+      "issue_id": 51,
+      "message": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt51']' returned non-zero exit status 128.",
+      "pid": 28578,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-deferred",
+      "ts": "2026-04-26T15:14:08.148251+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt51"
+    }
+  ],
+  "generated_at": "2026-04-26T15:14:08.148424+00:00",
+  "issue_closed": true,
+  "issue_id": 51,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt51"
+}

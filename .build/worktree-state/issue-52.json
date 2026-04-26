@@ -1,0 +1,60 @@
+{
+  "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "tpm-log-only-counters-in-bridge-p1-phase-1"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:52:wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1:/home/julesb/worktrees/wt52",
+      "issue_number": 52,
+      "issue_title": "TASK-903: TPM log-only counters in Bridge (P1 phase 1)",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T15:32:25.837055+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt52"
+    },
+    {
+      "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:52:/home/julesb/worktrees/wt52:codex:yolo:execute-now:tmux",
+      "issue_number": 52,
+      "issue_title": "TASK-903: TPM log-only counters in Bridge (P1 phase 1)",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T15:32:25.837978+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt52"
+    }
+  ],
+  "issue_number": 52,
+  "issue_title": "TASK-903: TPM log-only counters in Bridge (P1 phase 1)",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-26T15:32:25.837978+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt52"
+}

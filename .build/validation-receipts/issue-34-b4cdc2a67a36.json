@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/34-retire-deprecated-snapshot-task-workflow",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-25T02:19:14.495744+00:00",
+  "head_sha": "b4cdc2a67a365235a94de8990152b2441d602541",
+  "issue_number": 34,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt34"
+}

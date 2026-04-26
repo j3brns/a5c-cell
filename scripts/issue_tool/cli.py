@@ -2900,25 +2900,14 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
                     )
                 )
         else:
-            add_labels: list[str] = []
-            remove_labels: list[str] = []
-            if info:
-                label_names = [x["name"] for x in info.get("labels", []) if isinstance(x, dict)]
-                if "review" in label_names:
-                    remove_labels.append("review")
-                if "in-progress" in label_names:
-                    remove_labels.append("in-progress")
-                if "done" not in label_names:
-                    add_labels.append("done")
-                if "status:in-progress" in label_names:
-                    remove_labels.append("status:in-progress")
-                if "status:not-started" in label_names:
-                    remove_labels.append("status:not-started")
-                if "status:done" not in label_names:
-                    add_labels.append("status:done")
-            update_issue_labels(root, repo, issue_id, add=add_labels, remove=remove_labels)
             close_issue(root, repo, issue_id)
             print(f"Closed issue #{issue_id}.")
+            refreshed_info = issue_state_info(root, repo, issue_id)
+            if not refreshed_info and info:
+                refreshed_info = {**info, "state": "closed"}
+            normalized = normalize_closed_issue_labels(root, repo, issue_id, refreshed_info)
+            if normalized:
+                print("Normalized closed-issue lifecycle labels.")
             issue_closed = True
             if isinstance(events, list):
                 events.append(

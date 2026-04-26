@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/46-optimize-pipeline-cost-and-clarify-wt-go-handoff-prompt",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-24T23:08:24.590895+00:00",
+  "head_sha": "0fc39098631c30c1e2ad8e39f7aea19111114f5a",
+  "issue_number": 46,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/ci-optimize-pipeline-cost"
+}

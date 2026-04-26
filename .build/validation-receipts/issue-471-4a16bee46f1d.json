@@ -1,9 +1,0 @@
-{
-  "branch": "wt/task/471-restore-tenant-api-handler-contract-and-route-behavior",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-04T17:48:43.269591+00:00",
-  "head_sha": "4a16bee46f1d4b787ae649e8f92ab05feb3ee8d1",
-  "issue_number": 471,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/17inch"
-}

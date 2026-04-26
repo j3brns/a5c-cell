@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/26-standardize-platform-dynamodb-tables-on-on-demand-capacity",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T11:47:23.740949+00:00",
+  "head_sha": "c9aa710a60a09590cafcbf9dce175888e4d96f8a",
+  "issue_number": 26,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt26"
+}

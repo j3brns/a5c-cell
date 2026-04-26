@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T16:18:40.840289+00:00",
+  "head_sha": "42d342cfbef95957ce79601cc8f5915d5f420f67",
+  "issue_number": 52,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt52"
+}

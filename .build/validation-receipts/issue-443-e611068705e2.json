@@ -1,9 +1,0 @@
-{
-  "branch": "wt/task/443-enforce-shared-boundary-usage-and-ban-new-ad-hoc-boto3-boots",
-  "check": "validate-pre-push",
-  "generated_at": "2026-04-05T01:56:38.097768+00:00",
-  "head_sha": "e611068705e2aa0bfae75457178486e45456981d",
-  "issue_number": 443,
-  "result": "pass",
-  "worktree_path": "/mnt/c/Users/julia/worktrees/ag"
-}

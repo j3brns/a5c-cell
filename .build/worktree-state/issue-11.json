@@ -1,0 +1,59 @@
+{
+  "branch": "wt/frontend/11-gate-spa-hsts-preload-on-custom-domain-readiness",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/frontend/11-gate-spa-hsts-preload-on-custom-domain-readiness",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "frontend",
+        "slug": "gate-spa-hsts-preload-on-custom-domain-readiness"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:11:wt/frontend/11-gate-spa-hsts-preload-on-custom-domain-readiness:/mnt/c/Users/julia/worktrees/wt11",
+      "issue_number": 11,
+      "issue_title": "TASK-114: Gate SPA HSTS preload on custom domain readiness",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-24T00:57:57.626124+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt11"
+    },
+    {
+      "branch": "wt/frontend/11-gate-spa-hsts-preload-on-custom-domain-readiness",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:11:/mnt/c/Users/julia/worktrees/wt11:codex:yolo:execute-now:tmux",
+      "issue_number": 11,
+      "issue_title": "TASK-114: Gate SPA HSTS preload on custom domain readiness",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-24T00:57:57.660979+00:00",
+      "worktree_path": "/mnt/c/Users/julia/worktrees/wt11"
+    }
+  ],
+  "issue_number": 11,
+  "issue_title": "TASK-114: Gate SPA HSTS preload on custom domain readiness",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-24T00:57:57.660979+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/mnt/c/Users/julia/worktrees/wt11"
+}

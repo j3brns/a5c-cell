@@ -1,0 +1,65 @@
+{
+  "branch": "wt/task/50-record-ttft-metric-on-streaming-invocations",
+  "cleanup": {},
+  "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt50']' returned non-zero exit status 128.",
+  "cleanup_verified": false,
+  "events": [
+    {
+      "branch": "wt/task/50-record-ttft-metric-on-streaming-invocations",
+      "issue_id": 50,
+      "message": "closeout started",
+      "pid": 28837,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T15:14:22.835032+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt50"
+    },
+    {
+      "branch": "wt/task/50-record-ttft-metric-on-streaming-invocations",
+      "issue_id": 50,
+      "message": "merged MR lookup missed",
+      "pid": 28837,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T15:14:23.253454+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt50"
+    },
+    {
+      "branch": "wt/task/50-record-ttft-metric-on-streaming-invocations",
+      "issue_id": 50,
+      "message": "issue closed via glab",
+      "pid": 28837,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T15:14:26.507251+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt50"
+    },
+    {
+      "branch": "wt/task/50-record-ttft-metric-on-streaming-invocations",
+      "issue_id": 50,
+      "message": "cleanup started",
+      "pid": 28837,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T15:14:26.507725+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt50"
+    },
+    {
+      "branch": "wt/task/50-record-ttft-metric-on-streaming-invocations",
+      "issue_id": 50,
+      "message": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt50']' returned non-zero exit status 128.",
+      "pid": 28837,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-deferred",
+      "ts": "2026-04-26T15:14:26.527427+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt50"
+    }
+  ],
+  "generated_at": "2026-04-26T15:14:26.527583+00:00",
+  "issue_closed": true,
+  "issue_id": 50,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt50"
+}

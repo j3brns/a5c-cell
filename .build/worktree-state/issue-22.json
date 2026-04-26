@@ -1,0 +1,114 @@
+{
+  "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+  "details": {
+    "evidence_hash": "9b45c221b7654e0ef3bdebdc1a32a39b44ffe7c4264ab86e722c07347bf20631",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-22-wt_task_22-reduce-bridge-handler-facade-bloat.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "preflight": true,
+        "scope": "task",
+        "slug": "reduce-bridge-handler-facade-bloat"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:22:wt/task/22-reduce-bridge-handler-facade-bloat:/home/julesb/worktrees/17inch",
+      "issue_number": 22,
+      "issue_title": "TASK-307: Reduce bridge handler facade bloat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-25T01:22:37.934348+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "details": {
+        "agent": "gemini",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-create"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:22:/home/julesb/worktrees/17inch:gemini:yolo:execute-now:tmux",
+      "issue_number": 22,
+      "issue_title": "TASK-307: Reduce bridge handler facade bloat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-25T01:22:37.935678+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-22-wt_task_22-reduce-bridge-handler-facade-bloat.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:22:wt/task/22-reduce-bridge-handler-facade-bloat:/home/julesb/worktrees/17inch",
+      "issue_number": 22,
+      "issue_title": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-25T01:54:46.953840+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "details": {
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-22-wt_task_22-reduce-bridge-handler-facade-bloat.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:22:wt/task/22-reduce-bridge-handler-facade-bloat:/home/julesb/worktrees/17inch",
+      "issue_number": 22,
+      "issue_title": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-25T01:54:55.375035+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "details": {
+        "evidence_hash": "9b45c221b7654e0ef3bdebdc1a32a39b44ffe7c4264ab86e722c07347bf20631",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-22-wt_task_22-reduce-bridge-handler-facade-bloat.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:22:9b45c221b7654e0ef3bdebdc1a32a39b44ffe7c4264ab86e722c07347bf20631",
+      "issue_number": 22,
+      "issue_title": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-25T01:54:55.375934+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "details": {
+        "evidence_hash": "9b45c221b7654e0ef3bdebdc1a32a39b44ffe7c4264ab86e722c07347bf20631",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-22-wt_task_22-reduce-bridge-handler-facade-bloat.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:22:9b45c221b7654e0ef3bdebdc1a32a39b44ffe7c4264ab86e722c07347bf20631",
+      "issue_number": 22,
+      "issue_title": "wt/task/22-reduce-bridge-handler-facade-bloat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-25T01:54:59.462901+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    }
+  ],
+  "issue_number": 22,
+  "issue_title": "wt/task/22-reduce-bridge-handler-facade-bloat",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-25T01:54:59.462901+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/17inch"
+}

@@ -1,0 +1,72 @@
+{
+  "branch": "wt/task/46-optimize-pipeline-cost-and-clarify-wt-go-handoff-prompt",
+  "error": "Issue state evidence is missing a worktree start/resume event",
+  "events": [
+    {
+      "branch": "wt/task/46-optimize-pipeline-cost-and-clarify-wt-go-handoff-prompt",
+      "issue_id": 46,
+      "message": "closeout started",
+      "pid": 105014,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-25T02:20:25.686798+00:00",
+      "worktree_path": "/home/julesb/worktrees/ci-optimize-pipeline-cost"
+    },
+    {
+      "branch": "wt/task/46-optimize-pipeline-cost-and-clarify-wt-go-handoff-prompt",
+      "issue_id": 46,
+      "message": "merged MR lookup missed",
+      "pid": 105014,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-25T02:20:26.968583+00:00",
+      "worktree_path": "/home/julesb/worktrees/ci-optimize-pipeline-cost"
+    },
+    {
+      "branch": "wt/task/46-optimize-pipeline-cost-and-clarify-wt-go-handoff-prompt",
+      "issue_id": 46,
+      "message": "issue closed via glab",
+      "pid": 105014,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-25T02:20:35.662837+00:00",
+      "worktree_path": "/home/julesb/worktrees/ci-optimize-pipeline-cost"
+    },
+    {
+      "branch": "wt/task/46-optimize-pipeline-cost-and-clarify-wt-go-handoff-prompt",
+      "issue_id": 46,
+      "message": "cleanup started",
+      "pid": 105014,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-25T02:20:35.663588+00:00",
+      "worktree_path": "/home/julesb/worktrees/ci-optimize-pipeline-cost"
+    },
+    {
+      "branch": "wt/task/46-optimize-pipeline-cost-and-clarify-wt-go-handoff-prompt",
+      "issue_id": 46,
+      "message": "cleanup verified",
+      "pid": 105014,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-25T02:20:41.414421+00:00",
+      "worktree_path": "/home/julesb/worktrees/ci-optimize-pipeline-cost"
+    },
+    {
+      "branch": "wt/task/46-optimize-pipeline-cost-and-clarify-wt-go-handoff-prompt",
+      "issue_id": 46,
+      "message": "Issue state evidence is missing a worktree start/resume event",
+      "pid": 105014,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-25T02:20:41.415448+00:00",
+      "worktree_path": "/home/julesb/worktrees/ci-optimize-pipeline-cost"
+    }
+  ],
+  "generated_at": "2026-04-25T02:20:41.415505+00:00",
+  "issue_id": 46,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "failed",
+  "worktree_path": "/home/julesb/worktrees/ci-optimize-pipeline-cost"
+}

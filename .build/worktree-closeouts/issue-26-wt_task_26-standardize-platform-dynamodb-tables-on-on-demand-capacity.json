@@ -1,0 +1,65 @@
+{
+  "branch": "wt/task/26-standardize-platform-dynamodb-tables-on-on-demand-capacity",
+  "cleanup": {},
+  "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt26']' returned non-zero exit status 128.",
+  "cleanup_verified": false,
+  "events": [
+    {
+      "branch": "wt/task/26-standardize-platform-dynamodb-tables-on-on-demand-capacity",
+      "issue_id": 26,
+      "message": "closeout started",
+      "pid": 377374,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T11:47:37.249966+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt26"
+    },
+    {
+      "branch": "wt/task/26-standardize-platform-dynamodb-tables-on-on-demand-capacity",
+      "issue_id": 26,
+      "message": "merged MR lookup missed",
+      "pid": 377374,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T11:47:37.651318+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt26"
+    },
+    {
+      "branch": "wt/task/26-standardize-platform-dynamodb-tables-on-on-demand-capacity",
+      "issue_id": 26,
+      "message": "issue closed via glab",
+      "pid": 377374,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T11:47:40.584030+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt26"
+    },
+    {
+      "branch": "wt/task/26-standardize-platform-dynamodb-tables-on-on-demand-capacity",
+      "issue_id": 26,
+      "message": "cleanup started",
+      "pid": 377374,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T11:47:40.584620+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt26"
+    },
+    {
+      "branch": "wt/task/26-standardize-platform-dynamodb-tables-on-on-demand-capacity",
+      "issue_id": 26,
+      "message": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt26']' returned non-zero exit status 128.",
+      "pid": 377374,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-deferred",
+      "ts": "2026-04-26T11:47:40.603518+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt26"
+    }
+  ],
+  "generated_at": "2026-04-26T11:47:40.603683+00:00",
+  "issue_closed": true,
+  "issue_id": 26,
+  "merged_mr_required": false,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt26"
+}

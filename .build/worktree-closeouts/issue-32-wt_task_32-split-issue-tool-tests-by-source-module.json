@@ -1,0 +1,80 @@
+{
+  "branch": "wt/task/32-split-issue-tool-tests-by-source-module",
+  "cleanup": {
+    "branch_deleted": true,
+    "manual_force_remove": true,
+    "residue": "generated .omx runtime state blocked scripted git worktree remove",
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/32-split-issue-tool-tests-by-source-module",
+      "issue_id": 32,
+      "message": "closeout started",
+      "pid": 304543,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T01:23:07.444495+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt32"
+    },
+    {
+      "branch": "wt/task/32-split-issue-tool-tests-by-source-module",
+      "issue_id": 32,
+      "message": "merged MR lookup found",
+      "pid": 304543,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T01:23:07.933644+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt32"
+    },
+    {
+      "branch": "wt/task/32-split-issue-tool-tests-by-source-module",
+      "issue_id": 32,
+      "message": "issue already closed; labels normalized",
+      "pid": 304543,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T01:23:08.559380+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt32"
+    },
+    {
+      "branch": "wt/task/32-split-issue-tool-tests-by-source-module",
+      "issue_id": 32,
+      "message": "cleanup started",
+      "pid": 304543,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T01:23:08.559834+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt32"
+    },
+    {
+      "branch": "wt/task/32-split-issue-tool-tests-by-source-module",
+      "issue_id": 32,
+      "message": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt32']' returned non-zero exit status 128.",
+      "pid": 304543,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "failed",
+      "ts": "2026-04-26T01:23:08.577173+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt32"
+    },
+    {
+      "branch": "wt/task/32-split-issue-tool-tests-by-source-module",
+      "issue_id": 32,
+      "message": "cleanup verified after manual git worktree remove --force for generated .omx residue",
+      "pid": 307775,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-04-26T01:25:27.468657+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt32"
+    }
+  ],
+  "generated_at": "2026-04-26T01:25:27.469012+00:00",
+  "issue_closed": true,
+  "issue_id": 32,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt32"
+}

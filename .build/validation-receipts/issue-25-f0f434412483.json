@@ -1,0 +1,9 @@
+{
+  "branch": "wt/infra/25-design-platformstack-split-plan",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-24T22:45:42.983785+00:00",
+  "head_sha": "f0f434412483f1d69739916c5c52dca2af9bb17f",
+  "issue_number": 25,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt25"
+}
