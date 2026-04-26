@@ -40,6 +40,10 @@ DEFAULT_RUNTIME_REGION_PARAM = "/platform/config/runtime-region"
 DEFAULT_FALLBACK_REGION_PARAM = "/platform/config/fallback-region"
 DEFAULT_FAILOVER_LOCK_NAME = "platform-runtime-failover"
 
+# Tenant List Pagination
+TENANT_LIST_DEFAULT_PAGE_SIZE = 50
+TENANT_LIST_MAX_PAGE_SIZE = 100
+
 # AgentCore Quotas
 AGENTCORE_QUOTA_NAME = "Active session workloads per account"
 AGENTCORE_CONCURRENT_SESSIONS_NAMESPACE = "AgentCore"

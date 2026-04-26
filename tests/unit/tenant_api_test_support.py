@@ -100,6 +100,15 @@ class FakeScopedDb:
         expression_attribute_values: dict[str, Any] | None = None,
     ) -> PaginatedItems:
         results = [dict(item) for item in self.items.values()]
+
+        if exclusive_start_key:
+            esk_pk = exclusive_start_key.get("PK")
+            esk_sk = exclusive_start_key.get("SK")
+            for i, item in enumerate(results):
+                if item.get("PK") == esk_pk and item.get("SK") == esk_sk:
+                    results = results[i + 1 :]
+                    break
+
         status_filter = (expression_attribute_values or {}).get(":s")
         tier_filter = (expression_attribute_values or {}).get(":t")
         if status_filter:
