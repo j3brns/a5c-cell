@@ -24,8 +24,9 @@ JWKS cache prevents replay via exp claim validation, usage plans prevent DoS
 
 ### 2. Cross-Tenant Data Access
 Threat: tenant A reads tenant B's data via API manipulation
-Mitigation: four-layer isolation (authoriser, bridge execution role, Gateway interceptor,
-data-access-lib TenantScopedDynamoDB). TenantAccessViolation raised and alerted on any breach.
+Mitigation: layered isolation (authoriser, bridge execution role, Gateway Cedar policy
+when enforced, Gateway interceptor, data-access-lib TenantScopedDynamoDB).
+TenantAccessViolation raised and alerted on any breach.
 
 ### 3. JWT Manipulation
 Threat: attacker forges or modifies JWT to claim different tenant/tier/role
@@ -101,6 +102,7 @@ not as approval for cross-account tenant execution
 | JWT validation (sig, exp, aud) | 1, 3                         | Authoriser Lambda         |
 | TenantScopedDynamoDB           | 2                            | data-access-lib           |
 | Act-on-behalf scoped tokens    | 4                            | REQUEST interceptor        |
+| Gateway Cedar deny-by-default  | 2, 4, 9                      | AgentCore Gateway Policy Engine (`LOG_ONLY` dev/staging, `ENFORCE` prod) |
 | Encryption at rest            | 2, 10                        | AWS-managed encryption on DynamoDB + S3 |
 | HTTPS everywhere               | 8                            | CloudFront, API GW, VPC   |
 | detect-secrets in CI           | 6, 7                         | GitLab CI validate stage  |

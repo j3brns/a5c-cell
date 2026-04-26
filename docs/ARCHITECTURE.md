@@ -110,8 +110,14 @@ tests/guard rules enforce that `PUBLIC` cannot remain an undocumented default.
 For v0.2, this exception must be removed for staging and production rather than
 carried forward.
 
-Policy in AgentCore is GA and baseline Cedar enforcement is now wired into the
-platform. Additional policy tuning remains an ongoing platform task.
+Policy in AgentCore is GA and Gateway policy evaluation is now deny-by-default
+when enforced. Dev and staging run the policy in `LOG_ONLY`; production runs it
+in `ENFORCE`. The baseline Cedar policy permits only same-account tenant
+execution-role callers on the concrete Gateway. The REQUEST interceptor remains
+the checked-in source of truth for tenant tool registration, capability, tier,
+and act-on-behalf checks before a tool Lambda is invoked. Specific Cedar
+tool-action policies require CloudFormation-owned Gateway targets or another
+checked-in tool schema source of truth before they can be deployed safely.
 
 Pre-v0.2 failover: Dublin to Frankfurt on `ServiceUnavailableException`
 ([RUNBOOK-001](operations/RUNBOOK-001-runtime-region-failover.md)).
@@ -334,15 +340,16 @@ See [ADR-018](decisions/ADR-018-agentcore-ag-ui-integration.md).
 
 ## Tenant Isolation Model
 
-Isolation enforced at four independent layers. A single-layer breach does not
+Isolation enforced at five independent layers. A single-layer breach does not
 compromise tenant data. See [Threat Model](security/THREAT-MODEL.md) for attack surface analysis.
 
 | Layer | Component | Enforcement |
 |-------|-----------|-------------|
 | 1 | REST API Authoriser | Validates JWT, rejects invalid/suspended tenants |
 | 2 | Bridge Lambda | Assumes tenant-specific IAM execution role via STS |
-| 3 | Gateway Interceptors | Issues scoped act-on-behalf token; tier-filtered tool access |
-| 4 | data-access-lib | `TenantScopedDynamoDB` raises `TenantAccessViolation` on cross-tenant access |
+| 3 | Gateway Cedar policy | Deny-by-default when enforced; permits only tenant execution roles on the Gateway |
+| 4 | Gateway Interceptors | Issues scoped act-on-behalf token; tier-filtered tool access |
+| 5 | data-access-lib | `TenantScopedDynamoDB` raises `TenantAccessViolation` on cross-tenant access |
 
 See [ADR-004](decisions/ADR-004-act-on-behalf-identity.md) for the identity propagation design.
 
@@ -589,6 +596,10 @@ Operational consumers:
 **platform-tools** — Gateway tool registry
 - PK: `TOOL#{toolName}`, SK: `TENANT#{tenantId}` or `GLOBAL`
 - Attributes: tool_name, tier_minimum, lambda_arn, gateway_target_id, enabled
+- The registry and REQUEST interceptor are the current checked-in source of truth
+  for tool-level authorization. Do not add specific Cedar tool-action policies
+  until Gateway targets or tool schemas are also owned in version control and
+  validated in the same deployment path.
 
 **platform-ops-locks** — distributed operation locks
 - PK: `LOCK#{lockName}`, SK: `METADATA`

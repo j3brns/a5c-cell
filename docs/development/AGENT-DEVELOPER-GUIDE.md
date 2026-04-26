@@ -309,8 +309,9 @@ Run: `make agent-test AGENT=my-agent` — executes unit tests + verifies golden 
 ## Tool Access via Gateway
 
 Tools are registered in AgentCore Gateway by the platform team. Your agent accesses
-them via the Strands tools() decorator or MCP client — the interceptors handle
-auth and tier filtering transparently.
+them via the Strands tools() decorator or MCP client. Gateway Cedar policy first
+limits production Gateway access to tenant execution roles; the interceptors then
+handle tenant registry checks, auth, and tier filtering.
 
 ```python
 from strands import Agent
@@ -322,7 +323,9 @@ agent = Agent(tools=tools)
 ```
 
 If a tool requires a higher tier than your agent's tier_minimum, the REQUEST interceptor
-returns 403 before the tool Lambda is invoked. The agent sees a tool error, not a security error.
+returns 403 before the tool Lambda is invoked. Specific Cedar tool-action policies
+must wait until the matching Gateway targets or tool schemas are owned in the same
+deployment path.
 
 ## Pipeline Promotion
 

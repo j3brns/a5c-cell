@@ -443,19 +443,19 @@ export class PlatformStack extends cdk.Stack {
         return {
           enforcementMode: 'LOG_ONLY',
           policyEngineName: 'PlatformGatewayPolicyEngineDev',
-          policyName: 'PlatformGatewayAllowAllDev',
+          policyName: 'PlatformGatewayTenantRoleAccessDev',
         };
       case 'staging':
         return {
           enforcementMode: 'LOG_ONLY',
           policyEngineName: 'PlatformGatewayPolicyEngineStaging',
-          policyName: 'PlatformGatewayAllowAllStaging',
+          policyName: 'PlatformGatewayTenantRoleAccessStaging',
         };
       case 'prod':
         return {
           enforcementMode: 'ENFORCE',
           policyEngineName: 'PlatformGatewayPolicyEngineProd',
-          policyName: 'PlatformGatewayAllowAllProd',
+          policyName: 'PlatformGatewayTenantRoleAccessProd',
         };
       default:
         throw new Error(`Unsupported env context for gateway policy mode: ${env}`);
