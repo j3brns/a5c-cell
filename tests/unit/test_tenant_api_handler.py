@@ -1,155 +1,25 @@
 from __future__ import annotations
 
 import json
-import sys
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
 import pytest
 from botocore.exceptions import EndpointConnectionError
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-
 from src.tenant_api import handler as tenant_api_handler
 from src.tenant_api import ops_control, tenant_lifecycle
 from tests.unit.tenant_api_test_support import (
-    build_handler_state,
-    fixed_now_value,
-    invoke_handler,
+    FailingPlatformQuotaClient,
+    FakeAwsSession,
+    FakeCloudWatchClient,
+    FakeServiceQuotasClient,
+    FakeTenantScopedS3,
     response_body,
 )
 
 RESERVED_TENANT_IDS = ("platform", "admin", "root", "system", "stub")
-
-
-class _FailingPlatformQuotaClient:
-    def __init__(self, error: Exception) -> None:
-        self.error = error
-
-    def get_utilisation(
-        self,
-        *,
-        active_region: str,
-        fallback_region: str | None,
-    ) -> list[dict[str, Any]]:
-        _ = active_region, fallback_region
-        raise self.error
-
-
-class FakeTenantScopedS3:
-    def __init__(self) -> None:
-        self.put_calls: list[dict[str, Any]] = []
-        self.presign_calls: list[dict[str, Any]] = []
-
-    def put_object(self, bucket: str, key: str, body: bytes, **kwargs: Any) -> None:
-        self.put_calls.append(
-            {
-                "bucket": bucket,
-                "key": key,
-                "body": body,
-                "kwargs": dict(kwargs),
-            }
-        )
-
-    def generate_presigned_url(
-        self,
-        bucket: str,
-        key: str,
-        *,
-        expires_in: int = 3600,
-        client_method: str = "get_object",
-    ) -> str:
-        self.presign_calls.append(
-            {
-                "bucket": bucket,
-                "key": key,
-                "expires_in": expires_in,
-                "client_method": client_method,
-            }
-        )
-        return f"https://example.com/download/{key}?expires={expires_in}"
-
-
-class FakeDynamoDbTable:
-    def __init__(self) -> None:
-        self.scan_calls: list[dict[str, Any]] = []
-
-    def scan(self, **kwargs: Any) -> dict[str, Any]:
-        self.scan_calls.append(dict(kwargs))
-        return {"Items": []}
-
-
-class FakeDynamoDbResource:
-    def __init__(self) -> None:
-        self.tables: dict[str, FakeDynamoDbTable] = {}
-
-    def Table(self, name: str) -> FakeDynamoDbTable:  # noqa: N802 - boto3 compatibility
-        if name not in self.tables:
-            self.tables[name] = FakeDynamoDbTable()
-        return self.tables[name]
-
-
-class FakeCloudWatchClient:
-    def __init__(self, datapoints: list[dict[str, Any]], error: Exception | None = None) -> None:
-        self.datapoints = datapoints
-        self.error = error
-        self.calls: list[dict[str, Any]] = []
-
-    def get_metric_statistics(self, **kwargs: Any) -> dict[str, Any]:
-        self.calls.append(dict(kwargs))
-        if self.error is not None:
-            raise self.error
-        return {"Datapoints": [dict(point) for point in self.datapoints]}
-
-
-class FakeServiceQuotasClient:
-    def __init__(self, pages: list[dict[str, Any]], error: Exception | None = None) -> None:
-        self.pages = pages
-        self.error = error
-        self.calls: list[dict[str, Any]] = []
-        self.index = 0
-
-    def list_service_quotas(self, **kwargs: Any) -> dict[str, Any]:
-        self.calls.append(dict(kwargs))
-        if self.error is not None:
-            raise self.error
-        if self.index >= len(self.pages):
-            return {"Quotas": []}
-        page = self.pages[self.index]
-        self.index += 1
-        return dict(page)
-
-
-class FakeAwsSession:
-    def __init__(
-        self,
-        *,
-        cloudwatch_clients: dict[str, FakeCloudWatchClient],
-        service_quotas_clients: dict[str, FakeServiceQuotasClient],
-    ) -> None:
-        self.cloudwatch_clients = cloudwatch_clients
-        self.service_quotas_clients = service_quotas_clients
-
-    def client(self, service_name: str, *, region_name: str | None = None) -> Any:
-        assert region_name is not None
-        if service_name == "cloudwatch":
-            return self.cloudwatch_clients[region_name]
-        if service_name == "service-quotas":
-            return self.service_quotas_clients[region_name]
-        raise AssertionError(f"Unexpected service {service_name}")
-
-
-@pytest.fixture
-def fixed_now() -> datetime:
-    return fixed_now_value()
-
-
-@pytest.fixture
-def fake_state(monkeypatch: pytest.MonkeyPatch, fixed_now: datetime) -> dict[str, Any]:
-    return build_handler_state(monkeypatch, fixed_now)
 
 
 def _event(
@@ -189,7 +59,19 @@ def _event(
 
 
 _body = response_body
-_invoke = invoke_handler
+
+_CURRENT_STATE: dict[str, Any] | None = None
+
+
+@pytest.fixture(autouse=True)
+def _setup_state(fake_state: dict[str, Any]) -> None:
+    global _CURRENT_STATE
+    _CURRENT_STATE = fake_state
+
+
+def _invoke(event: dict[str, Any]) -> dict[str, Any]:
+    assert _CURRENT_STATE is not None
+    return tenant_api_handler.handle_event(event, dependencies=_CURRENT_STATE["deps"])
 
 
 def _last_event_detail(fake_state: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -1261,7 +1143,7 @@ def test_platform_quota_report_returns_explicit_aws_error(fake_state: dict[str, 
     object.__setattr__(
         fake_state["deps"],
         "platform_quota_client",
-        _FailingPlatformQuotaClient(
+        FailingPlatformQuotaClient(
             tenant_api_handler.ClientError(
                 {"Error": {"Code": "AccessDeniedException", "Message": "nope"}},
                 "GetMetricStatistics",
