@@ -103,6 +103,9 @@ describe('PlatformStack (TASK-023)', () => {
     return Object.values(policies).flatMap((resource) => resource.Properties?.PolicyDocument?.Statement ?? []);
   };
 
+  const getBridgeAssumeRoleStatements = (stackTemplate: Template): Array<Record<string, unknown>> =>
+    getIamPolicyStatements(stackTemplate).filter((statement) => statement.Action === 'sts:AssumeRole');
+
   const getScopedPutMetricStatements = (
     stackTemplate: Template,
     rolePattern?: string,
@@ -886,6 +889,22 @@ describe('PlatformStack (TASK-023)', () => {
         },
       ]),
     });
+  });
+
+  test('constrains Bridge tenant execution-role assumption to the stack account', () => {
+    const assumeRoleStatements = getBridgeAssumeRoleStatements(template);
+
+    expect(assumeRoleStatements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Effect: 'Allow',
+          Resource: 'arn:aws:iam::123456789012:role/platform-tenant-*-execution-role',
+        }),
+      ]),
+    );
+    for (const statement of assumeRoleStatements) {
+      expect(JSON.stringify(statement.Resource)).not.toContain('arn:aws:iam::*:role/');
+    }
   });
 
   test('configures the BFF lambda with canonical Entra config and secret references', () => {

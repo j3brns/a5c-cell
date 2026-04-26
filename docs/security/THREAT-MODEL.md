@@ -91,8 +91,9 @@ Threat: Bridge assumes a tenant execution role in an arbitrary AWS account becau
 the IAM resource pattern is broader than the approved tenant-account boundary
 Mitigation: ADR-019 defines the current model as `same-account only`; Bridge validates
 `executionRoleArn.account == tenant.accountId`; SigV4 machine binding resolves by exact
-`executionRoleArn`; the current wildcard IAM resource is treated as drift to remediate,
-not as approval for cross-account tenant execution
+`executionRoleArn`; Bridge IAM allows tenant execution-role assumption only in the
+platform stack account, so SSM-resolved role ARNs cannot expand privilege beyond that
+same-account boundary
 
 ## Controls Summary
 
