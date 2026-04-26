@@ -645,14 +645,27 @@ describe('PlatformStack (TASK-023)', () => {
     });
 
     template.hasResourceProperties('AWS::BedrockAgentCore::Policy', {
-      Name: 'PlatformGatewayAllowAllDev',
+      Name: 'PlatformGatewayTenantRoleAccessDev',
       ValidationMode: 'FAIL_ON_ANY_FINDINGS',
       Definition: Match.objectLike({
         Cedar: Match.objectLike({
-          Statement: Match.stringLikeRegexp('permit'),
+          Statement: Match.anyValue(),
         }),
       }),
     });
+
+    const policies = template.findResources('AWS::BedrockAgentCore::Policy');
+    const policy = Object.values(policies)[0] as {
+      Properties?: { Definition?: { Cedar?: { Statement?: unknown } } };
+    };
+    const rawStatement = policy.Properties?.Definition?.Cedar?.Statement;
+    const fnSub = (rawStatement as { 'Fn::Sub'?: string | [string, unknown] } | undefined)?.['Fn::Sub'];
+    const statement =
+      typeof rawStatement === 'string' ? rawStatement : Array.isArray(fnSub) ? fnSub[0] : String(fnSub ?? '');
+    expect(statement).toContain('principal is AgentCore::IamEntity');
+    expect(statement).toContain('resource == AgentCore::Gateway::');
+    expect(statement).toContain('platform-tenant-*-execution-role');
+    expect(statement).not.toContain('when {\n  true\n}');
 
     template.hasOutput('AgentCoreGatewayPolicyMode', {
       Value: 'LOG_ONLY',
@@ -683,23 +696,29 @@ describe('PlatformStack (TASK-023)', () => {
       return properties?.PolicyDocument?.Statement ?? [];
     });
 
-    const gatewayPolicyStatement = allStatements.find((statement) => {
-      const actions = statement.Action;
-      if (!Array.isArray(actions)) {
-        return false;
-      }
+    const getPolicyEngineStatement = allStatements.find((statement) => {
+      const actions = Array.isArray(statement.Action) ? statement.Action : [statement.Action];
+      return actions.length === 1 && actions.includes('bedrock-agentcore:GetPolicyEngine');
+    });
+    const authorizationStatement = allStatements.find((statement) => {
+      const actions = Array.isArray(statement.Action) ? statement.Action : [statement.Action];
       return (
         actions.includes('bedrock-agentcore:AuthorizeAction') &&
-        actions.includes('bedrock-agentcore:PartiallyAuthorizeActions') &&
-        actions.includes('bedrock-agentcore:GetPolicyEngine')
+        actions.includes('bedrock-agentcore:PartiallyAuthorizeActions')
       );
     });
 
-    expect(gatewayPolicyStatement).toBeDefined();
-    const resources = Array.isArray(gatewayPolicyStatement?.Resource)
-      ? gatewayPolicyStatement?.Resource
-      : [gatewayPolicyStatement?.Resource];
-    expect(resources).not.toContain('*');
+    expect(getPolicyEngineStatement).toBeDefined();
+    expect(authorizationStatement).toBeDefined();
+
+    for (const statement of [getPolicyEngineStatement, authorizationStatement]) {
+      const resources = Array.isArray(statement?.Resource) ? statement?.Resource : [statement?.Resource];
+      expect(resources).not.toContain('*');
+    }
+    const authorizationResources = Array.isArray(authorizationStatement?.Resource)
+      ? authorizationStatement?.Resource
+      : [authorizationStatement?.Resource];
+    expect(authorizationResources).toEqual(expect.arrayContaining([expect.objectContaining({ 'Fn::GetAtt': expect.any(Array) })]));
   });
 
   test('does not synthesize a standalone async-runner lambda', () => {

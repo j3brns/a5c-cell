@@ -41,47 +41,12 @@ export class PlatformGateway extends Construct {
       },
     });
 
-    const gatewayDefaultPolicy = new cdk.CfnResource(this, 'AgentCoreGatewayDefaultPolicy', {
-      type: 'AWS::BedrockAgentCore::Policy',
-      properties: {
-        Name: props.policyName,
-        Description: 'Baseline Cedar policy for AgentCore Gateway',
-        PolicyEngineId: gatewayPolicyEngine.getAtt('PolicyEngineId').toString(),
-        ValidationMode: 'FAIL_ON_ANY_FINDINGS',
-        Definition: {
-          Cedar: {
-            Statement: [
-              'permit (',
-              '  principal,',
-              '  action,',
-              '  resource',
-              ') when {',
-              '  true',
-              '};',
-            ].join('\n'),
-          },
-        },
-      },
-    });
-    gatewayDefaultPolicy.addDependency(gatewayPolicyEngine);
-
     agentCoreGatewayRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['lambda:InvokeFunction'],
         resources: [props.requestInterceptorFn.functionArn, props.responseInterceptorFn.functionArn],
       }),
     );
-    agentCoreGatewayRole.addToPolicy(
-      new iam.PolicyStatement({
-        actions: [
-          'bedrock-agentcore:AuthorizeAction',
-          'bedrock-agentcore:PartiallyAuthorizeActions',
-          'bedrock-agentcore:GetPolicyEngine',
-        ],
-        resources: [gatewayPolicyEngine.ref],
-      }),
-    );
-
     const agentCoreGateway = new cdk.CfnResource(this, 'AgentCoreGateway', {
       type: 'AWS::BedrockAgentCore::Gateway',
       properties: {
@@ -124,6 +89,50 @@ export class PlatformGateway extends Construct {
         },
       },
     });
-    agentCoreGateway.addDependency(gatewayDefaultPolicy);
+
+    agentCoreGatewayRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock-agentcore:GetPolicyEngine'],
+        resources: [gatewayPolicyEngine.ref],
+      }),
+    );
+    agentCoreGatewayRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock-agentcore:AuthorizeAction', 'bedrock-agentcore:PartiallyAuthorizeActions'],
+        resources: [gatewayPolicyEngine.ref, agentCoreGateway.getAtt('GatewayArn').toString()],
+      }),
+    );
+
+    const cedarStatement = cdk.Fn.sub(
+      [
+        'permit (',
+        '  principal is AgentCore::IamEntity,',
+        '  action,',
+        '  resource == AgentCore::Gateway::"${GatewayArn}"',
+        ') when {',
+        '  principal.id like "arn:aws:sts::${AWS::AccountId}:assumed-role/platform-tenant-*-execution-role/*" ||',
+        '  principal.id like "arn:aws:iam::${AWS::AccountId}:role/platform-tenant-*-execution-role"',
+        '};',
+      ].join('\n'),
+      {
+        GatewayArn: agentCoreGateway.getAtt('GatewayArn').toString(),
+      },
+    );
+
+    const gatewayDefaultPolicy = new cdk.CfnResource(this, 'AgentCoreGatewayDefaultPolicy', {
+      type: 'AWS::BedrockAgentCore::Policy',
+      properties: {
+        Name: props.policyName,
+        Description: 'Deny-by-default Cedar policy for tenant execution-role Gateway access',
+        PolicyEngineId: gatewayPolicyEngine.getAtt('PolicyEngineId').toString(),
+        ValidationMode: 'FAIL_ON_ANY_FINDINGS',
+        Definition: {
+          Cedar: {
+            Statement: cedarStatement,
+          },
+        },
+      },
+    });
+    gatewayDefaultPolicy.addDependency(agentCoreGateway);
   }
 }

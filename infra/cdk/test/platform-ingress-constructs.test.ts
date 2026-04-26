@@ -123,7 +123,7 @@ function synthGateway(enforcementMode: 'LOG_ONLY' | 'ENFORCE' = 'LOG_ONLY') {
   new PlatformGateway(stack, 'PlatformGateway', {
     enforcementMode,
     policyEngineName: `PlatformGatewayPolicyEngine${enforcementMode}`,
-    policyName: `PlatformGatewayAllowAll${enforcementMode}`,
+    policyName: `PlatformGatewayTenantRoleAccess${enforcementMode}`,
     requestInterceptorFn: createNodejsFunction(stack, 'RequestInterceptorFn'),
     responseInterceptorFn: createNodejsFunction(stack, 'ResponseInterceptorFn'),
   });
@@ -535,6 +535,22 @@ describe('PlatformWaf', () => {
 });
 
 describe('PlatformGateway', () => {
+  function gatewayCedarStatement(template: Template): string {
+    const policies = template.findResources('AWS::BedrockAgentCore::Policy');
+    const policy = Object.values(policies)[0] as {
+      Properties?: { Definition?: { Cedar?: { Statement?: unknown } } };
+    };
+    const statement = policy.Properties?.Definition?.Cedar?.Statement;
+    if (typeof statement === 'string') {
+      return statement;
+    }
+    const fnSub = (statement as { 'Fn::Sub'?: string | [string, unknown] } | undefined)?.['Fn::Sub'];
+    if (Array.isArray(fnSub)) {
+      return fnSub[0];
+    }
+    return String(fnSub ?? '');
+  }
+
   test('keeps MCP gateway, Cedar policy, and non-wildcard policy-engine access', () => {
     const template = synthGateway();
 
@@ -564,7 +580,7 @@ describe('PlatformGateway', () => {
       Name: 'PlatformGatewayPolicyEngineLOG_ONLY',
     });
     template.hasResourceProperties('AWS::BedrockAgentCore::Policy', {
-      Name: 'PlatformGatewayAllowAllLOG_ONLY',
+      Name: 'PlatformGatewayTenantRoleAccessLOG_ONLY',
       ValidationMode: 'FAIL_ON_ANY_FINDINGS',
     });
 
@@ -579,12 +595,25 @@ describe('PlatformGateway', () => {
     });
 
     const gatewayPolicyStatement = allStatements.find((statement) => {
-      const actions = statement.Action;
-      return Array.isArray(actions) && actions.includes('bedrock-agentcore:GetPolicyEngine');
+      const actions = Array.isArray(statement.Action) ? statement.Action : [statement.Action];
+      return actions.includes('bedrock-agentcore:GetPolicyEngine');
     });
 
     expect(gatewayPolicyStatement).toBeDefined();
     expect(gatewayPolicyStatement?.Resource).not.toBe('*');
+  });
+
+  test('uses deploy-safe Cedar scoped to tenant execution roles and the concrete gateway', () => {
+    const template = synthGateway();
+    const statement = gatewayCedarStatement(template);
+
+    expect(statement).toContain('principal is AgentCore::IamEntity');
+    expect(statement).toContain('principal.id like');
+    expect(statement).toContain(':assumed-role/platform-tenant-*-execution-role/');
+    expect(statement).toContain('resource == AgentCore::Gateway::');
+    expect(statement).toContain('action,');
+    expect(statement).not.toContain('when {\n  true\n}');
+    expect(statement).not.toContain('principal,\n  action,\n  resource');
   });
 
   test('switches the policy engine mode to ENFORCE for prod posture', () => {
