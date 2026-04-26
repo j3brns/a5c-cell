@@ -197,36 +197,144 @@ valid at that point.
 
 ## AWS Documentation References
 
-The following documentation must be consulted and the current state recorded in the
-implementation issue before gates G-01 through G-04 are marked passed:
+Documentation consulted for gate evaluation (current URLs as of 2026-04-26):
 
 - AgentCore supported regions:
-  https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-agentcore-supported-regions.html
-- AgentCore Runtime service quotas:
-  https://docs.aws.amazon.com/bedrock/latest/userguide/quotas.html
-- AgentCore Runtime VPC network mode (for gate G-05):
-  https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-agentcore-runtime-network.html
+  https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-regions.html
+- AgentCore Runtime and built-in tools VPC connectivity:
+  https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-vpc.html
+- AgentCore service quotas:
+  https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/bedrock-agentcore-limits.html
+- AgentCore endpoints and quotas (AWS General Reference):
+  https://docs.aws.amazon.com/general/latest/gr/bedrock_agentcore.html
 
-Current confirmed status (2026-03-10, per ADR-009 status note): AgentCore Runtime and
-Policy are available in eu-west-2. Individual service availability for Browser and Code
-Interpreter must be re-verified at implementation time from the supported-regions page.
+Note: The original ADR references (`bedrock/latest/userguide/bedrock-agentcore-*`) redirect
+to the devguide paths above. The General Reference endpoints page lags the devguide; see
+the G-02 discrepancy note in the gate evaluation below.
+
+## Gate Evaluation Evidence (2026-04-26, Issue #57 / TASK-908)
+
+### G-01 — Browser and Code Interpreter availability in eu-west-2
+
+**Status: PASS (VPC constraints noted)**
+
+The devguide regions table shows "AgentCore Built-in Tools" ✓ for Europe (London). The
+VPC connectivity page explicitly lists eu-west-2 as a supported VPC region for both Browser
+and Code Interpreter, with AZ IDs `euw2-az1`, `euw2-az2`, and `euw2-az3`.
+
+Operational constraints recorded for the implementing issue:
+- **Browser** requires internet access. In VPC mode it must run in private subnets with a
+  NAT Gateway providing outbound egress. Without NAT, Live-View/Connection Stream fails.
+  Browser internet egress is in the v0.2 deferred list (ADR-023 / v0.2 contract).
+- **Code Interpreter** has no internet access by default in VPC mode. Public endpoint calls
+  time out without NAT. Internet egress is also deferred for v0.2.
+- Service-linked role `AWSServiceRoleForBedrockAgentCoreNetwork` is auto-created; no
+  manual provisioning required.
+
+### G-02 — AgentCore Runtime GA in eu-west-2
+
+**Status: PASS (devguide authoritative; General Reference endpoint lag noted)**
+
+The devguide regions table shows AgentCore Runtime ✓ for Europe (London) with no preview
+marker. Only "AgentCore Harness" carries a (preview) label; all other services including
+Runtime are GA.
+
+**Discrepancy noted**: The AWS General Reference endpoints page
+(`docs.aws.amazon.com/general/latest/gr/bedrock_agentcore.html`) as of 2026-04-26 lists
+endpoints for 9 regions only — us-east-1, us-east-2, us-west-2, ap-southeast-1,
+ap-southeast-2, ap-south-1, ap-northeast-1, eu-west-1, eu-central-1 — and does not
+include eu-west-2. The devguide regions table and VPC connectivity page, which are
+maintained on a more frequent publication cycle, both show eu-west-2 support. ADR-023
+adopts the devguide as authoritative. The implementing issue must confirm via a live
+control-plane API call to `bedrock-agentcore-control.eu-west-2.amazonaws.com` before
+staging deployment to resolve this discrepancy at the infrastructure level.
+
+### G-03 — Quota parity (eu-west-2 headroom ≥ eu-west-1 in-use headroom)
+
+**Status: CONDITIONAL PASS — equal defaults, adjustable; headroom check deferred to deploy**
+
+Per the quotas page, "Active session workloads per account" defaults to 1,000 for US
+regions and **500 for all other regions**, which applies equally to eu-west-1 and eu-west-2.
+Both regions have symmetric default quotas. The quota is adjustable via AWS Service Quotas.
+
+Pre-v0.2, the platform has no live runtime sessions in either region; the absolute headroom
+comparison is moot for a fresh deployment. The implementing issue must confirm the 500
+default is sufficient for initial staging load or request an increase before cutover.
+
+Additional sizing quotas (from the quotas page):
+- InvokeAgentRuntime: 25 TPS per agent (adjustable)
+- New sessions per endpoint: 100 per minute (adjustable)
+- Max hardware per session: 2 vCPU / 8 GB RAM (fixed)
+- Request timeout: 15 minutes (fixed — matches ADR-001 sync limit)
+- Max session storage: 1 GB per session (fixed)
+- Max session duration: 8 hours (adjustable via `maxLifetime`)
+- Async job max duration: 8 hours (fixed — matches ADR-010 async pattern)
+
+### G-04 — AgentCore Policy (Cedar) eu-west-2 availability
+
+**Status: PASS**
+
+The devguide regions table shows "Policy in AgentCore" ✓ for Europe (London). The
+implementing issue may provision the Policy engine in eu-west-2 for Gateway Cedar evaluation,
+removing the cross-region eu-central-1 dependency documented in the current topology.
+
+### G-05 — VPC design review
+
+**Status: PASS for design parameters; cfn-guard and CDK implementation in follow-on issue**
+
+The VPC connectivity page explicitly supports eu-west-2 for Runtime VPC mode. Design
+parameters confirmed:
+
+| Parameter | Value |
+|-----------|-------|
+| Supported AZ IDs | `euw2-az1`, `euw2-az2`, `euw2-az3` |
+| Minimum subnets | Two private subnets in different AZs (recommended for HA) |
+| NetworkMode value | `VPC` (API/SDK key: `networkMode`; CFN property name to verify from resource spec) |
+| Service-linked role | `AWSServiceRoleForBedrockAgentCoreNetwork` (auto-created) |
+| ENI lifecycle | ENIs persist up to 8 hours after agent deletion |
+
+Required VPC endpoints (to avoid NAT charges and ensure in-VPC connectivity):
+
+| Endpoint service | Type | Purpose |
+|-----------------|------|---------|
+| `com.amazonaws.eu-west-2.ecr.dkr` | Interface | ECR Docker image pull |
+| `com.amazonaws.eu-west-2.ecr.api` | Interface | ECR API calls |
+| `com.amazonaws.eu-west-2.s3` | Gateway | ECR layer storage — required; avoids NAT data charges |
+| `com.amazonaws.eu-west-2.logs` | Interface | CloudWatch Logs |
+
+Browser tool requires a NAT Gateway (private subnets + Internet Gateway in public subnet)
+for internet egress. This is deferred for v0.2. cfn-guard rule update (enforce
+`networkMode: VPC` for staging/prod; reject `PUBLIC`) is scoped to the implementing issue.
+
+### G-06 through G-10 — Implementation-time gates
+
+| Gate | Status | Note |
+|------|--------|------|
+| G-06 Tenant execution role reviewed | Implementing issue | Remove eu-west-1 from allowed runtime region set; peer review before apply |
+| G-07 Failover path tested | NOT APPLICABLE (v0.2) | ADR-023 defers serving-path failover; eu-central-1 SSM failover is not in v0.2 target |
+| G-08 Rollback to eu-west-1 validated | NOT APPLICABLE (v0.2) | ADR-023 removes eu-west-1 rollback; v0.2 is a fresh deployment with no live rollback target |
+| G-09 Observability continuity | Implementing issue | eu-west-1 metric stream decommission + CloudWatch dashboard continuity check |
+| G-10 AgentCoreStack dev deploy | Implementing issue | CDK synthesis and dev-account deploy in eu-west-2 before staging promotion |
 
 ## Required Follow-Up Issues
 
-This ADR is decision-only. Implementation and gate validation are separate issues.
+This ADR is decision-only. Gate evidence above (issue #57) satisfies the pre-implementation
+documentation requirement. Remaining work:
 
-1. **Gate evaluation issue**: Evaluate G-01 through G-10 and record pass evidence.
-   No implementation proceeds without this being completed.
+1. ~~Gate evaluation issue~~ — **Completed** (issue #57 / TASK-908).
 
 2. **AgentCoreStack region migration**: CDK stack region change to eu-west-2; update
-   SSM runtime-region default; update tenant execution role IAM resource; decommission
-   eu-west-1 metric stream.
+   SSM runtime-region default; update tenant execution role IAM resource (gate G-06);
+   decommission eu-west-1 metric stream (gate G-09). Confirm live eu-west-2 API endpoint
+   before staging (G-02 discrepancy resolution).
 
-3. **Runtime VPC mode enablement** (after G-05 passes): Remove the `NetworkMode: PUBLIC`
-   exception from CloudFormation metadata and update cfn-guard tests to enforce VPC mode.
+3. **Runtime VPC mode enablement**: Remove the `NetworkMode: PUBLIC` exception; add
+   cfn-guard tests enforcing VPC mode for staging/prod; wire VPC endpoints listed in G-05
+   evidence above.
 
-4. **eu-west-1 AgentCoreStack decommission** (14-day hold after cutover): Explicit
-   deprovisioning decision recorded in the implementation issue; gate G-08 re-validated.
+4. ~~eu-west-1 AgentCoreStack decommission (14-day hold)~~ — **Not applicable for v0.2**.
+   ADR-023 removes this requirement; v0.2 is a fresh baseline with no deprovisioning hold.
 
-5. **Browser and Code Interpreter exception review** (if G-01 passes for Runtime but not
-   those services): Separate decision for partial eu-west-1 retention.
+5. ~~Browser and Code Interpreter exception review~~ — **Not required**. G-01 confirms
+   both services are available in eu-west-2. VPC mode constraints (NAT for internet egress)
+   are recorded above and deferred in the v0.2 contract.
