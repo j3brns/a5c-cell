@@ -10,6 +10,23 @@ let s3_buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
 let dynamodb_tables = Resources.*[ Type == 'AWS::DynamoDB::Table' ]
 let lambda_functions = Resources.*[ Type == 'AWS::Lambda::Function' ]
 let agentcore_runtimes = Resources.*[ Type == 'AWS::BedrockAgentCore::Runtime' ]
+let vpc_endpoints = Resources.*[ Type == 'AWS::EC2::VPCEndpoint' ]
+let agentcore_runtime_logs_endpoints = Resources.*[
+    Type == 'AWS::EC2::VPCEndpoint'
+    Properties.ServiceName == /.*\.logs$/
+]
+let agentcore_runtime_ecr_api_endpoints = Resources.*[
+    Type == 'AWS::EC2::VPCEndpoint'
+    Properties.ServiceName == /.*\.ecr\.api$/
+]
+let agentcore_runtime_ecr_docker_endpoints = Resources.*[
+    Type == 'AWS::EC2::VPCEndpoint'
+    Properties.ServiceName == /.*\.ecr\.dkr$/
+]
+let agentcore_runtime_s3_endpoints = Resources.*[
+    Type == 'AWS::EC2::VPCEndpoint'
+    Properties.ServiceName."Fn::Join"[1][2] == ".s3"
+]
 
 # no_wildcard_iam_action
 rule no_wildcard_iam_action {
@@ -212,6 +229,16 @@ rule agentcore_runtime_network_mode_explicit {
 rule agentcore_runtime_uses_vpc_mode {
     when %agentcore_runtimes exists {
         %agentcore_runtimes.Properties.NetworkConfiguration.NetworkMode == "VPC"
+    }
+}
+
+# agentcore_runtime_no_internet_endpoints_present
+rule agentcore_runtime_no_internet_endpoints_present {
+    when %vpc_endpoints exists {
+        %agentcore_runtime_logs_endpoints not empty
+        %agentcore_runtime_ecr_api_endpoints not empty
+        %agentcore_runtime_ecr_docker_endpoints not empty
+        %agentcore_runtime_s3_endpoints not empty
     }
 }
 

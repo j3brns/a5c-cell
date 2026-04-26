@@ -37,9 +37,9 @@ describe('NetworkStack', () => {
       },
     });
 
-    template.resourceCountIs('AWS::EC2::VPCEndpoint', 6);
+    template.resourceCountIs('AWS::EC2::VPCEndpoint', 9);
     expect(Object.keys(gatewayEndpoints)).toHaveLength(2);
-    expect(Object.keys(interfaceEndpoints)).toHaveLength(4);
+    expect(Object.keys(interfaceEndpoints)).toHaveLength(7);
     expect(JSON.stringify(gatewayEndpoints)).toContain('.s3');
     expect(JSON.stringify(gatewayEndpoints)).toContain('.dynamodb');
     template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
@@ -48,6 +48,18 @@ describe('NetworkStack', () => {
     });
     template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
       ServiceName: 'com.amazonaws.eu-west-2.secretsmanager',
+      VpcEndpointType: 'Interface',
+    });
+    template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
+      ServiceName: 'com.amazonaws.eu-west-2.logs',
+      VpcEndpointType: 'Interface',
+    });
+    template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
+      ServiceName: 'com.amazonaws.eu-west-2.ecr.api',
+      VpcEndpointType: 'Interface',
+    });
+    template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
+      ServiceName: 'com.amazonaws.eu-west-2.ecr.dkr',
       VpcEndpointType: 'Interface',
     });
     template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
