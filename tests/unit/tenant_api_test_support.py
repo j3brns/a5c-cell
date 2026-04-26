@@ -8,8 +8,6 @@ from data_access.models import PaginatedItems
 
 from src.tenant_api import handler as tenant_api_handler
 
-_CURRENT_HANDLER_DEPS: tenant_api_handler.TenantApiDependencies | None = None
-
 
 class FakeScopedDb:
     def __init__(self) -> None:
@@ -287,6 +285,104 @@ class FakeDynamoDbResource:
         return self.tables[name]
 
 
+class FakeTenantScopedS3:
+    def __init__(self) -> None:
+        self.put_calls: list[dict[str, Any]] = []
+        self.presign_calls: list[dict[str, Any]] = []
+
+    def put_object(self, bucket: str, key: str, body: bytes, **kwargs: Any) -> None:
+        self.put_calls.append(
+            {
+                "bucket": bucket,
+                "key": key,
+                "body": body,
+                "kwargs": dict(kwargs),
+            }
+        )
+
+    def generate_presigned_url(
+        self,
+        bucket: str,
+        key: str,
+        *,
+        expires_in: int = 3600,
+        client_method: str = "get_object",
+    ) -> str:
+        self.presign_calls.append(
+            {
+                "bucket": bucket,
+                "key": key,
+                "expires_in": expires_in,
+                "client_method": client_method,
+            }
+        )
+        return f"https://example.com/download/{key}?expires={expires_in}"
+
+
+class FakeCloudWatchClient:
+    def __init__(self, datapoints: list[dict[str, Any]], error: Exception | None = None) -> None:
+        self.datapoints = datapoints
+        self.error = error
+        self.calls: list[dict[str, Any]] = []
+
+    def get_metric_statistics(self, **kwargs: Any) -> dict[str, Any]:
+        self.calls.append(dict(kwargs))
+        if self.error is not None:
+            raise self.error
+        return {"Datapoints": [dict(point) for point in self.datapoints]}
+
+
+class FakeServiceQuotasClient:
+    def __init__(self, pages: list[dict[str, Any]], error: Exception | None = None) -> None:
+        self.pages = pages
+        self.error = error
+        self.calls: list[dict[str, Any]] = []
+        self.index = 0
+
+    def list_service_quotas(self, **kwargs: Any) -> dict[str, Any]:
+        self.calls.append(dict(kwargs))
+        if self.error is not None:
+            raise self.error
+        if self.index >= len(self.pages):
+            return {"Quotas": []}
+        page = self.pages[self.index]
+        self.index += 1
+        return dict(page)
+
+
+class FakeAwsSession:
+    def __init__(
+        self,
+        *,
+        cloudwatch_clients: dict[str, FakeCloudWatchClient] | None = None,
+        service_quotas_clients: dict[str, FakeServiceQuotasClient] | None = None,
+    ) -> None:
+        self.cloudwatch_clients = cloudwatch_clients or {}
+        self.service_quotas_clients = service_quotas_clients or {}
+
+    def client(self, service_name: str, *, region_name: str | None = None) -> Any:
+        assert region_name is not None
+        if service_name == "cloudwatch":
+            return self.cloudwatch_clients[region_name]
+        if service_name == "service-quotas":
+            return self.service_quotas_clients[region_name]
+        raise AssertionError(f"Unexpected service {service_name}")
+
+
+class FailingPlatformQuotaClient:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def get_utilisation(
+        self,
+        *,
+        active_region: str,
+        fallback_region: str | None,
+    ) -> list[dict[str, Any]]:
+        _ = active_region, fallback_region
+        raise self.error
+
+
 class FakeLambdaContext:
     function_name = "tenant-api"
     memory_limit_in_mb = 256
@@ -353,11 +449,8 @@ def build_tenant_api_dependencies() -> tenant_api_handler.TenantApiDependencies:
 
 
 def build_handler_state(monkeypatch: Any, fixed_now: datetime) -> dict[str, Any]:
-    global _CURRENT_HANDLER_DEPS
-
     db = FakeScopedDb()
     deps = build_tenant_api_dependencies()
-    _CURRENT_HANDLER_DEPS = deps
     apply_common_tenant_api_env(monkeypatch)
 
     from src.tenant_api import db_factory, db_utils
@@ -391,9 +484,6 @@ def response_body(response: dict[str, Any]) -> dict[str, Any]:
 def invoke_handler(
     event: dict[str, Any],
     *,
-    dependencies: tenant_api_handler.TenantApiDependencies | None = None,
+    dependencies: tenant_api_handler.TenantApiDependencies,
 ) -> dict[str, Any]:
-    deps = dependencies if dependencies is not None else _CURRENT_HANDLER_DEPS
-    if deps is None:
-        raise AssertionError("build_handler_state must run before invoke_handler")
-    return tenant_api_handler.handle_event(event, dependencies=deps)
+    return tenant_api_handler.handle_event(event, dependencies=dependencies)

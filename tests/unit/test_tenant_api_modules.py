@@ -1,47 +1,9 @@
 from __future__ import annotations
 
 import json
-import sys
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from moto import mock_aws
-
 from src.tenant_api import agent_registry, ops_control, tenant_lifecycle, webhook_registry
-from src.tenant_api import handler as tenant_api_handler
-from tests.unit.tenant_api_test_support import build_module_state, fixed_now_value
-
-
-@pytest.fixture
-def fixed_now() -> datetime:
-    return fixed_now_value()
-
-
-@pytest.fixture
-def module_state(monkeypatch: pytest.MonkeyPatch, fixed_now: Any) -> Any:
-    with mock_aws():
-        yield build_module_state(monkeypatch, fixed_now)
-
-
-def _caller(
-    *,
-    tenant_id: str | None = "t-admin",
-    roles: list[str] | None = None,
-    app_id: str = "app-admin",
-) -> tenant_api_handler.CallerIdentity:
-    return tenant_api_handler.CallerIdentity(
-        tenant_id=tenant_id,
-        app_id=app_id,
-        tier="premium",
-        sub="user-123",
-        roles=frozenset(roles or ["Platform.Admin"]),
-        usage_identifier_key=None,
-    )
 
 
 def _event(path: str, method: str = "GET", body: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -53,8 +15,10 @@ def _event(path: str, method: str = "GET", body: dict[str, Any] | None = None) -
     }
 
 
-@mock_aws
-def test_agent_registry_dispatch_registers_agent(module_state: dict[str, Any]) -> None:
+def test_agent_registry_dispatch_registers_agent(
+    module_state: dict[str, Any],
+    tenant_api_caller: Any,
+) -> None:
     response = agent_registry.dispatch_routes(
         "/v1/platform/agents",
         "POST",
@@ -63,7 +27,7 @@ def test_agent_registry_dispatch_registers_agent(module_state: dict[str, Any]) -
             "POST",
             {"agentName": "echo-agent", "version": "1.0.0"},
         ),
-        _caller(),
+        tenant_api_caller(),
         module_state["deps"],
     )
 
@@ -73,13 +37,15 @@ def test_agent_registry_dispatch_registers_agent(module_state: dict[str, Any]) -
     assert stored["status"] == "built"
 
 
-@mock_aws
-def test_ops_control_dispatches_platform_quota(module_state: dict[str, Any]) -> None:
+def test_ops_control_dispatches_platform_quota(
+    module_state: dict[str, Any],
+    tenant_api_caller: Any,
+) -> None:
     response = ops_control.dispatch_platform_admin_routes(
         "/v1/platform/quota",
         "GET",
         _event("/v1/platform/quota"),
-        _caller(),
+        tenant_api_caller(),
         module_state["deps"],
     )
 
@@ -88,8 +54,10 @@ def test_ops_control_dispatches_platform_quota(module_state: dict[str, Any]) -> 
     assert body["utilisation"][0]["region"] == "eu-west-1"
 
 
-@mock_aws
-def test_tenant_lifecycle_dispatch_creates_tenant(module_state: dict[str, Any]) -> None:
+def test_tenant_lifecycle_dispatch_creates_tenant(
+    module_state: dict[str, Any],
+    tenant_api_caller: Any,
+) -> None:
     response = tenant_lifecycle.dispatch_routes(
         "/v1/tenants",
         "POST",
@@ -106,7 +74,7 @@ def test_tenant_lifecycle_dispatch_creates_tenant(module_state: dict[str, Any]) 
                 "accountId": "123456789012",
             },
         ),
-        _caller(),
+        tenant_api_caller(),
         module_state["deps"],
         None,
     )
@@ -117,8 +85,10 @@ def test_tenant_lifecycle_dispatch_creates_tenant(module_state: dict[str, Any]) 
     assert len(module_state["deps"].secretsmanager.policy_calls) == 1
 
 
-@mock_aws
-def test_webhook_registry_dispatch_registers_webhook(module_state: dict[str, Any]) -> None:
+def test_webhook_registry_dispatch_registers_webhook(
+    module_state: dict[str, Any],
+    tenant_api_caller: Any,
+) -> None:
     module_state["db"].items[("TENANT#t-001", "METADATA")] = {
         "PK": "TENANT#t-001",
         "SK": "METADATA",
@@ -136,7 +106,7 @@ def test_webhook_registry_dispatch_registers_webhook(module_state: dict[str, Any
             "POST",
             {"callbackUrl": "https://example.com/hook", "events": ["job.completed"]},
         ),
-        _caller(tenant_id="t-001", roles=["SelfService.Admin"]),
+        tenant_api_caller(tenant_id="t-001", roles=["SelfService.Admin"]),
         module_state["deps"],
     )
 
