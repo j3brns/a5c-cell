@@ -75,14 +75,14 @@ default:
           export AWS_ROLE_ARN="${AWS_ROLE_ARN_FALLBACK}"
         fi
       fi
-      if [ "${AWS_AUTH_OPTIONAL:-0}" = "1" ] && [ -z "${AWS_ROLE_ARN:-}" ]; then
-        echo "Skipping AWS authentication: role ARN not configured and auth is optional for this job."
-        export AWS_AUTH_SKIPPED=1
-        exit 0
-      fi
       if [ -z "${AWS_ROLE_ARN:-}" ]; then
         echo "ERROR: AWS role ARN not set."
         echo "Set canonical PLATFORM_PIPELINE_*_ROLE_ARN variables (preferred)."
+        exit 1
+      fi
+      if [ -z "${GITLAB_OIDC_TOKEN:-}" ]; then
+        echo "ERROR: GITLAB_OIDC_TOKEN not issued for this job."
+        echo "Ensure the job inherits default id_tokens syntax."
         exit 1
       fi
     - |
@@ -208,6 +208,23 @@ default:
     - if: $CI_COMMIT_BRANCH == "main"
       changes: *deployable_changes
 
+.main_agent_pipeline_change_rules:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes: &agent_pipeline_changes
+        - .gitlab-ci.yml
+        - agents/.gitlab-ci-agent.yml
+        - agents/**/*
+
+.agent_pipeline_change_rules:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes: *agent_pipeline_changes
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *agent_pipeline_changes
+    - if: $CI_COMMIT_BRANCH
+      changes: *agent_pipeline_changes
+
 # --- VALIDATE STAGE ---
 
 validate:
@@ -246,36 +263,12 @@ test-unit:
       junit: junit-report.xml
 
 test-integration:
-  extends: .test_job_base
+  extends: .aws_auth_base
   stage: test
   variables:
     AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
     AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
   script:
-    - |
-      if [ -z "${AWS_ROLE_ARN:-}" ]; then
-        if [ -n "${AWS_ROLE_ARN_PRIMARY:-}" ]; then
-          export AWS_ROLE_ARN="${AWS_ROLE_ARN_PRIMARY}"
-        elif [ -n "${AWS_ROLE_ARN_FALLBACK:-}" ]; then
-          export AWS_ROLE_ARN="${AWS_ROLE_ARN_FALLBACK}"
-        fi
-      fi
-      if [ -z "${AWS_ROLE_ARN:-}" ]; then
-        echo "Skipping integration tests: AWS role ARN not configured in CI."
-        exit 0
-      fi
-      KST=($(aws sts assume-role-with-web-identity \
-        --role-arn ${AWS_ROLE_ARN} \
-        --role-session-name "GitLabCI-${CI_JOB_ID}" \
-        --web-identity-token ${GITLAB_OIDC_TOKEN} \
-        --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
-        --output text))
-      if [ -z "${KST[0]}" ]; then echo "ERROR: STS AssumeRole failed"; exit 1; fi
-      export AWS_ACCESS_KEY_ID=${KST[0]}
-      export AWS_SECRET_ACCESS_KEY=${KST[1]}
-      export AWS_SESSION_TOKEN=${KST[2]}
-      export AWS_DEFAULT_REGION=${AWS_REGION}
-      export AWS_REGION=${AWS_REGION}
     - make test-int
   rules:
     - !reference [.python_change_rules, rules]
@@ -300,42 +293,29 @@ test-spa:
     paths:
       - spa/coverage/
 
+validate-agent-pipelines:
+  stage: test
+  trigger:
+    include:
+      - local: agents/.gitlab-ci-agent.yml
+    strategy: mirror
+  parallel:
+    matrix:
+      - AGENT_NAME: ["echo-agent", "platform-diagnostics"]
+        AGENT_PIPELINE_MODE: ["validate"]
+  allow_failure: false
+  rules:
+    - !reference [.agent_pipeline_change_rules, rules]
+
 # --- PLAN STAGE ---
 
 plan-infra:
   stage: plan
-  extends: .tools_base
+  extends: .aws_auth_base
   variables:
     AWS_ROLE_ARN_PRIMARY: ${PLATFORM_PIPELINE_VALIDATE_ROLE_ARN}
     AWS_ROLE_ARN_FALLBACK: ${AWS_ROLE_ARN_VALIDATE}
   script:
-    - |
-      if [ -z "${AWS_ROLE_ARN:-}" ]; then
-        if [ -n "${AWS_ROLE_ARN_PRIMARY:-}" ]; then
-          export AWS_ROLE_ARN="${AWS_ROLE_ARN_PRIMARY}"
-        elif [ -n "${AWS_ROLE_ARN_FALLBACK:-}" ]; then
-          export AWS_ROLE_ARN="${AWS_ROLE_ARN_FALLBACK}"
-        fi
-      fi
-      if [ -z "${AWS_ROLE_ARN:-}" ]; then
-        echo "Skipping infra plan: AWS role ARN not configured in CI."
-        printf 'skipped: no validate role configured\n' > dev-diff.txt
-        cp dev-diff.txt staging-diff.txt
-        cp dev-diff.txt prod-diff.txt
-        exit 0
-      fi
-      KST=($(aws sts assume-role-with-web-identity \
-        --role-arn ${AWS_ROLE_ARN} \
-        --role-session-name "GitLabCI-${CI_JOB_ID}" \
-        --web-identity-token ${GITLAB_OIDC_TOKEN} \
-        --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
-        --output text))
-      if [ -z "${KST[0]}" ]; then echo "ERROR: STS AssumeRole failed"; exit 1; fi
-      export AWS_ACCESS_KEY_ID=${KST[0]}
-      export AWS_SECRET_ACCESS_KEY=${KST[1]}
-      export AWS_SESSION_TOKEN=${KST[2]}
-      export AWS_DEFAULT_REGION=${AWS_REGION}
-      export AWS_REGION=${AWS_REGION}
     - make infra-diff ENV=dev > dev-diff.txt
     - make infra-diff ENV=staging > staging-diff.txt
     - make infra-diff ENV=prod > prod-diff.txt
@@ -348,6 +328,49 @@ plan-infra:
     - !reference [.deployable_change_rules, rules]
 
 # --- DEPLOY DEV ---
+
+deploy-agent-pipelines:
+  stage: deploy-dev
+  trigger:
+    include:
+      - local: agents/.gitlab-ci-agent.yml
+    strategy: mirror
+  parallel:
+    matrix:
+      - AGENT_NAME: ["echo-agent", "platform-diagnostics"]
+        AGENT_PIPELINE_MODE: ["deploy-dev"]
+  allow_failure: false
+  rules:
+    - !reference [.main_agent_pipeline_change_rules, rules]
+
+promote-agent-staging:
+  stage: deploy-staging
+  trigger:
+    include:
+      - local: agents/.gitlab-ci-agent.yml
+    strategy: mirror
+  parallel:
+    matrix:
+      - AGENT_NAME: ["echo-agent", "platform-diagnostics"]
+        AGENT_PIPELINE_MODE: ["promote-staging"]
+  allow_failure: false
+  rules:
+    - !reference [.main_agent_pipeline_change_rules, rules]
+
+promote-agent-prod:
+  stage: deploy-prod
+  needs: ["promote-agent-staging"]
+  trigger:
+    include:
+      - local: agents/.gitlab-ci-agent.yml
+    strategy: mirror
+  parallel:
+    matrix:
+      - AGENT_NAME: ["echo-agent", "platform-diagnostics"]
+        AGENT_PIPELINE_MODE: ["promote-prod"]
+  allow_failure: false
+  rules:
+    - !reference [.main_agent_pipeline_change_rules, rules]
 
 deploy-dev:
   stage: deploy-dev
