@@ -759,6 +759,126 @@ def test_list_tenants_admin_only(fake_state: dict[str, Any]) -> None:
     assert items[0]["tenantId"] == "t-1"
 
 
+def test_list_tenants_pagination_limit_and_token(fake_state: dict[str, Any]) -> None:
+    for i in range(1, 6):
+        fake_state["db"].items[(f"TENANT#t-{i}", "METADATA")] = {
+            "PK": f"TENANT#t-{i}",
+            "SK": "METADATA",
+            "tenantId": f"t-{i}",
+            "status": "active",
+            "tier": "basic",
+        }
+        # non-METADATA items must be excluded from list results
+        fake_state["db"].items[(f"TENANT#t-{i}", "INVITE#inv-1")] = {
+            "PK": f"TENANT#t-{i}",
+            "SK": "INVITE#inv-1",
+        }
+
+    # Exhaust all pages with a small limit and collect every tenant ID returned.
+    # DynamoDB Limit applies before SK filtering, so each page may return fewer
+    # METADATA items than the limit; all items must nonetheless be reachable.
+    all_ids: set[str] = set()
+    qs: dict[str, str] = {"limit": "2"}
+    page_count = 0
+    while True:
+        ev = _event(method="GET", tenant_id=None)
+        ev["queryStringParameters"] = dict(qs)
+        resp = _invoke(ev)
+        assert resp["statusCode"] == 200
+        b = _body(resp)
+        # All returned items must be tenant records, not INVITE records
+        for item in b["items"]:
+            assert "tenantId" in item
+        all_ids.update(item["tenantId"] for item in b["items"])
+        page_count += 1
+        if not b["nextToken"]:
+            break
+        qs["nextToken"] = b["nextToken"]
+        assert page_count < 20, "pagination loop did not terminate"
+
+    assert all_ids == {"t-1", "t-2", "t-3", "t-4", "t-5"}
+
+
+def test_list_tenants_invalid_limit_rejected(fake_state: dict[str, Any]) -> None:
+    event = _event(method="GET", tenant_id=None)
+    event["queryStringParameters"] = {"limit": "0"}
+    response = _invoke(event)
+    assert response["statusCode"] == 400
+
+    event["queryStringParameters"] = {"limit": "101"}
+    response = _invoke(event)
+    assert response["statusCode"] == 400
+
+
+def test_list_tenants_invalid_token_rejected(fake_state: dict[str, Any]) -> None:
+    event = _event(method="GET", tenant_id=None)
+    event["queryStringParameters"] = {"nextToken": "not-valid-base64!!"}
+    response = _invoke(event)
+    assert response["statusCode"] == 400
+
+
+def test_list_tenants_nexttoken_is_opaque(fake_state: dict[str, Any]) -> None:
+    import base64
+    import json as _json
+
+    # Seed enough items so that limit=1 guarantees a nextToken on the first page
+    for i in range(1, 4):
+        fake_state["db"].items[(f"TENANT#t-{i}", "METADATA")] = {
+            "PK": f"TENANT#t-{i}",
+            "SK": "METADATA",
+            "tenantId": f"t-{i}",
+            "status": "active",
+            "tier": "basic",
+        }
+
+    # Find a page that actually returns a nextToken (scan Limit=1 may hit a non-METADATA item
+    # first, but will eventually produce a token because items remain)
+    token = None
+    qs: dict[str, str] = {"limit": "1"}
+    for _ in range(10):
+        ev = _event(method="GET", tenant_id=None)
+        ev["queryStringParameters"] = dict(qs)
+        resp = _invoke(ev)
+        assert resp["statusCode"] == 200
+        b = _body(resp)
+        if b["nextToken"]:
+            token = b["nextToken"]
+            break
+        if not b["nextToken"]:
+            break
+
+    assert token is not None, "expected at least one page with a nextToken"
+    # Token must be decodable base64 JSON and contain a DynamoDB resume key
+    decoded = _json.loads(base64.urlsafe_b64decode(token.encode()))
+    assert "PK" in decoded
+
+
+def test_list_tenants_status_filter_with_pagination(fake_state: dict[str, Any]) -> None:
+    fake_state["db"].items[("TENANT#t-a", "METADATA")] = {
+        "PK": "TENANT#t-a",
+        "SK": "METADATA",
+        "tenantId": "t-a",
+        "status": "active",
+        "tier": "basic",
+    }
+    fake_state["db"].items[("TENANT#t-s", "METADATA")] = {
+        "PK": "TENANT#t-s",
+        "SK": "METADATA",
+        "tenantId": "t-s",
+        "status": "suspended",
+        "tier": "basic",
+    }
+
+    event = _event(method="GET", tenant_id=None)
+    event["queryStringParameters"] = {"status": "active"}
+    response = _invoke(event)
+    assert response["statusCode"] == 200
+    items = _body(response)["items"]
+    assert all(i["status"] == "active" for i in items)
+    assert any(i["tenantId"] == "t-a" for i in items)
+    assert not any(i["tenantId"] == "t-s" for i in items)
+
+
 def test_audit_export_writes_real_s3_export_and_returns_presigned_url(
     fake_state: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:

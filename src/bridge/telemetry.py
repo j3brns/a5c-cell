@@ -15,6 +15,7 @@ from data_access.models import (
     TenantContext,
 )
 
+from src.bridge import tpm_limiter
 from src.bridge.constants import INVOCATION_TTL_SECONDS, INVOCATIONS_TABLE, JOBS_TABLE
 
 logger = Logger(service="bridge-telemetry")
@@ -194,6 +195,8 @@ def log_invocation(
     runtime_region: str,
     input_tokens: int = 0,
     output_tokens: int = 0,
+    estimated_tokens: int = 0,
+    model_id: str | None = None,
     job_id: str | None = None,
     session_id: str | None = None,
     error_code: str | None = None,
@@ -264,6 +267,14 @@ def log_invocation(
                 runtime_region=runtime_region,
                 ttft_ms=ttft_ms,
             )
+        tpm_limiter.record_log_only_tpm(
+            cloudwatch,
+            tenant_context=tenant_context,
+            agent=agent,
+            actual_tokens=input_tokens + output_tokens,
+            estimated_tokens=estimated_tokens,
+            model_id=model_id,
+        )
     except Exception:
         logger.exception("Failed to log invocation")
 

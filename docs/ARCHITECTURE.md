@@ -196,13 +196,16 @@ now split internally into `config_provider`, `discovery_service`,
 discovery, and failover logic can evolve independently without changing the
 current public invoke contract. TASK-902 provisions the eu-west-2 ElastiCache Serverless
 Valkey counter store and publishes its endpoint per environment at
-`/platform/{env}/config/valkey-endpoint`. ElastiCache Serverless places the cache
+`/platform/{env}/config/valkey-endpoint`; the Bridge receives the same resolved
+endpoint through `VALKEY_ENDPOINT` so TPM log-only accounting does not require a
+new request-path SSM permission. ElastiCache Serverless places the cache
 endpoint in the selected subnets and security groups; no additional user-managed
 ElastiCache interface endpoint is required for counter traffic. Bridge remains
-outside the VPC under ADR-014 until TASK-903 supplies the fail-open client path
-through an approved narrow adapter or runtime-network design; pulling the whole
-Bridge into isolated subnets would break the current eu-west-1 AgentCore Runtime
-path until the ADR-023 runtime implementation replaces that path.
+outside the VPC under ADR-014; TASK-903's counter client is fail-open and
+endpoint-gated, while any move to hard enforcement still requires an approved
+narrow adapter or runtime-network design. Pulling the whole Bridge into isolated
+subnets would break the current eu-west-1 AgentCore Runtime path until the
+ADR-023 runtime implementation replaces that path.
 
 Current SPA edge posture: the public SPA distribution is protected by a dedicated
 CloudFront-scope WebACL that must be provisioned in **us-east-1**. AWS WAF requires
@@ -471,7 +474,7 @@ See [ADR-012](decisions/ADR-012-dynamodb-capacity.md) for capacity mode rational
   last-activity markers, or session heartbeat state in this row.
 - Excludes dynamic capability policy. Capability flags, kill switches, and
   rollout-managed model/tool availability live in AppConfig, not in this table.
-- Capacity: provisioned, auto-scaling, 5 RCU/WCU minimum
+- Capacity: on-demand
 - Tenant ID policy (create boundary):
   - Canonicalized to lowercase before persistence
   - Regex: `^[a-z](?:[a-z0-9-]{1,30}[a-z0-9])$` (3–32 chars)
@@ -501,7 +504,7 @@ requires an explicit ADR because it changes the tenant identity boundary.
   layerS3Key, scriptS3Key, runtimeArn, deployedAt, invocationMode,
   streamingEnabled, estimatedDurationSeconds, status, approvedBy,
   approvedAt, releaseNotes
-- Capacity: provisioned, auto-scaling
+- Capacity: on-demand
 
 ### Agent Release State Source Of Truth
 
@@ -585,7 +588,7 @@ Operational consumers:
 
 **platform-tools** — Gateway tool registry
 - PK: `TOOL#{toolName}`, SK: `TENANT#{tenantId}` or `GLOBAL`
-- Attributes: toolName, tierMinimum, lambdaArn, gatewayTargetId, enabled
+- Attributes: tool_name, tier_minimum, lambda_arn, gateway_target_id, enabled
 
 **platform-ops-locks** — distributed operation locks
 - PK: `LOCK#{lockName}`, SK: `METADATA`
@@ -602,7 +605,7 @@ documented response in the [operator runbooks](README.md#operator-runbooks).
 | 1 | REST API usage plans | basic: 10 rps / 1K/day, standard: 50 rps / 10K/day, premium: 500 rps / unlimited | Native API Gateway 429 |
 | 2 | Bridge Lambda concurrency | 200 prod, 50 staging | Alert at 80%; provisioned concurrency 10 on authoriser |
 | 3 | AgentCore Runtime | Auto-scales, per-account quota | 70%: [RUNBOOK-002](operations/RUNBOOK-002-quota-monitoring.md); 90%: [RUNBOOK-004](operations/RUNBOOK-004-quota-increase.md) |
-| 4 | DynamoDB | On-demand for invocations, provisioned for config | Jitter suffix on high-volume tenant SKs |
+| 4 | DynamoDB | All tables on-demand | Jitter suffix on high-volume tenant SKs |
 | 5 | Account topology | Option A (single) → B (tier-split) → C (per-tenant) | Escalate when quota thresholds require |
 
 ## Platform-Controlled Cross-Tenant Actions
@@ -753,7 +756,10 @@ Existing tenants are migrated/verified with `make ops-backfill-tenant-role-arn [
 Implementation note: `PlatformStack` still deploys as one stack, but the CDK
 code now synthesizes its storage/AppConfig resources and compute/orchestration
 resources through separate helper modules. That keeps deployment semantics
-stable while reducing edit risk inside the stack definition.
+stable while reducing edit risk inside the stack definition. A planned split into
+`platform-storage-{env}` (DynamoDB + AppConfig) and `platform-spa-{env}` (SPA +
+CloudFront) is designed in [ADR-703](decisions/ADR-703-platformstack-split-plan.md)
+with follow-on implementation issues created upon plan acceptance.
 
 ObservabilityStack currently provisions the eu-west-2 monitoring-account OAM sink only.
 No regional OAM member links are deployed yet, so the pre-v0.2 cross-region

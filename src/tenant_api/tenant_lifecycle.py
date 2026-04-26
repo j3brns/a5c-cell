@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import secrets
@@ -66,13 +67,30 @@ def _tenant_create_input_from_event(event: dict[str, Any]) -> models.TenantCreat
     )
 
 
+def _encode_pagination_token(last_evaluated_key: dict[str, Any]) -> str:
+    return base64.urlsafe_b64encode(json.dumps(last_evaluated_key, default=str).encode()).decode()
+
+
+def _decode_pagination_token(token: str) -> dict[str, Any]:
+    return json.loads(base64.urlsafe_b64decode(token.encode()))
+
+
 def _tenant_list_input_from_event(event: dict[str, Any]) -> models.TenantListInput:
     query = event.get("queryStringParameters") or {}
     if not isinstance(query, dict):
         query = {}
+    limit: int | None = None
+    limit_raw = utils.str_or_none(query.get("limit"))
+    if limit_raw is not None:
+        try:
+            limit = int(limit_raw)
+        except (ValueError, TypeError):
+            pass
     return models.TenantListInput(
         status_filter=utils.str_or_none(query.get("status")),
         tier_filter=utils.str_or_none(query.get("tier")),
+        limit=limit,
+        next_token=utils.str_or_none(query.get("nextToken")),
     )
 
 
@@ -130,17 +148,45 @@ def handle_list_tenants(
                 return http_utils.response(200, {"items": [body["tenant"]], "nextToken": None})
         return http_utils.response(200, {"items": [], "nextToken": None})
 
+    limit = request.limit
+    if limit is not None:
+        if limit < 1 or limit > constants.TENANT_LIST_MAX_PAGE_SIZE:
+            return http_utils.error(
+                400,
+                "INVALID_LIMIT",
+                f"limit must be between 1 and {constants.TENANT_LIST_MAX_PAGE_SIZE}",
+            )
+    else:
+        limit = constants.TENANT_LIST_DEFAULT_PAGE_SIZE
+
+    exclusive_start_key: dict[str, Any] | None = None
+    if request.next_token:
+        try:
+            exclusive_start_key = _decode_pagination_token(request.next_token)
+        except Exception:
+            return http_utils.error(400, "INVALID_TOKEN", "Invalid pagination token")
+
     db = db_factory.control_plane_db(caller)
-    items = db.scan_all(db_factory.tenants_table_name())
+    result = db.scan(
+        db_factory.tenants_table_name(),
+        limit=limit,
+        exclusive_start_key=exclusive_start_key,
+    )
+
     records = [
-        serialization.serialize_tenant(item) for item in items if item.get("SK") == "METADATA"
+        serialization.serialize_tenant(item)
+        for item in result.items
+        if item.get("SK") == "METADATA"
     ]
     if request.status_filter:
         records = [r for r in records if r.get("status") == request.status_filter]
     if request.tier_filter:
         records = [r for r in records if r.get("tier") == request.tier_filter]
 
-    return http_utils.response(200, {"items": records, "nextToken": None})
+    next_token = (
+        _encode_pagination_token(result.last_evaluated_key) if result.last_evaluated_key else None
+    )
+    return http_utils.response(200, {"items": records, "nextToken": next_token})
 
 
 def handle_update(

@@ -64,6 +64,7 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md) | v0.2 secure deployment contract: eu-west-2 runtime, VPC mode for staging/prod, no Dublin fallback |
 | [ADR-701](decisions/ADR-701-tenant-agent-inference-chargeback-and-tagging.md) | Tenant inference chargeback and tagging model |
 | [ADR-702](decisions/ADR-702-bedrock-proxy-gateway-as-additive-internal-model-gateway.md) | Bedrock proxy gateway as additive internal model gateway |
+| [ADR-703](decisions/ADR-703-platformstack-split-plan.md) | PlatformStack split plan — storage, compute, and SPA extraction into separate CDK stacks (phased, no big-bang) |
 
 ## Operator Runbooks
 

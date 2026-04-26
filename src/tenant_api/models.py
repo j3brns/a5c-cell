@@ -53,6 +53,8 @@ class TenantCreateInput:
 class TenantListInput:
     status_filter: str | None = None
     tier_filter: str | None = None
+    limit: int | None = None
+    next_token: str | None = None
 
 
 @dataclass(frozen=True)
