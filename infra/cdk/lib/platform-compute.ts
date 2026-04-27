@@ -54,11 +54,6 @@ export interface PlatformComputeResources {
   readonly dlqs: Record<string, sqs.IQueue>;
 }
 
-const APPCONFIG_EXTENSION_LAYER_ARNS: Record<string, string> = {
-  'eu-west-2':
-    'arn:aws:lambda:eu-west-2:282860088358:layer:AWS-AppConfig-Extension-Arm64:190',
-};
-
 export function resolveAppConfigExtensionLayerArn(scope: Construct): string {
   const stack = cdk.Stack.of(scope);
   const override = stack.node.tryGetContext('appConfigExtensionLayerArn');
@@ -66,14 +61,10 @@ export function resolveAppConfigExtensionLayerArn(scope: Construct): string {
     return override.trim();
   }
 
-  const arn = APPCONFIG_EXTENSION_LAYER_ARNS[stack.region];
-  if (!arn) {
-    throw new Error(
-      `No AppConfig extension layer ARN configured for region ${stack.region}. ` +
-        'Set CDK context "appConfigExtensionLayerArn" explicitly.',
-    );
-  }
-  return arn;
+  throw new Error(
+    `No AppConfig extension layer ARN configured for region ${stack.region}. ` +
+      'Set CDK context "appConfigExtensionLayerArn" explicitly.',
+  );
 }
 
 export function createPlatformCompute(

@@ -42,6 +42,7 @@ variables:
   # PLATFORM_PIPELINE_DEPLOY_DEV_ROLE_ARN
   # PLATFORM_PIPELINE_DEPLOY_STAGING_ROLE_ARN
   # PLATFORM_PIPELINE_DEPLOY_PROD_ROLE_ARN
+  # APPCONFIG_EXTENSION_LAYER_ARN
   # Legacy fallback variables are still supported in jobs:
   # AWS_ROLE_ARN_VALIDATE, AWS_ROLE_ARN_DEPLOY_DEV, AWS_ROLE_ARN_DEPLOY_STAGING, AWS_ROLE_ARN_DEPLOY_PROD
 
@@ -112,6 +113,13 @@ default:
 
 .deploy_job_base:
   extends: .aws_auth_base
+  before_script:
+    - !reference [.aws_auth_base, before_script]
+    - |
+      if [ -z "${APPCONFIG_EXTENSION_LAYER_ARN:-}" ]; then
+        echo "ERROR: APPCONFIG_EXTENSION_LAYER_ARN must be set to the current AWS AppConfig ARM64 Lambda extension layer ARN."
+        exit 1
+      fi
   allow_failure: false
   rules:
     - !reference [.main_deployable_change_rules, rules]

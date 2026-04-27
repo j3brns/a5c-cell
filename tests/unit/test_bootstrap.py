@@ -129,7 +129,14 @@ def test_parse_args_supports_first_deploy_step() -> None:
     assert args.env == "dev"
 
 
-def test_build_first_deploy_command_targets_supported_bootstrap_stacks_only() -> None:
+def test_build_first_deploy_command_targets_supported_bootstrap_stacks_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "APPCONFIG_EXTENSION_LAYER_ARN",
+        "arn:aws:lambda:eu-west-2:111122223333:layer:AWS-AppConfig-Extension-Arm64:7",
+    )
+
     command = bootstrap.build_first_deploy_command(_ctx())
 
     assert command[:3] == ["npx", "cdk", "deploy"]
@@ -142,7 +149,23 @@ def test_build_first_deploy_command_targets_supported_bootstrap_stacks_only() ->
         "platform-observability-dev",
     ]
     assert "platform-agentcore-dev" not in command
-    assert command[-4:] == ["--context", "env=dev", "--require-approval", "never"]
+    assert command[-6:] == [
+        "--context",
+        "env=dev",
+        "--context",
+        "appConfigExtensionLayerArn=arn:aws:lambda:eu-west-2:111122223333:layer:AWS-AppConfig-Extension-Arm64:7",
+        "--require-approval",
+        "never",
+    ]
+
+
+def test_build_first_deploy_command_requires_appconfig_extension_layer_arn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("APPCONFIG_EXTENSION_LAYER_ARN", raising=False)
+
+    with pytest.raises(RuntimeError, match="APPCONFIG_EXTENSION_LAYER_ARN must be set"):
+        bootstrap.build_first_deploy_command(_ctx())
 
 
 def test_validate_first_deploy_checks_home_region_bootstrap_stacks_only(

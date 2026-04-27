@@ -46,7 +46,8 @@ make infra-rollback-lambda FUNCTION=bridge ENV=prod
 If a CDK stack deployment caused the issue (infrastructure change, not Lambda code):
 ```bash
 cd infra/cdk
-npx cdk deploy --all --context env=prod --rollback
+export APPCONFIG_EXTENSION_LAYER_ARN=<aws-managed-arm64-layer-arn-for-region>
+npx cdk deploy --all --context env=prod --context appConfigExtensionLayerArn="$APPCONFIG_EXTENSION_LAYER_ARN" --rollback
 # CloudFormation will revert to the previous stack state
 # This may take 10–20 minutes
 ```

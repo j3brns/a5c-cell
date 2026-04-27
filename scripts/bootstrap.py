@@ -535,6 +535,7 @@ def bootstrap_first_deploy_stacks(ctx: BootstrapContext) -> tuple[str, ...]:
 
 def build_first_deploy_command(ctx: BootstrapContext) -> list[str]:
     """Build the explicit CDK deploy command for the supported bootstrap stacks."""
+    appconfig_extension_layer_arn = process_env_required("APPCONFIG_EXTENSION_LAYER_ARN")
     command = [
         "npx",
         "cdk",
@@ -542,6 +543,8 @@ def build_first_deploy_command(ctx: BootstrapContext) -> list[str]:
         *bootstrap_first_deploy_stacks(ctx),
         "--context",
         f"env={ctx.env}",
+        "--context",
+        f"appConfigExtensionLayerArn={appconfig_extension_layer_arn}",
         "--require-approval",
         "never",
     ]

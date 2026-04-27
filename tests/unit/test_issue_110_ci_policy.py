@@ -76,6 +76,15 @@ def test_expensive_jobs_are_gated_by_relevant_file_changes() -> None:
     assert "!reference [.main_deployable_change_rules, rules]" in deploy_base
 
 
+def test_deploy_jobs_require_appconfig_extension_layer_arn() -> None:
+    content = CI_FILE.read_text(encoding="utf-8")
+
+    assert "# APPCONFIG_EXTENSION_LAYER_ARN" in content
+    deploy_base = _job_block(".deploy_job_base", content)
+    assert "APPCONFIG_EXTENSION_LAYER_ARN" in deploy_base
+    assert "AWS AppConfig ARM64 Lambda extension layer ARN" in deploy_base
+
+
 def test_deployable_changes_exclude_docs_only_pipeline_noise() -> None:
     content = CI_FILE.read_text(encoding="utf-8")
     deployable_rules = _job_block(".deployable_change_rules", content)

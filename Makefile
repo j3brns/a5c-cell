@@ -313,7 +313,8 @@ validate-cdk-synth-prereqs:
 
 ## validate-cdk-synth: CDK synth only
 validate-cdk-synth: validate-cdk-synth-prereqs
-	cd infra/cdk && npx --no-install cdk synth --context env=dev --context entraTenantId=00000000-0000-0000-0000-000000000000 --quiet > /dev/null
+	@test -n "$$APPCONFIG_EXTENSION_LAYER_ARN" || (echo "ERROR: APPCONFIG_EXTENSION_LAYER_ARN must be set to the current AWS AppConfig ARM64 Lambda extension layer ARN" && exit 1)
+	cd infra/cdk && npx --no-install cdk synth --context env=dev --context entraTenantId=00000000-0000-0000-0000-000000000000 --context appConfigExtensionLayerArn="$$APPCONFIG_EXTENSION_LAYER_ARN" --quiet > /dev/null
 
 ## validate-cfn-guard: Run cfn-guard against synthesised templates
 validate-cfn-guard:
@@ -460,16 +461,19 @@ worktree-clean:
 
 ## infra-synth: Synthesise all CDK stacks (validation only)
 infra-synth:
-	cd infra/cdk && npx cdk synth --context env=$(ENV)
+	@test -n "$$APPCONFIG_EXTENSION_LAYER_ARN" || (echo "ERROR: APPCONFIG_EXTENSION_LAYER_ARN must be set to the current AWS AppConfig ARM64 Lambda extension layer ARN" && exit 1)
+	cd infra/cdk && npx cdk synth --context env=$(ENV) --context appConfigExtensionLayerArn="$$APPCONFIG_EXTENSION_LAYER_ARN"
 
 ## infra-diff: Show CDK diff before deployment
 infra-diff:
-	cd infra/cdk && npx cdk diff --context env=$(ENV)
+	@test -n "$$APPCONFIG_EXTENSION_LAYER_ARN" || (echo "ERROR: APPCONFIG_EXTENSION_LAYER_ARN must be set to the current AWS AppConfig ARM64 Lambda extension layer ARN" && exit 1)
+	cd infra/cdk && npx cdk diff --context env=$(ENV) --context appConfigExtensionLayerArn="$$APPCONFIG_EXTENSION_LAYER_ARN"
 
 ## infra-deploy: Deploy all CDK stacks to an environment
 infra-deploy:
 	@test "$(ENV)" != "prod" || (echo "ERROR: Use GitLab pipeline for prod deploys" && exit 1)
-	cd infra/cdk && npx cdk deploy --all --context env=$(ENV) --require-approval never
+	@test -n "$$APPCONFIG_EXTENSION_LAYER_ARN" || (echo "ERROR: APPCONFIG_EXTENSION_LAYER_ARN must be set to the current AWS AppConfig ARM64 Lambda extension layer ARN" && exit 1)
+	cd infra/cdk && npx cdk deploy --all --context env=$(ENV) --context appConfigExtensionLayerArn="$$APPCONFIG_EXTENSION_LAYER_ARN" --require-approval never
 
 ## infra-deploy-prod-ci: Deploy CDK stacks to prod from CI only
 ## Usage: make infra-deploy-prod-ci
@@ -478,17 +482,19 @@ infra-deploy-prod-ci:
 	@test "$$GITLAB_CI" = "true" || (echo "ERROR: infra-deploy-prod-ci requires GitLab CI context" && exit 1)
 	@test -n "$$AWS_REGION" || (echo "ERROR: AWS_REGION must be set" && exit 1)
 	@test -n "$$AWS_ROLE_ARN" || (echo "ERROR: AWS_ROLE_ARN must be set" && exit 1)
+	@test -n "$$APPCONFIG_EXTENSION_LAYER_ARN" || (echo "ERROR: APPCONFIG_EXTENSION_LAYER_ARN must be set to the current AWS AppConfig ARM64 Lambda extension layer ARN" && exit 1)
 	@prod_role="$$PLATFORM_PIPELINE_DEPLOY_PROD_ROLE_ARN"; \
 		if [ -z "$$prod_role" ]; then prod_role="$$AWS_ROLE_ARN_DEPLOY_PROD"; fi; \
 		test -n "$$prod_role" || (echo "ERROR: PLATFORM_PIPELINE_DEPLOY_PROD_ROLE_ARN (preferred) or AWS_ROLE_ARN_DEPLOY_PROD must be set" && exit 1); \
 		test "$$AWS_ROLE_ARN" = "$$prod_role" || (echo "ERROR: AWS_ROLE_ARN must match the effective prod deploy role ARN" && exit 1)
-	cd infra/cdk && npx cdk deploy --all --context env=prod --require-approval never
+	cd infra/cdk && npx cdk deploy --all --context env=prod --context appConfigExtensionLayerArn="$$APPCONFIG_EXTENSION_LAYER_ARN" --require-approval never
 
 ## infra-destroy: Destroy all CDK stacks (dev only)
 infra-destroy:
 	@test "$(ENV)" = "dev" || (echo "ERROR: infra-destroy only permitted in dev" && exit 1)
+	@test -n "$$APPCONFIG_EXTENSION_LAYER_ARN" || (echo "ERROR: APPCONFIG_EXTENSION_LAYER_ARN must be set to the current AWS AppConfig ARM64 Lambda extension layer ARN" && exit 1)
 	@read -p "Type 'destroy-dev' to confirm: " confirm && [ "$$confirm" = "destroy-dev" ]
-	cd infra/cdk && npx cdk destroy --all --context env=$(ENV)
+	cd infra/cdk && npx cdk destroy --all --context env=$(ENV) --context appConfigExtensionLayerArn="$$APPCONFIG_EXTENSION_LAYER_ARN"
 
 ## infra-rollback-lambda: Roll back a Lambda to previous alias version via Admin API
 ## Usage: make infra-rollback-lambda FUNCTION=bridge ENV=prod

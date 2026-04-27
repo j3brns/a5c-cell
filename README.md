@@ -283,6 +283,7 @@ make bootstrap                # One-time: check prerequisites and install depend
 make install-git-hooks        # One-time: install pre-push hook
 make dev                      # Start LocalStack and mock services
 make test-unit                # Run all unit tests
+export APPCONFIG_EXTENSION_LAYER_ARN=<aws-managed-arm64-layer-arn-for-region>
 make validate-local           # ruff + pyright + tsc + cdk synth + detect-secrets
 ```
 
