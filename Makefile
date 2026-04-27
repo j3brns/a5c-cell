@@ -31,6 +31,7 @@
 .PHONY: issues-audit issues-reconcile issue-repair-stale-locks agent-handoff install-git-hooks hooks-status gitnexus-refresh
 
 ENV ?= dev
+WT_PATH_ARG = $(if $(filter command line,$(origin WT_PATH)),--path "$(WT_PATH)",)
 
 # Default target
 all: help
@@ -953,7 +954,7 @@ worktree-create-issue:
 ## OPEN_SHELL=1 opens a plain shell only. Agent launch is explicit via AGENT=... or make agent-handoff.
 worktree-resume-issue:
 	uv run python -m scripts.issue_tool worktree-resume \
-		$(if $(WT_PATH),--path "$(WT_PATH)",) \
+		$(WT_PATH_ARG) \
 		$(if $(NO_PREFLIGHT),--no-preflight,) \
 		$(if $(CMD),--command "$(CMD)",) \
 		$(if $(OPEN_SHELL),--open-shell,) \
@@ -974,13 +975,13 @@ preflight-session:
 ## Usage: make pre-validate-session [WT_PATH=../worktrees/wt23]
 pre-validate-session:
 	uv run python -m scripts.issue_tool pre-validate \
-		$(if $(WT_PATH),--path "$(WT_PATH)",)
+		$(WT_PATH_ARG)
 
 ## worktree-push-issue: Push current issue worktree branch (preflight + pre-validate enforced)
 ## Usage: make worktree-push-issue [WT_PATH=../worktrees/wt23] [DRY_RUN=1]
 worktree-push-issue:
 	uv run python -m scripts.issue_tool push-branch \
-		$(if $(WT_PATH),--path "$(WT_PATH)",) \
+		$(WT_PATH_ARG) \
 		$(if $(DRY_RUN),--dry-run,)
 
 ## dev-status: Show joined issue/worktree/agent launch status
@@ -1003,20 +1004,20 @@ issue-status:
 ## Usage: make finish-worktree-summary [WT_PATH=../worktrees/wt23]
 finish-worktree-summary:
 	uv run python -m scripts.issue_tool finish-summary \
-		$(if $(WT_PATH),--path "$(WT_PATH)",)
+		$(WT_PATH_ARG)
 
 ## finish-worktree-close: Close the current worktree issue after merge verification
 ## Usage: make finish-worktree-close [WT_PATH=../worktrees/wt23] [FORCE=1]
 finish-worktree-close:
 	uv run python -m scripts.issue_tool finish-close \
-		$(if $(WT_PATH),--path "$(WT_PATH)",) \
+		$(WT_PATH_ARG) \
 		$(if $(FORCE),--force,)
 
 ## finish-worktree-close-json: Close the current worktree issue and print the closeout report JSON
 ## Usage: make finish-worktree-close-json [WT_PATH=../worktrees/wt23] [FORCE=1]
 finish-worktree-close-json:
 	uv run python -m scripts.issue_tool finish-close \
-		$(if $(WT_PATH),--path "$(WT_PATH)",) \
+		$(WT_PATH_ARG) \
 		$(if $(FORCE),--force,) \
 		--json
 
@@ -1024,7 +1025,7 @@ finish-worktree-close-json:
 ## Usage: make agent-handoff [AGENT=codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo] [HANDOFF=execute-now|print-only]
 agent-handoff:
 	uv run python -m scripts.issue_tool agent-handoff \
-		$(if $(WT_PATH),--path "$(WT_PATH)",) \
+		$(WT_PATH_ARG) \
 		$(if $(AGENT),--agent "$(AGENT)",) \
 		$(if $(AGENT),, --agent "codex") \
 		$(if $(AGENT_MODE),--agent-mode "$(AGENT_MODE)",) \
