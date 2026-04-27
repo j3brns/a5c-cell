@@ -105,7 +105,8 @@ Runtime VPC checks.
 
 **Success criteria**:
 - All stacks deploy cleanly to dev account
-- No wildcard IAM policies (cfn-guard enforces this)
+- No wildcard IAM actions; wildcard IAM resources are limited to the checked-in
+  AWS-required exception register and enforced by cfn-guard
 - TenantStack deploys correctly for two test tenants
 - Operator can suspend a tenant and reinstate it using make targets only
 

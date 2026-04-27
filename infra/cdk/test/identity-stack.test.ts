@@ -104,4 +104,29 @@ describe('IdentityStack', () => {
     template.resourceCountIs('AWS::KMS::Key', 0);
     template.resourceCountIs('AWS::KMS::Alias', 0);
   });
+
+  test('limits wildcard-resource IAM actions to the OIDC provider custom resource', () => {
+    const roles = template.findResources('AWS::IAM::Role') as Record<
+      string,
+      { Properties?: { Policies?: Array<{ PolicyDocument?: { Statement?: Array<Record<string, unknown>> } }> } }
+    >;
+    const wildcardStatements = Object.values(roles).flatMap((role) =>
+      (role.Properties?.Policies ?? []).flatMap(
+        (policy) => policy.PolicyDocument?.Statement?.filter((statement) => statement.Resource === '*') ?? [],
+      ),
+    );
+
+    expect(wildcardStatements).toEqual([
+      expect.objectContaining({
+        Action: [
+          'iam:CreateOpenIDConnectProvider',
+          'iam:DeleteOpenIDConnectProvider',
+          'iam:UpdateOpenIDConnectProviderThumbprint',
+          'iam:AddClientIDToOpenIDConnectProvider',
+          'iam:RemoveClientIDFromOpenIDConnectProvider',
+        ],
+        Resource: '*',
+      }),
+    ]);
+  });
 });

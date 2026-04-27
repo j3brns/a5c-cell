@@ -1022,6 +1022,9 @@ describe('PlatformStack (TASK-023)', () => {
         StringEquals: {
           'aws:RequestTag/TenantManaged': 'true',
         },
+        'ForAnyValue:StringEquals': {
+          'aws:TagKeys': 'TenantManaged',
+        },
       },
     });
     expect(manageMemory).toMatchObject({
@@ -1043,6 +1046,50 @@ describe('PlatformStack (TASK-023)', () => {
         },
       },
     });
+  });
+
+  test('keeps wildcard-resource IAM statements in the approved exception set', () => {
+    const wildcardStatements = getIamPolicyStatements(template).filter((statement) => statement.Resource === '*');
+
+    expect(wildcardStatements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Action: 'servicequotas:ListServiceQuotas',
+          Resource: '*',
+        }),
+        expect.objectContaining({
+          Action: 'cloudwatch:GetMetricStatistics',
+          Resource: '*',
+        }),
+        expect.objectContaining({
+          Action: 'bedrock-agentcore:CreateMemory',
+          Resource: '*',
+          Condition: {
+            StringEquals: {
+              'aws:RequestTag/TenantManaged': 'true',
+            },
+            'ForAnyValue:StringEquals': {
+              'aws:TagKeys': 'TenantManaged',
+            },
+          },
+        }),
+      ]),
+    );
+
+    const approvedActions = new Set([
+      'bedrock-agentcore:CreateMemory',
+      'cloudwatch:GetMetricStatistics',
+      'cloudwatch:PutMetricData',
+      'servicequotas:ListServiceQuotas',
+      'xray:PutTelemetryRecords',
+      'xray:PutTraceSegments',
+    ]);
+    for (const statement of wildcardStatements) {
+      const actions = Array.isArray(statement.Action) ? statement.Action : [statement.Action];
+      for (const action of actions) {
+        expect(approvedActions.has(String(action))).toBe(true);
+      }
+    }
   });
 
   test('provisions SPA resources: S3 bucket, CloudFront distribution, and identifiers', () => {

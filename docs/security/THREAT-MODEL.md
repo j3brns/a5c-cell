@@ -107,7 +107,7 @@ same-account boundary
 | HTTPS everywhere               | 8                            | CloudFront, API GW, VPC   |
 | detect-secrets in CI           | 6, 7                         | GitLab CI validate stage  |
 | Two-reviewer prod approval     | 7                            | GitLab protected env + CI API audit |
-| cfn-guard IaC policy           | 7                            | GitLab CI validate stage  |
+| cfn-guard IaC policy           | 7                            | GitLab CI validate stage; see [IAM wildcard resource exceptions](IAM-WILDCARD-RESOURCE-EXCEPTIONS.md) |
 | CloudTrail + VPC Flow Logs     | 10                           | ObservabilityStack        |
 | PII redaction (RESPONSE)       | 9                            | RESPONSE interceptor      |
 | Explicit runtime posture gate  | 8a                           | ADR-023 contract, AgentCoreStack, cfn-guard, CDK tests |

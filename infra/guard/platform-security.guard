@@ -91,10 +91,6 @@ rule check_resource_wildcard(res, act, cond) {
         "cloudwatch:GetMetricStatistics",
         "servicequotas:ListServiceQuotas",
         "bedrock-agentcore:CreateMemory",
-        "bedrock-agentcore:UpdateMemory",
-        "bedrock-agentcore:DeleteMemory",
-        "bedrock-agentcore:GetMemory",
-        "bedrock-agentcore:TagResource",
         "xray:PutTraceSegments",
         "xray:PutTelemetryRecords",
         "iam:CreateOpenIDConnectProvider",
@@ -110,14 +106,22 @@ rule check_resource_wildcard(res, act, cond) {
             when %act is_string {
                 %act in %exempted_actions
                 when %act == "cloudwatch:PutMetricData" {
-                    %cond.StringEquals."cloudwatch:namespace" exists
+                    %cond.StringEquals."cloudwatch:namespace" in ["Platform/Bridge", "Platform/Billing"]
+                }
+                when %act == "bedrock-agentcore:CreateMemory" {
+                    %cond.StringEquals."aws:RequestTag/TenantManaged" == "true"
+                    %cond."ForAnyValue:StringEquals"."aws:TagKeys" == "TenantManaged"
                 }
             }
             when %act is_list {
                 %act[*] {
                     this in %exempted_actions
                     when this == "cloudwatch:PutMetricData" {
-                        %cond.StringEquals."cloudwatch:namespace" exists
+                        %cond.StringEquals."cloudwatch:namespace" in ["Platform/Bridge", "Platform/Billing"]
+                    }
+                    when this == "bedrock-agentcore:CreateMemory" {
+                        %cond.StringEquals."aws:RequestTag/TenantManaged" == "true"
+                        %cond."ForAnyValue:StringEquals"."aws:TagKeys" == "TenantManaged"
                     }
                 }
             }
@@ -131,14 +135,22 @@ rule check_resource_wildcard(res, act, cond) {
                     when %act is_string {
                         %act in %exempted_actions
                         when %act == "cloudwatch:PutMetricData" {
-                            %cond.StringEquals."cloudwatch:namespace" exists
+                            %cond.StringEquals."cloudwatch:namespace" in ["Platform/Bridge", "Platform/Billing"]
+                        }
+                        when %act == "bedrock-agentcore:CreateMemory" {
+                            %cond.StringEquals."aws:RequestTag/TenantManaged" == "true"
+                            %cond."ForAnyValue:StringEquals"."aws:TagKeys" == "TenantManaged"
                         }
                     }
                     when %act is_list {
                         %act[*] {
                             this in %exempted_actions
                             when this == "cloudwatch:PutMetricData" {
-                                %cond.StringEquals."cloudwatch:namespace" exists
+                                %cond.StringEquals."cloudwatch:namespace" in ["Platform/Bridge", "Platform/Billing"]
+                            }
+                            when this == "bedrock-agentcore:CreateMemory" {
+                                %cond.StringEquals."aws:RequestTag/TenantManaged" == "true"
+                                %cond."ForAnyValue:StringEquals"."aws:TagKeys" == "TenantManaged"
                             }
                         }
                     }
