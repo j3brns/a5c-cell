@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { resolveAppConfigExtensionLayerArn } from '../lib/platform-compute';
 
 describe('platform compute AppConfig extension layer resolution', () => {
-  test('uses the explicit ARM64 layer ARN map for eu-west-2 by default', () => {
+  test('fails clearly when the AppConfig extension layer ARN context is missing', () => {
     const app = new cdk.App();
     const stack = new cdk.Stack(app, 'PlatformComputeLayerArnTest', {
       env: {
@@ -11,8 +11,26 @@ describe('platform compute AppConfig extension layer resolution', () => {
       },
     });
 
-    expect(resolveAppConfigExtensionLayerArn(stack)).toBe(
-      'arn:aws:lambda:eu-west-2:282860088358:layer:AWS-AppConfig-Extension-Arm64:190',
+    expect(() => resolveAppConfigExtensionLayerArn(stack)).toThrow(
+      'No AppConfig extension layer ARN configured for region eu-west-2. Set CDK context "appConfigExtensionLayerArn" explicitly.',
+    );
+  });
+
+  test('fails clearly when the AppConfig extension layer ARN context is blank', () => {
+    const app = new cdk.App({
+      context: {
+        appConfigExtensionLayerArn: '   ',
+      },
+    });
+    const stack = new cdk.Stack(app, 'PlatformComputeLayerArnBlankTest', {
+      env: {
+        account: '123456789012',
+        region: 'eu-west-2',
+      },
+    });
+
+    expect(() => resolveAppConfigExtensionLayerArn(stack)).toThrow(
+      'No AppConfig extension layer ARN configured for region eu-west-2. Set CDK context "appConfigExtensionLayerArn" explicitly.',
     );
   });
 

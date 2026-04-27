@@ -422,6 +422,14 @@ to cache all policy and runtime configuration locally. This eliminates the high-
 round-trip to SSM/AppConfig APIs on the hot path, bringing configuration access down to **sub-millisecond**
 latency.
 
+The extension layer ARN is an explicit deployment input, supplied through the
+`appConfigExtensionLayerArn` CDK context value. Repository Make targets pass this
+from `APPCONFIG_EXTENSION_LAYER_ARN`. The CDK app fails synthesis when that value
+is absent or blank; it does not carry a built-in AWS account-specific layer ARN.
+Operators should use the current AWS-managed ARM64 AppConfig Lambda Extension
+layer ARN for the target region, from the AWS AppConfig extension version table:
+`https://docs.aws.amazon.com/appconfig/latest/userguide/appconfig-integration-lambda-extensions-versions.html`.
+
 Control-plane Lambdas evaluate configuration with deny-by-default fallback semantics: use the last known
 good AppConfig document when available, otherwise fall back to an empty policy (for capabilities) or
 the ADR-approved regional default (for runtime settings). Kill switches override all rollout rules.

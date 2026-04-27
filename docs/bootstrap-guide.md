@@ -56,6 +56,7 @@ GitLab → Project → Settings → CI/CD → Variables:
 - PLATFORM_PIPELINE_DEPLOY_DEV_ROLE_ARN
 - PLATFORM_PIPELINE_DEPLOY_STAGING_ROLE_ARN
 - PLATFORM_PIPELINE_DEPLOY_PROD_ROLE_ARN
+- APPCONFIG_EXTENSION_LAYER_ARN
 
 Legacy variable names are still accepted temporarily for compatibility:
 - AWS_ROLE_ARN_VALIDATE
@@ -72,7 +73,9 @@ Ordered steps with validation at each:
 3. **Seed secrets** — writes Entra credentials and platform private key to Secrets Manager
 4. **OIDC wiring** — creates GitLab OIDC provider and pipeline roles, prints ARNs
 5. **First CDK deploy** — deploys the 5 bootstrap-supported home-region stacks from the
-   local machine (not pipeline)
+   local machine (not pipeline). Set `APPCONFIG_EXTENSION_LAYER_ARN` to the
+   current AWS-managed ARM64 AppConfig Lambda Extension layer ARN for the target
+   region before this step.
 6. **Post-deploy seeding** — creates first admin, seeds SSM, registers echo-agent
 7. **Smoke test** — validates deployed stacks and seeded records, then optionally invokes echo-agent
 8. **Delete bootstrap user** — removes temporary IAM user (MANDATORY)
@@ -124,11 +127,15 @@ export BOOTSTRAP_ACCOUNT_ID=<target-account-id>
 export PLATFORM_HOME_REGION=eu-west-2
 export AWS_REGION=$PLATFORM_HOME_REGION
 uv run python scripts/bootstrap.py --step seed-secrets --env dev
+
+export APPCONFIG_EXTENSION_LAYER_ARN=<aws-managed-arm64-layer-arn-for-region>
+uv run python scripts/bootstrap.py --step first-deploy --env dev
 ```
 
 ## Destroying an Environment
 
 ```bash
+export APPCONFIG_EXTENSION_LAYER_ARN=<aws-managed-arm64-layer-arn-for-region>
 make infra-destroy ENV=dev
 # Destroys all CDK stacks
 # WARNING: destroys all data including DynamoDB tables and S3 buckets

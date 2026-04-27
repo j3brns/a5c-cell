@@ -57,6 +57,7 @@ make bootstrap-gitlab-oidc ENV=dev
 
 ### Step 4: First CDK Deploy (local, not pipeline)
 ```bash
+export APPCONFIG_EXTENSION_LAYER_ARN=<aws-managed-arm64-layer-arn-for-region>
 make infra-deploy ENV=dev
 # Runs cdk deploy for the bootstrap-supported home-region stacks only:
 #   platform-network-{env}
