@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-import boto3
+from aws_lambda_powertools import Logger
 from botocore.exceptions import (
     ClientError,
     ConnectTimeoutError,
@@ -44,6 +43,7 @@ from src.platform_utils import coerce_optional_string as _coerce_optional_string
 _DEFAULT_GET_HTTP_SESSION = get_http_session
 _DEFAULT_GET_CLOUDWATCH = get_cloudwatch
 _DEFAULT_GET_CONFIG = get_config
+logger = Logger(service="bridge-route-adapter")
 
 
 def _handler_dependency(name: str, fallback: Any) -> Any:
@@ -438,13 +438,24 @@ def bootstrap_agent_session(
         "created_at": datetime.now(UTC).isoformat(),
     }
     try:
-        dynamodb_resource = boto3.resource("dynamodb", region_name=os.environ["AWS_REGION"])
-        ControlPlaneDynamoDB(
-            get_platform_context(),
-            dynamodb_resource=dynamodb_resource,
-        ).put_item(SESSIONS_TABLE, session_item)
+        ControlPlaneDynamoDB(get_platform_context()).put_item(SESSIONS_TABLE, session_item)
     except Exception:
-        pass
+        logger.exception(
+            "Failed to persist AG-UI bootstrap session",
+            extra={
+                "tenantid": tenant_context.tenant_id,
+                "appid": tenant_context.app_id,
+                "agent_name": agent.agent_name,
+                "session_id": session_id,
+                "runtime_session_id": runtime_session_id,
+            },
+        )
+        return error_response(
+            500,
+            "INTERNAL_ERROR",
+            "Failed to persist AG-UI bootstrap session",
+            request_id,
+        )
 
     scope = f"{ENTRA_AUDIENCE}/{AG_UI_SCOPE_NAME}" if ENTRA_AUDIENCE else AG_UI_SCOPE_NAME
     return {

@@ -478,6 +478,66 @@ def test_agent_bootstrap_returns_connection_contract_and_persists_session(
     assert session["bootstrap_type"] == "ag_ui"
 
 
+def test_agent_bootstrap_fails_closed_when_session_persistence_fails(
+    setup_data, mock_capabilities, monkeypatch
+):
+    ddb = boto3.resource("dynamodb", region_name="eu-west-2")
+    table = ddb.Table("platform-agents")
+    table.put_item(
+        Item={
+            "PK": "AGENT#echo-agent",
+            "SK": "VERSION#1.3.0",
+            "agent_name": "echo-agent",
+            "version": "1.3.0",
+            "owner_team": "platform-test",
+            "tier_minimum": "basic",
+            "layer_hash": "5555",
+            "layer_s3_key": "k6",
+            "script_s3_key": "s6",
+            "deployed_at": "2026-01-06T00:00:00Z",
+            "invocation_mode": "sync",
+            "streaming_enabled": False,
+            "status": "promoted",
+            "ag_ui_enabled": True,
+            "ag_ui_transport": "sse",
+            "ag_ui_endpoint": "https://ag-ui.example.com/connect",
+        }
+    )
+    put_item = MagicMock(side_effect=RuntimeError("dynamodb unavailable"))
+    logger_exception = MagicMock()
+    monkeypatch.setattr("src.bridge.route_adapter.ControlPlaneDynamoDB.put_item", put_item)
+    monkeypatch.setattr("src.bridge.route_adapter.logger.exception", logger_exception)
+
+    event = {
+        "httpMethod": "POST",
+        "path": "/v1/agents/echo-agent/bootstrap",
+        "pathParameters": {"agentName": "echo-agent"},
+        "requestContext": {
+            "authorizer": {
+                "tenantid": "t-001",
+                "appid": "app-001",
+                "tier": "basic",
+                "sub": "user-1",
+            }
+        },
+        "body": json.dumps({}),
+    }
+
+    response = handler(event, FakeLambdaContext())
+
+    assert response["statusCode"] == 500
+    body = json.loads(response["body"])
+    assert body["error"]["code"] == "INTERNAL_ERROR"
+    assert body["error"]["message"] == "Failed to persist AG-UI bootstrap session"
+    put_item.assert_called_once()
+    logger_exception.assert_called_once()
+    assert logger_exception.call_args.kwargs["extra"]["tenantid"] == "t-001"
+    assert logger_exception.call_args.kwargs["extra"]["appid"] == "app-001"
+    assert logger_exception.call_args.kwargs["extra"]["agent_name"] == "echo-agent"
+    assert logger_exception.call_args.kwargs["extra"]["session_id"]
+    assert logger_exception.call_args.kwargs["extra"]["runtime_session_id"]
+
+
 def test_list_agents_ignores_built_version_when_newer_semver_exists(setup_data):
     ddb = boto3.resource("dynamodb", region_name="eu-west-2")
     table = ddb.Table("platform-agents")
