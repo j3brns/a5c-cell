@@ -186,6 +186,8 @@ be weakened or bypassed.
 - `data-access-lib` remains the only permitted DynamoDB interface in handlers
 - no wildcard IAM permissions introduced for platform-agent flows
 - platform-agent routes require explicit platform RBAC
+- platform diagnostics tools must fail closed unless a Gateway-issued scoped token
+  validates the `platform` tenant and requested tool scope
 - tests must prove platform-agent flows cannot bypass tenant isolation
 
 ### Explicitly Disallowed Platform-Agent Behaviors

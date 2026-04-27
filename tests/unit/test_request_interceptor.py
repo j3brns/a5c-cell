@@ -182,6 +182,81 @@ def test_request_interceptor_issues_scoped_token_and_headers(
 
 
 @patch("gateway.interceptors.request_interceptor.get_jwk_client")
+@patch("gateway.interceptors.request_interceptor.get_tool_record")
+def test_request_interceptor_rewrites_platform_diagnostics_context_for_platform_role(
+    mock_get_tool_record, mock_get_jwk_client, mock_env, lambda_context
+):
+    event = _base_event()
+    event["mcp"]["gatewayRequest"]["body"]["params"]["name"] = "get_platform_health"
+    payload = {
+        **_valid_payload(),
+        "roles": ["Platform.Operator"],
+    }
+    mock_get_tool_record.return_value = {
+        "tool_name": "get_platform_health",
+        "tier_minimum": "basic",
+        "enabled": True,
+    }
+    mock_get_jwk_client.return_value = MagicMock(
+        get_signing_key_from_jwt=MagicMock(return_value=MagicMock(key="pub-key"))
+    )
+
+    with patch("jwt.decode", return_value=payload):
+        result = request_interceptor.handler(event, lambda_context)
+
+    transformed = result["mcp"]["transformedGatewayRequest"]
+    headers = transformed["headers"]
+    assert headers["x-tenant-id"] == "platform"
+    mock_get_tool_record.assert_called_once_with("get_platform_health", "platform")
+
+    scoped_token = headers["Authorization"].split(" ", 1)[1]
+    scoped_claims = jwt.decode(
+        scoped_token,
+        OS_ENV["SCOPED_TOKEN_SIGNING_KEY"],
+        algorithms=["HS256"],
+        options={"verify_aud": False},
+    )
+    assert scoped_claims["tenantid"] == "platform"
+    assert scoped_claims["scope_tool"] == "get_platform_health"
+    assert scoped_claims["aud"] == "tool:get_platform_health"
+
+
+@patch("gateway.interceptors.request_interceptor.get_jwk_client")
+@patch("gateway.interceptors.request_interceptor.get_tool_record")
+def test_request_interceptor_does_not_rewrite_platform_diagnostics_without_platform_role(
+    mock_get_tool_record, mock_get_jwk_client, mock_env, lambda_context
+):
+    event = _base_event()
+    event["mcp"]["gatewayRequest"]["body"]["params"]["name"] = "get_platform_health"
+    payload = _valid_payload()
+    mock_get_tool_record.return_value = {
+        "tool_name": "get_platform_health",
+        "tier_minimum": "basic",
+        "enabled": True,
+    }
+    mock_get_jwk_client.return_value = MagicMock(
+        get_signing_key_from_jwt=MagicMock(return_value=MagicMock(key="pub-key"))
+    )
+
+    with patch("jwt.decode", return_value=payload):
+        result = request_interceptor.handler(event, lambda_context)
+
+    transformed = result["mcp"]["transformedGatewayRequest"]
+    headers = transformed["headers"]
+    assert headers["x-tenant-id"] == "t-basic-001"
+    mock_get_tool_record.assert_called_once_with("get_platform_health", "t-basic-001")
+
+    scoped_token = headers["Authorization"].split(" ", 1)[1]
+    scoped_claims = jwt.decode(
+        scoped_token,
+        OS_ENV["SCOPED_TOKEN_SIGNING_KEY"],
+        algorithms=["HS256"],
+        options={"verify_aud": False},
+    )
+    assert scoped_claims["tenantid"] == "t-basic-001"
+
+
+@patch("gateway.interceptors.request_interceptor.get_jwk_client")
 def test_request_interceptor_rejects_invalid_jwt(mock_get_jwk_client, mock_env, lambda_context):
     event = _base_event()
     mock_get_jwk_client.return_value = MagicMock(
