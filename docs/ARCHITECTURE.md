@@ -625,7 +625,11 @@ inside the control plane. It does not create a new privileged data path.
 
 Allowed action classes:
 - **Read-only platform diagnostics and runbook guidance** on platform-owned control-plane
-  state and authoritative operational signals
+  state and authoritative operational signals. Diagnostics tool Lambdas must require
+  a validated Gateway scoped token; raw request headers such as `x-tenant-id:
+  platform` are not an authorization source. The Gateway request interceptor mints
+  platform-diagnostics scoped tokens with the effective `platform` tenant only for
+  callers carrying platform operator/admin roles.
 - **Release-governance assistance** through the existing agent registry lifecycle,
   including register, approve, promote, and rollback actions that already belong to
   the control plane

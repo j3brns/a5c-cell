@@ -2,6 +2,41 @@ from __future__ import annotations
 
 from typing import Any
 
+PLATFORM_DIAGNOSTICS_TOOLS = frozenset(
+    {
+        "get_platform_health",
+        "get_tenant_status",
+        "get_recent_errors",
+        "get_runbook_guidance",
+    }
+)
+PLATFORM_DIAGNOSTICS_ROLES = frozenset({"Platform.Admin", "Platform.Operator"})
+
+
+def _roles_from_payload(payload: dict[str, Any]) -> set[str]:
+    roles = payload.get("roles", [])
+    if isinstance(roles, str):
+        return {roles}
+    if isinstance(roles, list):
+        return {str(role) for role in roles}
+    return set()
+
+
+def _extract_tool_name(method: str, body: dict[str, Any]) -> str | None:
+    if method != "tools/call":
+        return None
+    params = body.get("params", {})
+    if not isinstance(params, dict):
+        return None
+    name = params.get("name") or params.get("toolName")
+    return str(name) if name else None
+
+
+def _effective_tenant_id(*, tenant_id: str, tool_name: str | None, roles: set[str]) -> str:
+    if tool_name in PLATFORM_DIAGNOSTICS_TOOLS and roles.intersection(PLATFORM_DIAGNOSTICS_ROLES):
+        return "platform"
+    return tenant_id
+
 
 def process_request(
     event: dict[str, Any],
@@ -74,6 +109,7 @@ def process_request(
     app_id = str(payload.get("appid") or "")
     tier = str(payload.get("tier") or "basic")
     acting_sub = str(payload.get("sub") or "unknown")
+    roles = _roles_from_payload(payload)
     if not tenant_id or not app_id:
         return error_response(
             gateway_request=gateway_request,
@@ -82,8 +118,10 @@ def process_request(
             code=-32001,
             message="Missing tenant context in token",
         )
-    logger.append_keys(tenant_id=tenant_id, app_id=app_id)
     method = str(request_body.get("method") or "")
+    tool_name = _extract_tool_name(method, request_body)
+    tenant_id = _effective_tenant_id(tenant_id=tenant_id, tool_name=tool_name, roles=roles)
+    logger.append_keys(tenant_id=tenant_id, app_id=app_id)
     tool_name, tool_error = validate_tool_access(
         method=method,
         request_body=request_body,

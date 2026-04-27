@@ -16,14 +16,17 @@ Implemented in ISSUE-389.
 from __future__ import annotations
 
 import os
+import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, TypedDict
 
+import jwt
 from aws_lambda_powertools import Logger
 from boto3.dynamodb.conditions import Key
 from data_access import ControlPlaneDynamoDB, TenantContext, TenantTier
 
 from platform_config.runtime_topology import SERVING_RUNTIME_REGION
+from src.platform_aws import boto3_client
 
 logger = Logger(service="platform-diagnostics-tool")
 
@@ -33,11 +36,27 @@ logger = Logger(service="platform-diagnostics-tool")
 TENANTS_TABLE = os.environ.get("TENANTS_TABLE_NAME", "platform-tenants")
 INVOCATIONS_TABLE = os.environ.get("INVOCATIONS_TABLE_NAME", "platform-invocations")
 RUNTIME_REGION_PARAM = os.environ.get("RUNTIME_REGION_PARAM", "/platform/config/runtime-region")
+SCOPED_TOKEN_ISSUER = os.environ.get("SCOPED_TOKEN_ISSUER", "platform-gateway")
+SCOPED_TOKEN_SIGNING_KEY_SECRET_ARN = (
+    "SCOPED_TOKEN_SIGNING_KEY_SECRET_ARN"  # pragma: allowlist secret
+)
+SCOPED_TOKEN_SIGNING_KEY_ENV = "SCOPED_TOKEN_SIGNING_KEY"  # pragma: allowlist secret
+
+_scoped_token_signing_key_cache: str | None = None
+_scoped_token_signing_key_expiry: float = 0
 
 # ---------------------------------------------------------------------------
 # Runbook Data (Embedded for tool access)
 # ---------------------------------------------------------------------------
-RUNBOOKS = {
+
+
+class Runbook(TypedDict):
+    title: str
+    trigger: str
+    steps: list[str]
+
+
+RUNBOOKS: dict[str, Runbook] = {
     "RUNBOOK-001": {
         "title": "Runtime Region Degradation",
         "trigger": (
@@ -98,6 +117,108 @@ RUNBOOKS = {
 # ---------------------------------------------------------------------------
 # Tool Implementations
 # ---------------------------------------------------------------------------
+
+
+def _header_value(headers: Any, name: str) -> str | None:
+    if not isinstance(headers, dict):
+        return None
+    for key, value in headers.items():
+        if key.lower() == name.lower() and value is not None:
+            return str(value)
+    return None
+
+
+def _bearer_token(headers: Any) -> str | None:
+    auth_header = _header_value(headers, "Authorization")
+    if not auth_header:
+        return None
+    prefix = "Bearer "
+    if not auth_header.startswith(prefix):
+        return None
+    token = auth_header[len(prefix) :].strip()
+    return token or None
+
+
+def _get_scoped_token_signing_key() -> str | None:
+    platform_env = os.environ.get("PLATFORM_ENV", "prod")
+
+    explicit = os.environ.get(SCOPED_TOKEN_SIGNING_KEY_ENV)
+    if explicit and platform_env == "local":
+        if len(explicit) < 32:
+            logger.warning("SCOPED_TOKEN_SIGNING_KEY is too short (min 32 bytes recommended)")
+        return explicit
+
+    secret_arn = os.environ.get(SCOPED_TOKEN_SIGNING_KEY_SECRET_ARN)
+    if not secret_arn:
+        logger.error("Scoped token signing key is not configured")
+        return None
+
+    global _scoped_token_signing_key_cache
+    global _scoped_token_signing_key_expiry
+    now = time.time()
+    if _scoped_token_signing_key_cache and now < _scoped_token_signing_key_expiry:
+        return _scoped_token_signing_key_cache
+
+    try:
+        response = boto3_client("secretsmanager").get_secret_value(SecretId=secret_arn)
+        signing_key = response.get("SecretString")
+    except Exception:
+        logger.exception("Failed to fetch scoped token signing key from Secrets Manager")
+        return None
+
+    if not signing_key:
+        logger.error("Scoped token signing key secret has no SecretString")
+        return None
+
+    _scoped_token_signing_key_cache = signing_key
+    _scoped_token_signing_key_expiry = now + 300
+    return signing_key
+
+
+def _trusted_platform_context(
+    headers: dict[str, Any],
+    *,
+    tool_name: str,
+) -> tuple[str, str] | None:
+    token = _bearer_token(headers)
+    if not token:
+        return None
+
+    signing_key = _get_scoped_token_signing_key()
+    if not signing_key:
+        return None
+
+    try:
+        claims = jwt.decode(
+            token,
+            signing_key,
+            algorithms=["HS256"],
+            audience=f"tool:{tool_name}",
+            issuer=os.environ.get("SCOPED_TOKEN_ISSUER", SCOPED_TOKEN_ISSUER),
+            options={
+                "require": ["exp", "iat", "tenantid", "appid", "scope_tool", "acting_sub"],
+            },
+        )
+    except jwt.PyJWTError:
+        logger.warning("Diagnostics request denied: invalid scoped token")
+        return None
+
+    tenant_id = claims.get("tenantid")
+    app_id = claims.get("appid")
+    scope_tool = claims.get("scope_tool")
+    acting_sub = claims.get("acting_sub")
+    if tenant_id != "platform" or not app_id or scope_tool != tool_name or not acting_sub:
+        logger.warning(
+            "Diagnostics request denied: scoped token claims not authorized",
+            extra={
+                "tenant_id": tenant_id,
+                "app_id": app_id,
+                "scope_tool": scope_tool,
+            },
+        )
+        return None
+
+    return str(tenant_id), str(app_id)
 
 
 def get_platform_health(db: ControlPlaneDynamoDB) -> dict[str, Any]:
@@ -203,33 +324,16 @@ def get_runbook_guidance(query: str | None = None, runbook_id: str | None = None
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Tool entrypoint — handles JSON-RPC from Gateway."""
-    # The Gateway REQUEST interceptor injects x-tenant-id, etc. into headers.
-    headers = event.get("headers", {})
-    tenant_id = headers.get("x-tenant-id") or headers.get("X-Tenant-Id")
-    app_id = headers.get("x-app-id") or headers.get("X-App-Id")
+    headers = event.get("headers") or {}
     log_context = {
         "method": event.get("method"),
-        "tenantid": tenant_id or "unknown",
-        "appid": app_id or "unknown",
+        "tenantid": "unknown",
+        "appid": "unknown",
     }
 
     logger.info("Diagnostics tool invoked", extra=log_context)
 
-    if not tenant_id or tenant_id != "platform":
-        logger.warning("Diagnostics tool access denied", extra=log_context)
-        return {
-            "jsonrpc": "2.0",
-            "id": event.get("id"),
-            "error": {"code": -32003, "message": "Access denied: Platform tenant only"},
-        }
-
-    # 2. Initialize dependencies
-    ctx = TenantContext(
-        tenant_id=tenant_id, app_id=app_id, tier=TenantTier.PREMIUM, sub="platform-diagnostics"
-    )
-    db = ControlPlaneDynamoDB(ctx)
-
-    # 3. Dispatch tool
+    # 1. Parse request (Gateway Tool Call format)
     method = event.get("method")
     params = event.get("params", {})
 
@@ -242,6 +346,35 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         tool_name = method
         tool_params = params
 
+    if not isinstance(tool_name, str) or not tool_name:
+        return {
+            "jsonrpc": "2.0",
+            "id": event.get("id"),
+            "error": {"code": -32601, "message": f"Method not found: {tool_name}"},
+        }
+
+    trusted_context = _trusted_platform_context(headers, tool_name=tool_name)
+    if trusted_context is None:
+        logger.warning("Diagnostics tool access denied", extra=log_context)
+        return {
+            "jsonrpc": "2.0",
+            "id": event.get("id"),
+            "error": {"code": -32003, "message": "Access denied: trusted scoped token required"},
+        }
+    tenant_id, app_id = trusted_context
+    log_context = {
+        "method": event.get("method"),
+        "tenantid": tenant_id,
+        "appid": app_id,
+    }
+
+    # 2. Initialize dependencies
+    ctx = TenantContext(
+        tenant_id=tenant_id, app_id=app_id, tier=TenantTier.PREMIUM, sub="platform-diagnostics"
+    )
+    db = ControlPlaneDynamoDB(ctx)
+
+    # 3. Dispatch tool
     result: Any = None
     try:
         if tool_name == "get_platform_health":
