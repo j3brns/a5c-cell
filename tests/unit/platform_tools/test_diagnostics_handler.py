@@ -14,6 +14,12 @@ SCOPED_TOKEN_ISSUER = "platform-gateway"
 @pytest.fixture
 def mock_db():
     with patch("src.platform_tools.diagnostics_handler.ControlPlaneDynamoDB") as mock:
+        mock.return_value.scan.return_value = MagicMock(items=[])
+        mock.return_value.query.return_value = MagicMock(items=[])
+        mock.return_value.scan_all.return_value = [
+            {"PK": "TENANT#t-test-001", "SK": "METADATA", "tenantId": "t-test-001"}
+        ]
+        mock.return_value.query_all.return_value = []
         yield mock
 
 
@@ -51,6 +57,30 @@ def _scoped_headers(tool_name: str) -> dict[str, str]:
 
 
 def test_get_platform_health(mock_db):
+    mock_db.return_value.scan_all.return_value = [
+        {"PK": "TENANT#t-test-001", "SK": "METADATA", "tenantId": "t-test-001"},
+        {"PK": "TENANT#t-test-002", "SK": "METADATA", "tenantId": "t-test-002"},
+    ]
+    mock_db.return_value.query_all.side_effect = [
+        [
+            {
+                "tenant_id": "t-test-001",
+                "agent_name": "agent-a",
+                "status": "success",
+                "runtime_region": "eu-west-2",
+                "timestamp": "2026-04-27T00:00:00+00:00",
+            },
+        ],
+        [
+            {
+                "tenant_id": "t-test-002",
+                "agent_name": "agent-b",
+                "status": "success",
+                "runtime_region": "eu-west-2",
+                "timestamp": "2026-04-27T00:01:00+00:00",
+            },
+        ],
+    ]
     event = {
         "method": "tools/call",
         "params": {"name": "get_platform_health", "arguments": {}},
@@ -63,9 +93,127 @@ def test_get_platform_health(mock_db):
     assert response["id"] == "1"
     assert "result" in response
     assert response["result"]["status"] == "healthy"
-    assert response["result"]["regions"] == [
-        {"region": "eu-west-2", "status": "operational", "latency_ms": 0}
+    assert response["result"]["source"] == "platform-invocations"
+    assert response["result"]["regions"] == [{"region": "eu-west-2", "status": "operational"}]
+    assert response["result"]["summary"] == {
+        "configuredTenants": 2,
+        "recentInvocations": 2,
+        "errors": 0,
+        "windowMinutes": 15,
+    }
+    mock_db.return_value.scan.assert_not_called()
+
+
+def test_get_platform_health_reports_degraded_from_recent_invocation_errors(mock_db):
+    mock_db.return_value.query_all.return_value = [
+        {
+            "tenant_id": "t-test-001",
+            "agent_name": "agent-a",
+            "status": "success",
+            "runtime_region": "eu-west-2",
+            "timestamp": "2026-04-27T00:00:00+00:00",
+        },
+        {
+            "tenant_id": "t-test-002",
+            "agent_name": "agent-b",
+            "status": "error",
+            "runtime_region": "eu-west-2",
+            "timestamp": "2026-04-27T00:01:00+00:00",
+            "error_code": "RUNTIME_INVOCATION_FAILED",
+        },
     ]
+
+    response = lambda_handler(
+        {
+            "method": "tools/call",
+            "params": {"name": "get_platform_health", "arguments": {}},
+            "headers": _scoped_headers("get_platform_health"),
+            "id": "1-degraded",
+        },
+        None,
+    )
+
+    assert response["result"]["status"] == "degraded"
+    assert response["result"]["regions"] == [{"region": "eu-west-2", "status": "degraded"}]
+    assert response["result"]["summary"]["errors"] == 1
+
+
+def test_get_platform_health_reports_unknown_when_no_recent_invocation_signal(mock_db):
+    response = lambda_handler(
+        {
+            "method": "tools/call",
+            "params": {"name": "get_platform_health", "arguments": {}},
+            "headers": _scoped_headers("get_platform_health"),
+            "id": "1-unknown",
+        },
+        None,
+    )
+
+    assert response["result"]["status"] == "unknown"
+    assert response["result"]["regions"] == [{"region": "eu-west-2", "status": "unknown"}]
+    assert response["result"]["signals"][0]["state"] == "unknown"
+    assert response["result"]["signals"][0]["reason"] == "no_recent_invocations"
+
+
+def test_get_platform_health_reports_unknown_when_invocation_signal_unavailable(mock_db):
+    mock_db.return_value.scan_all.side_effect = RuntimeError("table unavailable")
+
+    response = lambda_handler(
+        {
+            "method": "tools/call",
+            "params": {"name": "get_platform_health", "arguments": {}},
+            "headers": _scoped_headers("get_platform_health"),
+            "id": "1-signal-error",
+        },
+        None,
+    )
+
+    assert response["result"]["status"] == "unknown"
+    assert response["result"]["signals"][0]["state"] == "unknown"
+    assert response["result"]["signals"][0]["reason"] == "signal_unavailable"
+
+
+def test_get_platform_health_signal_unavailable_log_includes_platform_context(mock_db):
+    mock_db.return_value.scan_all.side_effect = RuntimeError("table unavailable")
+
+    with patch.object(diagnostics_handler.logger, "warning") as warning:
+        response = lambda_handler(
+            {
+                "method": "tools/call",
+                "params": {"name": "get_platform_health", "arguments": {}},
+                "headers": _scoped_headers("get_platform_health"),
+                "id": "1-signal-error-log",
+            },
+            None,
+        )
+
+    assert response["result"]["status"] == "unknown"
+    warning.assert_called_with(
+        "Platform invocation health signal unavailable",
+        extra={
+            "method": "tools/call",
+            "tenantid": "platform",
+            "appid": "admin-ui",
+            "error": "table unavailable",
+        },
+    )
+
+
+def test_get_platform_health_reports_not_configured_without_tenant_inventory(mock_db):
+    mock_db.return_value.scan_all.return_value = []
+
+    response = lambda_handler(
+        {
+            "method": "tools/call",
+            "params": {"name": "get_platform_health", "arguments": {}},
+            "headers": _scoped_headers("get_platform_health"),
+            "id": "1-not-configured",
+        },
+        None,
+    )
+
+    assert response["result"]["status"] == "unknown"
+    assert response["result"]["signals"][0]["reason"] == "not_configured"
 
 
 def test_get_tenant_status(mock_db):
@@ -140,6 +288,90 @@ def test_get_runbook_guidance(mock_db):
     assert response["id"] == "3"
     assert response["result"]["runbookId"] == "RUNBOOK-001"
     assert "steps" in response["result"]
+
+
+def test_get_recent_errors_returns_no_fabricated_events(mock_db):
+    event = {
+        "method": "tools/call",
+        "params": {"name": "get_recent_errors", "arguments": {}},
+        "headers": _scoped_headers("get_recent_errors"),
+        "id": "recent-empty",
+    }
+
+    response = lambda_handler(event, None)
+
+    assert response["result"] == {
+        "events": [],
+        "count": 0,
+        "source": "platform-invocations",
+        "status": "ok",
+    }
+
+
+def test_get_recent_errors_returns_authoritative_invocation_errors(mock_db):
+    mock_db.return_value.query_all.return_value = [
+        {
+            "tenant_id": "t-test-001",
+            "app_id": "app-001",
+            "agent_name": "agent-a",
+            "status": "error",
+            "timestamp": "2026-04-27T00:00:00+00:00",
+            "runtime_region": "eu-west-2",
+            "error_code": "RUNTIME_INVOCATION_FAILED",
+        }
+    ]
+    event = {
+        "method": "tools/call",
+        "params": {"name": "get_recent_errors", "arguments": {}},
+        "headers": _scoped_headers("get_recent_errors"),
+        "id": "recent-error",
+    }
+
+    response = lambda_handler(event, None)
+
+    assert response["result"]["count"] == 1
+    assert response["result"]["events"] == [
+        {
+            "timestamp": "2026-04-27T00:00:00+00:00",
+            "type": "invocation_error",
+            "tenantId": "t-test-001",
+            "appId": "app-001",
+            "agentName": "agent-a",
+            "runtimeRegion": "eu-west-2",
+            "status": "error",
+            "errorCode": "RUNTIME_INVOCATION_FAILED",
+        }
+    ]
+
+
+def test_get_recent_errors_filters_authoritative_errors_by_tenant(mock_db):
+    mock_db.return_value.query_all.return_value = [
+        {
+            "tenant_id": "t-test-001",
+            "app_id": "app-001",
+            "agent_name": "agent-a",
+            "status": "timeout",
+            "timestamp": "2026-04-27T00:00:00+00:00",
+            "runtime_region": "eu-west-2",
+            "error_code": "TIMEOUT",
+        }
+    ]
+    event = {
+        "method": "tools/call",
+        "params": {"name": "get_recent_errors", "arguments": {"tenant_id": "t-test-001"}},
+        "headers": _scoped_headers("get_recent_errors"),
+        "id": "recent-tenant",
+    }
+
+    response = lambda_handler(event, None)
+
+    assert response["result"]["count"] == 1
+    mock_db.return_value.query_all.assert_called_once()
+    query_kwargs = mock_db.return_value.query_all.call_args.kwargs
+    assert query_kwargs["pk_value"] == "TENANT#t-test-001"
+    assert "filter_expression" not in query_kwargs
+    assert "limit" not in query_kwargs
+    assert response["result"]["events"][0]["tenantId"] == "t-test-001"
 
 
 def test_access_denied_for_non_platform_tenant(mock_db):
@@ -266,7 +498,7 @@ def test_prod_accepts_scoped_token_signed_with_secret_manager_key(mock_db, monke
         response = lambda_handler(event, None)
 
     assert response["id"] == "8"
-    assert response["result"]["status"] == "healthy"
+    assert response["result"]["status"] == "unknown"
     secret_client.get_secret_value.assert_called_once()
 
 
@@ -294,6 +526,6 @@ def test_prod_secret_manager_key_is_cached(mock_db, monkeypatch):
         first = lambda_handler(event, None)
         second = lambda_handler(event, None)
 
-    assert first["result"]["status"] == "healthy"
-    assert second["result"]["status"] == "healthy"
+    assert first["result"]["status"] == "unknown"
+    assert second["result"]["status"] == "unknown"
     secret_client.get_secret_value.assert_called_once()

@@ -7,7 +7,7 @@ tenant status, recent errors, and runbook guidance.
 Tools:
   - get_platform_health: Returns health signals for regions and services.
   - get_tenant_status: Returns status, tier, and recent metrics for a tenant.
-  - get_recent_errors: Returns recent system-level errors or security events.
+  - get_recent_errors: Returns recent invocation errors from audit records.
   - get_runbook_guidance: Returns guidance from the operator runbooks.
 
 Implemented in ISSUE-389.
@@ -22,7 +22,7 @@ from typing import Any, TypedDict
 
 import jwt
 from aws_lambda_powertools import Logger
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
 from data_access import ControlPlaneDynamoDB, TenantContext, TenantTier
 
 from platform_config.runtime_topology import SERVING_RUNTIME_REGION
@@ -44,6 +44,9 @@ SCOPED_TOKEN_SIGNING_KEY_ENV = "SCOPED_TOKEN_SIGNING_KEY"  # pragma: allowlist s
 
 _scoped_token_signing_key_cache: str | None = None
 _scoped_token_signing_key_expiry: float = 0
+HEALTH_WINDOW_MINUTES = 15
+RECENT_ERRORS_WINDOW_MINUTES = 60
+ERROR_STATUSES = frozenset({"error", "timeout", "throttled"})
 
 # ---------------------------------------------------------------------------
 # Runbook Data (Embedded for tool access)
@@ -221,22 +224,143 @@ def _trusted_platform_context(
     return str(tenant_id), str(app_id)
 
 
-def get_platform_health(db: ControlPlaneDynamoDB) -> dict[str, Any]:
-    """Return synthetic and operational health signals for the platform."""
-    _ = db
-    # In a real implementation, this would query CloudWatch or a health table.
+def _status_value(item: dict[str, Any]) -> str:
+    return str(item.get("status", "")).lower()
+
+
+def _tenant_ids(db: ControlPlaneDynamoDB) -> list[str]:
+    tenants = db.scan_all(TENANTS_TABLE, filter_expression=Attr("SK").eq("METADATA"))
+    tenant_ids: list[str] = []
+    for item in tenants:
+        raw = item.get("tenantId") or item.get("tenant_id")
+        if not raw:
+            pk = str(item.get("PK", ""))
+            raw = pk.removeprefix("TENANT#") if pk.startswith("TENANT#") else None
+        if raw and raw != "platform":
+            tenant_ids.append(str(raw))
+    return sorted(set(tenant_ids))
+
+
+def _tenant_recent_invocations(
+    db: ControlPlaneDynamoDB,
+    *,
+    tenant_id: str,
+    since: datetime,
+) -> list[dict[str, Any]]:
+    return db.query_all(
+        INVOCATIONS_TABLE,
+        pk_value=f"TENANT#{tenant_id}",
+        sk_condition=Key("SK").gt(f"INV#{since.isoformat()}"),
+        scan_index_forward=False,
+    )
+
+
+def _recent_invocations(
+    db: ControlPlaneDynamoDB,
+    *,
+    since: datetime,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    tenant_ids = _tenant_ids(db)
+    recent: list[dict[str, Any]] = []
+    for tenant_id in tenant_ids:
+        recent.extend(_tenant_recent_invocations(db, tenant_id=tenant_id, since=since))
+    return recent, tenant_ids
+
+
+def _recent_error_invocations(
+    db: ControlPlaneDynamoDB,
+    *,
+    since: datetime,
+    tenant_id: str | None = None,
+) -> list[dict[str, Any]]:
+    if tenant_id:
+        candidates = _tenant_recent_invocations(db, tenant_id=tenant_id, since=since)
+    else:
+        candidates, _ = _recent_invocations(db, since=since)
+    return [item for item in candidates if _status_value(item) in ERROR_STATUSES]
+
+
+def _format_invocation_error(item: dict[str, Any]) -> dict[str, Any]:
     return {
-        "status": "healthy",
-        "regions": [
-            {"region": SERVING_RUNTIME_REGION, "status": "operational", "latency_ms": 0},
+        "timestamp": item.get("timestamp"),
+        "type": "invocation_error",
+        "tenantId": item.get("tenant_id") or item.get("tenantId"),
+        "appId": item.get("app_id") or item.get("appId"),
+        "agentName": item.get("agent_name") or item.get("agentName"),
+        "runtimeRegion": item.get("runtime_region") or item.get("runtimeRegion"),
+        "status": _status_value(item),
+        "errorCode": item.get("error_code") or item.get("errorCode"),
+    }
+
+
+def get_platform_health(
+    db: ControlPlaneDynamoDB, log_context: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Return health derived from authoritative platform invocation records."""
+    now = datetime.now(UTC)
+    since = now - timedelta(minutes=HEALTH_WINDOW_MINUTES)
+    source = "platform-invocations"
+    try:
+        recent, tenant_ids = _recent_invocations(db, since=since)
+    except Exception as exc:
+        logger.warning(
+            "Platform invocation health signal unavailable",
+            extra={**(log_context or {}), "error": str(exc)},
+        )
+        return {
+            "status": "unknown",
+            "source": source,
+            "regions": [{"region": SERVING_RUNTIME_REGION, "status": "unknown"}],
+            "services": {"RuntimeInvocations": "unknown"},
+            "signals": [
+                {
+                    "name": "recent_invocations",
+                    "source": source,
+                    "state": "unknown",
+                    "reason": "signal_unavailable",
+                }
+            ],
+            "timestamp": now.isoformat(),
+        }
+
+    error_count = sum(1 for item in recent if _status_value(item) in ERROR_STATUSES)
+    if not tenant_ids:
+        status = "unknown"
+        region_status = "unknown"
+        reason = "not_configured"
+    elif not recent:
+        status = "unknown"
+        region_status = "unknown"
+        reason = "no_recent_invocations"
+    elif error_count:
+        status = "degraded"
+        region_status = "degraded"
+        reason = "recent_invocation_errors"
+    else:
+        status = "healthy"
+        region_status = "operational"
+        reason = "recent_invocations_successful"
+
+    return {
+        "status": status,
+        "source": source,
+        "regions": [{"region": SERVING_RUNTIME_REGION, "status": region_status}],
+        "services": {"RuntimeInvocations": region_status},
+        "signals": [
+            {
+                "name": "recent_invocations",
+                "source": source,
+                "state": region_status,
+                "reason": reason,
+            }
         ],
-        "services": {
-            "AgentCore": "operational",
-            "DynamoDB": "operational",
-            "Bedrock": "operational",
-            "Bridge": "operational",
+        "summary": {
+            "configuredTenants": len(tenant_ids),
+            "recentInvocations": len(recent),
+            "errors": error_count,
+            "windowMinutes": HEALTH_WINDOW_MINUTES,
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": now.isoformat(),
     }
 
 
@@ -270,25 +394,33 @@ def get_tenant_status(db: ControlPlaneDynamoDB, tenant_id: str) -> dict[str, Any
     }
 
 
-def get_recent_errors(db: ControlPlaneDynamoDB, tenant_id: str | None = None) -> dict[str, Any]:
-    """Return recent errors or security events, optionally filtered by tenant."""
-    # In a real implementation, this would query a dedicated audit/error table.
-    # For now, we'll return a sample or query recent invocations with error status.
-
-    # Sample security event
-    events = [
-        {
-            "timestamp": (datetime.now(UTC) - timedelta(minutes=15)).isoformat(),
-            "type": "tenant_access_violation",
-            "tenantId": "t-suspicious-001",
-            "details": "Attempted access to TENANT#t-test-001 partition",
+def get_recent_errors(
+    db: ControlPlaneDynamoDB,
+    tenant_id: str | None = None,
+    log_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return recent invocation errors from authoritative audit records."""
+    since = datetime.now(UTC) - timedelta(minutes=RECENT_ERRORS_WINDOW_MINUTES)
+    source = "platform-invocations"
+    try:
+        events = [
+            _format_invocation_error(item)
+            for item in _recent_error_invocations(db, since=since, tenant_id=tenant_id)
+        ]
+    except Exception as exc:
+        logger.warning(
+            "Recent error signal unavailable",
+            extra={**(log_context or {}), "error": str(exc)},
+        )
+        return {
+            "events": [],
+            "count": 0,
+            "source": source,
+            "status": "unknown",
+            "reason": "signal_unavailable",
         }
-    ]
 
-    if tenant_id:
-        events = [e for e in events if e["tenantId"] == tenant_id]
-
-    return {"events": events, "count": len(events)}
+    return {"events": events, "count": len(events), "source": source, "status": "ok"}
 
 
 def get_runbook_guidance(query: str | None = None, runbook_id: str | None = None) -> dict[str, Any]:
@@ -378,7 +510,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     result: Any = None
     try:
         if tool_name == "get_platform_health":
-            result = get_platform_health(db)
+            result = get_platform_health(db, log_context)
         elif tool_name == "get_tenant_status":
             tid = tool_params.get("tenant_id") or tool_params.get("tenantId")
             if not tid:
@@ -386,7 +518,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             result = get_tenant_status(db, tid)
         elif tool_name == "get_recent_errors":
             tid = tool_params.get("tenant_id") or tool_params.get("tenantId")
-            result = get_recent_errors(db, tid)
+            result = get_recent_errors(db, tid, log_context)
         elif tool_name == "get_runbook_guidance":
             query = tool_params.get("query")
             rid = tool_params.get("runbook_id") or tool_params.get("runbookId")
