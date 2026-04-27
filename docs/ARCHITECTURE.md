@@ -396,6 +396,11 @@ These routes may be summarized by platform-agent runbook assistance because they
 stay within platform-owned control-plane state and do not require direct customer
 invocation content.
 
+The diagnostics MCP tool follows the same rule. `get_platform_health` is derived
+from recent `platform-invocations` records and reports `unknown` when that signal
+is absent or unavailable. `get_recent_errors` returns invocation error records
+from the same audit table; it does not synthesize security events.
+
 The following are explicitly outside the read-only platform-agent diagnostics surface
 unless and until they are reintroduced with authoritative backing:
 
