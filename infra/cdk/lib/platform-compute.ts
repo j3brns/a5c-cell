@@ -242,7 +242,15 @@ export function createPlatformCompute(
   );
   adminOpsFn.addToRolePolicy(
     new iam.PolicyStatement({
-      actions: ['servicequotas:ListServiceQuotas', 'cloudwatch:GetMetricStatistics'],
+      // Service Quotas ListServiceQuotas has no resource ARN or condition key.
+      actions: ['servicequotas:ListServiceQuotas'],
+      resources: ['*'],
+    }),
+  );
+  adminOpsFn.addToRolePolicy(
+    new iam.PolicyStatement({
+      // CloudWatch GetMetricStatistics has no resource-level permission support for metrics.
+      actions: ['cloudwatch:GetMetricStatistics'],
       resources: ['*'],
     }),
   );
@@ -574,6 +582,9 @@ export function createPlatformCompute(
       conditions: {
         StringEquals: {
           'aws:RequestTag/TenantManaged': 'true',
+        },
+        'ForAnyValue:StringEquals': {
+          'aws:TagKeys': 'TenantManaged',
         },
       },
     }),

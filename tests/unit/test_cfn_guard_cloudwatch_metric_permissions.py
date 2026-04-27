@@ -34,6 +34,21 @@ def _put_metric_policy_statement(*, namespace: str | None) -> dict[str, object]:
     return statement
 
 
+def _policy_statement(
+    action: str | list[str],
+    *,
+    condition: dict[str, object] | None = None,
+) -> dict[str, object]:
+    statement: dict[str, object] = {
+        "Effect": "Allow",
+        "Action": action,
+        "Resource": "*",
+    }
+    if condition is not None:
+        statement["Condition"] = condition
+    return statement
+
+
 def _template_with_statement(statement: dict[str, object]) -> dict[str, object]:
     return {
         "Resources": {
@@ -91,6 +106,78 @@ def test_guard_rejects_unconditioned_put_metric_data() -> None:
     result = _run_guard(_template_with_statement(_put_metric_policy_statement(namespace=None)))
     assert result.returncode != 0
     assert "cloudwatch:namespace" in (result.stderr or result.stdout)
+
+
+def test_guard_rejects_put_metric_data_outside_platform_namespaces() -> None:
+    result = _run_guard(
+        _template_with_statement(_put_metric_policy_statement(namespace="Custom/Other"))
+    )
+    assert result.returncode != 0
+    assert "Platform/Bridge" in (result.stderr or result.stdout)
+
+
+def test_guard_allows_service_quota_listing_without_resource_scope() -> None:
+    result = _run_guard(
+        _template_with_statement(_policy_statement("servicequotas:ListServiceQuotas"))
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_guard_allows_cdk_oidc_provider_custom_resource_actions() -> None:
+    result = _run_guard(
+        _template_with_statement(
+            _policy_statement(
+                [
+                    "iam:CreateOpenIDConnectProvider",
+                    "iam:DeleteOpenIDConnectProvider",
+                    "iam:UpdateOpenIDConnectProviderThumbprint",
+                    "iam:AddClientIDToOpenIDConnectProvider",
+                    "iam:RemoveClientIDFromOpenIDConnectProvider",
+                ]
+            )
+        )
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_guard_allows_agentcore_memory_creation_with_managed_tag_gate() -> None:
+    result = _run_guard(
+        _template_with_statement(
+            _policy_statement(
+                "bedrock-agentcore:CreateMemory",
+                condition={
+                    "StringEquals": {"aws:RequestTag/TenantManaged": "true"},
+                    "ForAnyValue:StringEquals": {"aws:TagKeys": "TenantManaged"},
+                },
+            )
+        )
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_guard_rejects_agentcore_memory_creation_without_tag_key_gate() -> None:
+    result = _run_guard(
+        _template_with_statement(
+            _policy_statement(
+                "bedrock-agentcore:CreateMemory",
+                condition={"StringEquals": {"aws:RequestTag/TenantManaged": "true"}},
+            )
+        )
+    )
+    assert result.returncode != 0
+    assert "aws:TagKeys" in (result.stderr or result.stdout)
+
+
+def test_guard_rejects_unapproved_wildcard_resource_statement() -> None:
+    result = _run_guard(_template_with_statement(_policy_statement("s3:ListBucket")))
+    assert result.returncode != 0
+    assert "s3:ListBucket" in (result.stderr or result.stdout)
+
+
+def test_guard_rejects_agentcore_memory_management_on_wildcard_resource() -> None:
+    result = _run_guard(_template_with_statement(_policy_statement("bedrock-agentcore:GetMemory")))
+    assert result.returncode != 0
+    assert "bedrock-agentcore:GetMemory" in (result.stderr or result.stdout)
 
 
 def test_guard_requires_no_internet_agentcore_runtime_endpoints() -> None:
