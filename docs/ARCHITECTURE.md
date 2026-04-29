@@ -126,7 +126,9 @@ codebase:
 - **`ops_control.py`**: Implements platform-wide administrative operations like
   failover, service health, and quota management.
 - **`db_factory.py`** and **`db_utils.py`**: Abstract database access to enforce
-  tenant isolation boundaries.
+  tenant isolation boundaries. Tenant-scoped DynamoDB and S3 factories reject
+  non-platform caller/target tenant mismatches before constructing DAL clients;
+  scan-capable control-plane clients remain explicit.
 
 This modular design ensures that the business logic is independent of the physical
 Lambda deployment topology, allowing for easy consolidation or further splitting

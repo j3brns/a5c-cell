@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import json
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -663,6 +664,39 @@ def test_read_other_tenant_forbidden_for_non_admin(fake_state: dict[str, Any]) -
     assert response["statusCode"] == 403
     error = _body(response)["error"]
     assert error["code"] == "FORBIDDEN"
+
+
+def test_read_other_tenant_admin_without_platform_actor_rejected_by_factory(
+    fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = fake_state
+    from src.tenant_api import db_factory, db_utils
+
+    importlib.reload(db_factory)
+    importlib.reload(db_utils)
+
+    class UnexpectedTenantScopedDynamoDB:
+        def __init__(self, tenant_context: Any) -> None:
+            _ = tenant_context
+            raise AssertionError("Tenant-scoped DAL client should not be constructed")
+
+    monkeypatch.setattr(db_factory, "TenantScopedDynamoDB", UnexpectedTenantScopedDynamoDB)
+
+    response = _invoke(
+        _event(
+            method="GET",
+            tenant_id="t-victim",
+            caller_tenant_id="t-admin",
+            roles=["Platform.Admin"],
+            app_id="app-admin",
+        )
+    )
+
+    assert response["statusCode"] == 403
+    error = _body(response)["error"]
+    assert error["code"] == "FORBIDDEN"
+    assert error["message"] == "Tenant-scoped client target mismatch"
 
 
 def test_update_tier_admin_only_emits_tier_changed_event(fake_state: dict[str, Any]) -> None:
