@@ -14,6 +14,27 @@ def _job_block(name: str, content: str) -> str:
     return match.group(1)
 
 
+def _rule_items(block: str) -> list[list[str]]:
+    items: list[list[str]] = []
+    current: list[str] | None = None
+    for line in block.splitlines():
+        if line.startswith("    - "):
+            if current is not None:
+                items.append(current)
+            current = [line.strip()[2:]]
+        elif current is not None and line.startswith("      "):
+            current.append(line.strip())
+    if current is not None:
+        items.append(current)
+    return items
+
+
+def _rules_block(block: str) -> str:
+    _, separator, rules = block.partition("  rules:\n")
+    assert separator, "Missing rules block"
+    return rules
+
+
 def _configured_agent_matrix(content: str) -> set[str]:
     return {
         agent
@@ -41,20 +62,21 @@ def test_ci_test_matrix_covers_unit_integration_and_cdk() -> None:
         assert "extends: .test_job_base" in block or "extends: .aws_auth_base" in block
 
 
-def test_workflow_pauses_pipelines_by_default_and_preserves_opt_in_deduping() -> None:
+def test_workflow_runs_branch_and_mr_pipelines_by_default_with_break_glass_disablement() -> None:
     content = CI_FILE.read_text(encoding="utf-8")
     workflow = _job_block("workflow", content)
+    rules = _rule_items(workflow)
 
-    assert 'GITLAB_PIPELINES_ENABLED: "0"' in content
-    assert (
-        'if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_PIPELINE_SOURCE == "merge_request_event"'
-    ) in workflow
-    assert 'if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_COMMIT_BRANCH' in workflow
-    assert "GitLab CI is paused by default" in workflow
-    assert (
-        'if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
-    ) in workflow
-    assert "when: never" in workflow
+    assert 'GITLAB_PIPELINES_ENABLED: "1"' in content
+    assert rules == [
+        ['if: $GITLAB_PIPELINES_ENABLED == "0"', "when: never"],
+        ['if: $CI_PIPELINE_SOURCE == "merge_request_event"'],
+        ["if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS", "when: never"],
+        ["if: $CI_COMMIT_BRANCH"],
+        ["when: never"],
+    ]
+    assert "Branch and MR validation run by default" in workflow
+    assert 'GITLAB_PIPELINES_ENABLED == "1" &&' not in workflow
 
 
 def test_expensive_jobs_are_gated_by_relevant_file_changes() -> None:
@@ -63,14 +85,29 @@ def test_expensive_jobs_are_gated_by_relevant_file_changes() -> None:
     expected_rule_refs = {
         "validate": ".platform_change_rules",
         "test-unit": ".python_change_rules",
-        "test-integration": ".python_change_rules",
         "test-cdk": ".cdk_change_rules",
         "test-spa": ".spa_change_rules",
-        "plan-infra": ".deployable_change_rules",
+        "plan-infra": ".main_push_deployable_change_rules",
     }
     for job, rule_ref in expected_rule_refs.items():
         block = _job_block(job, content)
         assert f"!reference [{rule_ref}, rules]" in block
+
+    integration = _job_block("test-integration", content)
+    assert _rule_items(_rules_block(integration)) == [
+        [
+            'if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"',
+            "changes: *python_changes",
+        ]
+    ]
+
+    main_push_deployable = _job_block(".main_push_deployable_change_rules", content)
+    assert _rule_items(_rules_block(main_push_deployable)) == [
+        [
+            'if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"',
+            "changes: *deployable_changes",
+        ]
+    ]
 
     deploy_base = _job_block(".deploy_job_base", content)
     assert "!reference [.main_deployable_change_rules, rules]" in deploy_base
@@ -103,6 +140,17 @@ def test_validate_pipeline_policy_runs_ci_contract_and_protection_script_tests()
     assert "tests/unit/test_check_gitlab_protected_environment.py" in validate
 
 
+def test_branch_and_mr_validate_job_does_not_require_deployment_inputs() -> None:
+    content = CI_FILE.read_text(encoding="utf-8")
+    validate = _job_block("validate", content)
+
+    assert 'if [ "${CI_COMMIT_BRANCH:-}" = "main" ]; then' in validate
+    assert "make validate-cdk" in validate
+    assert "make validate-secrets-full" in validate
+    assert "else" in validate
+    assert "make validate-pre-push" in validate
+
+
 def test_aws_backed_validation_and_plan_jobs_fail_closed_on_missing_oidc() -> None:
     content = CI_FILE.read_text(encoding="utf-8")
 
@@ -113,10 +161,14 @@ def test_aws_backed_validation_and_plan_jobs_fail_closed_on_missing_oidc() -> No
 
     integration = _job_block("test-integration", content)
     assert "extends: .aws_auth_base" in integration
+    assert 'if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"' in integration
+    assert "!reference [.python_change_rules, rules]" not in integration
     assert "Skipping integration tests" not in integration
 
     plan = _job_block("plan-infra", content)
     assert "extends: .aws_auth_base" in plan
+    assert "!reference [.main_push_deployable_change_rules, rules]" in plan
+    assert "!reference [.deployable_change_rules, rules]" not in plan
     assert "Skipping infra plan" not in plan
     assert "skipped: no validate role configured" not in plan
 
