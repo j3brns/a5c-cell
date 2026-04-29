@@ -13,6 +13,7 @@ def handle_jwt(
     get_tenant_status: Any,
     is_admin_route: Any,
     is_platform_route: Any,
+    is_platform_agent_registration_route: Any,
     entra_audience: str | None,
     entra_issuer: str | None,
     platform_tenant_id: str,
@@ -45,6 +46,13 @@ def handle_jwt(
             logger.error(
                 "Missing tenantid or appid in token",
                 extra={"present_claims": sorted(str(key) for key in payload.keys())},
+            )
+            return generate_policy(sub, "Deny", method_arn, {})
+
+        if is_platform_agent_registration_route(method_arn) and tenant_id != platform_tenant_id:
+            logger.error(
+                "Platform agent registration requires platform tenant context",
+                extra={"tenant_id": tenant_id, "method_arn": method_arn},
             )
             return generate_policy(sub, "Deny", method_arn, {})
 

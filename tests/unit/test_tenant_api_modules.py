@@ -36,7 +36,7 @@ def test_agent_registry_dispatch_registers_agent(
             "POST",
             {"agentName": "echo-agent", "version": "1.0.0"},
         ),
-        tenant_api_caller(),
+        tenant_api_caller(tenant_id="platform"),
         module_state["deps"],
     )
 

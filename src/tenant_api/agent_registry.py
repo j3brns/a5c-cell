@@ -168,6 +168,7 @@ def handle_register_agent(
     deps: models.TenantApiDependencies,
 ) -> dict[str, Any]:
     auth.require_admin(caller)
+    auth.require_platform_actor(caller)
     body = http_utils.require_json_body(event)
 
     agent_name = validation.canonical_tenant_id(body.get("agentName"))
