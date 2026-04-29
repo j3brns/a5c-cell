@@ -96,3 +96,18 @@ def test_openapi_agent_registration_is_platform_admin_only() -> None:
     operation = spec.get("paths", {}).get("/v1/platform/agents", {}).get("post", {})
 
     assert operation.get("x-required-roles") == ["Platform.Admin"]
+
+
+def test_openapi_does_not_advertise_de_scoped_platform_ops_summaries() -> None:
+    spec = _load_openapi()
+    paths = spec.get("paths", {})
+    schemas = spec.get("components", {}).get("schemas", {})
+
+    assert "/v1/platform/ops/top-tenants" not in paths
+    assert "/v1/platform/ops/security-events" not in paths
+    assert "/v1/platform/ops/error-rate" not in paths
+    assert "TopTenant" not in schemas
+    assert "TopTenantsResponse" not in schemas
+    assert "SecurityEvent" not in schemas
+    assert "SecurityEventsResponse" not in schemas
+    assert "ErrorRateResponse" not in schemas
