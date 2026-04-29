@@ -324,7 +324,7 @@ compromise tenant data. See [Threat Model](security/THREAT-MODEL.md) for attack 
 
 | Layer | Component | Enforcement |
 |-------|-----------|-------------|
-| 1 | REST API Authoriser | Validates JWT, rejects invalid/suspended tenants |
+| 1 | REST API Authoriser | Validates JWT, rejects invalid/suspended tenants and unavailable tenant-status storage |
 | 2 | Bridge Lambda | Assumes tenant-specific IAM execution role via STS |
 | 3 | Gateway Cedar policy | Deny-by-default when enforced; permits only tenant execution roles on the Gateway |
 | 4 | Gateway Interceptors | Issues scoped act-on-behalf token; tier-filtered tool access |

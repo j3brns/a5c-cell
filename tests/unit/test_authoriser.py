@@ -272,6 +272,38 @@ def test_handler_suspended_tenant(mock_get_status, mock_get_jwk_client, mock_env
 
 
 @patch("src.authoriser.handler.get_jwk_client")
+def test_handler_jwt_missing_tenant_status_storage_denied(
+    mock_get_jwk_client, mock_env, lambda_context
+):
+    token = "valid.token.here"
+    method_arn = (
+        "arn:aws:execute-api:eu-west-2:123456789012:api/dev/POST/v1/agents/echo-agent/invoke"
+    )
+    event = {"methodArn": method_arn, "authorizationToken": f"Bearer {token}"}
+    payload = {
+        "tenantid": "t-test-001",
+        "appid": "app-001",
+        "tier": "basic",
+        "sub": "user-001",
+        "roles": ["Agent.Invoke"],
+        "iss": OS_ENV["ENTRA_ISSUER"],
+        "aud": OS_ENV["ENTRA_AUDIENCE"],
+    }
+
+    mock_jwk_client = MagicMock()
+    mock_get_jwk_client.return_value = mock_jwk_client
+    mock_jwk_client.get_signing_key_from_jwt.return_value = MagicMock(key="public-key")
+
+    with (
+        patch("src.authoriser.handler.TENANTS_TABLE", None),
+        patch("jwt.decode", return_value=payload),
+    ):
+        result = handler(event, lambda_context)
+
+    assert result["policyDocument"]["Statement"][0]["Effect"] == "Deny"
+
+
+@patch("src.authoriser.handler.get_jwk_client")
 @patch("src.authoriser.handler.get_tenant_status")
 def test_handler_admin_route_unauthorised(
     mock_get_status, mock_get_jwk_client, mock_env, lambda_context
@@ -564,6 +596,23 @@ def test_handler_sigv4_suspended_tenant_denied(
 
 
 @patch("src.authoriser.handler.resolve_sigv4_tenant_binding")
+def test_handler_sigv4_missing_tenant_status_storage_denied(
+    mock_resolve_binding, mock_env, lambda_context
+):
+    mock_resolve_binding.return_value = {
+        "tenant_id": "t-test-001",
+        "app_id": "app-001",
+        "tier": "basic",
+    }
+    event = _sigv4_event()
+
+    with patch("src.authoriser.handler.TENANTS_TABLE", None):
+        result = handler(event, lambda_context)
+
+    assert result["policyDocument"]["Statement"][0]["Effect"] == "Deny"
+
+
+@patch("src.authoriser.handler.resolve_sigv4_tenant_binding")
 @patch("src.authoriser.handler.get_tenant_status")
 def test_handler_sigv4_ignores_spoofed_tier_header(
     mock_get_status, mock_resolve_binding, mock_env, lambda_context
@@ -721,7 +770,7 @@ def test_get_tenant_status_no_table(mock_env):
     from src.authoriser.handler import get_tenant_status
 
     with patch("src.authoriser.handler.TENANTS_TABLE", None):
-        assert get_tenant_status("any") == "active"
+        assert get_tenant_status("any") is None
 
 
 @patch("src.authoriser.handler.ControlPlaneDynamoDB")
