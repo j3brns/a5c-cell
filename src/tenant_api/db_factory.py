@@ -57,12 +57,21 @@ def _tenant_context_for_scope(
     )
 
 
+def _require_tenant_scope_allowed(*, tenant_id: str, caller: CallerIdentity) -> None:
+    if caller.is_platform_actor:
+        return
+    if caller.tenant_id == tenant_id:
+        return
+    raise PermissionError("Tenant-scoped client target mismatch")
+
+
 def db_for_tenant(
     *,
     tenant_id: str,
     caller: CallerIdentity,
     app_id: str | None,
 ) -> TenantScopedDynamoDB:
+    _require_tenant_scope_allowed(tenant_id=tenant_id, caller=caller)
     tenant_context = _tenant_context_for_scope(
         tenant_id=tenant_id,
         caller=caller,
@@ -77,6 +86,7 @@ def s3_for_tenant(
     caller: CallerIdentity,
     app_id: str | None,
 ) -> TenantScopedS3:
+    _require_tenant_scope_allowed(tenant_id=tenant_id, caller=caller)
     tenant_context = _tenant_context_for_scope(
         tenant_id=tenant_id,
         caller=caller,
