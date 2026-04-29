@@ -1,15 +1,30 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from src.tenant_api import ops_control
 from tests.unit.tenant_api_test_support import (
     invoke_handler,
     response_body,
 )
+
+DE_SCOPED_OPS_SUMMARY_ROUTES = (
+    ("/v1/platform/ops/top-tenants", "GET"),
+    ("/v1/platform/ops/security-events", "GET"),
+    ("/v1/platform/ops/error-rate", "GET"),
+)
+
+
+def _load_openapi_paths() -> dict[str, Any]:
+    spec_path = Path(__file__).resolve().parents[2] / "docs" / "openapi.yaml"
+    with spec_path.open("r", encoding="utf-8") as handle:
+        spec = yaml.safe_load(handle)
+    return spec.get("paths", {})
 
 
 def _ops_event(
@@ -72,9 +87,7 @@ def test_ops_billing_status_returns_real_summary_shape(fake_state: dict[str, Any
 @pytest.mark.parametrize(
     ("path", "method"),
     [
-        ("/v1/platform/ops/top-tenants", "GET"),
-        ("/v1/platform/ops/security-events", "GET"),
-        ("/v1/platform/ops/error-rate", "GET"),
+        *DE_SCOPED_OPS_SUMMARY_ROUTES,
         ("/v1/platform/ops/dlq/bridge-dlq", "GET"),
         ("/v1/platform/ops/dlq/bridge-dlq/redrive", "POST"),
         ("/v1/platform/ops/tenants/t-001/invocations", "GET"),
@@ -84,6 +97,18 @@ def test_ops_billing_status_returns_real_summary_shape(fake_state: dict[str, Any
 def test_de_scoped_ops_routes_do_not_expose_placeholder_success(
     fake_state: dict[str, Any], path: str, method: str
 ) -> None:
+    response = invoke_handler(_ops_event(method, path), dependencies=fake_state["deps"])
+
+    assert response["statusCode"] == 405
+    assert response_body(response)["error"]["code"] == "METHOD_NOT_ALLOWED"
+
+
+@pytest.mark.parametrize(("path", "method"), DE_SCOPED_OPS_SUMMARY_ROUTES)
+def test_de_scoped_ops_summary_runtime_and_openapi_contract_agree(
+    fake_state: dict[str, Any], path: str, method: str
+) -> None:
+    assert path not in _load_openapi_paths()
+
     response = invoke_handler(_ops_event(method, path), dependencies=fake_state["deps"])
 
     assert response["statusCode"] == 405
