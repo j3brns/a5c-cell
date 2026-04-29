@@ -1466,6 +1466,64 @@ def test_rotate_api_key_cross_tenant_forbidden(fake_state: dict[str, Any]) -> No
     assert _body(response)["error"]["code"] == "FORBIDDEN"
 
 
+def test_rotate_api_key_cross_tenant_self_service_admin_forbidden(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-owner", "METADATA")] = {
+        "PK": "TENANT#t-owner",
+        "SK": "METADATA",
+        "tenantId": "t-owner",
+        "appId": "app-owner",
+        "status": "active",
+        "apiKeySecretArn": (
+            "arn:aws:secretsmanager:eu-west-2:111111111111:secret:platform/tenants/t-owner/api-key"
+        ),
+    }
+    event = _event(
+        method="POST",
+        tenant_id="t-owner",
+        caller_tenant_id="t-attacker",
+        roles=["SelfService.Admin"],
+        app_id="app-attacker",
+    )
+    event["path"] = "/v1/tenants/t-owner/api-key/rotate"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 403
+    assert _body(response)["error"]["code"] == "FORBIDDEN"
+    assert fake_state["deps"].secretsmanager.rotate_calls == []
+
+
+def test_rotate_api_key_cross_tenant_platform_actor_succeeds(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-owner", "METADATA")] = {
+        "PK": "TENANT#t-owner",
+        "SK": "METADATA",
+        "tenantId": "t-owner",
+        "appId": "app-owner",
+        "status": "active",
+        "apiKeySecretArn": (
+            "arn:aws:secretsmanager:eu-west-2:111111111111:secret:platform/tenants/t-owner/api-key"
+        ),
+    }
+    event = _event(
+        method="POST",
+        tenant_id="t-owner",
+        caller_tenant_id="platform",
+        roles=["Platform.Operator"],
+        app_id="platform-admin",
+    )
+    event["path"] = "/v1/tenants/t-owner/api-key/rotate"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 200
+    assert _body(response)["tenantId"] == "t-owner"
+    assert len(fake_state["deps"].secretsmanager.rotate_calls) == 1
+
+
 def test_invite_user_for_own_tenant_requires_self_service_admin_role(
     fake_state: dict[str, Any],
 ) -> None:
@@ -1561,6 +1619,59 @@ def test_invite_user_for_own_tenant_succeeds_for_platform_operator(
     assert len(observed_invites) == 1
     assert observed_invites[0]["inviteId"] == invite_record["inviteId"]
     assert observed_invites[0]["notificationStatus"] == "pending"
+
+
+def test_invite_user_cross_tenant_self_service_admin_forbidden(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-invite", "METADATA")] = {
+        "PK": "TENANT#t-invite",
+        "SK": "METADATA",
+        "tenantId": "t-invite",
+        "appId": "app-invite",
+        "status": "active",
+    }
+    event = _event(
+        method="POST",
+        tenant_id="t-invite",
+        caller_tenant_id="t-attacker",
+        roles=["SelfService.Admin"],
+        app_id="app-attacker",
+        body={"email": "new.user@example.com", "role": "Agent.Invoke"},
+    )
+    event["path"] = "/v1/tenants/t-invite/users/invite"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 403
+    assert _body(response)["error"]["code"] == "FORBIDDEN"
+    assert ("TENANT#t-invite", "INVITEEMAIL#new.user@example.com") not in fake_state["db"].items
+
+
+def test_invite_user_cross_tenant_platform_actor_succeeds(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-invite", "METADATA")] = {
+        "PK": "TENANT#t-invite",
+        "SK": "METADATA",
+        "tenantId": "t-invite",
+        "appId": "app-invite",
+        "status": "active",
+    }
+    event = _event(
+        method="POST",
+        tenant_id="t-invite",
+        caller_tenant_id="platform",
+        roles=["Platform.Operator"],
+        app_id="platform-admin",
+        body={"email": "new.user@example.com", "role": "Agent.Invoke"},
+    )
+    event["path"] = "/v1/tenants/t-invite/users/invite"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 202
+    assert _body(response)["invite"]["tenantId"] == "t-invite"
 
 
 def test_invite_user_returns_existing_pending_invite_for_normalized_email(
@@ -2212,6 +2323,85 @@ def test_webhook_management_succeeds_for_platform_operator(fake_state: dict[str,
     assert len(body["items"]) == 0
 
 
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("GET", "/v1/tenants/t-webhook/webhooks", None),
+        (
+            "POST",
+            "/v1/tenants/t-webhook/webhooks",
+            {"callbackUrl": "https://example.com/callback", "events": ["job.completed"]},
+        ),
+        ("DELETE", "/v1/tenants/t-webhook/webhooks/wh-existing", None),
+    ],
+)
+def test_webhook_management_cross_tenant_self_service_admin_forbidden(
+    fake_state: dict[str, Any],
+    method: str,
+    path: str,
+    body: dict[str, Any] | None,
+) -> None:
+    fake_state["db"].items[("TENANT#t-webhook", "METADATA")] = {
+        "PK": "TENANT#t-webhook",
+        "SK": "METADATA",
+        "tenantId": "t-webhook",
+        "appId": "app-webhook",
+        "status": "active",
+    }
+    fake_state["db"].items[("TENANT#t-webhook", "WEBHOOK#wh-existing")] = {
+        "PK": "TENANT#t-webhook",
+        "SK": "WEBHOOK#wh-existing",
+        "webhook_id": "wh-existing",
+        "tenant_id": "t-webhook",
+        "callback_url": "https://example.com/existing",
+        "events": ["job.completed"],
+        "status": "active",
+    }
+    event = _event(
+        method=method,
+        tenant_id="t-webhook",
+        caller_tenant_id="t-attacker",
+        roles=["SelfService.Admin"],
+        body=body,
+    )
+    event["path"] = path
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 403
+    assert _body(response)["error"]["code"] == "FORBIDDEN"
+    assert ("TENANT#t-webhook", "WEBHOOK#wh-existing") in fake_state["db"].items
+    assert len([key for key in fake_state["db"].items if key[1].startswith("WEBHOOK#")]) == 1
+
+
+def test_webhook_management_cross_tenant_platform_actor_succeeds(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-webhook", "METADATA")] = {
+        "PK": "TENANT#t-webhook",
+        "SK": "METADATA",
+        "tenantId": "t-webhook",
+        "appId": "app-webhook",
+        "status": "active",
+    }
+    event = _event(
+        method="POST",
+        tenant_id="t-webhook",
+        caller_tenant_id="platform",
+        roles=["Platform.Operator"],
+        body={
+            "callbackUrl": "https://example.com/callback",
+            "events": ["job.completed"],
+        },
+    )
+    event["path"] = "/v1/tenants/t-webhook/webhooks"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 201
+    assert _body(response)["callbackUrl"] == "https://example.com/callback"
+
+
 def test_webhook_registration_validation(fake_state: dict[str, Any]) -> None:
     fake_state["db"].items[("TENANT#t-val", "METADATA")] = {
         "PK": "TENANT#t-val",
@@ -2289,6 +2479,68 @@ def test_list_invites_succeeds(fake_state: dict[str, Any]) -> None:
     body = _body(response)
     assert len(body["items"]) == 1
     assert body["items"][0]["inviteId"] == "inv-1"
+
+
+def test_list_invites_cross_tenant_platform_role_without_platform_actor_forbidden(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-list-invites", "METADATA")] = {
+        "PK": "TENANT#t-list-invites",
+        "SK": "METADATA",
+        "tenantId": "t-list-invites",
+        "appId": "app-list-invites",
+        "status": "active",
+    }
+    fake_state["db"].items[("TENANT#t-list-invites", "INVITE#inv-1")] = {
+        "PK": "TENANT#t-list-invites",
+        "SK": "INVITE#inv-1",
+        "inviteId": "inv-1",
+        "email": "user1@example.com",
+        "status": "pending",
+    }
+    event = _event(
+        method="GET",
+        tenant_id="t-list-invites",
+        caller_tenant_id="t-attacker",
+        roles=["Platform.Admin"],
+    )
+    event["path"] = "/v1/tenants/t-list-invites/users/invites"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 403
+    assert _body(response)["error"]["code"] == "FORBIDDEN"
+
+
+def test_list_invites_cross_tenant_platform_actor_succeeds(
+    fake_state: dict[str, Any],
+) -> None:
+    fake_state["db"].items[("TENANT#t-list-invites", "METADATA")] = {
+        "PK": "TENANT#t-list-invites",
+        "SK": "METADATA",
+        "tenantId": "t-list-invites",
+        "appId": "app-list-invites",
+        "status": "active",
+    }
+    fake_state["db"].items[("TENANT#t-list-invites", "INVITE#inv-1")] = {
+        "PK": "TENANT#t-list-invites",
+        "SK": "INVITE#inv-1",
+        "inviteId": "inv-1",
+        "email": "user1@example.com",
+        "status": "pending",
+    }
+    event = _event(
+        method="GET",
+        tenant_id="t-list-invites",
+        caller_tenant_id="platform",
+        roles=["Platform.Admin"],
+    )
+    event["path"] = "/v1/tenants/t-list-invites/users/invites"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 200
+    assert _body(response)["items"][0]["inviteId"] == "inv-1"
 
 
 def test_lambda_rollback_finds_previous_version_and_updates_alias(

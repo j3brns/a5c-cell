@@ -25,6 +25,7 @@ AUDIT_EXPORT_PAGE_SIZE = 200
 
 # Roles
 ADMIN_ROLES = frozenset({"Platform.Admin"})
+PLATFORM_SELF_SERVICE_ADMIN_ROLES = frozenset({"Platform.Admin", "Platform.Operator"})
 SELF_SERVICE_ADMIN_ROLES = frozenset({"Platform.Admin", "Platform.Operator", "SelfService.Admin"})
 ALLOWED_TENANT_INVITE_ROLES = frozenset({"Agent.Invoke"})
 

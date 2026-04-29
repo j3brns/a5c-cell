@@ -432,7 +432,8 @@ paths:
       summary: Rotate tenant API key
       description: >
         Rotates the tenant API key secret value for the specified tenant.
-        Allowed for own-tenant callers and platform admin/operator roles.
+        Allowed for own-tenant self-service admins and platform-tenant
+        admin/operator callers.
       parameters:
         - $ref: "#/components/parameters/TenantId"
       responses:
@@ -461,8 +462,8 @@ paths:
       operationId: inviteTenantUser
       summary: Invite tenant user
       description: >
-        Creates a tenant user invitation request. Allowed for own-tenant callers
-        and platform admin/operator roles.
+        Creates a tenant user invitation request. Allowed for own-tenant
+        self-service admins and platform-tenant admin/operator callers.
       parameters:
         - $ref: "#/components/parameters/TenantId"
       requestBody:
@@ -498,7 +499,7 @@ paths:
       summary: List tenant user invites
       description: >
         Lists pending and historical tenant user invitations for the specified tenant.
-        Allowed for own-tenant callers with self-service admin rights and platform admin/operator roles.
+        Allowed for own-tenant self-service admins and platform-tenant admin/operator callers.
       parameters:
         - $ref: "#/components/parameters/TenantId"
       responses:
