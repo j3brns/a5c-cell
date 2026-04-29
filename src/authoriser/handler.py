@@ -96,14 +96,17 @@ def generate_policy(
 
 
 def get_tenant_status(tenant_id: str) -> str | None:
-    """Fetch tenant status from DynamoDB.
+    """Fetch tenant status from DynamoDB, failing closed when storage is unavailable.
 
     The authoriser runs before a caller TenantContext exists, so it uses
     the reserved platform control-plane context.
     """
     if not TENANTS_TABLE:
-        logger.warning("TENANTS_TABLE not set, assuming active (dev mode)")
-        return "active"
+        logger.error(
+            "Failed to fetch tenant status",
+            extra={"tenant_id": tenant_id, "reason": "tenants_table_unset"},
+        )
+        return None
 
     try:
         db = ControlPlaneDynamoDB(get_platform_context())
