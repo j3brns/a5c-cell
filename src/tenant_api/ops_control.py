@@ -135,17 +135,19 @@ def handle_service_health(
     _ = event
     _ = deps
     auth.require_admin(caller)
-    # Aggregate health of platform components
     return http_utils.response(
         200,
         {
-            "status": "ok",
-            "services": {
-                "tenant-api": "operational",
-                "bridge": "operational",
-                "authoriser": "operational",
-                "data-access-lib": "operational",
-            },
+            "status": "unknown",
+            "services": {},
+            "signals": [
+                {
+                    "name": "service_health",
+                    "source": "none",
+                    "state": "unknown",
+                    "reason": "no_authoritative_signal",
+                }
+            ],
             "timestamp": utils.iso(utils.now_utc()),
         },
     )

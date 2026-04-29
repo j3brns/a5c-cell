@@ -1134,6 +1134,29 @@ def test_platform_route_requires_platform_tenant_context(fake_state: dict[str, A
     assert response["statusCode"] == 403
 
 
+def test_platform_service_health_reports_unknown_without_authoritative_signal(
+    fake_state: dict[str, Any],
+) -> None:
+    event = _event(method="GET", caller_tenant_id="platform")
+    event["path"] = "/v1/platform/service-health"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 200
+    body = _body(response)
+    assert body["status"] == "unknown"
+    assert body["services"] == {}
+    assert body["signals"] == [
+        {
+            "name": "service_health",
+            "source": "none",
+            "state": "unknown",
+            "reason": "no_authoritative_signal",
+        }
+    ]
+    assert "timestamp" in body
+
+
 def test_health_route_returns_openapi_shape(fake_state: dict[str, Any]) -> None:
     event = _event(method="GET")
     event["path"] = "/v1/health"

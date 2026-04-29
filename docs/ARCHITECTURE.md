@@ -403,6 +403,10 @@ from recent `platform-invocations` records and reports `unknown` when that signa
 is absent or unavailable. `get_recent_errors` returns invocation error records
 from the same audit table; it does not synthesize security events.
 
+The compatibility `/v1/platform/service-health` route does not yet have
+authoritative service-health aggregation behind it. Until that exists, it reports
+`unknown` with no per-service map rather than synthesizing a green platform state.
+
 The following are explicitly outside the read-only platform-agent diagnostics surface
 unless and until they are reintroduced with authoritative backing:
 
