@@ -20,6 +20,7 @@ def _load_validate_local_module():
 
 
 validate_local = _load_validate_local_module()
+MAKEFILE = Path(__file__).resolve().parents[2] / "Makefile"
 
 
 class _Completed:
@@ -31,6 +32,7 @@ class _Completed:
 
 def test_build_task_set_fast_and_full() -> None:
     fast = validate_local.build_task_set("fast")
+    pre_push = validate_local.build_task_set("pre-push")
     full = validate_local.build_task_set("full")
     legacy_fast = validate_local.build_legacy_benchmark_task_set("fast")
 
@@ -43,6 +45,13 @@ def test_build_task_set_fast_and_full() -> None:
         "validate-contract",
         "validate-cdk-ts-local",
         "validate-secrets-diff",
+    ]
+    assert [task.target for task in pre_push] == [
+        "generated-state-audit",
+        "docs-sync-audit",
+        "validate-python",
+        "validate-cdk-ts-push",
+        "validate-secrets-push",
     ]
     assert [task.target for task in full] == [
         "rules-sync-audit",
@@ -61,6 +70,145 @@ def test_build_task_set_fast_and_full() -> None:
         "validate-python",
         "validate-cdk-ts-local",
         "validate-secrets-diff",
+    ]
+
+
+def test_pre_push_adds_python_unit_tests_for_python_runtime_changes(tmp_path: Path) -> None:
+    tasks = validate_local.materialize_task_set(
+        "pre-push",
+        tmp_path,
+        changed_files=("src/bridge/handler.py",),
+    )
+
+    assert [task.target for task in tasks][-1:] == ["test-unit"]
+    assert tasks[-1].command == ("make", "--no-print-directory", "test-unit")
+
+
+def test_pre_push_uses_mapped_unit_test_subset_for_known_validation_changes(
+    tmp_path: Path,
+) -> None:
+    tasks = validate_local.materialize_task_set(
+        "pre-push",
+        tmp_path,
+        changed_files=(
+            "Makefile",
+            "scripts/validate_local.py",
+            "tests/unit/test_validate_local.py",
+        ),
+    )
+
+    assert [task.target for task in tasks][-1:] == ["python-unit-changed"]
+    assert tasks[-1].command == (
+        "uv",
+        "run",
+        "pytest",
+        "tests/unit/test_validate_local.py",
+        "-v",
+        "--tb=short",
+    )
+
+
+def test_pre_push_falls_back_to_test_unit_for_unmapped_python_source(tmp_path: Path) -> None:
+    tasks = validate_local.materialize_task_set(
+        "pre-push",
+        tmp_path,
+        changed_files=("scripts/deploy_frontend.py", "tests/unit/test_validate_local.py"),
+    )
+
+    assert [task.target for task in tasks][-1:] == ["test-unit"]
+    assert tasks[-1].command == ("make", "--no-print-directory", "test-unit")
+
+
+def test_pre_push_adds_spa_quick_tests_for_spa_changes(tmp_path: Path) -> None:
+    tasks = validate_local.materialize_task_set(
+        "pre-push",
+        tmp_path,
+        changed_files=("spa/src/App.tsx",),
+    )
+
+    assert [task.target for task in tasks][-1:] == ["spa-test-quick"]
+    assert tasks[-1].command == ("npm", "run", "test:quick")
+    assert tasks[-1].cwd == Path("spa")
+
+
+def test_pre_push_adds_both_runtime_suites_for_python_and_spa_changes(tmp_path: Path) -> None:
+    tasks = validate_local.materialize_task_set(
+        "pre-push",
+        tmp_path,
+        changed_files=("scripts/validate_local.py", "spa/package.json"),
+    )
+
+    assert [task.target for task in tasks][-2:] == ["python-unit-changed", "spa-test-quick"]
+
+
+def test_pre_push_does_not_add_runtime_tests_for_docs_only_changes(tmp_path: Path) -> None:
+    tasks = validate_local.materialize_task_set(
+        "pre-push",
+        tmp_path,
+        changed_files=("docs/ARCHITECTURE.md",),
+    )
+
+    assert "test-unit" not in [task.target for task in tasks]
+    assert "spa-test-quick" not in [task.target for task in tasks]
+
+
+def test_changed_files_for_push_uses_origin_main_when_upstream_is_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    def _runner(cmd, *, cwd, text, capture_output, check):
+        _ = cwd, text, capture_output, check
+        args = tuple(cmd[1:])
+        if args == ("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"):
+            return _Completed(1)
+        if args == ("show-ref", "--verify", "--quiet", "refs/remotes/origin/main"):
+            return _Completed(0)
+        if args == ("diff", "--name-only", "--diff-filter=ACMR", "origin/main...HEAD"):
+            return _Completed(0, stdout="src/bridge/handler.py\n")
+        return _Completed(0)
+
+    monkeypatch.setattr(validate_local.subprocess, "run", _runner)
+
+    assert validate_local.changed_files_for_push(tmp_path) == ("src/bridge/handler.py",)
+
+
+def test_changed_files_for_push_ignores_uncommitted_wip(tmp_path: Path, monkeypatch) -> None:
+    def _runner(cmd, *, cwd, text, capture_output, check):
+        _ = cwd, text, capture_output, check
+        args = tuple(cmd[1:])
+        if args == ("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"):
+            return _Completed(0, stdout="origin/main\n")
+        if args == ("diff", "--name-only", "--diff-filter=ACMR", "origin/main...HEAD"):
+            return _Completed(0, stdout="scripts/validate_local.py\n")
+        if args in (
+            ("diff", "--name-only", "--diff-filter=ACMR"),
+            ("diff", "--cached", "--name-only", "--diff-filter=ACMR"),
+            ("ls-files", "--others", "--exclude-standard"),
+        ):
+            raise AssertionError(f"unexpected working-tree query: {args}")
+        return _Completed(0)
+
+    monkeypatch.setattr(validate_local.subprocess, "run", _runner)
+
+    assert validate_local.changed_files_for_push(tmp_path) == ("scripts/validate_local.py",)
+
+
+def test_make_validate_pre_push_delegates_to_validator_composition() -> None:
+    content = MAKEFILE.read_text(encoding="utf-8")
+    match = re.search(r"(?ms)^validate-pre-push:.*?(?=^## validate-local-prereqs:)", content)
+    assert match is not None
+    block = match.group(0)
+    recipe_lines = [
+        line.removeprefix("\t").removeprefix("@")
+        for line in block.splitlines()
+        if line.startswith("\t")
+    ]
+
+    assert recipe_lines == [
+        'echo "==> Running pre-push validation (no cdk synth)"',
+        "uv run platform-cli validate local pre-push",
+        "uv run python -m scripts.issue_tool write-validation-receipt --check "
+        "validate-pre-push >/dev/null",
+        'echo "==> Pre-push validation passed"',
     ]
 
 

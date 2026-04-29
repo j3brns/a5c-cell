@@ -35,6 +35,8 @@ class ValidationResult:
         return self.returncode == 0
 
 
+Runner = Callable[..., subprocess.CompletedProcess[str]]
+
 FAST_TASKS = (
     ValidationTask(
         "Rules sync", "rules-sync-audit", ("make", "--no-print-directory", "rules-sync-audit")
@@ -65,6 +67,48 @@ FAST_TASKS = (
         ("make", "--no-print-directory", "validate-secrets-diff"),
     ),
 )
+
+PRE_PUSH_BASE_TASKS = (
+    ValidationTask(
+        "Generated state",
+        "generated-state-audit",
+        ("make", "--no-print-directory", "generated-state-audit"),
+    ),
+    ValidationTask(
+        "Docs sync", "docs-sync-audit", ("make", "--no-print-directory", "docs-sync-audit")
+    ),
+    ValidationTask(
+        "Python", "validate-python", ("make", "--no-print-directory", "validate-python")
+    ),
+    ValidationTask(
+        "CDK TypeScript",
+        "validate-cdk-ts-push",
+        ("make", "--no-print-directory", "validate-cdk-ts-push"),
+    ),
+    ValidationTask(
+        "Secrets push",
+        "validate-secrets-push",
+        ("make", "--no-print-directory", "validate-secrets-push"),
+    ),
+)
+
+PYTHON_RUNTIME_CHANGE_PREFIXES = (
+    "src/",
+    "scripts/",
+    "tests/",
+)
+PYTHON_RUNTIME_CHANGE_FILES = (
+    "Makefile",
+    "pyproject.toml",
+    "uv.lock",
+    "pytest.ini",
+    "pyrightconfig.json",
+)
+SPA_CHANGE_PREFIXES = ("spa/",)
+PYTHON_UNIT_TEST_PATHS = {
+    "Makefile": "tests/unit/test_validate_local.py",
+    "scripts/validate_local.py": "tests/unit/test_validate_local.py",
+}
 
 FULL_TASKS = (
     ValidationTask(
@@ -147,14 +191,131 @@ LEGACY_FULL_BENCHMARK_TASKS = (
 def build_task_set(mode: str) -> tuple[ValidationTask, ...]:
     if mode == "fast":
         return FAST_TASKS
+    if mode == "pre-push":
+        return PRE_PUSH_BASE_TASKS
     if mode == "full":
         return FULL_TASKS
     raise ValueError(f"Unsupported validation mode: {mode}")
 
 
-def materialize_task_set(mode: str, repo_root: Path) -> tuple[ValidationTask, ...]:
-    _ = repo_root
-    return build_task_set(mode)
+def _run_git_lines(repo_root: Path, args: tuple[str, ...]) -> list[str]:
+    completed = subprocess.run(
+        ("git", *args),
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return []
+    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+
+
+def _git_ok(repo_root: Path, args: tuple[str, ...]) -> bool:
+    completed = subprocess.run(
+        ("git", *args),
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return completed.returncode == 0
+
+
+def changed_files_for_push(repo_root: Path) -> tuple[str, ...]:
+    files: set[str] = set()
+    upstream = _run_git_lines(
+        repo_root, ("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+    )
+    if upstream:
+        files.update(
+            _run_git_lines(
+                repo_root,
+                ("diff", "--name-only", "--diff-filter=ACMR", f"{upstream[0]}...HEAD"),
+            )
+        )
+    elif _git_ok(repo_root, ("show-ref", "--verify", "--quiet", "refs/remotes/origin/main")):
+        files.update(
+            _run_git_lines(
+                repo_root, ("diff", "--name-only", "--diff-filter=ACMR", "origin/main...HEAD")
+            )
+        )
+    elif _git_ok(repo_root, ("rev-parse", "--verify", "--quiet", "HEAD~1")):
+        files.update(
+            _run_git_lines(
+                repo_root, ("diff", "--name-only", "--diff-filter=ACMR", "HEAD~1...HEAD")
+            )
+        )
+    return tuple(sorted(files))
+
+
+def is_python_runtime_change(path: str) -> bool:
+    return (
+        path.endswith(".py")
+        and any(path.startswith(prefix) for prefix in PYTHON_RUNTIME_CHANGE_PREFIXES)
+    ) or path in PYTHON_RUNTIME_CHANGE_FILES
+
+
+def is_spa_change(path: str) -> bool:
+    return any(path.startswith(prefix) for prefix in SPA_CHANGE_PREFIXES)
+
+
+def unit_tests_for_python_changes(changed_files: tuple[str, ...]) -> tuple[str, ...] | None:
+    python_changes = tuple(path for path in changed_files if is_python_runtime_change(path))
+    if not python_changes:
+        return ()
+
+    tests: set[str] = set()
+    for path in python_changes:
+        if path.startswith("tests/unit/") and path.endswith(".py"):
+            tests.add(path)
+            continue
+        mapped_test = PYTHON_UNIT_TEST_PATHS.get(path)
+        if mapped_test is None:
+            return None
+        tests.add(mapped_test)
+    return tuple(sorted(tests))
+
+
+def runtime_test_tasks_for_changes(changed_files: tuple[str, ...]) -> tuple[ValidationTask, ...]:
+    tasks: list[ValidationTask] = []
+    changed_unit_tests = unit_tests_for_python_changes(changed_files)
+    if changed_unit_tests:
+        tasks.append(
+            ValidationTask(
+                "Python changed unit tests",
+                "python-unit-changed",
+                ("uv", "run", "pytest", *changed_unit_tests, "-v", "--tb=short"),
+            )
+        )
+    elif changed_unit_tests is None:
+        tasks.append(
+            ValidationTask(
+                "Python unit tests",
+                "test-unit",
+                ("make", "--no-print-directory", "test-unit"),
+            )
+        )
+    if any(is_spa_change(path) for path in changed_files):
+        tasks.append(
+            ValidationTask(
+                "SPA quick tests",
+                "spa-test-quick",
+                ("npm", "run", "test:quick"),
+                cwd=Path("spa"),
+            )
+        )
+    return tuple(tasks)
+
+
+def materialize_task_set(
+    mode: str, repo_root: Path, changed_files: tuple[str, ...] | None = None
+) -> tuple[ValidationTask, ...]:
+    tasks = build_task_set(mode)
+    if mode != "pre-push":
+        return tasks
+    files = changed_files if changed_files is not None else changed_files_for_push(repo_root)
+    return (*tasks, *runtime_test_tasks_for_changes(files))
 
 
 def build_legacy_benchmark_task_set(mode: str) -> tuple[ValidationTask, ...]:
@@ -197,7 +358,7 @@ def run_task(
     *,
     repo_root: Path,
     log_dir: Path,
-    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    runner: Runner = subprocess.run,
 ) -> ValidationResult:
     started = time.perf_counter()
     command = list(task.command)
@@ -292,7 +453,7 @@ def run_tasks_parallel(
     *,
     repo_root: Path,
     log_dir: Path,
-    runner: Callable[..., subprocess.CompletedProcess[str]],
+    runner: Runner,
 ) -> tuple[list[ValidationResult], float]:
     started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
@@ -309,7 +470,7 @@ def run_tasks_sequential(
     *,
     repo_root: Path,
     log_dir: Path,
-    runner: Callable[..., subprocess.CompletedProcess[str]],
+    runner: Runner,
 ) -> tuple[list[ValidationResult], float]:
     started = time.perf_counter()
     results = [
@@ -329,10 +490,11 @@ def run_validation_mode(
     *,
     mode: str,
     repo_root: Path,
-    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    runner: Runner = subprocess.run,
     benchmark: bool = False,
+    changed_files: tuple[str, ...] | None = None,
 ) -> int:
-    tasks = materialize_task_set(mode, repo_root)
+    tasks = materialize_task_set(mode, repo_root, changed_files=changed_files)
     log_dir = create_log_dir(repo_root, f"{mode}-benchmark" if benchmark else mode)
     parallel_log_dir = log_dir / "parallel" if benchmark else log_dir
     parallel_log_dir.mkdir(parents=True, exist_ok=True)
@@ -395,8 +557,8 @@ def run_validation_mode(
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run fast or full local validation")
-    parser.add_argument("mode", choices=("fast", "full"))
+    parser = argparse.ArgumentParser(description="Run local validation")
+    parser.add_argument("mode", choices=("fast", "pre-push", "full"))
     parser.add_argument(
         "--benchmark",
         action="store_true",
