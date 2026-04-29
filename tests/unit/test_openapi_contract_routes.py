@@ -89,3 +89,10 @@ def test_openapi_split_accounts_target_account_id_pattern_matches_runtime_valida
     from src.tenant_api import constants
 
     assert constants.AWS_ACCOUNT_ID_PATTERN.pattern == "^[0-9]{12}$"
+
+
+def test_openapi_agent_registration_is_platform_admin_only() -> None:
+    spec = _load_openapi()
+    operation = spec.get("paths", {}).get("/v1/platform/agents", {}).get("post", {})
+
+    assert operation.get("x-required-roles") == ["Platform.Admin"]

@@ -13,7 +13,13 @@ os.environ.setdefault("AWS_EC2_METADATA_DISABLED", "true")
 os.environ.setdefault("AWS_REGION", "eu-west-2")
 os.environ.setdefault("AWS_DEFAULT_REGION", "eu-west-2")
 
-from src.authoriser.handler import generate_policy, handler, is_admin_route, is_platform_route
+from src.authoriser.handler import (
+    generate_policy,
+    handler,
+    is_admin_route,
+    is_platform_agent_registration_route,
+    is_platform_route,
+)
 
 # Mock environment variables
 OS_ENV = {
@@ -174,6 +180,22 @@ def test_is_platform_route(method_arn: str, expected: bool):
     assert is_platform_route(method_arn) is expected
 
 
+@pytest.mark.parametrize(
+    ("method_arn", "expected"),
+    [
+        ("arn:aws:execute-api:eu-west-2:123456789012:api/dev/POST/v1/platform/agents", True),
+        ("arn:aws:execute-api:eu-west-2:123456789012:api/dev/GET/v1/platform/agents", False),
+        (
+            "arn:aws:execute-api:eu-west-2:123456789012:api/dev/PATCH/v1/platform/agents/echo-agent/versions/1.0.0",
+            False,
+        ),
+        ("arn:aws:execute-api:eu-west-2:123456789012:api/dev/POST/v1/tenants", False),
+    ],
+)
+def test_is_platform_agent_registration_route(method_arn: str, expected: bool):
+    assert is_platform_agent_registration_route(method_arn) is expected
+
+
 def test_handler_missing_auth(mock_env, lambda_context):
     event = {
         "methodArn": "arn:aws:execute-api:eu-west-2:123456789012:api/dev/GET/v1/health",
@@ -321,6 +343,65 @@ def test_handler_platform_route_canonicalises_platform_tenant_context(
     payload = {
         "tenantid": "t-test-001",
         "appid": "app-001",
+        "tier": "premium",
+        "sub": "admin-001",
+        "roles": ["Platform.Admin"],
+    }
+
+    mock_get_status.return_value = "active"
+    mock_jwk_client = MagicMock()
+    mock_get_jwk_client.return_value = mock_jwk_client
+    mock_jwk_client.get_signing_key_from_jwt.return_value = MagicMock(key="public-key")
+
+    with patch("jwt.decode", return_value=payload):
+        result = handler(event, lambda_context)
+
+    assert result["policyDocument"]["Statement"][0]["Effect"] == "Allow"
+    assert result["context"]["tenantid"] == "platform"
+    assert result["context"]["usageIdentifierKey"] == "platform"
+
+
+@patch("src.authoriser.handler.get_jwk_client")
+@patch("src.authoriser.handler.get_tenant_status")
+def test_handler_platform_agent_registration_rejects_customer_tenant_context(
+    mock_get_status, mock_get_jwk_client, mock_env, lambda_context
+):
+    token = "valid.token.here"
+    method_arn = "arn:aws:execute-api:eu-west-2:123456789012:api/dev/POST/v1/platform/agents"
+    event = {"methodArn": method_arn, "authorizationToken": f"Bearer {token}"}
+
+    payload = {
+        "tenantid": "t-test-001",
+        "appid": "app-001",
+        "tier": "premium",
+        "sub": "admin-001",
+        "roles": ["Platform.Admin"],
+    }
+
+    mock_get_status.return_value = "active"
+    mock_jwk_client = MagicMock()
+    mock_get_jwk_client.return_value = mock_jwk_client
+    mock_jwk_client.get_signing_key_from_jwt.return_value = MagicMock(key="public-key")
+
+    with patch("jwt.decode", return_value=payload):
+        result = handler(event, lambda_context)
+
+    assert result["policyDocument"]["Statement"][0]["Effect"] == "Deny"
+    mock_get_status.assert_not_called()
+
+
+@patch("src.authoriser.handler.get_jwk_client")
+@patch("src.authoriser.handler.get_tenant_status")
+def test_handler_platform_agent_registration_allows_platform_tenant_context(
+    mock_get_status, mock_get_jwk_client, mock_env, lambda_context
+):
+    token = "valid.token.here"
+    method_arn = "arn:aws:execute-api:eu-west-2:123456789012:api/dev/POST/v1/platform/agents"
+    event = {"methodArn": method_arn, "authorizationToken": f"Bearer {token}"}
+
+    payload = {
+        "tenantid": "platform",
+        "appid": "app-platform",
         "tier": "premium",
         "sub": "admin-001",
         "roles": ["Platform.Admin"],

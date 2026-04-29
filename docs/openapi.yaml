@@ -860,10 +860,12 @@ paths:
       tags: [Platform]
       operationId: registerAgentVersion
       summary: Register a new agent version
-      description: Registers an immutable built version. New versions enter the release lifecycle in `built` state.
+      description: >
+        Registers an immutable built version. New versions enter the release lifecycle
+        in `built` state. The caller must carry the reserved `platform` tenant context;
+        customer-tenant admin/operator contexts are rejected.
       x-required-roles:
         - Platform.Admin
-        - Platform.Operator
       requestBody:
         required: true
         content:

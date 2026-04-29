@@ -202,6 +202,15 @@ def is_platform_route(method_arn: str) -> bool:
     return path.startswith("v1/platform")
 
 
+def is_platform_agent_registration_route(method_arn: str) -> bool:
+    parts = method_arn.split("/", 3)
+    if len(parts) < 4:
+        return False
+    method = str(parts[2]).upper()
+    path = str(parts[3]).strip("/")
+    return method == "POST" and path == "v1/platform/agents"
+
+
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
 @tracer.capture_lambda_handler
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -234,6 +243,7 @@ def handle_jwt(token: str, method_arn: str) -> dict[str, Any]:
         get_tenant_status=get_tenant_status,
         is_admin_route=is_admin_route,
         is_platform_route=is_platform_route,
+        is_platform_agent_registration_route=is_platform_agent_registration_route,
         entra_audience=ENTRA_AUDIENCE,
         entra_issuer=ENTRA_ISSUER,
         platform_tenant_id=_PLATFORM_TENANT_ID,
