@@ -2699,6 +2699,112 @@ def test_platform_register_agent_rejects_non_platform_admin_context(
     assert ("AGENT#echo-agent", "VERSION#1.2.11") not in fake_state["db"].items
 
 
+@pytest.mark.parametrize("roles", [["Platform.Admin"], ["Platform.Operator"]])
+def test_platform_list_agents_uses_control_plane_scan_client(
+    fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    roles: list[str],
+) -> None:
+    from data_access import (
+        ControlPlaneDynamoDB,
+        TenantContext,
+        TenantScopedDynamoDB,
+        TenantTier,
+    )
+
+    from src.tenant_api import db_factory
+
+    class ScanTable:
+        def __init__(self) -> None:
+            self.scan_calls: list[dict[str, Any]] = []
+
+        def scan(self, **kwargs: Any) -> dict[str, Any]:
+            self.scan_calls.append(kwargs)
+            return {
+                "Items": [
+                    {
+                        "PK": "AGENT#echo-agent",
+                        "SK": "VERSION#1.2.0",
+                        "agent_name": "echo-agent",
+                        "version": "1.2.0",
+                    }
+                ]
+            }
+
+    class ScanResource:
+        def __init__(self, table: ScanTable) -> None:
+            self.table = table
+            self.table_names: list[str] = []
+
+        def Table(self, table_name: str) -> ScanTable:
+            self.table_names.append(table_name)
+            return self.table
+
+    context = TenantContext(
+        tenant_id="platform",
+        app_id="platform-agent",
+        tier=TenantTier.PREMIUM,
+        sub="operator-123",
+    )
+    table = ScanTable()
+    resource = ScanResource(table)
+    tenant_scoped_db = TenantScopedDynamoDB(
+        context,
+        dynamodb_resource=resource,
+        cloudwatch_client=object(),
+    )
+    control_plane_db = ControlPlaneDynamoDB(
+        context,
+        dynamodb_resource=resource,
+        cloudwatch_client=object(),
+    )
+    monkeypatch.setattr(db_factory, "db_for_tenant", lambda **_kwargs: tenant_scoped_db)
+    monkeypatch.setattr(db_factory, "control_plane_db", lambda *_args, **_kwargs: control_plane_db)
+
+    event = _event(
+        method="GET",
+        roles=roles,
+        caller_tenant_id="platform",
+        app_id="platform-agent",
+    )
+    event["path"] = "/v1/platform/agents"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 200
+    body = _body(response)
+    assert body["items"][0]["agent_name"] == "echo-agent"
+    assert resource.table_names == ["platform-agents"]
+    assert table.scan_calls == [{}]
+
+
+@pytest.mark.parametrize("roles", [["Platform.Admin"], ["Platform.Operator"]])
+def test_platform_list_agents_requires_platform_tenant_context(
+    fake_state: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    roles: list[str],
+) -> None:
+    from src.tenant_api import db_factory
+
+    def fail_control_plane_db(*_args: Any, **_kwargs: Any) -> Any:
+        raise AssertionError("non-platform caller must not reach control-plane scan client")
+
+    monkeypatch.setattr(db_factory, "control_plane_db", fail_control_plane_db)
+
+    event = _event(
+        method="GET",
+        roles=roles,
+        caller_tenant_id="tenant-admin",
+        app_id="tenant-admin-app",
+    )
+    event["path"] = "/v1/platform/agents"
+
+    response = _invoke(event)
+
+    assert response["statusCode"] == 403
+    assert _body(response)["error"]["code"] == "FORBIDDEN"
+
+
 def test_platform_register_agent_rejects_async_invocation_mode(
     fake_state: dict[str, Any],
 ) -> None:

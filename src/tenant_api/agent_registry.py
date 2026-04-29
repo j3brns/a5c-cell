@@ -73,6 +73,13 @@ _RUNTIME_ENDPOINT_ARN_PATTERN = re.compile(
 _RUNTIME_ENDPOINT_FIELDS = frozenset(
     {"runtime_endpoint_arn", "runtime_endpoint_name", "runtime_endpoint_version"}
 )
+_PLATFORM_AGENT_LIST_ROLES = frozenset({"Platform.Admin", "Platform.Operator"})
+
+
+def _require_platform_agent_list_access(caller: models.CallerIdentity) -> None:
+    if not caller.roles & _PLATFORM_AGENT_LIST_ROLES:
+        raise PermissionError("Platform.Admin or Platform.Operator role required")
+    auth.require_platform_actor(caller)
 
 
 def _requires_zip_layer_metadata(item: dict[str, Any]) -> bool:
@@ -152,12 +159,8 @@ def handle_list_agents(
 ) -> dict[str, Any]:
     _ = event
     _ = deps
-    auth.require_admin(caller)
-    db = db_factory.db_for_tenant(
-        tenant_id=caller.tenant_id or "platform",
-        caller=caller,
-        app_id=caller.app_id,
-    )
+    _require_platform_agent_list_access(caller)
+    db = db_factory.control_plane_db(caller)
     items = db.scan_all(db_factory.agents_table_name())
     return http_utils.response(200, {"items": items})
 
