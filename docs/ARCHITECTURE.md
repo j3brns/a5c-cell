@@ -799,6 +799,14 @@ must remain ignored and untracked. The retired `infra/cdk/generated/` cache must
 return. `make generated-state-audit` enforces that policy and runs with local and
 pre-push validation.
 
+Pre-push validation has one composition source: `platform-cli validate local pre-push`.
+The Make target and Git hook delegate to that validator. The pre-push mode keeps the
+fast guardrails, then adds runtime tests when the branch changes runtime code:
+Python changes run a changed unit-test subset only when every Python change is either
+itself a unit test or has an explicit source-to-test mapping, and otherwise fall back
+to `test-unit`; SPA changes run the documented quick Vitest suite through
+`npm run test:quick`.
+
 ## Failure Modes
 
 | ID | Failure | Detection | Alarm | Response |

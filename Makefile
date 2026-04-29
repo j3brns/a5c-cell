@@ -204,11 +204,7 @@ rules-sync-audit:
 ## validate-pre-push: Pre-push validation (skips cdk synth; repo should already synth clean)
 validate-pre-push: validate-local-prereqs
 	@echo "==> Running pre-push validation (no cdk synth)"
-	@$(MAKE) --no-print-directory generated-state-audit
-	@$(MAKE) --no-print-directory docs-sync-audit
-	@$(MAKE) --no-print-directory validate-python
-	@$(MAKE) --no-print-directory validate-cdk-ts-push
-	@$(MAKE) --no-print-directory validate-secrets-push
+	@uv run platform-cli validate local pre-push
 	@uv run python -m scripts.issue_tool write-validation-receipt --check validate-pre-push >/dev/null
 	@echo "==> Pre-push validation passed"
 
