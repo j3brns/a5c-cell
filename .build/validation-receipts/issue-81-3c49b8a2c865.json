@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/81-use-control-plane-scan-client-for-platform-agent-listing",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:33:31.438558+00:00",
+  "head_sha": "3c49b8a2c8655c9a86371cdd25bcfddd570df04f",
+  "issue_number": 81,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt81"
+}

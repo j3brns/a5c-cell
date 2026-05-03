@@ -1,0 +1,60 @@
+{
+  "branch": "wt/task/89-keep-bridge-configuration-provider-warm-between-calls",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-create"
+  },
+  "events": [
+    {
+      "branch": "wt/task/89-keep-bridge-configuration-provider-warm-between-calls",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "keep-bridge-configuration-provider-warm-between-calls"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:89:wt/task/89-keep-bridge-configuration-provider-warm-between-calls:/home/julesb/worktrees/17inch",
+      "issue_number": 89,
+      "issue_title": "TASK-1112: Keep bridge configuration provider warm between calls",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T01:44:49.441176+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    },
+    {
+      "branch": "wt/task/89-keep-bridge-configuration-provider-warm-between-calls",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-create"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:89:/home/julesb/worktrees/17inch:codex:yolo:execute-now:tmux",
+      "issue_number": 89,
+      "issue_title": "TASK-1112: Keep bridge configuration provider warm between calls",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T01:44:49.442248+00:00",
+      "worktree_path": "/home/julesb/worktrees/17inch"
+    }
+  ],
+  "issue_number": 89,
+  "issue_title": "TASK-1112: Keep bridge configuration provider warm between calls",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-29T01:44:49.442248+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/17inch"
+}

@@ -4,7 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from ._support import worktree_issues
+from ._support import gitnexus
 
 
 def test_run_gitnexus_command_clears_corrupt_npx_cache_and_retries(monkeypatch, capsys):
@@ -26,20 +26,20 @@ def test_run_gitnexus_command_clears_corrupt_npx_cache_and_retries(monkeypatch, 
 
     removed: list[Path] = []
 
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _subprocess_run)
-    monkeypatch.setattr(worktree_issues, "gitnexus_cli_path", lambda: None)
+    monkeypatch.setattr(gitnexus.subprocess, "run", _subprocess_run)
+    monkeypatch.setattr(gitnexus, "gitnexus_cli_path", lambda: None)
     monkeypatch.setattr(
-        worktree_issues,
+        gitnexus,
         "gitnexus_npx_cache_dir",
         lambda: Path("/home/julesb/.npm/_npx"),
     )
     monkeypatch.setattr(
-        worktree_issues.shutil,
+        gitnexus.shutil,
         "rmtree",
         lambda path, ignore_errors: removed.append(path),
     )
 
-    proc = worktree_issues.run_gitnexus_command(Path("/tmp/repo"), ["status"], check=False)
+    proc = gitnexus.run_gitnexus_command(Path("/tmp/repo"), ["status"], check=False)
 
     assert proc.returncode == 0
     assert calls == [["npx", "--yes", "gitnexus", "status"], ["npx", "--yes", "gitnexus", "status"]]
@@ -54,15 +54,15 @@ def test_run_gitnexus_command_prefers_local_gitnexus_cli(monkeypatch):
         calls.append(cmd)
         return subprocess.CompletedProcess(cmd, 0, "GitNexus ready\n", "")
 
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _subprocess_run)
+    monkeypatch.setattr(gitnexus.subprocess, "run", _subprocess_run)
     monkeypatch.setattr(
-        worktree_issues,
+        gitnexus,
         "gitnexus_cli_path",
         lambda: Path("/mnt/c/Users/julia/gitnexus/gitnexus/dist/cli/index.js"),
     )
-    monkeypatch.setattr(worktree_issues, "shutil_which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(gitnexus, "shutil_which", lambda name: f"/usr/bin/{name}")
 
-    proc = worktree_issues.run_gitnexus_command(Path("/tmp/repo"), ["status"], check=False)
+    proc = gitnexus.run_gitnexus_command(Path("/tmp/repo"), ["status"], check=False)
 
     assert proc.returncode == 0
     assert calls == [
@@ -85,12 +85,12 @@ def test_prepare_gitnexus_for_worktree_warns_when_npm_cache_path_unavailable(mon
             ),
         )
 
-    monkeypatch.setattr(worktree_issues, "gitnexus_cli_path", lambda: None)
-    monkeypatch.setattr(worktree_issues, "shutil_which", lambda name: "/usr/bin/" + name)
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _subprocess_run)
-    monkeypatch.setattr(worktree_issues, "gitnexus_npx_cache_dir", lambda: None)
+    monkeypatch.setattr(gitnexus, "gitnexus_cli_path", lambda: None)
+    monkeypatch.setattr(gitnexus, "shutil_which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(gitnexus.subprocess, "run", _subprocess_run)
+    monkeypatch.setattr(gitnexus, "gitnexus_npx_cache_dir", lambda: None)
 
-    worktree_issues.prepare_gitnexus_for_worktree(Path("/tmp/repo"))
+    gitnexus.prepare_gitnexus_for_worktree(Path("/tmp/repo"))
 
     captured = capsys.readouterr()
     assert calls == [
@@ -114,11 +114,11 @@ def test_gitnexus_analyze_supports_detects_latest_flags(monkeypatch):
             "",
         )
 
-    monkeypatch.setattr(worktree_issues, "run_gitnexus_command", _run_gitnexus_command)
+    monkeypatch.setattr(gitnexus, "run_gitnexus_command", _run_gitnexus_command)
 
-    assert worktree_issues.gitnexus_analyze_supports("--skip-agents-md")
-    assert worktree_issues.gitnexus_analyze_supports("--no-stats")
-    assert not worktree_issues.gitnexus_analyze_supports("--missing-option")
+    assert gitnexus.gitnexus_analyze_supports("--skip-agents-md")
+    assert gitnexus.gitnexus_analyze_supports("--no-stats")
+    assert not gitnexus.gitnexus_analyze_supports("--missing-option")
 
 
 def test_prepare_gitnexus_preserves_existing_embeddings(monkeypatch, tmp_path):
@@ -138,11 +138,11 @@ def test_prepare_gitnexus_preserves_existing_embeddings(monkeypatch, tmp_path):
             return subprocess.CompletedProcess(args, 0, "--skip-agents-md\n--no-stats\n", "")
         return subprocess.CompletedProcess(args, 0, "analyzed", "")
 
-    monkeypatch.setattr(worktree_issues, "gitnexus_cli_path", lambda: Path("/usr/bin/gitnexus"))
-    monkeypatch.setattr(worktree_issues, "shutil_which", lambda name: "/usr/bin/" + name)
-    monkeypatch.setattr(worktree_issues, "run_gitnexus_command", _run_gitnexus_command)
+    monkeypatch.setattr(gitnexus, "gitnexus_cli_path", lambda: Path("/usr/bin/gitnexus"))
+    monkeypatch.setattr(gitnexus, "shutil_which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(gitnexus, "run_gitnexus_command", _run_gitnexus_command)
 
-    worktree_issues.prepare_gitnexus_for_worktree(repo)
+    gitnexus.prepare_gitnexus_for_worktree(repo)
 
     assert calls == [
         ["status"],

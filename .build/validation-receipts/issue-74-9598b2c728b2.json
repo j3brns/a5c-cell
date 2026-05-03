@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/74-replace-synthetic-diagnostics-with-authoritative-signals",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-27T01:13:45.475149+00:00",
+  "head_sha": "9598b2c728b2c4c094ec06ff36ea373a71ab2d71",
+  "issue_number": 74,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt74"
+}

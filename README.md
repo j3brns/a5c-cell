@@ -227,7 +227,7 @@ make dev-invoke               # Confirm echo-agent works end-to-end locally
 
 | Next step | Guide |
 |-----------|-------|
-| Full local environment | [Local Development Setup](docs/development/LOCAL-SETUP.md) |
+| Full local environment | [Local Development Setup](docs/development/PLATFORM-SETUP.md) |
 | First AWS deployment | [Bootstrap Guide](docs/bootstrap-guide.md) |
 | Entra app registration | [Entra Setup](docs/entra-setup.md) |
 
@@ -375,7 +375,7 @@ Platform Lambda source directories use `snake_case`. The shared `src/data-access
 | [Bootstrap Guide](docs/bootstrap-guide.md) | Ops | Day-zero environment deployment |
 | [Entra Setup](docs/entra-setup.md) | Ops | Entra application registration |
 | [Agent Developer Guide](docs/development/AGENT-DEVELOPER-GUIDE.md) | Agent developers | Build, test, and push agents |
-| [Local Setup](docs/development/LOCAL-SETUP.md) | Engineers | Full local development environment |
+| [Local Setup](docs/development/PLATFORM-SETUP.md) | Engineers | Full local development environment |
 | [Threat Model](docs/security/THREAT-MODEL.md) | Security | Threat analysis and mitigations |
 | [Compliance Checklist](docs/security/COMPLIANCE-CHECKLIST.md) | Security | Controls and evidence tracking |
 | [Operator Runbooks](docs/operations/) | Ops | Incident procedures and operational runbooks |

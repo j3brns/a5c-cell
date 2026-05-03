@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/82-stop-advertising-de-scoped-platform-ops-summary-endpoints",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:29:49.596301+00:00",
+  "head_sha": "2c1d58de78e298821ed1538385d9ef6616af2220",
+  "issue_number": 82,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt82"
+}

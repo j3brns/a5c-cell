@@ -16,7 +16,7 @@ git clone {repo-url}
 cd platform
 cp .env.example .env.local
 # .env.local requires: VITE_ENTRA_CLIENT_ID, VITE_ENTRA_TENANT_ID, VITE_API_BASE_URL
-# Get these values from: docs/development/LOCAL-SETUP.md
+# Get these values from: docs/development/PLATFORM-SETUP.md
 make bootstrap
 ```
 
@@ -31,7 +31,7 @@ make dev-invoke
 - CLAUDE.md — rules and constraints (mandatory)
 - docs/ARCHITECTURE.md — understand the system
 - docs/development/AGENT-DEVELOPER-GUIDE.md — how to build agents
-- docs/development/LOCAL-SETUP.md — local environment details
+- docs/development/PLATFORM-SETUP.md — local environment details
 
 ### 4. First agent task
 ```bash
@@ -52,7 +52,7 @@ Developer is considered onboarded when:
 - They know to read the relevant ADR before reversing an architectural decision
 
 ## Common Issues
-- `.env.local` values missing: check docs/development/LOCAL-SETUP.md for where to find them
+- `.env.local` values missing: check docs/development/PLATFORM-SETUP.md for where to find them
 - Docker not running: Docker Desktop must be started before `make dev`
 - uv not found: install via `curl -Ls https://astral.sh/uv/install.sh | sh`
 - GitLab pipeline fails on first push: confirm GitLab role is Developer (not Guest)

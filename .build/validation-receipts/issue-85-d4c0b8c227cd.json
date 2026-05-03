@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/85-make-branch-and-merge-request-ci-fail-closed-by-default",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:59:31.061659+00:00",
+  "head_sha": "d4c0b8c227cdddedaee6902bc6c324ef5e8fc11e",
+  "issue_number": 85,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt85"
+}

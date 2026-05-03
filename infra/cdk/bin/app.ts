@@ -7,10 +7,12 @@
  * Stack order:
  *   1. NetworkStack    — VPC, subnets, endpoints         (TASK-021)
  *   2. IdentityStack   — OIDC, pipeline roles, Entra JWKS (TASK-022)
- *   3. PlatformStack   — REST API, WAF, Lambdas, Gateway  (TASK-023)
- *   4. TenantStack     — per-tenant (EventBridge-triggered) (TASK-025)
- *   5. ObservabilityStack — dashboards, alarms            (TASK-026)
- *   6. AgentCoreStack  — Runtime config eu-west-2         (TASK-024)
+ *   3. PlatformStorageStack — DynamoDB tables, AppConfig (ADR-703)
+ *   4. PlatformSpaStack — S3, CloudFront, CSP headers     (ADR-703)
+ *   5. PlatformStack   — REST API, WAF, Lambdas, Gateway  (TASK-023)
+ *   6. TenantStack     — per-tenant (EventBridge-triggered) (TASK-025)
+ *   7. ObservabilityStack — dashboards, alarms            (TASK-026)
+ *   8. AgentCoreStack  — Runtime config eu-west-2         (TASK-024)
  */
 import * as cdk from 'aws-cdk-lib';
 import { AgentCoreStack } from '../lib/agentcore-stack';
@@ -19,6 +21,8 @@ import { NetworkStack } from '../lib/network-stack';
 import { ObservabilityStack } from '../lib/observability-stack';
 import { PlatformEdgeSecurityStack } from '../lib/platform-edge-security-stack';
 import { PlatformStack } from '../lib/platform-stack';
+import { PlatformStorageStack } from '../lib/platform-storage-stack';
+import { PlatformSpaStack } from '../lib/platform-spa-stack';
 import {
   AUTHORIZED_RUNTIME_REGIONS,
   EDGE_REGION,
@@ -62,12 +66,36 @@ const identityStack = new IdentityStack(app, `platform-identity-${env}`, {
   description: `Platform identity and pipeline roles — ${env}`,
 });
 
-// 3. PlatformStack
+// 3. PlatformStorageStack (ADR-703)
+const storageStack = new PlatformStorageStack(app, `platform-storage-${env}`, {
+  env: awsEnv,
+  description: `Platform storage resources — ${env}`,
+  envName: env,
+  vpc: networkStack.vpc,
+});
+
+// 4. PlatformSpaStack (ADR-703)
+const apiDomainName = app.node.tryGetContext('apiDomainName') as string | undefined;
+const agUiEndpointOrigins = (app.node.tryGetContext('agUiEndpointOrigins') as string | undefined)?.split(/[,\s]+/) || [];
+
+const spaStack = new PlatformSpaStack(app, `platform-spa-${env}`, {
+  env: awsEnv,
+  description: `Platform SPA resources — ${env}`,
+  envName: env,
+  apiDomainName,
+  agUiEndpointOrigins,
+});
+
+// 5. PlatformStack
 const platformStack = new PlatformStack(app, `platform-core-${env}`, {
   env: awsEnv,
   description: `Platform core services — ${env}`,
   vpc: networkStack.vpc,
   lambdaSecurityGroup: networkStack.lambdaSecurityGroup,
+  storage: storageStack.storage,
+  bridgeValkeyClientSecurityGroup: storageStack.bridgeValkeyClientSecurityGroup,
+  spaAllowedOrigin: spaStack.spaAllowedOrigin,
+  spaDistribution: spaStack.spaDistribution,
 });
 
 // CloudFront-scoped WAF resources must be created in us-east-1. This stack publishes
@@ -79,13 +107,13 @@ new PlatformEdgeSecurityStack(app, `platform-edge-security-${env}`, {
   envName: env,
 });
 
-// 4. TenantStack (real deployments triggered by EventBridge per-tenant)
+// 6. TenantStack (real deployments triggered by EventBridge per-tenant)
 const tenantId = app.node.tryGetContext('tenantId');
-const stackId = tenantId
+const tenantStackId = tenantId
   ? `platform-tenant-${tenantId}-${env}`
   : `platform-tenant-stub-${env}`;
 
-new TenantStack(app, stackId, {
+new TenantStack(app, tenantStackId, {
   env: awsEnv,
   description: tenantId
     ? `Platform resources for tenant ${tenantId} — ${env}`
@@ -93,7 +121,7 @@ new TenantStack(app, stackId, {
   authorizedRuntimeRegions: AUTHORIZED_RUNTIME_REGIONS,
 });
 
-// 5. ObservabilityStack
+// 7. ObservabilityStack
 new ObservabilityStack(app, `platform-observability-${env}`, {
   env: awsEnv,
   description: `Platform observability — ${env}`,
@@ -116,7 +144,7 @@ new ObservabilityStack(app, `platform-observability-${env}`, {
   dlqs: platformStack.dlqs,
 });
 
-// 6. AgentCoreStack
+// 8. AgentCoreStack
 new AgentCoreStack(app, `platform-agentcore-${env}`, {
   env: runtimeEnv,
   description: `Platform AgentCore configuration (${SERVING_RUNTIME_REGION}) — ${env}`,

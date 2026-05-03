@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import json
 
-from ._support import _issue, worktree_issues
+from ._support import (
+    _issue,
+    evidence,
+    models,
+    worktree,
+    worktree_issues,
+)
 
 
 def test_stale_evidence_findings_detects_orphaned_files(tmp_path, monkeypatch):
@@ -11,7 +17,7 @@ def test_stale_evidence_findings_detects_orphaned_files(tmp_path, monkeypatch):
 
     # Mock issue_evidence_summary and find_linked_worktree_for_issue to avoid git calls
     monkeypatch.setattr(
-        worktree_issues,
+        evidence,
         "issue_evidence_summary",
         lambda _root, _id: {
             "linked_worktree": None,
@@ -21,7 +27,7 @@ def test_stale_evidence_findings_detects_orphaned_files(tmp_path, monkeypatch):
             "validation_receipt": None,
         },
     )
-    monkeypatch.setattr(worktree_issues, "list_resume_candidates", lambda *_args: [])
+    monkeypatch.setattr(worktree, "list_resume_candidates", lambda *_args: [])
 
     # Create orphaned state file
     state_dir = root / ".build" / "worktree-state"
@@ -65,12 +71,12 @@ def test_stale_evidence_findings_detects_dead_worktree_path(tmp_path, monkeypatc
     )
 
     # Mock list_resume_candidates to avoid git calls
-    monkeypatch.setattr(worktree_issues, "list_resume_candidates", lambda *_args: [])
+    monkeypatch.setattr(worktree, "list_resume_candidates", lambda *_args: [])
 
     # Mock issue_evidence_summary to return a non-existent worktree path
     dead_path = tmp_path / "non-existent-wt"
     monkeypatch.setattr(
-        worktree_issues,
+        evidence,
         "issue_evidence_summary",
         lambda _root, _issue_id: {
             "linked_worktree": str(dead_path),
@@ -81,6 +87,8 @@ def test_stale_evidence_findings_detects_dead_worktree_path(tmp_path, monkeypatc
         },
     )
 
+    wt = models.WorktreeInfo(path=dead_path, head="abc", branch="wt/task/33-test")
+    monkeypatch.setattr(worktree, "list_resume_candidates", lambda _root: [wt])
     findings = worktree_issues.stale_evidence_findings(root, [issue])
 
     assert any(f"linked worktree path does not exist: {dead_path}" in f.message for f in findings)
@@ -94,10 +102,10 @@ def test_stale_evidence_findings_detects_missing_closeout_for_done_task(tmp_path
     issue = _issue(number=33, task_id="TASK-033", seq=330, labels=["type:task", "status:done"])
 
     # Mock list_resume_candidates to avoid git calls
-    monkeypatch.setattr(worktree_issues, "list_resume_candidates", lambda *_args: [])
+    monkeypatch.setattr(worktree, "list_resume_candidates", lambda *_args: [])
 
     monkeypatch.setattr(
-        worktree_issues,
+        evidence,
         "issue_evidence_summary",
         lambda _root, _issue_id: {
             "linked_worktree": None,
@@ -108,6 +116,9 @@ def test_stale_evidence_findings_detects_missing_closeout_for_done_task(tmp_path
         },
     )
 
+    dead_path = tmp_path / "non-existent-wt"
+    wt = models.WorktreeInfo(path=dead_path, head="abc", branch="wt/task/33-test")
+    monkeypatch.setattr(worktree, "list_resume_candidates", lambda _root: [wt])
     findings = worktree_issues.stale_evidence_findings(root, [issue])
 
     assert any("missing closeout report" in f.message for f in findings)
@@ -130,10 +141,10 @@ def test_stale_evidence_findings_detects_stale_validation_receipt(tmp_path, monk
 
     # Mock list_resume_candidates to return a linked worktree with different HEAD
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "list_resume_candidates",
         lambda _root: [
-            worktree_issues.WorktreeInfo(
+            models.WorktreeInfo(
                 path=root / "wt33",
                 head="newsha7890123456",
                 branch="wt/task/33-test",
@@ -143,7 +154,7 @@ def test_stale_evidence_findings_detects_stale_validation_receipt(tmp_path, monk
 
     # Mock issue_evidence_summary to avoid git calls
     monkeypatch.setattr(
-        worktree_issues,
+        evidence,
         "issue_evidence_summary",
         lambda _root, _id: {
             "linked_worktree": str(root / "wt33"),

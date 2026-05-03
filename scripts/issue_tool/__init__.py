@@ -1,3 +1,7 @@
-from scripts.issue_tool.cli import main
+def main():
+    from scripts.issue_tool.main import app
+
+    app()
+
 
 __all__ = ["main"]

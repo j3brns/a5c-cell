@@ -77,6 +77,8 @@ function buildContentSecurityPolicy(props: PlatformSpaProps): string {
 export class PlatformSpa extends Construct {
   public readonly spaDistribution: cloudfront.CfnDistribution;
   public readonly spaAllowedOrigin: string;
+  public readonly spaBucket: s3.IBucket;
+  public readonly spaLogBucket: s3.IBucket;
 
   constructor(scope: Construct, id: string, props: PlatformSpaProps) {
     super(scope, id);
@@ -128,6 +130,7 @@ export class PlatformSpa extends Construct {
       enforceSSL: true,
       versioned: true,
     });
+    this.spaBucket = spaBucket;
 
     const isProd = props.envName === 'prod';
     const retentionDays = isProd ? 365 : 30;
@@ -147,6 +150,7 @@ export class PlatformSpa extends Construct {
         },
       ],
     });
+    this.spaLogBucket = spaLogBucket;
 
     const spaResponseHeadersPolicy = new cloudfront.CfnResponseHeadersPolicy(
       this,

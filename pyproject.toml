@@ -13,6 +13,8 @@ dependencies = [
 
 [project.scripts]
 platform-cli = "scripts.platform_cli:app"
+agent-cli = "scripts.agent_cli:app"
+issue-tool = "scripts.issue_tool.main:app"
 
 [build-system]
 requires = ["hatchling"]

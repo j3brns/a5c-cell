@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 from pathlib import Path
 
-from ._support import _issue, worktree_issues
+from ._support import _issue, git_utils, multiplexer, worktree, worktree_issues
 
 
 def test_cmd_agent_handoff_defaults_to_codex_yolo_execute_now(monkeypatch):
@@ -11,19 +12,32 @@ def test_cmd_agent_handoff_defaults_to_codex_yolo_execute_now(monkeypatch):
     wt = Path("/tmp/worktrees/wt314")
     recorded: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: "owner/repo")
-    monkeypatch.setattr(worktree_issues, "current_path", lambda: wt)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: "owner/repo")
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, "", "")
+    )
+    monkeypatch.setattr(git_utils, "current_path", lambda: wt)
+    monkeypatch.setattr(
+        worktree,
         "current_branch",
         lambda _path: "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
     )
+
+    import scripts.issue_tool.commands.common as common_cmd
+
     monkeypatch.setattr(
-        worktree_issues,
+        common_cmd,
         "handoff_to_agent_or_shell",
         lambda **kwargs: recorded.update(kwargs),
     )
+    # Patch the record function in worktree module
+    monkeypatch.setattr(worktree, "record_issue_handoff_event", lambda **_kwargs: None)
+
+    # Also mock os.execvp just in case
+    import os
+
+    monkeypatch.setattr(os, "execvp", lambda *args: None)
 
     rc = worktree_issues.cmd_agent_handoff(
         argparse.Namespace(
@@ -47,6 +61,7 @@ def test_cmd_agent_handoff_defaults_to_codex_yolo_execute_now(monkeypatch):
     assert recorded["agent_mode"] == "yolo"
     assert recorded["review_agent"] is None
     assert recorded["handoff"] == "execute-now"
+    # resolve_mux_flag returns None if no flags are set
     assert recorded["mux"] is None
 
 
@@ -55,19 +70,27 @@ def test_cmd_agent_handoff_passes_review_lane_and_auto_mux(monkeypatch):
     wt = Path("/tmp/worktrees/wt314")
     recorded: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: "owner/repo")
-    monkeypatch.setattr(worktree_issues, "current_path", lambda: wt)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: "owner/repo")
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, "", "")
+    )
+    monkeypatch.setattr(git_utils, "current_path", lambda: wt)
+    monkeypatch.setattr(
+        worktree,
         "current_branch",
         lambda _path: "wt/task/314-reserved-platform-tenant-and-control-plane-agent-model",
     )
+
+    import scripts.issue_tool.commands.common as common_cmd
+
     monkeypatch.setattr(
-        worktree_issues,
+        common_cmd,
         "handoff_to_agent_or_shell",
         lambda **kwargs: recorded.update(kwargs),
     )
+    monkeypatch.setattr(worktree, "record_issue_handoff_event", lambda **_kwargs: None)
+    monkeypatch.setattr(multiplexer.os, "execvp", lambda *args: None)
 
     rc = worktree_issues.cmd_agent_handoff(
         argparse.Namespace(
@@ -103,9 +126,11 @@ def test_issue_status_rows_join_issue_worktree_agent_and_validation(monkeypatch,
         labels=["type:task", "status:in-progress"],
     )
 
-    monkeypatch.setattr(worktree_issues, "local_issue_numbers", lambda _root, **_kwargs: {33})
+    import scripts.issue_tool.commands.common as common_cmd
+
+    monkeypatch.setattr(common_cmd, "local_issue_numbers", lambda _root, **_kwargs: {33})
     monkeypatch.setattr(
-        worktree_issues,
+        common_cmd.evidence,
         "issue_evidence_summary",
         lambda _root, _issue_number: {
             "linked_worktree": str(wt),
@@ -119,7 +144,7 @@ def test_issue_status_rows_join_issue_worktree_agent_and_validation(monkeypatch,
         },
     )
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "worktree_agent_status",
         lambda _path: {
             "agent": "codex",
@@ -128,9 +153,12 @@ def test_issue_status_rows_join_issue_worktree_agent_and_validation(monkeypatch,
             "session_name": "wt33",
         },
     )
-    monkeypatch.setattr(worktree_issues, "worktree_agent_running", lambda _path: True)
+    monkeypatch.setattr(worktree, "worktree_agent_running", lambda _path: True)
+    monkeypatch.setattr(worktree, "list_worktrees", lambda _root: [])
+
+    # merge_request_for_source_branch is in commands.common
     monkeypatch.setattr(
-        worktree_issues,
+        common_cmd,
         "merge_request_for_source_branch",
         lambda _root, _repo, _branch, _state: {
             "number": 12,
@@ -171,16 +199,24 @@ def test_cmd_issue_status_prints_joined_dashboard(monkeypatch, capsys, tmp_path)
         labels=["type:task", "status:not-started", "ready"],
     )
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: "owner/repo")
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: "owner/repo")
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, "", "")
+    )
+
+    from ._support import issue_queue
+
+    monkeypatch.setattr(
+        issue_queue,
         "fetch_repo_issues",
         lambda *_args, **_kwargs: [issue],
     )
-    monkeypatch.setattr(worktree_issues, "local_issue_numbers", lambda _root, **_kwargs: set())
+    import scripts.issue_tool.commands.common as common_cmd
+
+    monkeypatch.setattr(common_cmd, "local_issue_numbers", lambda _root, **_kwargs: set())
     monkeypatch.setattr(
-        worktree_issues,
+        common_cmd.evidence,
         "issue_evidence_summary",
         lambda _root, _issue_number: {
             "linked_worktree": None,
@@ -191,7 +227,7 @@ def test_cmd_issue_status_prints_joined_dashboard(monkeypatch, capsys, tmp_path)
         },
     )
     monkeypatch.setattr(
-        worktree_issues,
+        common_cmd,
         "merge_request_for_source_branch",
         lambda _root, _repo, _branch, _state: None,
     )

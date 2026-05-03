@@ -1,0 +1,9 @@
+{
+  "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T18:47:17.039173+00:00",
+  "head_sha": "888fe29ef48047062039ae9f884b54324fa86759",
+  "issue_number": 57,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt57"
+}

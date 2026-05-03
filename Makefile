@@ -3,7 +3,7 @@
 # Run `make help` for a grouped summary, or `make help-all` for the full dump
 # =============================================================================
 
-.PHONY: help help-all bootstrap ensure-tools worktree-probe validate-local validate-local-full
+.PHONY: help help-agent help-all bootstrap bootstrap-platform bootstrap-agent ensure-tools worktree-probe validate-local validate-local-full
 .PHONY: validate-local-prereqs validate-lint validate-typecheck validate-unit validate-contract validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
 .PHONY: validate-pre-push validate-secrets-diff validate-secrets-push validate-secrets-full
 .PHONY: docs-sync-audit docs-sync-stamp generated-state-audit rules-sync-audit
@@ -46,7 +46,8 @@ help:
 		echo "Categories:"; \
 		ex() { printf '    %-26s %s\n' "$$1" "$$2"; }; \
 		echo "  Setup"; \
-		ex "bootstrap" "install tools and check prerequisites"; \
+		ex "bootstrap-platform" "full setup for platform engineers (Docker, Node, CDK)"; \
+		ex "bootstrap-agent" "minimal setup for agent developers (uv only)"; \
 		ex "ensure-tools" "install missing dev tools"; \
 		ex "worktree-probe" "check worktree dev dependencies"; \
 		echo ""; \
@@ -86,6 +87,7 @@ help:
 		ex "bootstrap-*" "bootstrap and seed platform resources"; \
 		echo ""; \
 		echo "  Agent / SPA / ops"; \
+		ex "help-agent" "show agent-specific developer targets"; \
 		ex "agent-* [AGENT=${c_def}name${c_rst}] [ENV=${c_def}dev${c_rst}|staging|prod]" "package, deploy, invoke, or roll back agents"; \
 		ex "spa-push" "build and deploy the SPA"; \
 		ex "ops-login" "authenticate as operator via Entra"; \
@@ -106,6 +108,24 @@ help:
 		build_help; \
 	fi
 
+## help-agent: Print agent-relevant targets
+help-agent:
+	@if [ -t 1 ] && [ -z "$$NO_COLOR" ]; then c_def="$$(printf '\033[36m')"; c_rst="$$(printf '\033[0m')"; else c_def=""; c_rst=""; fi; \
+	echo "Agent Developer Targets:"; \
+	echo ""; \
+	ex() { printf '    %-36s %s\n' "$$1" "$$2"; }; \
+	ex "test-agent AGENT=name" "run tests for a specific agent"; \
+	ex "agentcore-dev AGENT=name" "start local dev server for an agent"; \
+	ex "agentcore-invoke-dev AGENT=name" "invoke local dev server"; \
+	ex "agentcore-launch AGENT=name" "launch agent with starter toolkit"; \
+	ex "agentcore-invoke-runtime AGENT=name" "invoke toolkit-launched runtime"; \
+	ex "agentcore-stop-session AGENT=name" "stop active toolkit runtime session"; \
+	ex "agentcore-destroy AGENT=name" "destroy toolkit runtime resources"; \
+	ex "agent-push AGENT=name" "package and deploy an agent"; \
+	ex "agent-invoke AGENT=name" "invoke deployed agent via Bridge"; \
+	ex "agent-rollback AGENT=name" "roll back agent to previous version"; \
+	echo ""
+
 ## help-all: Print every documented target
 help-all:
 	@grep -E '^## ' Makefile | sed 's/^## /  /' || true
@@ -114,8 +134,18 @@ help-all:
 # BOOTSTRAP AND SETUP
 # =============================================================================
 
-## bootstrap: First-time setup — install tools, check prerequisites
+## bootstrap: Print disambiguation message
 bootstrap:
+	@echo "ERROR: 'make bootstrap' is now ambiguous."
+	@echo "Please use one of the following:"
+	@echo ""
+	@echo "  make bootstrap-platform  - Full setup for platform engineers (Docker, Node, CDK)"
+	@echo "  make bootstrap-agent     - Minimal setup for agent developers (uv only)"
+	@echo ""
+	@exit 1
+
+## bootstrap-platform: First-time setup for platform engineers — install tools, check prerequisites
+bootstrap-platform:
 	@echo "==> Checking prerequisites"
 	@command -v uv >/dev/null 2>&1 || (echo "ERROR: uv not installed. Run: curl -Ls https://astral.sh/uv/install.sh | i" && exit 1)
 	@command -v docker >/dev/null 2>&1 || (echo "ERROR: docker not installed" && exit 1)
@@ -126,6 +156,16 @@ bootstrap:
 	cd spa && npm install
 	@[ -f .env.local ] || cp .env.example .env.local
 	@echo "==> Bootstrap complete. Edit .env.local if needed, then run: make dev"
+
+## bootstrap-agent: Agent developer setup — install uv and sync
+bootstrap-agent:
+	@echo "==> Checking prerequisites for agent developer"
+	@command -v uv >/dev/null 2>&1 || (echo "ERROR: uv not installed. Run: curl -Ls https://astral.sh/uv/install.sh | i" && exit 1)
+	uv sync
+	@echo "==> Agent bootstrap complete."
+	@echo "    Next steps:"
+	@echo "    1. cd agents/echo-agent"
+	@echo "    2. make test"
 
 ## bootstrap-cdk: CDK bootstrap all three regions (requires bootstrap IAM user)
 bootstrap-cdk:
@@ -386,9 +426,9 @@ validate-secrets-full:
 dev:
 	@echo "==> Starting local development environment"
 	docker compose up -d
-	uv run platform-cli dev wait-for-services
-	uv run platform-cli dev bootstrap
-	uv run platform-cli dev wait-for-services --check-seeded-state
+	uv run agent-cli dev wait-for-services
+	uv run agent-cli dev bootstrap
+	uv run agent-cli dev wait-for-services --check-seeded-state
 	@echo ""
 	@echo "==> Local environment ready"
 	@echo "    Try: make dev-invoke"
@@ -404,7 +444,7 @@ dev-logs:
 ## dev-invoke: Invoke echo agent locally with test tenant
 dev-invoke:
 	@TENANT=$$(grep BASIC_TENANT_ID .env.test 2>/dev/null | cut -d= -f2); \
-	uv run platform-cli dev invoke \
+	uv run agent-cli dev invoke \
 		--agent echo-agent \
 		--tenant "$${TENANT:-t-test-001}" \
 		--prompt "$(or $(PROMPT),Hello from local environment)" \
@@ -538,13 +578,13 @@ tf-apply:
 ## Usage: make agent-evaluate AGENT=my-agent [ENV=staging]
 agent-evaluate:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agent-evaluate AGENT=my-agent" && exit 1)
-	uv run platform-cli agent evaluate $(AGENT) --env $(ENV)
+	uv run agent-cli agent evaluate $(AGENT) --env $(ENV)
 
 ## agent-push: Package and deploy an agent
 ## Usage: make agent-push AGENT=my-agent [ENV=dev]
 agent-push:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required. Usage: make agent-push AGENT=my-agent" && exit 1)
-	uv run platform-cli agent push $(AGENT) --env $(ENV)
+	uv run agent-cli agent push $(AGENT) --env $(ENV)
 
 ## agentcore-dev: Start AgentCore local dev server inside an agent project
 ## Usage: make agentcore-dev AGENT=my-agent
@@ -587,7 +627,7 @@ agentcore-destroy:
 agent-invoke:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required" && exit 1)
 	@test -n "$(TENANT)" || (echo "ERROR: TENANT required" && exit 1)
-	uv run platform-cli agent invoke \
+	uv run agent-cli agent invoke \
 		--agent $(AGENT) \
 		--tenant $(TENANT) \
 		--env $(ENV) \
@@ -607,7 +647,7 @@ agent-test: test-agent
 ## Usage: make agent-rollback AGENT=my-agent [ENV=prod]
 agent-rollback:
 	@test -n "$(AGENT)" || (echo "ERROR: AGENT required" && exit 1)
-	uv run platform-cli agent rollback $(AGENT) --env $(ENV)
+	uv run agent-cli agent rollback $(AGENT) --env $(ENV)
 
 # =============================================================================
 # SPA FRONTEND

@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/7-constrain-bridge-tenant-execution-role-assumption",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T21:29:53.437222+00:00",
+  "head_sha": "c958b6c9735c3da254491be698d4460bbc005aad",
+  "issue_number": 7,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt7"
+}

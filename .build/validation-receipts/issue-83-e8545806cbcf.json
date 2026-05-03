@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/83-stop-returning-synthetic-green-status-from-platform-service-",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:42:08.742956+00:00",
+  "head_sha": "e8545806cbcfb26282b13633f4c87b13f14dd83f",
+  "issue_number": 83,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt83"
+}

@@ -2,21 +2,30 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 
-from ._support import worktree_issues
+from ._support import (
+    closeout,
+    commands_common,
+    git_utils,
+    models,
+    tracker_client,
+    worktree,
+    worktree_issues,
+)
 
 
 def test_finish_summary_prints_explicit_dod_conflict_and_cleanup_steps(monkeypatch, capsys):
     root = Path("/tmp/repo")
-    primary = worktree_issues.WorktreeInfo(
+    primary = models.WorktreeInfo(
         path=Path("/tmp/repo"),
         head="abc123",
         branch="main",
         is_primary=True,
     )
-    target = worktree_issues.WorktreeInfo(
+    target = models.WorktreeInfo(
         path=Path("/tmp/worktrees/wt53"),
         head="def456",
         branch="wt/infra/53-explicit-dod",
@@ -26,18 +35,18 @@ def test_finish_summary_prints_explicit_dod_conflict_and_cleanup_steps(monkeypat
     def _list_worktrees(_root):
         return [primary, target] if target.path.exists() else [primary]
 
-    monkeypatch.setattr(worktree_issues, "list_worktrees", _list_worktrees)
-    monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(worktree, "list_worktrees", _list_worktrees)
+    monkeypatch.setattr(worktree, "resolve_current_worktree", lambda _path, _wts: target)
     monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
-    monkeypatch.setattr(worktree_issues, "tracker_repo_ready", lambda _root: (False, None))
-    monkeypatch.setattr(worktree_issues, "finish_stage", lambda *_args, **_kwargs: "merged")
+    monkeypatch.setattr(commands_common, "tracker_repo_ready", lambda _root: (False, None))
+    monkeypatch.setattr(commands_common, "finish_stage", lambda *_args, **_kwargs: "merged")
 
     def _run_summary(*args, **kwargs):
         return subprocess.CompletedProcess(args[0], 0, "## wt/infra/53-explicit-dod\n", "")
 
-    monkeypatch.setattr(worktree_issues, "run", _run_summary)
+    monkeypatch.setattr(git_utils, "run", _run_summary)
 
-    worktree_issues.finish_summary(root, path=target.path)
+    commands_common.finish_summary(root, path=target.path)
     out = capsys.readouterr().out
 
     assert "dod:      merged MR + closed issue + cleaned worktree/branch" in out
@@ -52,7 +61,7 @@ def test_cleanup_finished_worktree_changes_out_of_target_before_remove(
 ):
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
-    target = worktree_issues.WorktreeInfo(
+    target = models.WorktreeInfo(
         path=tmp_path / "worktrees" / "wt153",
         head="abc123",
         branch="wt/task/153-sample",
@@ -62,10 +71,10 @@ def test_cleanup_finished_worktree_changes_out_of_target_before_remove(
     changed_to: list[Path] = []
     branch_deleted = False
 
-    monkeypatch.setattr(worktree_issues.os, "getcwd", lambda: str(target.path))
-    monkeypatch.setattr(worktree_issues.os, "chdir", lambda path: changed_to.append(Path(path)))
+    monkeypatch.setattr(os, "getcwd", lambda: str(target.path))
+    monkeypatch.setattr(os, "chdir", lambda path: changed_to.append(Path(path)))
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "local_branch_exists",
         lambda _root, _branch: not branch_deleted,
     )
@@ -78,9 +87,11 @@ def test_cleanup_finished_worktree_changes_out_of_target_before_remove(
             branch_deleted = True
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
-    monkeypatch.setattr(worktree_issues, "run", _run)
+    monkeypatch.setattr(git_utils, "run", _run)
 
-    result = worktree_issues.cleanup_finished_worktree(root, target)
+    result = closeout.cleanup_finished_worktree(
+        root, target, local_branch_exists_fn=worktree.local_branch_exists
+    )
     out = capsys.readouterr().out
 
     assert changed_to == [root]
@@ -93,17 +104,15 @@ def test_cleanup_finished_worktree_changes_out_of_target_before_remove(
 
 
 def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch, capsys, tmp_path):
-    from scripts.issue_tool import tracker_client
-
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
-    target = worktree_issues.WorktreeInfo(
+    target = models.WorktreeInfo(
         path=tmp_path / "worktrees" / "wt153",
         head="abc123",
         branch="wt/task/153-sample",
         is_primary=False,
     )
-    primary = worktree_issues.WorktreeInfo(
+    primary = models.WorktreeInfo(
         path=root,
         head="def456",
         branch="main",
@@ -116,17 +125,17 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
 
     target.path.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(worktree_issues, "list_worktrees", lambda _root: [primary, target])
-    monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(worktree, "list_worktrees", lambda _root: [primary, target])
+    monkeypatch.setattr(worktree, "resolve_current_worktree", lambda _path, _wts: target)
     monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
-    monkeypatch.setattr(worktree_issues, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
+    monkeypatch.setattr(commands_common, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
     monkeypatch.setattr(
-        worktree_issues,
+        commands_common,
         "merge_request_for_source_branch",
         lambda _root, _repo, _branch, _state: {"number": 157},
     )
     monkeypatch.setattr(
-        worktree_issues,
+        commands_common,
         "issue_state_info",
         lambda _root, _repo, _issue_id: {
             "state": "CLOSED",
@@ -147,29 +156,31 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
         comments.append([str(issue_id), body])
         return ""
 
-    monkeypatch.setattr(worktree_issues, "update_issue_labels", _update_issue_labels)
     monkeypatch.setattr(tracker_client, "update_issue_labels", _update_issue_labels)
-    monkeypatch.setattr(worktree_issues, "comment_issue", _comment_issue)
-    monkeypatch.setattr(worktree_issues, "issue_has_handback_comment", lambda **_kwargs: False)
+    monkeypatch.setattr(tracker_client, "comment_issue", _comment_issue)
+    monkeypatch.setattr(worktree, "issue_has_handback_comment", lambda **_kwargs: False)
     monkeypatch.setattr(tracker_client, "ensure_label_exists", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(
-        worktree_issues,
-        "local_branch_exists",
-        lambda _root, _branch: not branch_deleted,
-    )
 
-    def _run(cmd, *, cwd=None, **_kwargs):
+    def _run(cmd, *, cwd=None, check=True, **_kwargs):
         nonlocal branch_deleted
         cleanup_calls.append((cmd, cwd))
         if cmd[:3] == ["git", "worktree", "remove"]:
-            target.path.rmdir()
+            if target.path.exists():
+                target.path.rmdir()
+
+        rc = 0
         if cmd[:3] == ["git", "branch", "-d"]:
             branch_deleted = True
-        return subprocess.CompletedProcess(cmd, 0, "", "")
+        elif cmd[:2] == ["git", "show-ref"] and branch_deleted:
+            rc = 1
 
-    monkeypatch.setattr(worktree_issues, "run", _run)
+        if rc != 0 and check:
+            raise subprocess.CalledProcessError(rc, cmd)
+        return subprocess.CompletedProcess(cmd, rc, "", "")
 
-    worktree_issues.record_issue_handoff_event(
+    monkeypatch.setattr(git_utils, "run", _run)
+
+    worktree.record_issue_handoff_event(
         root=root,
         repo="owner/repo",
         issue_number=153,
@@ -182,7 +193,7 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
         idempotency_key="resume:153:test",
     )
 
-    worktree_issues.close_issue_done(root, path=target.path, force=False)
+    commands_common.close_issue_done(root, path=target.path, force=False)
     out = capsys.readouterr().out
 
     assert edits == [["153", ["status:done"], ["ready", "status:in-progress"]]]
@@ -190,11 +201,15 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
     assert comments[0][0] == "153"
     assert "Execution evidence: PASS" in comments[0][1]
     assert "Evidence hash:" in comments[0][1]
+
     assert cleanup_calls == [
         (["git", "worktree", "remove", str(target.path)], root),
-        (["git", "branch", "-d", "wt/task/153-sample"], root),
+        (["git", "show-ref", "--verify", "--quiet", f"refs/heads/{target.branch}"], root),
+        (["git", "branch", "-d", target.branch], root),
         (["git", "worktree", "prune"], root),
+        (["git", "show-ref", "--verify", "--quiet", f"refs/heads/{target.branch}"], root),
     ]
+
     assert "Issue #153 already closed." in out
     assert "Normalized closed-issue lifecycle labels." in out
     assert "Cleaning up worktree..." in out
@@ -237,17 +252,15 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
 
 
 def test_close_issue_done_normalizes_open_issue_after_close(monkeypatch, capsys, tmp_path):
-    from scripts.issue_tool import tracker_client
-
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
-    target = worktree_issues.WorktreeInfo(
+    target = models.WorktreeInfo(
         path=tmp_path / "worktrees" / "wt153",
         head="abc123",
         branch="wt/task/153-sample",
         is_primary=False,
     )
-    primary = worktree_issues.WorktreeInfo(
+    primary = models.WorktreeInfo(
         path=root,
         head="def456",
         branch="main",
@@ -260,12 +273,12 @@ def test_close_issue_done_normalizes_open_issue_after_close(monkeypatch, capsys,
 
     target.path.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(worktree_issues, "list_worktrees", lambda _root: [primary, target])
-    monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(worktree, "list_worktrees", lambda _root: [primary, target])
+    monkeypatch.setattr(worktree, "resolve_current_worktree", lambda _path, _wts: target)
     monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
-    monkeypatch.setattr(worktree_issues, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
+    monkeypatch.setattr(commands_common, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
     monkeypatch.setattr(
-        worktree_issues,
+        commands_common,
         "merge_request_for_source_branch",
         lambda _root, _repo, _branch, _state: {"number": 157},
     )
@@ -294,15 +307,14 @@ def test_close_issue_done_normalizes_open_issue_after_close(monkeypatch, capsys,
         comments.append([str(issue_id), body])
         return ""
 
-    monkeypatch.setattr(worktree_issues, "issue_state_info", _issue_state_info)
-    monkeypatch.setattr(worktree_issues, "close_issue", _close_issue)
-    monkeypatch.setattr(worktree_issues, "update_issue_labels", _update_issue_labels)
+    monkeypatch.setattr(commands_common, "issue_state_info", _issue_state_info)
+    monkeypatch.setattr(tracker_client, "close_issue", _close_issue)
     monkeypatch.setattr(tracker_client, "update_issue_labels", _update_issue_labels)
-    monkeypatch.setattr(worktree_issues, "comment_issue", _comment_issue)
-    monkeypatch.setattr(worktree_issues, "issue_has_handback_comment", lambda **_kwargs: False)
+    monkeypatch.setattr(tracker_client, "comment_issue", _comment_issue)
+    monkeypatch.setattr(worktree, "issue_has_handback_comment", lambda **_kwargs: False)
     monkeypatch.setattr(tracker_client, "ensure_label_exists", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "local_branch_exists",
         lambda _root, _branch: not branch_deleted,
     )
@@ -310,14 +322,15 @@ def test_close_issue_done_normalizes_open_issue_after_close(monkeypatch, capsys,
     def _run(cmd, *, cwd=None, **_kwargs):
         nonlocal branch_deleted
         if cmd[:3] == ["git", "worktree", "remove"]:
-            target.path.rmdir()
+            if target.path.exists():
+                target.path.rmdir()
         if cmd[:3] == ["git", "branch", "-d"]:
             branch_deleted = True
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
-    monkeypatch.setattr(worktree_issues, "run", _run)
+    monkeypatch.setattr(git_utils, "run", _run)
 
-    worktree_issues.record_issue_handoff_event(
+    worktree.record_issue_handoff_event(
         root=root,
         repo="owner/repo",
         issue_number=153,
@@ -330,7 +343,7 @@ def test_close_issue_done_normalizes_open_issue_after_close(monkeypatch, capsys,
         idempotency_key="resume:153:test",
     )
 
-    worktree_issues.close_issue_done(root, path=target.path, force=False)
+    commands_common.close_issue_done(root, path=target.path, force=False)
     out = capsys.readouterr().out
 
     assert close_calls == ["153"]
@@ -349,13 +362,13 @@ def test_close_issue_done_normalizes_open_issue_after_close(monkeypatch, capsys,
 def test_close_issue_done_defers_stalled_cleanup(monkeypatch, capsys, tmp_path):
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
-    target = worktree_issues.WorktreeInfo(
+    target = models.WorktreeInfo(
         path=tmp_path / "worktrees" / "wt153",
         head="abc123",
         branch="wt/task/153-sample",
         is_primary=False,
     )
-    primary = worktree_issues.WorktreeInfo(
+    primary = models.WorktreeInfo(
         path=root,
         head="def456",
         branch="main",
@@ -365,17 +378,17 @@ def test_close_issue_done_defers_stalled_cleanup(monkeypatch, capsys, tmp_path):
 
     target.path.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(worktree_issues, "list_worktrees", lambda _root: [primary, target])
-    monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(worktree, "list_worktrees", lambda _root: [primary, target])
+    monkeypatch.setattr(worktree, "resolve_current_worktree", lambda _path, _wts: target)
     monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
-    monkeypatch.setattr(worktree_issues, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
+    monkeypatch.setattr(commands_common, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
     monkeypatch.setattr(
-        worktree_issues,
+        commands_common,
         "merge_request_for_source_branch",
         lambda _root, _repo, _branch, _state: {"number": 157},
     )
     monkeypatch.setattr(
-        worktree_issues,
+        commands_common,
         "issue_state_info",
         lambda _root, _repo, _issue_id: {
             "state": "CLOSED",
@@ -384,24 +397,24 @@ def test_close_issue_done_defers_stalled_cleanup(monkeypatch, capsys, tmp_path):
             "labels": [{"name": "type:task"}, {"name": "status:done"}],
         },
     )
-    monkeypatch.setattr(worktree_issues, "issue_has_handback_comment", lambda **_kwargs: False)
+    monkeypatch.setattr(worktree, "issue_has_handback_comment", lambda **_kwargs: False)
     monkeypatch.setattr(
-        worktree_issues,
+        tracker_client,
         "comment_issue",
         lambda _root, _repo, issue_id, body: comments.append([str(issue_id), body]) or "",
     )
 
-    def _cleanup_timeout(_root, _target):
+    def _cleanup_timeout(_root, _target, **_kwargs):
         raise subprocess.TimeoutExpired(["git", "worktree", "remove", str(target.path)], 30)
 
-    monkeypatch.setattr(worktree_issues, "cleanup_finished_worktree", _cleanup_timeout)
+    monkeypatch.setattr(closeout, "cleanup_finished_worktree", _cleanup_timeout)
     monkeypatch.setattr(
-        worktree_issues,
+        closeout,
         "verify_cleanup_finished",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not verify")),
     )
 
-    worktree_issues.record_issue_handoff_event(
+    worktree.record_issue_handoff_event(
         root=root,
         repo="owner/repo",
         issue_number=153,
@@ -414,7 +427,7 @@ def test_close_issue_done_defers_stalled_cleanup(monkeypatch, capsys, tmp_path):
         idempotency_key="resume:153:test",
     )
 
-    worktree_issues.close_issue_done(root, path=target.path, force=False)
+    commands_common.close_issue_done(root, path=target.path, force=False)
     out = capsys.readouterr().out
 
     assert "Cleanup deferred:" in out
@@ -439,7 +452,7 @@ def test_close_issue_done_defers_stalled_cleanup(monkeypatch, capsys, tmp_path):
 def test_cmd_finish_close_json_prints_closeout_report(monkeypatch, capsys, tmp_path):
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
-    target = worktree_issues.WorktreeInfo(
+    target = models.WorktreeInfo(
         path=tmp_path / "worktrees" / "wt153",
         head="abc123",
         branch="wt/task/153-sample",
@@ -465,13 +478,17 @@ def test_cmd_finish_close_json_prints_closeout_report(monkeypatch, capsys, tmp_p
         "worktree_path": str(target.path),
     }
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "list_worktrees", lambda _root: [target])
-    monkeypatch.setattr(worktree_issues, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(worktree, "list_worktrees", lambda _root: [target])
+    monkeypatch.setattr(worktree, "resolve_current_worktree", lambda _path, _wts: target)
     monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
-    monkeypatch.setattr(worktree_issues, "closeout_report_path", lambda _root, _target: report_path)
     monkeypatch.setattr(
-        worktree_issues,
+        closeout, "closeout_report_path", lambda _root, _target, **_kwargs: report_path
+    )
+    from scripts.issue_tool.commands import finish
+
+    monkeypatch.setattr(
+        finish.common,
         "close_issue_done",
         lambda *_args, **_kwargs: report_path.write_text(
             json.dumps(report_payload, indent=2) + "\n", encoding="utf-8"

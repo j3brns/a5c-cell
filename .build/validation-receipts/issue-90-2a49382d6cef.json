@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/90-include-app-id-on-bridge-metric-dimensions",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T01:55:15.704717+00:00",
+  "head_sha": "2a49382d6cefeccc9b26a071fe7517b0471483d8",
+  "issue_number": 90,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt90"
+}

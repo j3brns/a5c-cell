@@ -7,8 +7,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from scripts.issue_tool import git_utils
 from scripts.issue_tool.constants import WORKTREE_BRANCH_REGEX, WORKTREE_CLOSEOUT_DIR
-from scripts.issue_tool.git_utils import run
 from scripts.issue_tool.models import WorktreeInfo
 
 
@@ -22,8 +22,10 @@ def cleanup_finished_worktree(
     *,
     local_branch_exists_fn: Callable[[Path, str], bool],
     os_module=os,
-    run_fn=run,
+    run_fn=None,
 ) -> dict[str, bool]:
+    if run_fn is None:
+        run_fn = git_utils.run
     result = {
         "worktree_removed": False,
         "branch_deleted": False,
@@ -66,6 +68,17 @@ def closeout_report_path(
     issue_id = extract_issue_id_from_branch_fn(target.branch) or "unknown"
     safe_branch = re.sub(r"[^A-Za-z0-9._-]+", "_", target.branch)
     return root / WORKTREE_CLOSEOUT_DIR / f"issue-{issue_id}-{safe_branch}.json"
+
+
+def latest_closeout_report_path(root: Path, issue_id: int) -> Path | None:
+    closeout_root = root / WORKTREE_CLOSEOUT_DIR
+    if not closeout_root.exists():
+        return None
+    matches = sorted(
+        closeout_root.glob(f"issue-{issue_id}-*.json"),
+        key=lambda candidate: candidate.stat().st_mtime,
+    )
+    return matches[-1] if matches else None
 
 
 def write_closeout_report(

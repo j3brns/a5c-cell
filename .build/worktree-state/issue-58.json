@@ -1,0 +1,116 @@
+{
+  "branch": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+  "details": {
+    "evidence_hash": "189e26e6ce178fd02f962dc0281b00904752428f6c1b21ba2cfc28d824ef9159",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-58-wt_task_58-centralize-runtime-topology-and-remove-eu-west-1-defaults.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "centralize-runtime-topology-and-remove-eu-west-1-defaults"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:58:wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults:/home/julesb/worktrees/wt58",
+      "issue_number": 58,
+      "issue_title": "TASK-909: Centralize runtime topology and remove eu-west-1 defaults",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-26T18:55:39.005263+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt58"
+    },
+    {
+      "branch": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:58:/home/julesb/worktrees/wt58:codex:yolo:execute-now:tmux",
+      "issue_number": 58,
+      "issue_title": "TASK-909: Centralize runtime topology and remove eu-west-1 defaults",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-26T18:55:39.005862+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt58"
+    },
+    {
+      "branch": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-58-wt_task_58-centralize-runtime-topology-and-remove-eu-west-1-defaults.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:58:wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults:/home/julesb/worktrees/wt58",
+      "issue_number": 58,
+      "issue_title": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T19:41:43.781236+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt58"
+    },
+    {
+      "branch": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-58-wt_task_58-centralize-runtime-topology-and-remove-eu-west-1-defaults.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:58:wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults:/home/julesb/worktrees/wt58",
+      "issue_number": 58,
+      "issue_title": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T19:41:52.260696+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt58"
+    },
+    {
+      "branch": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "details": {
+        "evidence_hash": "189e26e6ce178fd02f962dc0281b00904752428f6c1b21ba2cfc28d824ef9159",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-58-wt_task_58-centralize-runtime-topology-and-remove-eu-west-1-defaults.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:58:189e26e6ce178fd02f962dc0281b00904752428f6c1b21ba2cfc28d824ef9159",
+      "issue_number": 58,
+      "issue_title": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T19:41:52.261571+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt58"
+    },
+    {
+      "branch": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "details": {
+        "evidence_hash": "189e26e6ce178fd02f962dc0281b00904752428f6c1b21ba2cfc28d824ef9159",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-58-wt_task_58-centralize-runtime-topology-and-remove-eu-west-1-defaults.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:58:189e26e6ce178fd02f962dc0281b00904752428f6c1b21ba2cfc28d824ef9159",
+      "issue_number": 58,
+      "issue_title": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T19:41:53.985572+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt58"
+    }
+  ],
+  "issue_number": 58,
+  "issue_title": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T19:41:53.985572+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt58"
+}

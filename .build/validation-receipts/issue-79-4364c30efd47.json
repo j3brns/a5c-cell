@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:16:35.126987+00:00",
+  "head_sha": "4364c30efd472be8f9ad3bcda6e4ea11eace1ed5",
+  "issue_number": 79,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt79"
+}

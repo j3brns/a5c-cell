@@ -9,11 +9,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.issue_tool import agent_launch, cli  # noqa: E402
+from scripts.issue_tool import agent_launch, multiplexer  # noqa: E402
 
 
 def test_worktree_env_preamble_sources_nvm_and_venv():
-    preamble = cli.worktree_env_preamble()
+    preamble = multiplexer.worktree_env_preamble()
 
     assert "source .venv/bin/activate" in preamble
     assert 'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"' in preamble

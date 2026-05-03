@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/68-remove-historical-runtime-topology-fallbacks-and-stale-docs",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T22:56:50.374666+00:00",
+  "head_sha": "d18e03a380cca1f2a1fc453b7b48b68c946fa01a",
+  "issue_number": 68,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt68"
+}

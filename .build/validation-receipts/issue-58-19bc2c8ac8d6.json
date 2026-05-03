@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/58-centralize-runtime-topology-and-remove-eu-west-1-defaults",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T19:37:40.742228+00:00",
+  "head_sha": "19bc2c8ac8d6f2dbcafa0713689c4bcc7a83d1d4",
+  "issue_number": 58,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt58"
+}

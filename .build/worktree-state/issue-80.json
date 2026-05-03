@@ -1,0 +1,116 @@
+{
+  "branch": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+  "details": {
+    "evidence_hash": "14d0dc7eb6ad394db4e5aed32acb74a811624b8fdf90f960256f22f3cdce0a84",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-80-wt_task_80-require-platform-tenant-context-for-platform-agent-registrat.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "require-platform-tenant-context-for-platform-agent-registrat"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:80:wt/task/80-require-platform-tenant-context-for-platform-agent-registrat:/home/julesb/worktrees/wt80",
+      "issue_number": 80,
+      "issue_title": "TASK-1103: Require platform tenant context for platform agent registration",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T00:04:16.411514+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt80"
+    },
+    {
+      "branch": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:80:/home/julesb/worktrees/wt80:codex:yolo:execute-now:tmux",
+      "issue_number": 80,
+      "issue_title": "TASK-1103: Require platform tenant context for platform agent registration",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T00:04:16.412250+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt80"
+    },
+    {
+      "branch": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-80-wt_task_80-require-platform-tenant-context-for-platform-agent-registrat.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:80:wt/task/80-require-platform-tenant-context-for-platform-agent-registrat:/home/julesb/worktrees/wt80",
+      "issue_number": 80,
+      "issue_title": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-29T00:25:29.239214+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt80"
+    },
+    {
+      "branch": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-80-wt_task_80-require-platform-tenant-context-for-platform-agent-registrat.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:80:wt/task/80-require-platform-tenant-context-for-platform-agent-registrat:/home/julesb/worktrees/wt80",
+      "issue_number": 80,
+      "issue_title": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-29T00:25:34.182552+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt80"
+    },
+    {
+      "branch": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "details": {
+        "evidence_hash": "14d0dc7eb6ad394db4e5aed32acb74a811624b8fdf90f960256f22f3cdce0a84",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-80-wt_task_80-require-platform-tenant-context-for-platform-agent-registrat.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:80:14d0dc7eb6ad394db4e5aed32acb74a811624b8fdf90f960256f22f3cdce0a84",
+      "issue_number": 80,
+      "issue_title": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-29T00:25:34.183516+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt80"
+    },
+    {
+      "branch": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "details": {
+        "evidence_hash": "14d0dc7eb6ad394db4e5aed32acb74a811624b8fdf90f960256f22f3cdce0a84",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-80-wt_task_80-require-platform-tenant-context-for-platform-agent-registrat.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:80:14d0dc7eb6ad394db4e5aed32acb74a811624b8fdf90f960256f22f3cdce0a84",
+      "issue_number": 80,
+      "issue_title": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-29T00:25:36.236805+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt80"
+    }
+  ],
+  "issue_number": 80,
+  "issue_title": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-29T00:25:36.236805+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt80"
+}

@@ -1,0 +1,65 @@
+{
+  "branch": "wt/task/74-replace-synthetic-diagnostics-with-authoritative-signals",
+  "cleanup": {},
+  "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt74']' returned non-zero exit status 128.",
+  "cleanup_verified": false,
+  "events": [
+    {
+      "branch": "wt/task/74-replace-synthetic-diagnostics-with-authoritative-signals",
+      "issue_id": 74,
+      "message": "closeout started",
+      "pid": 367383,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-27T01:15:10.590182+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt74"
+    },
+    {
+      "branch": "wt/task/74-replace-synthetic-diagnostics-with-authoritative-signals",
+      "issue_id": 74,
+      "message": "merged MR lookup found",
+      "pid": 367383,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-27T01:15:11.061052+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt74"
+    },
+    {
+      "branch": "wt/task/74-replace-synthetic-diagnostics-with-authoritative-signals",
+      "issue_id": 74,
+      "message": "issue already closed; labels normalized",
+      "pid": 367383,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-27T01:15:12.878049+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt74"
+    },
+    {
+      "branch": "wt/task/74-replace-synthetic-diagnostics-with-authoritative-signals",
+      "issue_id": 74,
+      "message": "cleanup started",
+      "pid": 367383,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-27T01:15:12.878632+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt74"
+    },
+    {
+      "branch": "wt/task/74-replace-synthetic-diagnostics-with-authoritative-signals",
+      "issue_id": 74,
+      "message": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt74']' returned non-zero exit status 128.",
+      "pid": 367383,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-deferred",
+      "ts": "2026-04-27T01:15:12.908155+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt74"
+    }
+  ],
+  "generated_at": "2026-04-27T01:15:12.908339+00:00",
+  "issue_closed": true,
+  "issue_id": 74,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt74"
+}

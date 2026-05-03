@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/87-plumb-externalid-into-bridge-tenant-role-assumption",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T01:21:35.818998+00:00",
+  "head_sha": "3908115d491fc70ee2762cb5f65bd5b4bfc1c10f",
+  "issue_number": 87,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt87"
+}

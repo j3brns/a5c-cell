@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:46:59.518522+00:00",
+  "head_sha": "90660f21b06f6ac312a450e0929d1640a84821b9",
+  "issue_number": 84,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt84"
+}

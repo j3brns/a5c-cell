@@ -1,0 +1,9 @@
+{
+  "branch": "wt/frontend/86-run-change-scoped-unit-and-spa-tests-before-push",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:55:06.404279+00:00",
+  "head_sha": "2f6d5ee556bfc0dd1d3d75a34c1bba0ec7a35964",
+  "issue_number": 86,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt86"
+}

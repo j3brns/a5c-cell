@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/78-bind-self-service-tenant-administration-to-authenticated-ten",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:12:18.579269+00:00",
+  "head_sha": "88d61ba8cdf03ff7584404accd705eec3d202fe8",
+  "issue_number": 78,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt78"
+}

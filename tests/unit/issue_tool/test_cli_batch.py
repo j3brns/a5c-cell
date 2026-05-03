@@ -7,7 +7,18 @@ from pathlib import Path
 
 import pytest
 
-from ._support import _issue, worktree_issues
+from ._support import (
+    _issue,
+    commands_common,
+    git_utils,
+    gitnexus,
+    issue_queue,
+    models,
+    multiplexer,
+    shared,
+    worktree,
+    worktree_issues,
+)
 
 
 def test_cmd_wt_batch_writes_manifest_and_launches_detached_agents(monkeypatch, capsys, tmp_path):
@@ -30,43 +41,47 @@ def test_cmd_wt_batch_writes_manifest_and_launches_detached_agents(monkeypatch, 
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "fetch_repo_issues",
         lambda *_args, **_kwargs: [issue_33, issue_35],
     )
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "build_queue",
-        lambda _issues, **_kwargs: worktree_issues.QueueSelection(
+        lambda _issues, **_kwargs: models.QueueSelection(
             source_mode="open-task",
             items=[
-                worktree_issues.QueueItem(issue=issue_33, runnable=True),
-                worktree_issues.QueueItem(issue=issue_35, runnable=True),
+                models.QueueItem(issue=issue_33, runnable=True),
+                models.QueueItem(issue=issue_35, runnable=True),
             ],
         ),
     )
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: None)
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "create_worktree_for_issue",
         lambda **kwargs: (
             created.append(kwargs["issue"].number)
             or Path(f"/tmp/worktrees/wt{kwargs['issue'].number}")
         ),
     )
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "build_agent_prompt_for_worktree", lambda *args: "prompt")
     monkeypatch.setattr(
-        worktree_issues,
+        gitnexus, "prepare_gitnexus_for_worktree", lambda *args, **kwargs: None
+    ) or monkeypatch.setattr(
+        gitnexus, "prepare_gitnexus_for_worktree", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(commands_common, "build_agent_prompt_for_worktree", lambda *args: "prompt")
+    monkeypatch.setattr(
+        commands_common,
         "build_agent_command",
         lambda agent, mode, prompt: f"{agent}:{mode}:{prompt}",
     )
-    monkeypatch.setattr(worktree_issues, "batch_run_id", lambda: "run-20260320-000001")
+    monkeypatch.setattr(commands_common, "batch_run_id", lambda: "run-20260320-000001")
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils,
         "run",
         lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, "wt/task/test\n", ""),
     )
@@ -77,7 +92,7 @@ def test_cmd_wt_batch_writes_manifest_and_launches_detached_agents(monkeypatch, 
         path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return path
 
-    monkeypatch.setattr(worktree_issues, "write_json_file", _write_json)
+    monkeypatch.setattr(shared, "write_json_file", _write_json)
 
     def _launch(**kwargs):
         launched.append(
@@ -90,7 +105,7 @@ def test_cmd_wt_batch_writes_manifest_and_launches_detached_agents(monkeypatch, 
         )
         issue_number = kwargs["issue_number"]
         wt_path = kwargs["path"]
-        return worktree_issues.BatchLaunchResult(
+        return models.BatchLaunchResult(
             issue_number=issue_number,
             agent=kwargs["agent"],
             worktree_path=wt_path,
@@ -104,7 +119,7 @@ def test_cmd_wt_batch_writes_manifest_and_launches_detached_agents(monkeypatch, 
             detail="started detached agent process",
         )
 
-    monkeypatch.setattr(worktree_issues, "launch_agent_detached", _launch)
+    monkeypatch.setattr(commands_common, "launch_agent_detached", _launch)
 
     rc = worktree_issues.cmd_wt_batch(
         argparse.Namespace(
@@ -152,7 +167,7 @@ def test_cmd_wt_batch_reuses_existing_worktree_when_agent_not_running(
     )
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
-    existing = worktree_issues.WorktreeInfo(
+    existing = models.WorktreeInfo(
         path=tmp_path / "worktrees" / "wt41",
         head="abc123",
         branch="wt/infra/41-test",
@@ -160,40 +175,44 @@ def test_cmd_wt_batch_reuses_existing_worktree_when_agent_not_running(
     )
     launched: list[Path] = []
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "fetch_repo_issues",
         lambda *_args, **_kwargs: [issue_41],
     )
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "build_queue",
-        lambda _issues, **_kwargs: worktree_issues.QueueSelection(
+        lambda _issues, **_kwargs: models.QueueSelection(
             source_mode="open-task",
-            items=[worktree_issues.QueueItem(issue=issue_41, runnable=True)],
+            items=[models.QueueItem(issue=issue_41, runnable=True)],
         ),
     )
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: existing)
-    monkeypatch.setattr(worktree_issues, "worktree_agent_running", lambda path: False)
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda path: None)
-    monkeypatch.setattr(worktree_issues, "build_agent_prompt_for_worktree", lambda *args: "prompt")
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: existing)
+    monkeypatch.setattr(worktree, "worktree_agent_running", lambda path: False)
     monkeypatch.setattr(
-        worktree_issues,
+        gitnexus, "prepare_gitnexus_for_worktree", lambda *args, **kwargs: None
+    ) or monkeypatch.setattr(
+        gitnexus, "prepare_gitnexus_for_worktree", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(commands_common, "build_agent_prompt_for_worktree", lambda *args: "prompt")
+    monkeypatch.setattr(
+        commands_common,
         "build_agent_command",
         lambda agent, mode, prompt: f"{agent}:{mode}:{prompt}",
     )
-    monkeypatch.setattr(worktree_issues, "batch_run_id", lambda: "run-20260320-000002")
+    monkeypatch.setattr(commands_common, "batch_run_id", lambda: "run-20260320-000002")
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils,
         "run",
         lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, "wt/infra/41-test\n", ""),
     )
 
     def _launch(**kwargs):
         launched.append(kwargs["path"])
-        return worktree_issues.BatchLaunchResult(
+        return models.BatchLaunchResult(
             issue_number=41,
             agent=kwargs["agent"],
             worktree_path=kwargs["path"],
@@ -207,10 +226,12 @@ def test_cmd_wt_batch_reuses_existing_worktree_when_agent_not_running(
             detail="started detached agent process",
         )
 
-    monkeypatch.setattr(worktree_issues, "launch_agent_detached", _launch)
-    monkeypatch.setattr(worktree_issues, "write_json_file", worktree_issues.write_json_file)
+    monkeypatch.setattr(commands_common, "launch_agent_detached", _launch)
+    from scripts.issue_tool.shared import write_json_file
+
+    monkeypatch.setattr(shared, "write_json_file", write_json_file)
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "create_worktree_for_issue",
         lambda **kwargs: pytest.fail("create_worktree_for_issue should not be used"),
     )
@@ -254,7 +275,7 @@ def test_cmd_wt_batch_skips_existing_worktree_with_running_agent(monkeypatch, ca
         seq=420,
         labels=["type:task", "status:not-started", "ready"],
     )
-    existing = worktree_issues.WorktreeInfo(
+    existing = models.WorktreeInfo(
         path=tmp_path / "worktrees" / "wt41",
         head="abc123",
         branch="wt/infra/41-test",
@@ -262,57 +283,59 @@ def test_cmd_wt_batch_skips_existing_worktree_with_running_agent(monkeypatch, ca
     )
     created: list[int] = []
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "fetch_repo_issues",
         lambda *_args, **_kwargs: [issue_41, issue_42],
     )
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "build_queue",
-        lambda _issues, **_kwargs: worktree_issues.QueueSelection(
+        lambda _issues, **_kwargs: models.QueueSelection(
             source_mode="open-task",
             items=[
-                worktree_issues.QueueItem(issue=issue_41, runnable=True),
-                worktree_issues.QueueItem(issue=issue_42, runnable=True),
+                models.QueueItem(issue=issue_41, runnable=True),
+                models.QueueItem(issue=issue_42, runnable=True),
             ],
         ),
     )
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "find_linked_worktree_for_issue",
         lambda _root, issue_number: existing if issue_number == 41 else None,
     )
+    monkeypatch.setattr(worktree, "worktree_agent_running", lambda path: path == existing.path)
     monkeypatch.setattr(
-        worktree_issues, "worktree_agent_running", lambda path: path == existing.path
-    )
-    monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "create_worktree_for_issue",
         lambda **kwargs: (
             created.append(kwargs["issue"].number)
             or tmp_path / "worktrees" / f"wt{kwargs['issue'].number}"
         ),
     )
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda path: None)
-    monkeypatch.setattr(worktree_issues, "build_agent_prompt_for_worktree", lambda *args: "prompt")
     monkeypatch.setattr(
-        worktree_issues,
+        gitnexus, "prepare_gitnexus_for_worktree", lambda *args, **kwargs: None
+    ) or monkeypatch.setattr(
+        gitnexus, "prepare_gitnexus_for_worktree", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(commands_common, "build_agent_prompt_for_worktree", lambda *args: "prompt")
+    monkeypatch.setattr(
+        commands_common,
         "build_agent_command",
         lambda agent, mode, prompt: f"{agent}:{mode}:{prompt}",
     )
-    monkeypatch.setattr(worktree_issues, "batch_run_id", lambda: "run-20260320-000003")
+    monkeypatch.setattr(commands_common, "batch_run_id", lambda: "run-20260320-000003")
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils,
         "run",
         lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, "wt/infra/42-test\n", ""),
     )
     monkeypatch.setattr(
-        worktree_issues,
+        commands_common,
         "launch_agent_detached",
-        lambda **kwargs: worktree_issues.BatchLaunchResult(
+        lambda **kwargs: models.BatchLaunchResult(
             issue_number=kwargs["issue_number"],
             agent=kwargs["agent"],
             worktree_path=kwargs["path"],
@@ -352,9 +375,11 @@ def test_cmd_wt_batch_skips_existing_worktree_with_running_agent(monkeypatch, ca
 def test_cmd_wt_batch_rejects_tty_only_agent_pool_in_detached_mode(monkeypatch, tmp_path):
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
 
-    with pytest.raises(worktree_issues.CliError, match="Detached wt-batch does not support"):
+    from scripts.issue_tool.shared import CliError
+
+    with pytest.raises(CliError, match="Detached wt-batch does not support"):
         worktree_issues.cmd_wt_batch(
             argparse.Namespace(
                 repo=None,
@@ -382,44 +407,48 @@ def test_cmd_wt_batch_interactive_launches_tmux_session(monkeypatch, capsys, tmp
     root.mkdir(parents=True, exist_ok=True)
     tmux_calls: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
-    monkeypatch.setattr(worktree_issues, "fetch_repo_issues", lambda *_args, **_kwargs: [issue_33])
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(issue_queue, "fetch_repo_issues", lambda *_args, **_kwargs: [issue_33])
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "build_queue",
-        lambda _issues, **_kwargs: worktree_issues.QueueSelection(
+        lambda _issues, **_kwargs: models.QueueSelection(
             source_mode="open-task",
-            items=[worktree_issues.QueueItem(issue=issue_33, runnable=True)],
+            items=[models.QueueItem(issue=issue_33, runnable=True)],
         ),
     )
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: None)
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "create_worktree_for_issue",
         lambda **kwargs: tmp_path / "worktrees" / f"wt{kwargs['issue'].number}",
     )
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "build_agent_prompt_for_worktree", lambda *args: "prompt")
     monkeypatch.setattr(
-        worktree_issues,
+        gitnexus, "prepare_gitnexus_for_worktree", lambda *args, **kwargs: None
+    ) or monkeypatch.setattr(
+        gitnexus, "prepare_gitnexus_for_worktree", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(commands_common, "build_agent_prompt_for_worktree", lambda *args: "prompt")
+    monkeypatch.setattr(
+        commands_common,
         "build_agent_command",
         lambda agent, mode, prompt: f"{agent}:{mode}:{prompt}",
     )
-    monkeypatch.setattr(worktree_issues, "batch_run_id", lambda: "run-20260320-000005")
+    monkeypatch.setattr(commands_common, "batch_run_id", lambda: "run-20260320-000005")
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils,
         "run",
         lambda cmd, **kwargs: subprocess.CompletedProcess(cmd, 0, "wt/task/test\n", ""),
     )
-    monkeypatch.setattr(worktree_issues, "tmux_available", lambda: True)
+    monkeypatch.setattr(multiplexer, "tmux_available", lambda: True)
     monkeypatch.setattr(
-        worktree_issues,
+        multiplexer,
         "worktree_session_pair",
-        lambda label: worktree_issues.SessionPair(label=label, session_name="wt-batch-20260320"),
+        lambda label: models.SessionPair(label=label, session_name="wt-batch-20260320"),
     )
     monkeypatch.setattr(
-        worktree_issues,
+        multiplexer,
         "launch_tmux_batch_session",
         lambda **kwargs: tmux_calls.update(kwargs),
     )

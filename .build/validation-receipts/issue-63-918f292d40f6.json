@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/63-complete-or-remove-async-invocation-support-for-v0-2",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T21:05:48.101837+00:00",
+  "head_sha": "918f292d40f696a62e3dbdd387d281c81953a9cd",
+  "issue_number": 63,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt63"
+}

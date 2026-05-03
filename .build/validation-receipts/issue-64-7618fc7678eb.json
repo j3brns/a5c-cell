@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/64-enforce-same-account-tenant-boundary-beyond-bridge-sts",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T21:44:48.750461+00:00",
+  "head_sha": "7618fc7678ebc8f459bafe0ef36d89fe805a3866",
+  "issue_number": 64,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt64"
+}

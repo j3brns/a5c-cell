@@ -5,7 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from ._support import _issue, worktree_issues
+from ._support import (
+    _issue,
+    commands_common,
+    git_utils,
+    multiplexer,
+    pre_provisioning,
+    worktree,
+    worktree_issues,
+)
 
 
 def test_create_worktree_for_issue_attaches_existing_local_branch(monkeypatch, tmp_path):
@@ -28,9 +36,11 @@ def test_create_worktree_for_issue_attaches_existing_local_branch(monkeypatch, t
             return subprocess.CompletedProcess(cmd, 0, "", "")
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    monkeypatch.setattr(worktree_issues, "run", _run)
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
+    monkeypatch.setattr(git_utils, "run", _run)
+    monkeypatch.setattr(worktree, "ensure_uv_venv", lambda _path: None)
+    from ._support import gitnexus
+
+    monkeypatch.setattr(gitnexus, "prepare_gitnexus_for_worktree", lambda _path: None)
 
     wt_path = worktree_issues.create_worktree_for_issue(
         root=root,
@@ -75,11 +85,13 @@ def test_create_worktree_for_issue_can_start_background_pre_provision(monkeypatc
             return subprocess.CompletedProcess(cmd, 0, "", "")
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    monkeypatch.setattr(worktree_issues, "run", _run)
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
+    monkeypatch.setattr(git_utils, "run", _run)
+    monkeypatch.setattr(worktree, "ensure_uv_venv", lambda _path: None)
+    from ._support import gitnexus
+
+    monkeypatch.setattr(gitnexus, "prepare_gitnexus_for_worktree", lambda _path: None)
     monkeypatch.setattr(
-        worktree_issues, "start_worktree_pre_provision", lambda path: started.append(path)
+        pre_provisioning, "start_worktree_pre_provision", lambda path: started.append(path)
     )
 
     wt_path = worktree_issues.create_worktree_for_issue(
@@ -109,7 +121,7 @@ def test_start_worktree_pre_provision_launches_dependency_install(monkeypatch, t
         def __init__(self, cmd, **kwargs):
             calls.append({"cmd": cmd, **kwargs})
 
-    monkeypatch.setattr(worktree_issues.subprocess, "Popen", FakePopen)
+    monkeypatch.setattr(pre_provisioning.subprocess, "Popen", FakePopen)
 
     worktree_issues.start_worktree_pre_provision(tmp_path)
 
@@ -129,18 +141,18 @@ def test_handoff_waits_for_in_progress_pre_provision(monkeypatch, tmp_path):
     prompted: list[Path] = []
 
     monkeypatch.setattr(
-        worktree_issues, "await_worktree_ready_if_provisioning", lambda path: waited.append(path)
+        commands_common, "await_worktree_ready_if_provisioning", lambda path: waited.append(path)
     )
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "choose_agent_interactive", lambda: "codex")
-    monkeypatch.setattr(worktree_issues, "choose_agent_mode_interactive", lambda: "normal")
-    monkeypatch.setattr(worktree_issues, "choose_handoff_action_interactive", lambda: "print-only")
+    monkeypatch.setattr(worktree, "ensure_uv_venv", lambda _path: None)
+    monkeypatch.setattr(commands_common, "choose_agent_interactive", lambda: "codex")
+    monkeypatch.setattr(commands_common, "choose_agent_mode_interactive", lambda: "normal")
+    monkeypatch.setattr(commands_common, "choose_handoff_action_interactive", lambda: "print-only")
     monkeypatch.setattr(
-        worktree_issues,
+        commands_common,
         "build_agent_prompt_for_worktree",
         lambda path, *_args: prompted.append(path) or "prompt",
     )
-    monkeypatch.setattr(worktree_issues, "build_agent_command", lambda *_args: "codex prompt")
+    monkeypatch.setattr(commands_common, "build_agent_command", lambda *_args: "codex prompt")
 
     worktree_issues.handoff_to_agent_or_shell(path=tmp_path, root=tmp_path, repo="owner/repo")
 
@@ -169,10 +181,10 @@ def test_build_agent_prompt_for_worktree_includes_explicit_dod_and_conflict_requ
     def _run_prompt(*args, **kwargs):
         return subprocess.CompletedProcess(args[0], 0, "wt/infra/53-explicit-dod\n", "")
 
-    monkeypatch.setattr(worktree_issues, "run", _run_prompt)
-    monkeypatch.setattr(worktree_issues, "worktree_issue_id", lambda _path: 53)
+    monkeypatch.setattr(git_utils, "run", _run_prompt)
+    monkeypatch.setattr(commands_common, "worktree_issue_id", lambda _path: 53)
     monkeypatch.setattr(
-        worktree_issues, "fetch_issue_labels_for_prompt", lambda _root, _repo, _issue: "type:task"
+        commands_common, "fetch_issue_labels_for_prompt", lambda _root, _repo, _issue: "type:task"
     )
 
     prompt = worktree_issues.build_agent_prompt_for_worktree(wt, root, "owner/repo")
@@ -225,12 +237,12 @@ def test_build_agent_prompt_for_non_issue_branch_warns_against_mainline_implemen
     wt = Path("/tmp/repo")
 
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils,
         "run",
         lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, "main\n", ""),
     )
-    monkeypatch.setattr(worktree_issues, "worktree_issue_id", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "fetch_issue_labels_for_prompt", lambda *_args: "")
+    monkeypatch.setattr(commands_common, "worktree_issue_id", lambda _path: None)
+    monkeypatch.setattr(commands_common, "fetch_issue_labels_for_prompt", lambda *_args: "")
 
     prompt = worktree_issues.build_agent_prompt_for_worktree(wt, root, "owner/repo")
 
@@ -247,15 +259,15 @@ def test_build_review_prompt_for_worktree_sets_reviewer_role(monkeypatch, tmp_pa
     wt.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils,
         "run",
         lambda *args, **kwargs: subprocess.CompletedProcess(
             args[0], 0, "wt/infra/53-explicit-dod\n", ""
         ),
     )
-    monkeypatch.setattr(worktree_issues, "worktree_issue_id", lambda _path: 53)
+    monkeypatch.setattr(commands_common, "worktree_issue_id", lambda _path: 53)
     monkeypatch.setattr(
-        worktree_issues, "fetch_issue_labels_for_prompt", lambda _root, _repo, _issue: "type:task"
+        commands_common, "fetch_issue_labels_for_prompt", lambda _root, _repo, _issue: "type:task"
     )
 
     prompt = worktree_issues.build_review_prompt_for_worktree(
@@ -273,7 +285,7 @@ def test_build_review_prompt_for_worktree_sets_reviewer_role(monkeypatch, tmp_pa
 
 
 def test_auto_detect_mux_prefers_tmux_over_zellij(monkeypatch):
-    monkeypatch.setattr(worktree_issues, "tmux_available", lambda: True)
-    monkeypatch.setattr(worktree_issues, "zellij_available", lambda: True)
+    monkeypatch.setattr(multiplexer, "tmux_available", lambda: True)
+    monkeypatch.setattr(multiplexer, "zellij_available", lambda: True)
 
     assert worktree_issues.auto_detect_mux() == "tmux"

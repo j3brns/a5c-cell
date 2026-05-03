@@ -1,13 +1,8 @@
 {
   "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
   "details": {
-    "agent": "claude",
-    "agent_mode": "yolo",
-    "handoff": "execute-now",
-    "mux": "tmux",
-    "review_agent": null,
-    "review_agent_mode": null,
-    "source": "worktree-next"
+    "evidence_hash": "a95d0908c3242c4fd83caca3bab514a57be805736cd6c9d4a4439f791dddf543",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-57-wt_docs_57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do.json"
   },
   "events": [
     {
@@ -48,13 +43,74 @@
       "state": "agent-launching",
       "ts": "2026-04-26T18:36:15.733593+00:00",
       "worktree_path": "/home/julesb/worktrees/wt57"
+    },
+    {
+      "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-57-wt_docs_57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:57:wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do:/home/julesb/worktrees/wt57",
+      "issue_number": 57,
+      "issue_title": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T18:50:26.879372+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt57"
+    },
+    {
+      "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-57-wt_docs_57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:57:wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do:/home/julesb/worktrees/wt57",
+      "issue_number": 57,
+      "issue_title": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T18:50:33.350834+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt57"
+    },
+    {
+      "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "details": {
+        "evidence_hash": "a95d0908c3242c4fd83caca3bab514a57be805736cd6c9d4a4439f791dddf543",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-57-wt_docs_57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:57:a95d0908c3242c4fd83caca3bab514a57be805736cd6c9d4a4439f791dddf543",
+      "issue_number": 57,
+      "issue_title": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T18:50:33.351828+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt57"
+    },
+    {
+      "branch": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "details": {
+        "evidence_hash": "a95d0908c3242c4fd83caca3bab514a57be805736cd6c9d4a4439f791dddf543",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-57-wt_docs_57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:57:a95d0908c3242c4fd83caca3bab514a57be805736cd6c9d4a4439f791dddf543",
+      "issue_number": 57,
+      "issue_title": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T18:50:35.271445+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt57"
     }
   ],
   "issue_number": 57,
-  "issue_title": "TASK-908: Verify ADR-020 AgentCore eu-west-2 and VPC gates with AWS docs",
-  "last_event_type": "agent-launch-requested",
-  "last_updated_at": "2026-04-26T18:36:15.733593+00:00",
+  "issue_title": "wt/docs/57-verify-adr-020-agentcore-eu-west-2-and-vpc-gates-with-aws-do",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T18:50:35.271445+00:00",
   "repo": "julianburns/tf-acore-aas",
-  "state": "agent-launching",
+  "state": "done",
   "worktree_path": "/home/julesb/worktrees/wt57"
 }

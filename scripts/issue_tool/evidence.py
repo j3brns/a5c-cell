@@ -2,27 +2,25 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from scripts.issue_tool.shared import CliError
+from scripts.issue_tool.constants import VALIDATION_RECEIPTS_DIR, WORKTREE_STATE_DIR
+from scripts.issue_tool.shared import CliError, read_json_file, write_json_file
 
 
-def validation_receipts_root(root: Path, receipts_dir: str) -> Path:
-    return root / receipts_dir
+def validation_receipts_root(root: Path) -> Path:
+    return root / VALIDATION_RECEIPTS_DIR
 
 
-def validation_receipt_path(
-    root: Path, issue_number: int, head_sha: str, receipts_dir: str
-) -> Path:
+def validation_receipt_path(root: Path, issue_number: int, head_sha: str) -> Path:
     filename = f"issue-{issue_number}-{head_sha[:12]}.json"
-    return validation_receipts_root(root, receipts_dir) / filename
+    return validation_receipts_root(root) / filename
 
 
-def find_latest_validation_receipt(root: Path, issue_id: int, receipts_dir: str) -> Path | None:
-    receipts_root = validation_receipts_root(root, receipts_dir)
+def find_latest_validation_receipt(root: Path, issue_id: int) -> Path | None:
+    receipts_root = validation_receipts_root(root)
     if not receipts_root.exists():
         return None
     matches = sorted(
@@ -32,15 +30,15 @@ def find_latest_validation_receipt(root: Path, issue_id: int, receipts_dir: str)
     return matches[-1] if matches else None
 
 
-def git_issue_branches(
-    root: Path, issue_id: int, *, run_fn: Callable[..., Any]
-) -> dict[str, list[str]]:
+def git_issue_branches(root: Path, issue_id: int) -> dict[str, list[str]]:
+    from scripts.issue_tool.git_utils import run
+
     def _list_branches(pattern: str, *, remote: bool) -> list[str]:
         cmd = ["git", "branch"]
         if remote:
             cmd.append("-r")
         cmd.extend(["--format=%(refname:short)", "--list", pattern])
-        output = run_fn(cmd, cwd=root, check=False).stdout
+        output = run(cmd, cwd=root, check=False).stdout
         return [line.strip() for line in output.splitlines() if line.strip()]
 
     return {
@@ -49,10 +47,10 @@ def git_issue_branches(
     }
 
 
-def git_log_issue_matches(
-    root: Path, issue_id: int, *, run_fn: Callable[..., Any], limit: int = 5
-) -> list[dict[str, str]]:
-    output = run_fn(
+def git_log_issue_matches(root: Path, issue_id: int, *, limit: int = 5) -> list[dict[str, str]]:
+    from scripts.issue_tool.git_utils import run
+
+    output = run(
         [
             "git",
             "log",
@@ -77,15 +75,15 @@ def git_log_issue_matches(
     return matches
 
 
-def historical_issue_evidence(
-    root: Path, issue_id: int, *, run_fn: Callable[..., Any]
-) -> dict[str, object] | None:
-    branches = git_issue_branches(root, issue_id, run_fn=run_fn)
+def historical_issue_evidence(root: Path, issue_id: int) -> dict[str, object] | None:
+    from scripts.issue_tool.git_utils import run
+
+    branches = git_issue_branches(root, issue_id)
     preferred_branch = next(iter(branches["local"]), None) or next(iter(branches["remote"]), None)
     branch_tip: dict[str, str] | None = None
     divergence: dict[str, int] | None = None
     if preferred_branch:
-        tip = run_fn(
+        tip = run(
             ["git", "log", "-1", "--format=%H%x09%cI%x09%s", preferred_branch],
             cwd=root,
             check=False,
@@ -93,7 +91,7 @@ def historical_issue_evidence(
         if tip:
             sha, ts, subject = (tip.split("\t", 2) + ["", ""])[:3]
             branch_tip = {"sha": sha, "timestamp": ts, "subject": subject}
-        counts = run_fn(
+        counts = run(
             ["git", "rev-list", "--left-right", "--count", f"origin/main...{preferred_branch}"],
             cwd=root,
             check=False,
@@ -101,7 +99,7 @@ def historical_issue_evidence(
         if counts:
             behind, ahead = [int(part) for part in counts.split()]
             divergence = {"behind": behind, "ahead": ahead}
-    log_matches = git_log_issue_matches(root, issue_id, run_fn=run_fn)
+    log_matches = git_log_issue_matches(root, issue_id)
     if preferred_branch is None and not log_matches:
         return None
     return {
@@ -120,11 +118,10 @@ def write_validation_receipt(
     worktree_path: Path,
     branch: str | None,
     check_name: str,
-    run_fn: Callable[..., Any],
-    write_json_file_fn: Callable[[Path, dict[str, object]], Path],
-    receipts_dir: str,
 ) -> Path:
-    head_sha = run_fn(["git", "rev-parse", "HEAD"], cwd=worktree_path).stdout.strip()
+    from scripts.issue_tool.git_utils import run
+
+    head_sha = run(["git", "rev-parse", "HEAD"], cwd=worktree_path).stdout.strip()
     payload = {
         "issue_number": issue_id,
         "branch": branch,
@@ -134,10 +131,14 @@ def write_validation_receipt(
         "head_sha": head_sha,
         "generated_at": datetime.now(UTC).isoformat(),
     }
-    return write_json_file_fn(
-        validation_receipt_path(root, issue_id, head_sha, receipts_dir),
+    return write_json_file(
+        validation_receipt_path(root, issue_id, head_sha),
         payload,
     )
+
+
+def issue_state_path(root: Path, issue_number: int) -> Path:
+    return root / WORKTREE_STATE_DIR / f"issue-{issue_number}.json"
 
 
 def audit_issue_handoff_evidence(
@@ -147,20 +148,19 @@ def audit_issue_handoff_evidence(
     issue_id: int,
     target: Any,
     report_path: Path,
-    read_json_file_fn: Callable[[Path], dict[str, object] | None],
-    read_closeout_report_fn: Callable[[Path], dict[str, object]],
-    issue_state_path_fn: Callable[[Path, int], Path],
 ) -> dict[str, object]:
-    state_path = issue_state_path_fn(root, issue_id)
+    from scripts.issue_tool.closeout import read_closeout_report
+
+    state_path = issue_state_path(root, issue_id)
     if not state_path.exists():
         raise CliError(f"Missing issue state evidence: {state_path}")
     if not report_path.exists():
         raise CliError(f"Missing closeout report: {report_path}")
 
-    issue_state = read_json_file_fn(state_path)
+    issue_state = read_json_file(state_path)
     if not isinstance(issue_state, dict):
         raise CliError(f"Invalid issue state evidence: {state_path}")
-    closeout = read_closeout_report_fn(report_path)
+    closeout = read_closeout_report(report_path)
     if str(closeout.get("stage")) != "complete":
         raise CliError("Closeout report is not complete")
 
@@ -233,21 +233,21 @@ def build_issue_handback_comment(summary: dict[str, object]) -> str:
 def issue_evidence_summary(
     root: Path,
     issue_id: int,
-    *,
-    issue_state_path_fn: Callable[[Path, int], Path],
-    latest_closeout_report_path_fn: Callable[[Path, int], Path | None],
-    read_json_file_fn: Callable[[Path], dict[str, object] | None],
-    find_latest_validation_receipt_fn: Callable[[Path, int], Path | None],
-    historical_issue_evidence_fn: Callable[[Path, int], dict[str, object] | None],
-    linked_worktree_for_issue_fn: Callable[[Path, int], Any],
 ) -> dict[str, object]:
-    state_path = issue_state_path_fn(root, issue_id)
-    state = read_json_file_fn(state_path)
-    closeout_path = latest_closeout_report_path_fn(root, issue_id)
-    closeout = read_json_file_fn(closeout_path) if closeout_path is not None else None
-    validation_path = find_latest_validation_receipt_fn(root, issue_id)
-    validation_receipt = read_json_file_fn(validation_path) if validation_path else None
-    linked = linked_worktree_for_issue_fn(root, issue_id)
+    from scripts.issue_tool.closeout import (
+        latest_closeout_report_path,
+    )
+    from scripts.issue_tool.worktree import (
+        find_linked_worktree_for_issue,
+    )
+
+    state_path = issue_state_path(root, issue_id)
+    state = read_json_file(state_path)
+    closeout_path = latest_closeout_report_path(root, issue_id)
+    closeout = read_json_file(closeout_path) if closeout_path is not None else None
+    validation_path = find_latest_validation_receipt(root, issue_id)
+    validation_receipt = read_json_file(validation_path) if validation_path else None
+    linked = find_linked_worktree_for_issue(root, issue_id)
     historical = None
     has_local_evidence = any(
         value is not None
@@ -259,7 +259,7 @@ def issue_evidence_summary(
         )
     )
     if not has_local_evidence:
-        historical = historical_issue_evidence_fn(root, issue_id)
+        historical = historical_issue_evidence(root, issue_id)
     evidence_source = "local" if has_local_evidence else ("historical" if historical else "none")
     return {
         "issue_number": issue_id,

@@ -1,0 +1,9 @@
+{
+  "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T19:07:39.706328+00:00",
+  "head_sha": "56d7c7cdb25b4b2f0aee3ed6b94aec0998ab17dc",
+  "issue_number": 65,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt65"
+}

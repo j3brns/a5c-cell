@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/75-fail-closed-on-ag-ui-bootstrap-session-persistence-errors",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-27T00:28:35.366771+00:00",
+  "head_sha": "2ef7818f6a3cb5212e8bf444afdb087c3ff54298",
+  "issue_number": 75,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt75"
+}
