@@ -7,7 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from ._support import REPO_ROOT, _issue, worktree_issues
+from ._support import (
+    REPO_ROOT,
+    _issue,
+    git_utils,
+    gitnexus,
+    issue_queue,
+    worktree,
+    worktree_issues,
+)
+from ._support import commands_common as common
 
 
 def test_canonical_issue_tool_entrypoint_help_smoke():
@@ -33,15 +42,15 @@ def test_cmd_worktree_resume_open_shell_tolerates_missing_agent_namespace_attrs(
     )
     opened: list[Path] = []
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "list_resume_candidates", lambda _root: [wt])
-    monkeypatch.setattr(worktree_issues, "select_worktree_interactive", lambda items: wt)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: "owner/repo")
-    monkeypatch.setattr(worktree_issues, "run_preflight", lambda **kwargs: None)
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "open_shell", lambda path: opened.append(path))
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(worktree, "list_resume_candidates", lambda _root: [wt])
+    monkeypatch.setattr(worktree, "select_worktree_interactive", lambda items: wt)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: "owner/repo")
+    monkeypatch.setattr(worktree, "run_preflight", lambda **kwargs: None)
+    monkeypatch.setattr(gitnexus, "prepare_gitnexus_for_worktree", lambda _path: None)
+    monkeypatch.setattr(worktree, "open_shell", lambda path: opened.append(path))
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "handoff_to_agent_or_shell",
         lambda **kwargs: pytest.fail("handoff_to_agent_or_shell should not be used"),
     )
@@ -68,15 +77,15 @@ def test_cmd_worktree_resume_shell_only_opens_shell_directly(monkeypatch):
     )
     opened: list[Path] = []
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "list_resume_candidates", lambda _root: [wt])
-    monkeypatch.setattr(worktree_issues, "select_worktree_interactive", lambda items: wt)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: "owner/repo")
-    monkeypatch.setattr(worktree_issues, "run_preflight", lambda **kwargs: None)
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "open_shell", lambda path: opened.append(path))
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(worktree, "list_resume_candidates", lambda _root: [wt])
+    monkeypatch.setattr(worktree, "select_worktree_interactive", lambda items: wt)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: "owner/repo")
+    monkeypatch.setattr(worktree, "run_preflight", lambda **kwargs: None)
+    monkeypatch.setattr(gitnexus, "prepare_gitnexus_for_worktree", lambda _path: None)
+    monkeypatch.setattr(worktree, "open_shell", lambda path: opened.append(path))
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "handoff_to_agent_or_shell",
         lambda **kwargs: pytest.fail("handoff_to_agent_or_shell should not be used"),
     )
@@ -117,20 +126,18 @@ def test_cmd_worktree_next_skips_runnable_issue_with_existing_worktree(monkeypat
         is_primary=False,
     )
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
     monkeypatch.setattr(
-        worktree_issues,
-        "fetch_repo_issues",
-        lambda *_args, **_kwargs: [issue_33, issue_35],
+        issue_queue, "fetch_repo_issues", lambda *_args, **_kwargs: [issue_33, issue_35]
     )
-    monkeypatch.setattr(worktree_issues, "list_resume_candidates", lambda _root: [existing])
+    monkeypatch.setattr(worktree, "list_resume_candidates", lambda _root: [existing])
 
     def _create(**kwargs):
         created.update(kwargs)
         return Path("/tmp/worktrees/wt35")
 
-    monkeypatch.setattr(worktree_issues, "create_worktree_for_issue", _create)
+    monkeypatch.setattr(worktree, "create_worktree_for_issue", _create)
 
     args = argparse.Namespace(
         repo=None,
@@ -172,31 +179,31 @@ def test_cmd_worktree_next_shell_only_opens_shell_directly(monkeypatch):
     created: list[int] = []
     opened: list[Path] = []
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "fetch_repo_issues",
         lambda *_args, **_kwargs: [issue_33],
     )
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "build_queue",
         lambda _issues, **_kwargs: worktree_issues.QueueSelection(
             source_mode="open-task",
             items=[worktree_issues.QueueItem(issue=issue_33, runnable=True)],
         ),
     )
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: None)
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "create_worktree_for_issue",
         lambda **kwargs: created.append(kwargs["issue"].number) or Path("/tmp/worktrees/wt33"),
     )
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "open_shell", lambda path: opened.append(path))
+    monkeypatch.setattr(gitnexus, "prepare_gitnexus_for_worktree", lambda _path: None)
+    monkeypatch.setattr(worktree, "open_shell", lambda path: opened.append(path))
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "handoff_to_agent_or_shell",
         lambda **kwargs: pytest.fail("handoff_to_agent_or_shell should not be used"),
     )
@@ -246,27 +253,27 @@ def test_cmd_worktree_next_existing_worktree_shell_only_opens_shell_directly(mon
     )
     opened: list[Path] = []
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "fetch_repo_issues",
         lambda *_args, **_kwargs: [issue_33],
     )
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "build_queue",
         lambda _issues, **_kwargs: worktree_issues.QueueSelection(
             source_mode="open-task",
             items=[worktree_issues.QueueItem(issue=issue_33, runnable=True)],
         ),
     )
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: existing)
-    monkeypatch.setattr(worktree_issues, "prepare_gitnexus_for_worktree", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "run_preflight", lambda **kwargs: None)
-    monkeypatch.setattr(worktree_issues, "open_shell", lambda path: opened.append(path))
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: existing)
+    monkeypatch.setattr(gitnexus, "prepare_gitnexus_for_worktree", lambda _path: None)
+    monkeypatch.setattr(worktree, "run_preflight", lambda **kwargs: None)
+    monkeypatch.setattr(worktree, "open_shell", lambda path: opened.append(path))
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "handoff_to_agent_or_shell",
         lambda **kwargs: pytest.fail("handoff_to_agent_or_shell should not be used"),
     )
@@ -293,7 +300,7 @@ def test_cmd_worktree_next_existing_worktree_shell_only_opens_shell_directly(mon
         print_only=False,
     )
 
-    monkeypatch.setattr(worktree_issues, "choose_issue_interactive", lambda selection: issue_33)
+    monkeypatch.setattr(common, "choose_issue_interactive", lambda selection: issue_33)
 
     rc = worktree_issues.cmd_worktree_next(args)
 
@@ -312,30 +319,31 @@ def test_cmd_worktree_next_with_random_agent_uses_random_default_agent(monkeypat
     )
     launched: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "fetch_repo_issues",
         lambda *_args, **_kwargs: [issue_33],
     )
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "build_queue",
         lambda _issues, **_kwargs: worktree_issues.QueueSelection(
             source_mode="open-task",
             items=[worktree_issues.QueueItem(issue=issue_33, runnable=True)],
         ),
     )
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: None)
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "create_worktree_for_issue",
         lambda **kwargs: Path("/tmp/worktrees/wt33"),
     )
-    monkeypatch.setattr(worktree_issues, "choose_default_launch_agent", lambda: "gemini")
+    monkeypatch.setattr(common, "choose_default_launch_agent", lambda: "gemini")
+    monkeypatch.setattr(worktree, "ensure_uv_venv", lambda _path: None)
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "handoff_to_agent_or_shell",
         lambda **kwargs: launched.update(kwargs),
     )
@@ -385,29 +393,30 @@ def test_cmd_worktree_next_passes_review_lane(monkeypatch):
     )
     launched: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree_issues, "origin_repo_slug", lambda _root: repo)
+    monkeypatch.setattr(git_utils, "repo_root", lambda: root)
+    monkeypatch.setattr(git_utils, "origin_repo_slug", lambda _root: repo)
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "fetch_repo_issues",
         lambda *_args, **_kwargs: [issue_33],
     )
     monkeypatch.setattr(
-        worktree_issues,
+        issue_queue,
         "build_queue",
         lambda _issues, **_kwargs: worktree_issues.QueueSelection(
             source_mode="open-task",
             items=[worktree_issues.QueueItem(issue=issue_33, runnable=True)],
         ),
     )
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: None)
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "create_worktree_for_issue",
         lambda **kwargs: Path("/tmp/worktrees/wt33"),
     )
+    monkeypatch.setattr(worktree, "ensure_uv_venv", lambda _path: None)
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "handoff_to_agent_or_shell",
         lambda **kwargs: launched.update(kwargs),
     )

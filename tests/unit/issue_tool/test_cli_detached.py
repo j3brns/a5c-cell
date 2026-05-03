@@ -7,7 +7,8 @@ import subprocess
 
 import pytest
 
-from ._support import worktree_issues
+from ._support import commands_common, worktree_issues
+from ._support import worktree as worktree_mod
 
 
 def test_launch_agent_detached_writes_runtime_state(monkeypatch, tmp_path):
@@ -16,7 +17,7 @@ def test_launch_agent_detached_writes_runtime_state(monkeypatch, tmp_path):
     root.mkdir(parents=True, exist_ok=True)
     worktree.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda path: None)
+    monkeypatch.setattr(worktree_mod, "ensure_uv_venv", lambda path: None)
 
     result = worktree_issues.launch_agent_detached(
         root=root,
@@ -61,7 +62,7 @@ def test_launch_agent_detached_rejects_tty_only_agents(monkeypatch, tmp_path):
     root.mkdir(parents=True, exist_ok=True)
     worktree.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda path: None)
+    monkeypatch.setattr(worktree_mod, "ensure_uv_venv", lambda path: None)
 
     with pytest.raises(worktree_issues.CliError, match="does not support detached startup"):
         worktree_issues.launch_agent_detached(
@@ -81,11 +82,17 @@ def test_launch_agent_detached_marks_early_exit_failed(monkeypatch, tmp_path):
     root.mkdir(parents=True, exist_ok=True)
     worktree.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda path: None)
+    monkeypatch.setattr(worktree_mod, "ensure_uv_venv", lambda path: None)
     created: dict[str, object] = {}
 
     class _FakeProc:
         pid = 4242
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
 
         def wait(self, timeout=None):
             return 1
@@ -95,7 +102,7 @@ def test_launch_agent_detached_marks_early_exit_failed(monkeypatch, tmp_path):
         created["kwargs"] = kwargs
         return _FakeProc()
 
-    monkeypatch.setattr(worktree_issues.subprocess, "Popen", _popen)
+    monkeypatch.setattr(commands_common.subprocess, "Popen", _popen)
 
     result = worktree_issues.launch_agent_detached(
         root=root,

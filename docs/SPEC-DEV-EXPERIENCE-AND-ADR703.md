@@ -33,7 +33,7 @@ different prerequisites, different tools, and different concerns:
   Inner loop is pure Python: edit `handler.py`, run `make test-agent`. No Docker,
   no CDK, no Node, no LocalStack required.
 
-The current Makefile, `make bootstrap`, and `LOCAL-SETUP.md` do not make this
+The current Makefile, `make bootstrap`, and `PLATFORM-SETUP.md` do not make this
 separation explicit. Agent developers are told to run `make dev` (Docker +
 LocalStack) as an optional step — this is misleading and unnecessary for
 handler logic iteration.
@@ -171,29 +171,29 @@ Walkthrough review with someone unfamiliar with the platform.
 
 ---
 
-### TASK-804: Rename LOCAL-SETUP.md to PLATFORM-SETUP.md and fix references
+### TASK-804: Rename PLATFORM-SETUP.md to PLATFORM-SETUP.md and fix references
 
 **Seq:** 804
 **Depends on:** TASK-803
 
 **Problem**
-`LOCAL-SETUP.md` reads as the general developer setup guide. It lists Docker,
+`PLATFORM-SETUP.md` reads as the general developer setup guide. It lists Docker,
 Node, CDK, and npm as prerequisites — all of which are platform engineer
 concerns. An agent developer following it would install unnecessary tools.
 After TASK-803 rewrites the agent guide, the link between the two documents
 must be explicit.
 
 **Scope**
-- Rename `docs/development/LOCAL-SETUP.md` to `docs/development/PLATFORM-SETUP.md`.
+- Rename `docs/development/PLATFORM-SETUP.md` to `docs/development/PLATFORM-SETUP.md`.
 - Add a header callout: "This guide is for platform engineers working on `src/`,
   `infra/`, `spa/`, and `gateway/`. If you are building an agent, see
   `AGENT-DEVELOPER-GUIDE.md` instead."
 - Update all inbound links in `README.md`, `ARCHITECTURE.md`, and any other
-  docs that reference `LOCAL-SETUP.md`.
+  docs that reference `PLATFORM-SETUP.md`.
 - Update `make help` and `make help-platform` to reference `PLATFORM-SETUP.md`.
 
 **Acceptance Criteria**
-- [ ] `LOCAL-SETUP.md` no longer exists; `PLATFORM-SETUP.md` exists in its place.
+- [ ] `PLATFORM-SETUP.md` no longer exists; `PLATFORM-SETUP.md` exists in its place.
 - [ ] `grep -r LOCAL-SETUP docs/ README.md` returns no results.
 - [ ] `PLATFORM-SETUP.md` has the agent developer redirect callout at the top.
 
@@ -747,7 +747,7 @@ This is a gap for compliance reviews and for implementing the ADR-703 TPM work
 801 (bootstrap-agent + help-agent)
  └─ 802 (per-agent Makefile)
      └─ 803 (rewrite agent guide)
-         └─ 804 (rename LOCAL-SETUP.md)
+         └─ 804 (rename PLATFORM-SETUP.md)
 
 705 (existing: granular validation)
  └─ 805 (make lint fast-path)
@@ -773,7 +773,7 @@ This is a gap for compliance reviews and for implementing the ADR-703 TPM work
 make issue-create TITLE='TASK-801: Add bootstrap-agent and help-agent Makefile targets' SEQ=801
 make issue-create TITLE='TASK-802: Add per-agent Makefile scaffold' SEQ=802
 make issue-create TITLE='TASK-803: Rewrite AGENT-DEVELOPER-GUIDE for clean persona separation' SEQ=803
-make issue-create TITLE='TASK-804: Rename LOCAL-SETUP.md to PLATFORM-SETUP.md' SEQ=804
+make issue-create TITLE='TASK-804: Rename PLATFORM-SETUP.md to PLATFORM-SETUP.md' SEQ=804
 make issue-create TITLE='TASK-805: Add make lint fast-path for platform engineers' SEQ=805
 
 # Stream 9xx

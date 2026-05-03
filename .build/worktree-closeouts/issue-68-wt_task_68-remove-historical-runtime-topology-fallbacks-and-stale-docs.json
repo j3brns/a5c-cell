@@ -1,0 +1,65 @@
+{
+  "branch": "wt/task/68-remove-historical-runtime-topology-fallbacks-and-stale-docs",
+  "cleanup": {},
+  "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt68']' returned non-zero exit status 128.",
+  "cleanup_verified": false,
+  "events": [
+    {
+      "branch": "wt/task/68-remove-historical-runtime-topology-fallbacks-and-stale-docs",
+      "issue_id": 68,
+      "message": "closeout started",
+      "pid": 320136,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-04-26T23:02:31.157876+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt68"
+    },
+    {
+      "branch": "wt/task/68-remove-historical-runtime-topology-fallbacks-and-stale-docs",
+      "issue_id": 68,
+      "message": "merged MR lookup found",
+      "pid": 320136,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-04-26T23:02:31.640597+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt68"
+    },
+    {
+      "branch": "wt/task/68-remove-historical-runtime-topology-fallbacks-and-stale-docs",
+      "issue_id": 68,
+      "message": "issue already closed; labels normalized",
+      "pid": 320136,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-04-26T23:02:33.408753+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt68"
+    },
+    {
+      "branch": "wt/task/68-remove-historical-runtime-topology-fallbacks-and-stale-docs",
+      "issue_id": 68,
+      "message": "cleanup started",
+      "pid": 320136,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-04-26T23:02:33.409347+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt68"
+    },
+    {
+      "branch": "wt/task/68-remove-historical-runtime-topology-fallbacks-and-stale-docs",
+      "issue_id": 68,
+      "message": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt68']' returned non-zero exit status 128.",
+      "pid": 320136,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-deferred",
+      "ts": "2026-04-26T23:02:33.430932+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt68"
+    }
+  ],
+  "generated_at": "2026-04-26T23:02:33.431144+00:00",
+  "issue_closed": true,
+  "issue_id": 68,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt68"
+}

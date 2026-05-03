@@ -32,10 +32,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createPlatformCompute } from './platform-compute';
 import { resolveEntraConfiguration } from './entra-config';
-import { createPlatformStorage } from './platform-storage';
+import { PlatformStorageResources } from './platform-storage';
 import { PlatformApi } from './platform-api';
 import { PlatformGateway } from './platform-gateway';
-import { PlatformSpa } from './platform-spa';
 import { PlatformWaf } from './platform-waf';
 import { AUTHORIZED_RUNTIME_REGIONS } from './runtime-topology';
 import { TenantStack } from './tenant-stack';
@@ -100,6 +99,10 @@ function resolveAgUiAllowedOrigins(scope: Construct): string[] {
 export interface PlatformStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
   readonly lambdaSecurityGroup: ec2.ISecurityGroup;
+  readonly storage: PlatformStorageResources;
+  readonly bridgeValkeyClientSecurityGroup: ec2.ISecurityGroup;
+  readonly spaAllowedOrigin: string;
+  readonly spaDistribution: cloudfront.CfnDistribution;
 }
 
 function ensureTenantStubTemplate(
@@ -173,6 +176,7 @@ export class PlatformStack extends cdk.Stack {
     super(scope, id, props);
     this.vpc = props.vpc;
     this.lambdaSecurityGroup = props.lambdaSecurityGroup;
+    this.spaDistribution = props.spaDistribution;
 
     const env = ((this.node.tryGetContext('env') as string | undefined) ?? 'dev').toLowerCase();
     const bridgeCanaryPolicy = this.resolveBridgeCanaryPolicy(env);
@@ -180,16 +184,8 @@ export class PlatformStack extends cdk.Stack {
     const entra = resolveEntraConfiguration(this);
 
     // --- Custom domain configuration (issue #164) ---
-    // When spaDomainName + spaCertificateArn are set in CDK context, the CloudFront
-    // distribution uses a custom domain with an ACM certificate provisioned in
-    // us-east-1 (CloudFront requirement). When absent, the distribution uses the
-    // default *.cloudfront.net certificate — suitable for dev/test only.
-    const spaDomainName = this.node.tryGetContext('spaDomainName') as string | undefined;
-    const spaCertificateArn = this.node.tryGetContext('spaCertificateArn') as string | undefined;
-    const spaWebAclArn = this.node.tryGetContext('spaWebAclArn') as string | undefined;
     const apiDomainName = this.node.tryGetContext('apiDomainName') as string | undefined;
     const apiCertificateArn = this.node.tryGetContext('apiCertificateArn') as string | undefined;
-    const agUiAllowedOrigins = resolveAgUiAllowedOrigins(this);
 
     // --- Secrets ---
 
@@ -202,26 +198,7 @@ export class PlatformStack extends cdk.Stack {
       },
     });
 
-    const bridgeValkeyClientSecurityGroup = new ec2.SecurityGroup(
-      this,
-      'BridgeValkeyClientSecurityGroup',
-      {
-        vpc: this.vpc,
-        allowAllOutbound: false,
-        description: 'Bridge Lambda client access to platform Valkey',
-      },
-    );
-
-    const storage = createPlatformStorage(this, {
-      envName: env,
-      vpc: this.vpc,
-      valkeyClientSecurityGroup: bridgeValkeyClientSecurityGroup,
-    });
-    bridgeValkeyClientSecurityGroup.addEgressRule(
-      storage.valkeySecurityGroup,
-      ec2.Port.tcp(6379),
-      'Allow Redis/Valkey egress to platform Valkey cluster',
-    );
+    const storage = props.storage;
     this.tenantsTable = storage.tenantsTable;
     this.agentsTable = storage.agentsTable;
     this.toolsTable = storage.toolsTable;
@@ -337,20 +314,9 @@ export class PlatformStack extends cdk.Stack {
       provisionedConcurrentExecutions: 10,
     });
 
-    const platformSpa = new PlatformSpa(this, 'PlatformSpa', {
-      envName: env,
-      spaDomainName,
-      spaCertificateArn,
-      spaWebAclArn,
-      apiAllowedOrigin: apiDomainName ? `https://${apiDomainName}` : undefined,
-      entraAuthorityOrigin: normalizeOrigin(entra.issuer, 'entraIssuer'),
-      agUiAllowedOrigins,
-    });
-    this.spaDistribution = platformSpa.spaDistribution;
-
     const platformApi = new PlatformApi(this, 'PlatformApi', {
       envName: env,
-      spaAllowedOrigin: platformSpa.spaAllowedOrigin,
+      spaAllowedOrigin: props.spaAllowedOrigin,
       apiDomainName,
       apiCertificateArn,
       authoriserAlias,

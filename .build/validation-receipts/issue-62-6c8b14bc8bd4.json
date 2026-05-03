@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/62-wire-agentcore-gateway-targets-and-tool-schemas",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T23:08:48.821290+00:00",
+  "head_sha": "6c8b14bc8bd40988974faf3914c5464cdd2bdfea",
+  "issue_number": 62,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt62"
+}

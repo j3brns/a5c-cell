@@ -1,0 +1,60 @@
+{
+  "branch": "wt/task/90-include-app-id-on-bridge-metric-dimensions",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/task/90-include-app-id-on-bridge-metric-dimensions",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "include-app-id-on-bridge-metric-dimensions"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:90:wt/task/90-include-app-id-on-bridge-metric-dimensions:/home/julesb/worktrees/wt90",
+      "issue_number": 90,
+      "issue_title": "TASK-1113: Include app id on Bridge metric dimensions",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T01:49:00.788987+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt90"
+    },
+    {
+      "branch": "wt/task/90-include-app-id-on-bridge-metric-dimensions",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:90:/home/julesb/worktrees/wt90:codex:yolo:execute-now:tmux",
+      "issue_number": 90,
+      "issue_title": "TASK-1113: Include app id on Bridge metric dimensions",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T01:49:00.789752+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt90"
+    }
+  ],
+  "issue_number": 90,
+  "issue_title": "TASK-1113: Include app id on Bridge metric dimensions",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-29T01:49:00.789752+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt90"
+}

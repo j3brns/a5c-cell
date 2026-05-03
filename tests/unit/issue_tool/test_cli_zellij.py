@@ -6,19 +6,19 @@ from pathlib import Path
 
 import pytest
 
-from ._support import worktree_issues
+from ._support import git_utils, multiplexer
 
 
 def test_launch_zellij_session_adds_layout_to_existing_session(monkeypatch, capsys):
     path = Path("/tmp/worktrees/wt33")
     captured: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "zellij_bin", lambda: "/home/julesb/bin/zellij")
-    monkeypatch.setattr(worktree_issues, "zellij_session_exists", lambda _name: True)
+    monkeypatch.setattr(multiplexer, "zellij_bin", lambda: "/home/julesb/bin/zellij")
+    monkeypatch.setattr(multiplexer, "zellij_session_exists", lambda _name: True)
     monkeypatch.setattr(
-        worktree_issues,
+        multiplexer,
         "worktree_session_pair",
-        lambda label: worktree_issues.SessionPair(
+        lambda label: multiplexer.SessionPair(
             label=label, session_name="wt33-20260319-213333-000003"
         ),
     )
@@ -27,9 +27,9 @@ def test_launch_zellij_session_adds_layout_to_existing_session(monkeypatch, caps
         captured["bin_path"] = bin_path
         captured["args"] = args
 
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
-    worktree_issues.launch_zellij_session(
+    multiplexer.launch_zellij_session(
         path=path,
         agent_command="codex --yolo",
         attach=True,
@@ -52,8 +52,8 @@ def test_launch_zellij_batch_session_adds_tabs_to_existing_session(monkeypatch, 
     run_calls: list[list[str]] = []
     asset_dir = Path("/tmp/batch-assets-existing")
 
-    monkeypatch.setattr(worktree_issues, "zellij_bin", lambda: "/home/julesb/bin/zellij")
-    monkeypatch.setattr(worktree_issues, "zellij_session_exists", lambda _name: True)
+    monkeypatch.setattr(multiplexer, "zellij_bin", lambda: "/home/julesb/bin/zellij")
+    monkeypatch.setattr(multiplexer, "zellij_session_exists", lambda _name: True)
 
     def _mkdtemp(*, prefix):
         asset_dir.mkdir(parents=True, exist_ok=True)
@@ -68,10 +68,10 @@ def test_launch_zellij_batch_session_adds_tabs_to_existing_session(monkeypatch, 
         captured["args"] = args
 
     monkeypatch.setattr(tempfile, "mkdtemp", _mkdtemp)
-    monkeypatch.setattr(worktree_issues, "run", _run)
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(git_utils, "run", _run)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
-    worktree_issues.launch_zellij_batch_session(
+    multiplexer.launch_zellij_batch_session(
         session_name="worktrees",
         launches=launches,
         attach=True,
@@ -79,7 +79,10 @@ def test_launch_zellij_batch_session_adds_tabs_to_existing_session(monkeypatch, 
 
     out = capsys.readouterr().out
     assert "already exists — replacing." in out
-    assert run_calls == [["/home/julesb/bin/zellij", "delete-session", "worktrees"]]
+    assert run_calls == [
+        ["stty", "-ixon"],
+        ["/home/julesb/bin/zellij", "delete-session", "worktrees"],
+    ]
     assert captured["bin_path"] == "bash"
     assert captured["args"][0] == "bash"
     assert captured["args"][1] == "-lc"
@@ -93,8 +96,8 @@ def test_launch_zellij_session_starts_or_adds_with_layout(monkeypatch, tmp_path)
     calls: list[list[str]] = []
     asset_dir = tmp_path / "session-assets"
 
-    monkeypatch.setattr(worktree_issues, "zellij_bin", lambda: "/home/julesb/bin/zellij")
-    monkeypatch.setattr(worktree_issues, "zellij_session_exists", lambda _name: False)
+    monkeypatch.setattr(multiplexer, "zellij_bin", lambda: "/home/julesb/bin/zellij")
+    monkeypatch.setattr(multiplexer, "zellij_session_exists", lambda _name: False)
 
     def _mkdtemp(*, prefix):
         asset_dir.mkdir(parents=True, exist_ok=True)
@@ -106,10 +109,10 @@ def test_launch_zellij_session_starts_or_adds_with_layout(monkeypatch, tmp_path)
         calls.append([file, *args[1:]])
         raise SystemExit(0)
 
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
     with pytest.raises(SystemExit):
-        worktree_issues.launch_zellij_session(
+        multiplexer.launch_zellij_session(
             path=tmp_path,
             agent_command="echo agent",
             session_name="wt123",
@@ -134,12 +137,12 @@ def test_launch_zellij_session_adds_tab_to_existing_session(monkeypatch, tmp_pat
     calls: list[list[str]] = []
     subprocess_calls: list[list[str]] = []
 
-    monkeypatch.setattr(worktree_issues, "zellij_bin", lambda: "/home/julesb/bin/zellij")
-    monkeypatch.setattr(worktree_issues, "zellij_session_exists", lambda _name: True)
+    monkeypatch.setattr(multiplexer, "zellij_bin", lambda: "/home/julesb/bin/zellij")
+    monkeypatch.setattr(multiplexer, "zellij_session_exists", lambda _name: True)
     monkeypatch.setattr(
-        worktree_issues,
+        multiplexer,
         "worktree_session_pair",
-        lambda label: worktree_issues.SessionPair(
+        lambda label: multiplexer.SessionPair(
             label=label, session_name="wt123-20260319-213333-000004"
         ),
     )
@@ -152,11 +155,11 @@ def test_launch_zellij_session_adds_tab_to_existing_session(monkeypatch, tmp_pat
         calls.append([file, *args[1:]])
         raise SystemExit(0)
 
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _run)
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(multiplexer.subprocess, "run", _run)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
     with pytest.raises(SystemExit):
-        worktree_issues.launch_zellij_session(
+        multiplexer.launch_zellij_session(
             path=tmp_path,
             agent_command="echo agent",
             session_name="wt123",
@@ -178,10 +181,10 @@ def test_zellij_session_exists_handles_ansi_colored_output(monkeypatch):
             "",
         )
 
-    monkeypatch.setattr(worktree_issues, "zellij_bin", lambda: "/home/julesb/bin/zellij")
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _run)
+    monkeypatch.setattr(multiplexer, "zellij_bin", lambda: "/home/julesb/bin/zellij")
+    monkeypatch.setattr(multiplexer.subprocess, "run", _run)
 
-    assert worktree_issues.zellij_session_exists("wt278") is True
+    assert multiplexer.zellij_session_exists("wt278") is True
 
 
 def test_launch_zellij_batch_session_starts_or_adds_with_layout(monkeypatch, tmp_path):
@@ -189,8 +192,8 @@ def test_launch_zellij_batch_session_starts_or_adds_with_layout(monkeypatch, tmp
     subprocess_calls: list[list[str]] = []
     asset_dir = tmp_path / "batch-assets"
 
-    monkeypatch.setattr(worktree_issues, "zellij_bin", lambda: "/home/julesb/bin/zellij")
-    monkeypatch.setattr(worktree_issues, "zellij_session_exists", lambda _name: False)
+    monkeypatch.setattr(multiplexer, "zellij_bin", lambda: "/home/julesb/bin/zellij")
+    monkeypatch.setattr(multiplexer, "zellij_session_exists", lambda _name: False)
 
     def _mkdtemp(*, prefix):
         asset_dir.mkdir(parents=True, exist_ok=True)
@@ -206,11 +209,11 @@ def test_launch_zellij_batch_session_starts_or_adds_with_layout(monkeypatch, tmp
         calls.append([file, *args[1:]])
         raise SystemExit(0)
 
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _run)
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(multiplexer.subprocess, "run", _run)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
     with pytest.raises(SystemExit):
-        worktree_issues.launch_zellij_batch_session(
+        multiplexer.launch_zellij_batch_session(
             session_name="worktrees",
             launches=[("wt123", tmp_path, "echo agent")],
             attach=True,
@@ -240,8 +243,8 @@ def test_launch_zellij_batch_session_adds_to_existing_session(monkeypatch, tmp_p
     subprocess_calls: list[list[str]] = []
     asset_dir = tmp_path / "batch-assets-existing"
 
-    monkeypatch.setattr(worktree_issues, "zellij_bin", lambda: "/home/julesb/bin/zellij")
-    monkeypatch.setattr(worktree_issues, "zellij_session_exists", lambda _name: True)
+    monkeypatch.setattr(multiplexer, "zellij_bin", lambda: "/home/julesb/bin/zellij")
+    monkeypatch.setattr(multiplexer, "zellij_session_exists", lambda _name: True)
 
     def _mkdtemp(*, prefix):
         asset_dir.mkdir(parents=True, exist_ok=True)
@@ -256,18 +259,21 @@ def test_launch_zellij_batch_session_adds_to_existing_session(monkeypatch, tmp_p
         raise SystemExit(0)
 
     monkeypatch.setattr(tempfile, "mkdtemp", _mkdtemp)
-    monkeypatch.setattr(worktree_issues, "run", _run)
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(git_utils, "run", _run)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
     with pytest.raises(SystemExit):
-        worktree_issues.launch_zellij_batch_session(
+        multiplexer.launch_zellij_batch_session(
             session_name="worktrees",
             launches=[("wt123", tmp_path, "echo agent")],
             attach=True,
         )
 
     assert calls
-    assert subprocess_calls == [["/home/julesb/bin/zellij", "delete-session", "worktrees"]]
+    assert subprocess_calls == [
+        ["stty", "-ixon"],
+        ["/home/julesb/bin/zellij", "delete-session", "worktrees"],
+    ]
     assert calls[0][0] == "bash"
     assert calls[0][1] == "-lc"
     assert "--session worktrees" in calls[0][2]

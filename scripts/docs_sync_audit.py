@@ -34,7 +34,7 @@ OPENAPI_FILE = ROOT / "docs" / "openapi.yaml"
 OPS_PY = ROOT / "scripts" / "ops.py"
 MAKEFILE = ROOT / "Makefile"
 DEV_BOOTSTRAP_PY = ROOT / "scripts" / "dev_bootstrap.py"
-LOCAL_SETUP_MD = ROOT / "docs" / "development" / "LOCAL-SETUP.md"
+LOCAL_SETUP_MD = ROOT / "docs" / "development" / "PLATFORM-SETUP.md"
 AGENT_GUIDE_MD = ROOT / "docs" / "development" / "AGENT-DEVELOPER-GUIDE.md"
 CI_FILE = ROOT / ".gitlab-ci.yml"
 RUNBOOK_008_MD = ROOT / "docs" / "operations" / "RUNBOOK-008-developer-onboarding.md"
@@ -182,7 +182,7 @@ def detect_local_env_test_key_drift() -> list[str]:
         "TEST_JWT_ADMIN",
     }.issubset(bootstrap_keys):
         findings.append(
-            "docs/development/LOCAL-SETUP.md and onboarding docs describe BASIC_TENANT_JWT/"
+            "docs/development/PLATFORM-SETUP.md and onboarding docs describe BASIC_TENANT_JWT/"
             "PREMIUM_TENANT_JWT/ADMIN_JWT, but scripts/dev-bootstrap.py writes TEST_JWT_* keys."
         )
 

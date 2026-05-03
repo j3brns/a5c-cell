@@ -4,7 +4,15 @@ import json
 import subprocess
 from pathlib import Path
 
-from ._support import _issue, worktree_issues
+from ._support import (
+    _issue,
+    closeout,
+    evidence,
+    models,
+    tracker_client,
+    worktree,
+    worktree_issues,
+)
 
 
 def test_evidence_drift_findings_warns_for_in_progress_issue_without_local_evidence(
@@ -19,7 +27,7 @@ def test_evidence_drift_findings_warns_for_in_progress_issue_without_local_evide
         labels=["type:task", "status:in-progress"],
     )
 
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: None)
 
     findings = worktree_issues.evidence_drift_findings(root, [issue])
 
@@ -33,7 +41,7 @@ def test_record_issue_handoff_event_dedupes_by_idempotency_key(tmp_path):
     root.mkdir(parents=True, exist_ok=True)
     issue = _issue(number=33, task_id="TASK-033", seq=330)
 
-    first = worktree_issues.record_issue_handoff_event(
+    first = worktree.record_issue_handoff_event(
         root=root,
         repo="owner/repo",
         issue=issue,
@@ -44,7 +52,7 @@ def test_record_issue_handoff_event_dedupes_by_idempotency_key(tmp_path):
         details={"source": "test"},
         idempotency_key="create:33:wt33",
     )
-    second = worktree_issues.record_issue_handoff_event(
+    second = worktree.record_issue_handoff_event(
         root=root,
         repo="owner/repo",
         issue=issue,
@@ -68,7 +76,7 @@ def test_record_issue_handoff_event_resets_completed_session_on_new_start(tmp_pa
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
 
-    worktree_issues.record_issue_handoff_event(
+    worktree.record_issue_handoff_event(
         root=root,
         repo="owner/repo",
         issue_number=33,
@@ -84,7 +92,7 @@ def test_record_issue_handoff_event_resets_completed_session_on_new_start(tmp_pa
     old_payload = json.loads(state_path.read_text(encoding="utf-8"))
     assert old_payload["events"][-1]["event_type"] == "handback-complete"
 
-    worktree_issues.record_issue_handoff_event(
+    worktree.record_issue_handoff_event(
         root=root,
         repo="owner/repo",
         issue_number=33,
@@ -129,9 +137,9 @@ def test_issue_evidence_summary_reports_state_and_closeout(tmp_path, monkeypatch
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        worktree_issues,
+        worktree,
         "find_linked_worktree_for_issue",
-        lambda *_args: worktree_issues.WorktreeInfo(
+        lambda *_args: models.WorktreeInfo(
             path=wt,
             head="abc123",
             branch="wt/task/33-test",
@@ -139,7 +147,7 @@ def test_issue_evidence_summary_reports_state_and_closeout(tmp_path, monkeypatch
         ),
     )
 
-    summary = worktree_issues.issue_evidence_summary(root, 33)
+    summary = evidence.issue_evidence_summary(root, 33)
 
     assert summary["linked_worktree"] == str(wt)
     assert summary["evidence_source"] == "local"
@@ -154,9 +162,11 @@ def test_issue_evidence_summary_falls_back_to_historical_when_local_evidence_mis
 ):
     root = tmp_path / "repo"
     root.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(worktree_issues, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(worktree, "find_linked_worktree_for_issue", lambda *_args: None)
+    monkeypatch.setattr(closeout, "latest_closeout_report_path", lambda *_args: None)
+    monkeypatch.setattr(evidence, "find_latest_validation_receipt", lambda *_args: None)
     monkeypatch.setattr(
-        worktree_issues,
+        evidence,
         "historical_issue_evidence",
         lambda *_args: {
             "preferred_branch": "wt/task/33-test",
@@ -171,7 +181,7 @@ def test_issue_evidence_summary_falls_back_to_historical_when_local_evidence_mis
         },
     )
 
-    summary = worktree_issues.issue_evidence_summary(root, 33)
+    summary = evidence.issue_evidence_summary(root, 33)
 
     assert summary["evidence_source"] == "historical"
     assert summary["historical"]["preferred_branch"] == "wt/task/33-test"
@@ -191,10 +201,12 @@ def test_write_validation_receipt_writes_issue_scoped_receipt(tmp_path):
             return subprocess.CompletedProcess(cmd, 0, stdout="abc123def456\n", stderr="")
         raise AssertionError(f"unexpected command: {joined}")
 
-    original_run = worktree_issues.run
-    worktree_issues.run = fake_run
+    from scripts.issue_tool import git_utils
+
+    original_run = git_utils.run
+    git_utils.run = fake_run
     try:
-        receipt_path = worktree_issues.write_validation_receipt(
+        receipt_path = evidence.write_validation_receipt(
             root,
             issue_id=33,
             worktree_path=wt,
@@ -202,7 +214,7 @@ def test_write_validation_receipt_writes_issue_scoped_receipt(tmp_path):
             check_name="validate-pre-push",
         )
     finally:
-        worktree_issues.run = original_run
+        git_utils.run = original_run
 
     payload = json.loads(receipt_path.read_text(encoding="utf-8"))
     assert payload["issue_number"] == 33
@@ -216,23 +228,47 @@ def test_append_issue_handback_comment_skips_existing_hash(monkeypatch):
     posted: list[str] = []
 
     monkeypatch.setattr(
-        worktree_issues,
+        tracker_client,
         "get_issue",
         lambda *_args, **_kwargs: {
             "comments": [{"body": "Execution evidence: PASS\nEvidence hash: abc123"}]
         },
     )
     monkeypatch.setattr(
-        worktree_issues,
+        tracker_client,
         "comment_issue",
         lambda _root, _repo, _issue_id, body: posted.append(body),
     )
 
-    worktree_issues.append_issue_handback_comment(
+    monkeypatch.setattr(
+        tracker_client,
+        "get_issue",
+        lambda *_args, **_kwargs: {
+            "comments": [{"body": "Execution evidence: PASS\nEvidence hash: abc123"}]
+        },
+    )
+    monkeypatch.setattr(
+        tracker_client, "comment_issue", lambda _root, _repo, _issue_id, body: posted.append(body)
+    )
+    monkeypatch.setattr(
+        tracker_client, "comment_issue", lambda _root, _repo, _issue_id, body: posted.append(body)
+    )
+
+    worktree.append_issue_handback_comment(
         root=Path("/tmp/repo"),
         repo="owner/repo",
         issue_id=153,
-        summary={"evidence_hash": "abc123"},
+        summary={
+            "evidence_hash": "abc123",
+            "issue_number": 153,
+            "branch": "wt/task/153-sample",
+            "worktree_path": "/tmp/worktrees/wt153",
+            "final_state": "closed",
+            "last_event_type": "closeout-complete",
+            "event_count": 0,
+            "cleanup_verified": False,
+            "closeout_stage": "complete",
+        },
     )
 
     assert posted == []

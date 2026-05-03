@@ -1,13 +1,8 @@
 {
   "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
   "details": {
-    "agent": "codex",
-    "agent_mode": "yolo",
-    "handoff": "execute-now",
-    "mux": "tmux",
-    "review_agent": null,
-    "review_agent_mode": null,
-    "source": "worktree-next"
+    "evidence_hash": "7250a9c15bd8debfca59282bbbca9d042820c7dbdeee7c395d4c6ae99f5be3a5",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-65-wt_ci_65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi.json"
   },
   "events": [
     {
@@ -48,13 +43,75 @@
       "state": "agent-launching",
       "ts": "2026-04-26T18:39:04.665760+00:00",
       "worktree_path": "/home/julesb/worktrees/wt65"
+    },
+    {
+      "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-65-wt_ci_65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:65:wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi:/home/julesb/worktrees/wt65",
+      "issue_number": 65,
+      "issue_title": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T19:42:57.176963+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt65"
+    },
+    {
+      "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "details": {
+        "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt65']' returned non-zero exit status 128.",
+        "cleanup_verified": false,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-65-wt_ci_65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:65:wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi:/home/julesb/worktrees/wt65",
+      "issue_number": 65,
+      "issue_title": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T19:42:59.362780+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt65"
+    },
+    {
+      "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "details": {
+        "evidence_hash": "7250a9c15bd8debfca59282bbbca9d042820c7dbdeee7c395d4c6ae99f5be3a5",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-65-wt_ci_65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:65:7250a9c15bd8debfca59282bbbca9d042820c7dbdeee7c395d4c6ae99f5be3a5",
+      "issue_number": 65,
+      "issue_title": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T19:42:59.363374+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt65"
+    },
+    {
+      "branch": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "details": {
+        "evidence_hash": "7250a9c15bd8debfca59282bbbca9d042820c7dbdeee7c395d4c6ae99f5be3a5",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-65-wt_ci_65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:65:7250a9c15bd8debfca59282bbbca9d042820c7dbdeee7c395d4c6ae99f5be3a5",
+      "issue_number": 65,
+      "issue_title": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T19:43:01.046843+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt65"
     }
   ],
   "issue_number": 65,
-  "issue_title": "TASK-916: Make deploy-capable CI and agent pipelines fail closed on missing OIDC",
-  "last_event_type": "agent-launch-requested",
-  "last_updated_at": "2026-04-26T18:39:04.665760+00:00",
+  "issue_title": "wt/ci/65-make-deploy-capable-ci-and-agent-pipelines-fail-closed-on-mi",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T19:43:01.046843+00:00",
   "repo": "julianburns/tf-acore-aas",
-  "state": "agent-launching",
+  "state": "done",
   "worktree_path": "/home/julesb/worktrees/wt65"
 }

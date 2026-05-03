@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/60-wire-runtime-endpoint-registry-and-bridge-invocation-for-v0-",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T21:08:12.634513+00:00",
+  "head_sha": "918f292d40f696a62e3dbdd387d281c81953a9cd",
+  "issue_number": 60,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt60"
+}

@@ -1,13 +1,8 @@
 {
   "branch": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
   "details": {
-    "agent": "claude",
-    "agent_mode": "yolo",
-    "handoff": "execute-now",
-    "mux": "tmux",
-    "review_agent": null,
-    "review_agent_mode": null,
-    "source": "worktree-next"
+    "evidence_hash": "9e3dba948c5429e67277e5edc48edc7b85d0212c403528b1a3e484f50ad3024e",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-54-wt_task_54-rate-limit-consumption-headers-on-northbound-responses.json"
   },
   "events": [
     {
@@ -48,13 +43,74 @@
       "state": "agent-launching",
       "ts": "2026-04-26T18:33:08.672337+00:00",
       "worktree_path": "/home/julesb/worktrees/wt54"
+    },
+    {
+      "branch": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-54-wt_task_54-rate-limit-consumption-headers-on-northbound-responses.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:54:wt/task/54-rate-limit-consumption-headers-on-northbound-responses:/home/julesb/worktrees/wt54",
+      "issue_number": 54,
+      "issue_title": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-26T23:11:01.706261+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt54"
+    },
+    {
+      "branch": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-54-wt_task_54-rate-limit-consumption-headers-on-northbound-responses.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:54:wt/task/54-rate-limit-consumption-headers-on-northbound-responses:/home/julesb/worktrees/wt54",
+      "issue_number": 54,
+      "issue_title": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-26T23:11:09.339276+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt54"
+    },
+    {
+      "branch": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "details": {
+        "evidence_hash": "9e3dba948c5429e67277e5edc48edc7b85d0212c403528b1a3e484f50ad3024e",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-54-wt_task_54-rate-limit-consumption-headers-on-northbound-responses.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:54:9e3dba948c5429e67277e5edc48edc7b85d0212c403528b1a3e484f50ad3024e",
+      "issue_number": 54,
+      "issue_title": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-26T23:11:09.340256+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt54"
+    },
+    {
+      "branch": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "details": {
+        "evidence_hash": "9e3dba948c5429e67277e5edc48edc7b85d0212c403528b1a3e484f50ad3024e",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-54-wt_task_54-rate-limit-consumption-headers-on-northbound-responses.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:54:9e3dba948c5429e67277e5edc48edc7b85d0212c403528b1a3e484f50ad3024e",
+      "issue_number": 54,
+      "issue_title": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-26T23:11:11.293196+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt54"
     }
   ],
   "issue_number": 54,
-  "issue_title": "TASK-905: Rate-limit consumption headers on northbound responses",
-  "last_event_type": "agent-launch-requested",
-  "last_updated_at": "2026-04-26T18:33:08.672337+00:00",
+  "issue_title": "wt/task/54-rate-limit-consumption-headers-on-northbound-responses",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-26T23:11:11.293196+00:00",
   "repo": "julianburns/tf-acore-aas",
-  "state": "agent-launching",
+  "state": "done",
   "worktree_path": "/home/julesb/worktrees/wt54"
 }

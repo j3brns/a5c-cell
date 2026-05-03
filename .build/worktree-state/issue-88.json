@@ -1,0 +1,60 @@
+{
+  "branch": "wt/task/88-honor-tenant-specific-tool-metadata-consistently",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/task/88-honor-tenant-specific-tool-metadata-consistently",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "honor-tenant-specific-tool-metadata-consistently"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:88:wt/task/88-honor-tenant-specific-tool-metadata-consistently:/home/julesb/worktrees/wt88",
+      "issue_number": 88,
+      "issue_title": "TASK-1111: Honor tenant-specific tool metadata consistently",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T01:21:04.634059+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt88"
+    },
+    {
+      "branch": "wt/task/88-honor-tenant-specific-tool-metadata-consistently",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:88:/home/julesb/worktrees/wt88:codex:yolo:execute-now:tmux",
+      "issue_number": 88,
+      "issue_title": "TASK-1111: Honor tenant-specific tool metadata consistently",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T01:21:04.636985+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt88"
+    }
+  ],
+  "issue_number": 88,
+  "issue_title": "TASK-1111: Honor tenant-specific tool metadata consistently",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-29T01:21:04.636985+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt88"
+}

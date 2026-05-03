@@ -84,7 +84,7 @@ def write_env_test(tokens, env_test_path):
 """.lstrip(),
     )
     local_setup = _write(
-        tmp_path / "docs" / "development" / "LOCAL-SETUP.md",
+        tmp_path / "docs" / "development" / "PLATFORM-SETUP.md",
         """
 | BASIC_TENANT_JWT      | t-test-001 | basic    |
 | PREMIUM_TENANT_JWT    | t-test-002 | premium  |
@@ -116,7 +116,7 @@ def test_detect_local_fixture_name_drift_reports_docs_and_bootstrap_mismatch(
     monkeypatch, tmp_path: Path
 ) -> None:
     local_setup = _write(
-        tmp_path / "docs" / "development" / "LOCAL-SETUP.md",
+        tmp_path / "docs" / "development" / "PLATFORM-SETUP.md",
         """
 After make dev, two test tenants are available:
 t-test-001
@@ -175,7 +175,7 @@ print("TEST_JWT_ADMIN")
 """.lstrip(),
     )
     local_setup = _write(
-        tmp_path / "docs" / "development" / "LOCAL-SETUP.md",
+        tmp_path / "docs" / "development" / "PLATFORM-SETUP.md",
         "BASIC_TENANT_JWT | t-test-001\nPREMIUM_TENANT_JWT | t-test-002\n",
     )
     agent_guide = _write(
@@ -321,7 +321,7 @@ def test_cmd_check_fails_when_openapi_version_drifts(monkeypatch, tmp_path: Path
     monkeypatch.setattr(
         docs_sync_audit,
         "LOCAL_SETUP_MD",
-        _write(tmp_path / "docs" / "development" / "LOCAL-SETUP.md", ""),
+        _write(tmp_path / "docs" / "development" / "PLATFORM-SETUP.md", ""),
     )
     monkeypatch.setattr(
         docs_sync_audit,

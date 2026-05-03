@@ -134,3 +134,9 @@ def test_build_task_issue_body_uses_parser_contract():
     body = build_task_issue_body(seq=42, depends="#41", problem="Fix drift")
 
     assert parse_issue_meta(body) == (42, ["#41"])
+
+
+def test_parse_issue_meta_accepts_gitlab_indented_description_markers():
+    body = "    Seq: 1110\n    Depends on: #1109\n\n    ## Problem\n\n    Fix drift."
+
+    assert parse_issue_meta(body) == (1110, ["#1109"])

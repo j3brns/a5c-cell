@@ -123,9 +123,9 @@ def test_package_agent_creates_zip(tmp_path, monkeypatch):
         assert "__pycache__/test.pyc" not in names
 
 
-def test_agent_push_uses_unified_cli():
+def test_agent_push_uses_agent_cli():
     recipe_lines = _makefile_recipe_lines("agent-push")
-    assert any("platform-cli agent push" in line for line in recipe_lines)
+    assert any("agent-cli agent push" in line for line in recipe_lines)
 
 
 def test_agentcore_dev_target_runs_toolkit_in_agent_directory():

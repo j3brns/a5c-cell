@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/73-require-trusted-auth-context-for-platform-diagnostics-tools",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-27T00:45:29.264976+00:00",
+  "head_sha": "4e1841e8b78df6ec690804a74e14cebd47d0d68e",
+  "issue_number": 73,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt73"
+}

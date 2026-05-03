@@ -1,0 +1,301 @@
+
+def worktree_preprovision_dir(path: Path) -> Path:
+    return path / WORKTREE_PREPROVISION_DIR
+
+
+def worktree_preprovision_log(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_LOG
+
+
+def worktree_preprovision_failed(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_FAILED
+
+
+def worktree_preprovision_pid(path: Path) -> Path:
+    return worktree_preprovision_dir(path) / WORKTREE_PREPROVISION_PID
+
+
+def start_worktree_pre_provision(path: Path) -> None:
+    provision_dir = worktree_preprovision_dir(path)
+    provision_dir.mkdir(parents=True, exist_ok=True)
+    ready_path = worktree_ready_sentinel(path)
+    failed_path = worktree_preprovision_failed(path)
+    log_path = worktree_preprovision_log(path)
+    pid_path = worktree_preprovision_pid(path)
+    for marker in (ready_path, failed_path, pid_path):
+        marker.unlink(missing_ok=True)
+
+    script = "\n".join(
+        [
+            "set -e",
+            f'trap "touch {shlex.quote(str(failed_path))}" ERR',
+            "echo '[worktree-pre-provision] start '$(date -Is)",
+            "uv sync",
+            "npm install --prefix infra/cdk",
+            "npm install --prefix spa",
+            f"touch {shlex.quote(str(ready_path))}",
+            f"rm -f {shlex.quote(str(failed_path))}",
+            "echo '[worktree-pre-provision] ready '$(date -Is)",
+        ]
+    )
+    with log_path.open("w", encoding="utf-8") as log_file:
+        try:
+            proc = subprocess.Popen(
+                ["bash", "-lc", script],
+                cwd=path,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            failed_path.write_text(str(exc), encoding="utf-8")
+            raise CliError(f"Failed to start worktree pre-provisioning: {exc}") from exc
+    pid_path.write_text(str(proc.pid), encoding="utf-8")
+    print(f"Started worktree pre-provisioning in background (pid={proc.pid})")
+    print(f"  ready: {ready_path}")
+    print(f"  log:   {log_path}")
+
+
+def process_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def worktree_preprovision_pid_running(path: Path) -> bool:
+    pid_path = worktree_preprovision_pid(path)
+    if not pid_path.exists():
+        return False
+    try:
+        pid = int(pid_path.read_text(encoding="utf-8").strip())
+    except ValueError:
+        return False
+    return process_running(pid)
+
+
+def await_worktree_ready_if_provisioning(path: Path) -> None:
+    ready_path = worktree_ready_sentinel(path)
+    failed_path = worktree_preprovision_failed(path)
+    pid_path = worktree_preprovision_pid(path)
+    log_path = worktree_preprovision_log(path)
+    if ready_path.exists():
+        print(f"Worktree environment ready: {ready_path}")
+        return
+    if failed_path.exists():
+        raise CliError(f"Worktree pre-provisioning failed; see {log_path}")
+    if not pid_path.exists():
+        print("Worktree readiness sentinel missing; continuing with cold environment")
+        return
+
+    wait_seconds = int(env_optional("WORKTREE_READY_WAIT_SECONDS", "900") or "900")
+    deadline = time.monotonic() + max(0, wait_seconds)
+    print(f"Waiting for worktree pre-provisioning to finish (timeout={wait_seconds}s)")
+    while time.monotonic() <= deadline:
+        if ready_path.exists():
+            print(f"Worktree environment ready: {ready_path}")
+            return
+        if failed_path.exists():
+            raise CliError(f"Worktree pre-provisioning failed; see {log_path}")
+        if not worktree_preprovision_pid_running(path):
+            break
+        time.sleep(2)
+    raise CliError(f"Worktree is not ready; see {log_path}")
+
+
+def gitnexus_refresh_enabled() -> bool:
+    return parse_bool_env("WORKTREE_GITNEXUS_REFRESH", True)
+
+
+def gitnexus_npx_cache_dir() -> Path | None:
+    if shutil_which("npm") is None:
+        return None
+    try:
+        cache_dir = run(["npm", "config", "get", "cache"]).stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+    if not cache_dir or cache_dir == "undefined":
+        return None
+    return Path(cache_dir) / "_npx"
+
+
+def gitnexus_npx_cache_corrupted(output: str) -> bool:
+    lowered = output.lower()
+    return "enotempty" in lowered and "/_npx/" in lowered
+
+
+def gitnexus_embeddings_present(path: Path) -> bool:
+    meta_path = path / ".gitnexus" / "meta.json"
+    if not meta_path.exists():
+        return False
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    embeddings = meta.get("stats", {}).get("embeddings", 0)
+    try:
+        return int(embeddings) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+def gitnexus_analyze_supports(option: str) -> bool:
+    try:
+        proc = run_gitnexus_command(
+            Path.cwd(),
+            ["analyze", "--help"],
+            check=False,
+            timeout_seconds=30,
+        )
+    except subprocess.CalledProcessError:
+        return False
+    output = "\n".join(
+        part.strip() for part in (proc.stdout or "", proc.stderr or "") if part.strip()
+    )
+    return option in output
+
+
+def gitnexus_cli_path() -> Path | None:
+    override = env_optional("WORKTREE_GITNEXUS_CLI")
+    if override:
+        candidate = Path(override).expanduser()
+        if candidate.exists():
+            return candidate
+    which = shutil_which("gitnexus")
+    if which:
+        candidate = Path(which).expanduser()
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def gitnexus_timeout_seconds() -> float:
+    raw = env_optional("WORKTREE_GITNEXUS_TIMEOUT_SECONDS", "300") or "300"
+    try:
+        value = float(raw)
+    except ValueError:
+        return 300.0
+    return max(value, 1.0)
+
+
+def run_gitnexus_command(
+    path: Path,
+    args: list[str],
+    *,
+    check: bool,
+    timeout_seconds: float | None = None,
+) -> subprocess.CompletedProcess[str]:
+    cli_path = gitnexus_cli_path()
+    node = shutil_which("node")
+    if cli_path is not None and node is not None:
+        if cli_path.suffix == ".js":
+            cmd = [node, str(cli_path), *args]
+        else:
+            cmd = [str(cli_path), *args]
+    else:
+        cmd = ["npx", "--yes", "gitnexus", *args]
+    attempts = 0
+    while True:
+        attempts += 1
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=path,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=(
+                    timeout_seconds if timeout_seconds is not None else gitnexus_timeout_seconds()
+                ),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise subprocess.CalledProcessError(
+                124,
+                cmd,
+                output=exc.stdout,
+                stderr=exc.stderr,
+            ) from exc
+        combined_output = "\n".join(
+            part.strip() for part in (proc.stdout or "", proc.stderr or "") if part.strip()
+        )
+        if attempts == 1 and gitnexus_npx_cache_corrupted(combined_output):
+            npx_cache_dir = gitnexus_npx_cache_dir()
+            if npx_cache_dir is None:
+                eprint("WARNING: npm cache path unavailable; cannot repair GitNexus npx cache")
+            else:
+                print(f"GitNexus: clearing corrupt npx cache at {npx_cache_dir}")
+                shutil.rmtree(npx_cache_dir, ignore_errors=True)
+                continue
+        if check and proc.returncode != 0:
+            raise subprocess.CalledProcessError(
+                proc.returncode,
+                cmd,
+                output=proc.stdout,
+                stderr=proc.stderr,
+            )
+        return proc
+
+
+def prepare_gitnexus_for_worktree(path: Path) -> None:
+    if not gitnexus_refresh_enabled():
+        print("GitNexus: refresh disabled by WORKTREE_GITNEXUS_REFRESH=0")
+        return
+    if gitnexus_cli_path() is None and shutil_which("npx") is None:
+        eprint("WARNING: gitnexus CLI and npx not found; skipping GitNexus refresh")
+        return
+
+    print(f"GitNexus: checking local index in {path}")
+    status_proc = run_gitnexus_command(path, ["status"], check=False)
+    status_output = "\n".join(
+        part.strip()
+        for part in (status_proc.stdout or "", status_proc.stderr or "")
+        if part.strip()
+    )
+    if status_output:
+        print(status_output)
+
+    needs_refresh = status_proc.returncode != 0
+    lowered = status_output.lower()
+    refresh_markers = (
+        "stale",
+        "not indexed",
+        "not analyzed",
+        "not analysed",
+        "missing",
+        "out of date",
+    )
+    if any(marker in lowered for marker in refresh_markers):
+        needs_refresh = True
+
+    if not needs_refresh:
+        print("GitNexus: local index already fresh")
+        return
+
+    analyze_args = ["analyze"]
+    if gitnexus_embeddings_present(path):
+        analyze_args.append("--embeddings")
+    if gitnexus_analyze_supports("--skip-agents-md"):
+        analyze_args.append("--skip-agents-md")
+    if gitnexus_analyze_supports("--no-stats"):
+        analyze_args.append("--no-stats")
+
+    print(f"GitNexus: rebuilding local index for this worktree ({' '.join(analyze_args)})")
+    try:
+        run_gitnexus_command(path, analyze_args, check=True)
+    except subprocess.CalledProcessError as exc:
+        eprint(f"WARNING: GitNexus analyze failed in {path}: {exc}")
+
+
+def open_shell(path: Path) -> None:
+    shell = env_optional("SHELL", "bash") or "bash"
+    ensure_uv_venv(path)
+    print(f"Opening shell in {path} (with .venv activation when available)")
+    path_q = shell_quote(str(path))
+    shell_q = shell_quote(shell)
+    cmd = (
+        f"cd {path_q} && "
+        "if [ -f .venv/bin/activate ]; then source .venv/bin/activate; fi; "
+        f"exec {shell_q} -l"

@@ -1,0 +1,117 @@
+{
+  "branch": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+  "details": {
+    "evidence_hash": "dbf90c780aef694c545c4b2f57b395ec818308edf265f41a3ca4c53d06e6491e",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-84-wt_task_84-deny-authorisation-when-tenant-status-storage-is-unavailable.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "deny-authorisation-when-tenant-status-storage-is-unavailable"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:84:wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable:/home/julesb/worktrees/wt84",
+      "issue_number": 84,
+      "issue_title": "TASK-1107: Deny authorisation when tenant status storage is unavailable",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T00:37:23.036861+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt84"
+    },
+    {
+      "branch": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:84:/home/julesb/worktrees/wt84:codex:yolo:execute-now:tmux",
+      "issue_number": 84,
+      "issue_title": "TASK-1107: Deny authorisation when tenant status storage is unavailable",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T00:37:23.037673+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt84"
+    },
+    {
+      "branch": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-84-wt_task_84-deny-authorisation-when-tenant-status-storage-is-unavailable.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:84:wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable:/home/julesb/worktrees/wt84",
+      "issue_number": 84,
+      "issue_title": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-29T00:48:21.003344+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt84"
+    },
+    {
+      "branch": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "details": {
+        "cleanup_error": "Command '['git', 'worktree', 'remove', '/home/julesb/worktrees/wt84']' returned non-zero exit status 128.",
+        "cleanup_verified": false,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-84-wt_task_84-deny-authorisation-when-tenant-status-storage-is-unavailable.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:84:wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable:/home/julesb/worktrees/wt84",
+      "issue_number": 84,
+      "issue_title": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-29T00:48:23.234836+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt84"
+    },
+    {
+      "branch": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "details": {
+        "evidence_hash": "dbf90c780aef694c545c4b2f57b395ec818308edf265f41a3ca4c53d06e6491e",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-84-wt_task_84-deny-authorisation-when-tenant-status-storage-is-unavailable.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:84:dbf90c780aef694c545c4b2f57b395ec818308edf265f41a3ca4c53d06e6491e",
+      "issue_number": 84,
+      "issue_title": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-29T00:48:23.235774+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt84"
+    },
+    {
+      "branch": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "details": {
+        "evidence_hash": "dbf90c780aef694c545c4b2f57b395ec818308edf265f41a3ca4c53d06e6491e",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-84-wt_task_84-deny-authorisation-when-tenant-status-storage-is-unavailable.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:84:dbf90c780aef694c545c4b2f57b395ec818308edf265f41a3ca4c53d06e6491e",
+      "issue_number": 84,
+      "issue_title": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-29T00:48:22.749004+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt84"
+    }
+  ],
+  "issue_number": 84,
+  "issue_title": "wt/task/84-deny-authorisation-when-tenant-status-storage-is-unavailable",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-29T00:48:22.749004+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt84"
+}

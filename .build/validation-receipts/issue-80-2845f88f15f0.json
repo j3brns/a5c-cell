@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/80-require-platform-tenant-context-for-platform-agent-registrat",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-29T00:22:31.948773+00:00",
+  "head_sha": "2845f88f15f074c467dfe0f376782226f49edcb2",
+  "issue_number": 80,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt80"
+}

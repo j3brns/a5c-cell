@@ -1,0 +1,116 @@
+{
+  "branch": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+  "details": {
+    "evidence_hash": "67d75fa41d807ff41b94364238a8205dcb86517e83cdc560090260d7f4a83507",
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-79-wt_task_79-guard-tenant-api-scoped-client-factories-against-caller-targ.json"
+  },
+  "events": [
+    {
+      "branch": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "guard-tenant-api-scoped-client-factories-against-caller-targ"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:79:wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ:/home/julesb/worktrees/wt79",
+      "issue_number": 79,
+      "issue_title": "TASK-1102: Guard tenant API scoped-client factories against caller target mismatch",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T00:03:11.843958+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt79"
+    },
+    {
+      "branch": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:79:/home/julesb/worktrees/wt79:codex:yolo:execute-now:tmux",
+      "issue_number": 79,
+      "issue_title": "TASK-1102: Guard tenant API scoped-client factories against caller target mismatch",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T00:03:11.844379+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt79"
+    },
+    {
+      "branch": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-79-wt_task_79-guard-tenant-api-scoped-client-factories-against-caller-targ.json"
+      },
+      "event_type": "closeout-started",
+      "idempotency_key": "closeout-started:79:wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ:/home/julesb/worktrees/wt79",
+      "issue_number": 79,
+      "issue_title": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closeout-started",
+      "ts": "2026-04-29T00:17:32.815442+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt79"
+    },
+    {
+      "branch": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "details": {
+        "cleanup_verified": true,
+        "issue_closed": true,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-79-wt_task_79-guard-tenant-api-scoped-client-factories-against-caller-targ.json"
+      },
+      "event_type": "closeout-complete",
+      "idempotency_key": "closeout-complete:79:wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ:/home/julesb/worktrees/wt79",
+      "issue_number": 79,
+      "issue_title": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "closed",
+      "ts": "2026-04-29T00:17:38.802416+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt79"
+    },
+    {
+      "branch": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "details": {
+        "evidence_hash": "67d75fa41d807ff41b94364238a8205dcb86517e83cdc560090260d7f4a83507",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-79-wt_task_79-guard-tenant-api-scoped-client-factories-against-caller-targ.json"
+      },
+      "event_type": "handback-audited",
+      "idempotency_key": "handback-audited:79:67d75fa41d807ff41b94364238a8205dcb86517e83cdc560090260d7f4a83507",
+      "issue_number": 79,
+      "issue_title": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "evidence-audited",
+      "ts": "2026-04-29T00:17:38.803020+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt79"
+    },
+    {
+      "branch": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "details": {
+        "evidence_hash": "67d75fa41d807ff41b94364238a8205dcb86517e83cdc560090260d7f4a83507",
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-79-wt_task_79-guard-tenant-api-scoped-client-factories-against-caller-targ.json"
+      },
+      "event_type": "handback-complete",
+      "idempotency_key": "handback-complete:79:67d75fa41d807ff41b94364238a8205dcb86517e83cdc560090260d7f4a83507",
+      "issue_number": 79,
+      "issue_title": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "done",
+      "ts": "2026-04-29T00:17:40.708305+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt79"
+    }
+  ],
+  "issue_number": 79,
+  "issue_title": "wt/task/79-guard-tenant-api-scoped-client-factories-against-caller-targ",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-04-29T00:17:40.708305+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "done",
+  "worktree_path": "/home/julesb/worktrees/wt79"
+}

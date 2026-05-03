@@ -1,0 +1,60 @@
+{
+  "branch": "wt/task/85-make-branch-and-merge-request-ci-fail-closed-by-default",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/task/85-make-branch-and-merge-request-ci-fail-closed-by-default",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "make-branch-and-merge-request-ci-fail-closed-by-default"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:85:wt/task/85-make-branch-and-merge-request-ci-fail-closed-by-default:/home/julesb/worktrees/wt85",
+      "issue_number": 85,
+      "issue_title": "TASK-1108: Make branch and merge-request CI fail closed by default",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T00:38:07.527218+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt85"
+    },
+    {
+      "branch": "wt/task/85-make-branch-and-merge-request-ci-fail-closed-by-default",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:85:/home/julesb/worktrees/wt85:codex:yolo:execute-now:tmux",
+      "issue_number": 85,
+      "issue_title": "TASK-1108: Make branch and merge-request CI fail closed by default",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T00:38:07.527703+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt85"
+    }
+  ],
+  "issue_number": 85,
+  "issue_title": "TASK-1108: Make branch and merge-request CI fail closed by default",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-29T00:38:07.527703+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt85"
+}

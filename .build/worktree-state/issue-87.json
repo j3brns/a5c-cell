@@ -1,0 +1,60 @@
+{
+  "branch": "wt/task/87-plumb-externalid-into-bridge-tenant-role-assumption",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/task/87-plumb-externalid-into-bridge-tenant-role-assumption",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "task",
+        "slug": "plumb-externalid-into-bridge-tenant-role-assumption"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:87:wt/task/87-plumb-externalid-into-bridge-tenant-role-assumption:/home/julesb/worktrees/wt87",
+      "issue_number": 87,
+      "issue_title": "TASK-1110: Plumb ExternalId into bridge tenant-role assumption",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T01:07:00.102896+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt87"
+    },
+    {
+      "branch": "wt/task/87-plumb-externalid-into-bridge-tenant-role-assumption",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:87:/home/julesb/worktrees/wt87:codex:yolo:execute-now:tmux",
+      "issue_number": 87,
+      "issue_title": "TASK-1110: Plumb ExternalId into bridge tenant-role assumption",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T01:07:00.104091+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt87"
+    }
+  ],
+  "issue_number": 87,
+  "issue_title": "TASK-1110: Plumb ExternalId into bridge tenant-role assumption",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-29T01:07:00.104091+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt87"
+}

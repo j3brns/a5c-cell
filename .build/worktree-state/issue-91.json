@@ -1,0 +1,60 @@
+{
+  "branch": "wt/infra/91-make-infrastructure-synth-and-guard-validation-contract-expl",
+  "details": {
+    "agent": "codex",
+    "agent_mode": "yolo",
+    "handoff": "execute-now",
+    "mux": "tmux",
+    "review_agent": null,
+    "review_agent_mode": null,
+    "source": "worktree-next"
+  },
+  "events": [
+    {
+      "branch": "wt/infra/91-make-infrastructure-synth-and-guard-validation-contract-expl",
+      "details": {
+        "auto_claim": true,
+        "base_ref": "origin/main",
+        "pre_provision": false,
+        "preflight": true,
+        "scope": "infra",
+        "slug": "make-infrastructure-synth-and-guard-validation-contract-expl"
+      },
+      "event_type": "worktree-created",
+      "idempotency_key": "create:91:wt/infra/91-make-infrastructure-synth-and-guard-validation-contract-expl:/home/julesb/worktrees/wt91",
+      "issue_number": 91,
+      "issue_title": "TASK-1114: Make infrastructure synth and guard validation contract explicit",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "worktree-ready",
+      "ts": "2026-04-29T01:49:52.187537+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt91"
+    },
+    {
+      "branch": "wt/infra/91-make-infrastructure-synth-and-guard-validation-contract-expl",
+      "details": {
+        "agent": "codex",
+        "agent_mode": "yolo",
+        "handoff": "execute-now",
+        "mux": "tmux",
+        "review_agent": null,
+        "review_agent_mode": null,
+        "source": "worktree-next"
+      },
+      "event_type": "agent-launch-requested",
+      "idempotency_key": "agent:91:/home/julesb/worktrees/wt91:codex:yolo:execute-now:tmux",
+      "issue_number": 91,
+      "issue_title": "TASK-1114: Make infrastructure synth and guard validation contract explicit",
+      "repo": "julianburns/tf-acore-aas",
+      "state": "agent-launching",
+      "ts": "2026-04-29T01:49:52.187998+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt91"
+    }
+  ],
+  "issue_number": 91,
+  "issue_title": "TASK-1114: Make infrastructure synth and guard validation contract explicit",
+  "last_event_type": "agent-launch-requested",
+  "last_updated_at": "2026-04-29T01:49:52.187998+00:00",
+  "repo": "julianburns/tf-acore-aas",
+  "state": "agent-launching",
+  "worktree_path": "/home/julesb/worktrees/wt91"
+}

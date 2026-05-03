@@ -16,7 +16,7 @@ Start here, then follow the links for your role.
 
 | I am a... | Read in this order |
 |-----------|-------------------|
-| **New platform engineer** | [Local Setup](development/LOCAL-SETUP.md) → [Architecture](ARCHITECTURE.md) → [ADR index](#architecture-decision-records) |
+| **New platform engineer** | [Local Setup](development/PLATFORM-SETUP.md) → [Architecture](ARCHITECTURE.md) → [ADR index](#architecture-decision-records) |
 | **Agent developer** | [Agent Developer Guide](development/AGENT-DEVELOPER-GUIDE.md) → [Architecture](ARCHITECTURE.md) |
 | **Operator** | [Operator Onboarding](operations/RUNBOOK-009-operator-onboarding.md) → [Runbook index](#operator-runbooks) → [Bootstrap Guide](bootstrap-guide.md) |
 | **Security reviewer** | [Threat Model](security/THREAT-MODEL.md) → [Compliance Checklist](security/COMPLIANCE-CHECKLIST.md) → [Architecture](ARCHITECTURE.md) |
@@ -97,7 +97,7 @@ failure-investigation steps still require external consoles or service UIs.
 
 | Document | Audience | Purpose |
 |----------|----------|---------|
-| [Local Setup](development/LOCAL-SETUP.md) | Platform engineers | Full local dev environment (uv, Docker, LocalStack) |
+| [Local Setup](development/PLATFORM-SETUP.md) | Platform engineers | Full local dev environment (uv, Docker, LocalStack) |
 | [Agent Developer Guide](development/AGENT-DEVELOPER-GUIDE.md) | Agent developers | Build, test, package, and push agents to the platform |
 
 ## Diagram Catalog

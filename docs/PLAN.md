@@ -80,7 +80,7 @@ end-to-end in a local environment within 30 minutes of first checkout.
 Echo agent invocable end-to-end in local environment.
 
 **Success criteria**:
-- New developer can complete LOCAL-SETUP.md in under 30 minutes
+- New developer can complete PLATFORM-SETUP.md in under 30 minutes
 - All three invocation modes work locally against mock Runtime
 - Authoriser correctly rejects: expired JWT, wrong audience, cross-tenant header injection
 

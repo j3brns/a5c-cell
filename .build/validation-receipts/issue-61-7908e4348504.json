@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/61-replace-agentcore-gateway-allow-all-with-restrictive-authori",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-26T19:03:12.155337+00:00",
+  "head_sha": "7908e4348504de82a227cdd82049e4ff97a85e69",
+  "issue_number": 61,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt61"
+}

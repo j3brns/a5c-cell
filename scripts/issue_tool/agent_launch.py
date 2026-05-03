@@ -21,18 +21,28 @@ AGENT_CAPABILITIES: dict[str, dict[str, bool]] = {
 DEFAULT_INTERACTIVE_AGENT_POOL = ("codex", "gemini", "claude")
 
 
-def resolve_launch_request(args: argparse.Namespace) -> tuple[str, str, str, str]:
-    agent = args.agent or "codex"
-    agent_mode = args.agent_mode or "yolo"
-    handoff = args.handoff or ("execute-now" if not args.print_only else "print-only")
-    mux = "no-mux"
-    if getattr(args, "tmux", False):
-        mux = "tmux"
-    elif getattr(args, "zellij", False):
-        mux = "zellij"
-    elif getattr(args, "no_mux", False):
-        mux = "no-mux"
-    return agent, agent_mode, handoff, mux
+def resolve_launch_request(
+    agent: str | None = None,
+    agent_mode: str | None = None,
+    review_agent: str | None = None,
+    review_agent_mode: str | None = None,
+    handoff: str | None = None,
+    print_only: bool = False,
+    tmux: bool | None = None,
+    zellij: bool | None = None,
+    no_mux: bool = False,
+) -> tuple[str, str, str, str]:
+    agent_val = agent or "codex"
+    agent_mode_val = agent_mode or "yolo"
+    handoff_val = handoff or ("execute-now" if not print_only else "print-only")
+    mux_val = "no-mux"
+    if tmux:
+        mux_val = "tmux"
+    elif zellij:
+        mux_val = "zellij"
+    elif no_mux:
+        mux_val = "no-mux"
+    return agent_val, agent_mode_val, handoff_val, mux_val
 
 
 def build_agent_launch_command(
@@ -71,13 +81,13 @@ def launch_interactive_session(
         os.chdir(cwd)
         os.execvp(shlex.split(command)[0], shlex.split(command))
     elif mux == "tmux":
-        from scripts.issue_tool.cli import launch_tmux_session
+        from scripts.issue_tool.multiplexer import launch_tmux_session
 
         launch_tmux_session(
             session_name=session_name or "agent-session", agent_command=command, path=path
         )
     elif mux == "zellij":
-        from scripts.issue_tool.cli import launch_zellij_session
+        from scripts.issue_tool.multiplexer import launch_zellij_session
 
         launch_zellij_session(
             session_name=session_name or "agent-session", agent_command=command, path=path

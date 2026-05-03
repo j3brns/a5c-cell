@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from ._support import worktree_issues
+from ._support import commands_common as common
+from ._support import (
+    git_utils,
+    multiplexer,
+    worktree,
+    worktree_issues,
+)
 
 
 def test_launch_tmux_batch_session_starts_grid(monkeypatch, capsys):
@@ -16,7 +22,7 @@ def test_launch_tmux_batch_session_starts_grid(monkeypatch, capsys):
     calls: list[list[str]] = []
     attached: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "tmux_session_exists", lambda _name: False)
+    monkeypatch.setattr(multiplexer, "tmux_session_exists", lambda _name: False)
 
     def _run(cmd, **kwargs):
         calls.append(list(cmd))
@@ -27,11 +33,11 @@ def test_launch_tmux_batch_session_starts_grid(monkeypatch, capsys):
         attached["args"] = args
         raise SystemExit(0)
 
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _run)
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(git_utils, "run", _run)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
     with pytest.raises(SystemExit):
-        worktree_issues.launch_tmux_batch_session(
+        multiplexer.launch_tmux_batch_session(
             session_name="worktrees",
             launches=launches,
             attach=True,
@@ -54,7 +60,7 @@ def test_launch_tmux_batch_session_replaces_existing_session(monkeypatch, capsys
     calls: list[list[str]] = []
     attached: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "tmux_session_exists", lambda _name: True)
+    monkeypatch.setattr(multiplexer, "tmux_session_exists", lambda _name: True)
 
     def _run(cmd, **kwargs):
         calls.append(list(cmd))
@@ -65,11 +71,11 @@ def test_launch_tmux_batch_session_replaces_existing_session(monkeypatch, capsys
         attached["args"] = args
         raise SystemExit(0)
 
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _run)
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(git_utils, "run", _run)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
     with pytest.raises(SystemExit):
-        worktree_issues.launch_tmux_batch_session(
+        multiplexer.launch_tmux_batch_session(
             session_name="worktrees",
             launches=launches,
             attach=True,
@@ -87,7 +93,7 @@ def test_launch_tmux_session_uses_reported_initial_window_index(monkeypatch, cap
     calls: list[list[str]] = []
     attached: dict[str, object] = {}
 
-    monkeypatch.setattr(worktree_issues, "tmux_session_exists", lambda _name: False)
+    monkeypatch.setattr(multiplexer, "tmux_session_exists", lambda _name: False)
 
     def _run(cmd, **kwargs):
         calls.append(list(cmd))
@@ -100,11 +106,11 @@ def test_launch_tmux_session_uses_reported_initial_window_index(monkeypatch, cap
         attached["args"] = args
         raise SystemExit(0)
 
-    monkeypatch.setattr(worktree_issues.subprocess, "run", _run)
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(git_utils, "run", _run)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
     with pytest.raises(SystemExit):
-        worktree_issues.launch_tmux_session(
+        multiplexer.launch_tmux_session(
             path=path,
             agent_command="claude --dangerously-skip-permissions prompt",
             attach=True,
@@ -155,22 +161,22 @@ def test_handoff_to_agent_or_shell_falls_back_when_tmux_launch_fails(monkeypatch
         execvp_call["args"] = args
         raise SystemExit(0)
 
-    monkeypatch.setattr(worktree_issues, "run", _run_prompt)
+    monkeypatch.setattr(git_utils, "run", _run_prompt)
     monkeypatch.setattr(worktree_issues, "worktree_issue_id", lambda _path: 381)
     monkeypatch.setattr(
         worktree_issues,
         "fetch_issue_labels_for_prompt",
         lambda _root, _repo, _issue: "enhancement|type:task|status:in-progress",
     )
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
+    monkeypatch.setattr(worktree, "ensure_uv_venv", lambda _path: None)
     monkeypatch.setattr(
-        worktree_issues,
+        multiplexer,
         "launch_tmux_session",
         lambda **_kwargs: (_ for _ in ()).throw(
             subprocess.CalledProcessError(1, ["tmux", "list-panes"])
         ),
     )
-    monkeypatch.setattr(worktree_issues.os, "execvp", _execvp)
+    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
     with pytest.raises(SystemExit):
         worktree_issues.handoff_to_agent_or_shell(
@@ -198,30 +204,33 @@ def test_handoff_with_review_agent_launches_tmux_batch(monkeypatch, capsys):
     root = Path("/tmp/repo")
     wt = Path("/tmp/worktrees/wt381")
     launches: dict[str, object] = {}
-
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
     monkeypatch.setattr(
-        worktree_issues,
+        git_utils, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, "", "")
+    )
+
+    monkeypatch.setattr(worktree, "ensure_uv_venv", lambda _path: None)
+    monkeypatch.setattr(
+        common,
         "build_agent_prompt_for_worktree",
         lambda *_args: "implementation prompt",
     )
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "build_review_prompt_for_worktree",
         lambda *_args, **_kwargs: "review prompt",
     )
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "build_agent_command",
         lambda agent, mode, prompt: f"{agent}:{mode}:{prompt}",
     )
     monkeypatch.setattr(
-        worktree_issues,
+        multiplexer,
         "worktree_session_pair",
-        lambda label: worktree_issues.SessionPair(label=label, session_name="wt381-review"),
+        lambda label: multiplexer.SessionPair(label=label, session_name="wt381-review"),
     )
     monkeypatch.setattr(
-        worktree_issues,
+        multiplexer,
         "launch_tmux_batch_session",
         lambda **kwargs: launches.update(kwargs),
     )
@@ -250,20 +259,20 @@ def test_handoff_with_review_agent_launches_tmux_batch(monkeypatch, capsys):
 
 
 def test_handoff_with_review_agent_and_no_mux_raises(monkeypatch, tmp_path):
-    monkeypatch.setattr(worktree_issues, "ensure_uv_venv", lambda _path: None)
-    monkeypatch.setattr(worktree_issues, "build_agent_prompt_for_worktree", lambda *_args: "impl")
+    monkeypatch.setattr(worktree, "ensure_uv_venv", lambda _path: None)
+    monkeypatch.setattr(common, "build_agent_prompt_for_worktree", lambda *_args: "impl")
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "build_review_prompt_for_worktree",
         lambda *_args, **_kwargs: "review",
     )
     monkeypatch.setattr(
-        worktree_issues,
+        common,
         "build_agent_command",
         lambda agent, mode, prompt: f"{agent}:{mode}:{prompt}",
     )
 
-    with pytest.raises(worktree_issues.CliError, match="Review lane requires tmux/zellij"):
+    with pytest.raises(multiplexer.CliError, match="Review lane requires tmux/zellij"):
         worktree_issues.handoff_to_agent_or_shell(
             path=tmp_path,
             root=tmp_path,

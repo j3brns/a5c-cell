@@ -43,7 +43,7 @@ class Issue:
 
     @property
     def is_parent_cr(self) -> bool:
-        from scripts.issue_tool.cli import CR_TITLE_RE
+        from scripts.issue_tool.constants import CR_TITLE_RE
 
         return bool(CR_TITLE_RE.match(self.title.strip()))
 

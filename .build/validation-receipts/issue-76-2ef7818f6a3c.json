@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/76-reconcile-wildcard-iam-resource-statements-with-guardrails",
+  "check": "validate-pre-push",
+  "generated_at": "2026-04-27T00:42:56.187518+00:00",
+  "head_sha": "2ef7818f6a3cb5212e8bf444afdb087c3ff54298",
+  "issue_number": 76,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt76"
+}
