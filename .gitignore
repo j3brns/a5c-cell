@@ -89,3 +89,9 @@ Thumbs.db
 *.temp
 ~$*
 .gitnexus
+
+# Local tool state
+.omx/
+.codex
+.codex-flow/
+gitnexus_chunk.txt
