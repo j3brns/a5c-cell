@@ -64,7 +64,6 @@ def gitnexus_analyze_supports(option: str) -> bool:
 
 
 def gitnexus_cli_path() -> Path | None:
-    override = settings.ops.credentials_path  # Wait, I should use worktree_gitnexus_cli
     override = settings.ops.worktree_gitnexus_cli
     if override:
         candidate = Path(override).expanduser()

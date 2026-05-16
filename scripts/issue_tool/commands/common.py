@@ -686,93 +686,108 @@ def build_agent_prompt_for_worktree(path: Path, root: Path, repo: str | None) ->
     issue_ref = f"GitLab issue #{issue_id}" if issue_id is not None else "no linked GitLab issue"
     issue_labels = fetch_issue_labels_for_prompt(root, repo, issue_id)
     labels_clause = issue_labels or "-"
+
+    worker_prompt_path = root / "worker-prompt.md"
+    base_instructions = ""
+    if worker_prompt_path.exists():
+        base_instructions = worker_prompt_path.read_text(encoding="utf-8")
+
     prompt_lines = [
         (
             f"Context: {issue_ref}; project {repo or '(gitlab remote unavailable)'}; "
             f"branch {branch}; worktree {path}; labels {labels_clause}."
         ),
-        (
+    ]
+
+    if not base_instructions:
+        prompt_lines.append(
             "Read: CLAUDE.md; docs/ARCHITECTURE.md; "
             "issue-linked ADRs if easy to identify from repo or issue context."
-        ),
-    ]
+        )
+
     if issue_id is None:
         prompt_lines.append(
             "Worktree policy: this path is not an issue worktree branch. Do not start new "
             "implementation from main or another non-issue branch; create or resume the "
             "correct issue worktree first unless the operator explicitly directs otherwise."
         )
-    prompt_lines.extend(
-        [
-            (
-                "Operating mode: you are the implementation owner for this issue worktree. "
-                "Proceed without asking for permission on clear, reversible next steps; ask "
-                "only for destructive actions, production access, or policy/security decisions "
-                "that the repo rules require escalating."
-            ),
-            (
-                "Scope: only this issue. Do not broaden scope, bundle opportunistic cleanup, "
-                "or repair unrelated failures in the same branch. If unrelated drift blocks "
-                "validation, document it as a separate follow-up and keep this branch focused."
-            ),
-            (
-                "First step: inspect the current branch diff, linked GitLab issue, issue "
-                "labels, dependencies, relevant ADRs/docs, and the smallest set of files that "
-                "control the behavior before editing."
-            ),
-            (
-                "Context lookup: prefer GitNexus for unfamiliar flows and blast-radius checks "
-                "when it is available. Use context/impact before editing shared symbols, then "
-                "run detect_changes before commit. If GitNexus is unavailable or stale, fall "
-                "back to rg, git diff/log, and direct file reads; do not block on GitNexus."
-            ),
-            (
-                "Execution loop: inspect; form the smallest defensible plan; add or update "
-                "tests before behavior changes when practical; run make worktree-probe MODE=test "
-                "before attempting tests; if it fails, stop the test attempt and run make "
-                "ensure-tools before continuing; run make worktree-probe before agent handoff; "
-                "implement; run the narrowest useful checks; then run make preflight-session and "
-                "make pre-validate-session before push. Fix failures and repeat until the issue "
-                "is actually complete."
-            ),
-            (
-                "Change shape: keep diffs small and reversible; prefer deletion over addition; "
-                "reuse existing patterns before introducing new abstractions; do not add "
-                "dependencies without explicit need."
-            ),
-            (
-                "Documentation: reconcile implementation with relevant ADRs, runbooks, and "
-                "architecture docs. Adhere to the project's pithy, narrative technical style "
-                "without unduly dehydrating critical content; a feature is incomplete while "
-                "its documentation remains stale."
-            ),
-            (
-                "Do not stop at: MR creation, one passing test, a local commit, a pushed "
-                "branch, or a partial implementation. Those are intermediate states."
-            ),
-            (
-                "Review gate: before claiming completion, run a senior-engineer review pass "
-                "focused on bugs, regressions, security/operability risks, and missing tests. "
-                "If a second agent is available, use it for that review; otherwise perform the "
-                "review yourself with the same standard."
-            ),
-            (
-                "Completion sequence: push through make worktree-push-issue or an equivalent "
-                "prevalidated push; create/update the MR; address review feedback; merge to "
-                "the target branch; close and normalize the issue; record validation evidence; "
-                "finalize .build hand-back evidence; then run make finish-worktree-close. "
-                "Report cleanup residue explicitly, but do not treat worktree or branch "
-                "deletion as semantic completion."
-            ),
-            (
-                "Pause only if: repo rules mandate escalation, a security/policy decision is "
-                "unsafe to infer, required credentials or permissions are missing, or a "
-                "destructive operation is unavoidable. Otherwise make a reasonable local "
-                "decision, keep moving, and report blockers with the exact failed command, "
-                "evidence, and next command needed."
-            ),
-        ]
-    )
+
+    if base_instructions:
+        prompt_lines.append(base_instructions)
+    else:
+        # Fallback to hardcoded core rules if worker-prompt.md is missing
+        prompt_lines.extend(
+            [
+                (
+                    "Operating mode: you are the implementation owner for this issue worktree. "
+                    "Proceed without asking for permission on clear, reversible next steps; ask "
+                    "only for destructive actions, production access, or policy/security decisions "
+                    "that the repo rules require escalating."
+                ),
+                (
+                    "Scope: only this issue. Do not broaden scope, bundle opportunistic cleanup, "
+                    "or repair unrelated failures in the same branch. If unrelated drift blocks "
+                    "validation, document it as a separate follow-up and keep this branch focused."
+                ),
+                (
+                    "First step: inspect the current branch diff, linked GitLab issue, issue "
+                    "labels, dependencies, relevant ADRs/docs, and the smallest set of files that "
+                    "control the behavior before editing."
+                ),
+                (
+                    "Context lookup: prefer GitNexus for unfamiliar flows and blast-radius checks "
+                    "when it is available. Use context/impact before editing shared symbols, then "
+                    "run detect_changes before commit. If GitNexus is unavailable or stale, fall "
+                    "back to rg, git diff/log, and direct file reads; do not block on GitNexus. "
+                    "If GitNexus is stale, run `make gitnexus-refresh` to update the local index."
+                ),
+                (
+                    "Execution loop: inspect; form the smallest defensible plan; add or update "
+                    "tests before behavior changes when practical; run make worktree-probe "
+                    "MODE=test before attempting tests; if it fails, stop the test attempt and "
+                    "run make ensure-tools before continuing; run make worktree-probe before "
+                    "agent handoff; implement; run the narrowest useful checks; then run make "
+                    "preflight-session and make pre-validate-session before push. Fix failures "
+                    "and repeat until the issue is actually complete."
+                ),
+                (
+                    "Change shape: keep diffs small and reversible; prefer deletion over addition; "
+                    "reuse existing patterns before introducing new abstractions; do not add "
+                    "dependencies without explicit need."
+                ),
+                (
+                    "Documentation: reconcile implementation with relevant ADRs, runbooks, and "
+                    "architecture docs. Adhere to the project's pithy, narrative technical style "
+                    "without unduly dehydrating critical content; a feature is incomplete while "
+                    "its documentation remains stale."
+                ),
+                (
+                    "Do not stop at: MR creation, one passing test, a local commit, a pushed "
+                    "branch, or a partial implementation. Those are intermediate states."
+                ),
+                (
+                    "Review gate: before claiming completion, run a senior-engineer review pass "
+                    "focused on bugs, regressions, security/operability risks, and missing tests. "
+                    "If a second agent is available, use it for that review; otherwise perform the "
+                    "review yourself with the same standard."
+                ),
+                (
+                    "Completion sequence: push through make worktree-push-issue or an equivalent "
+                    "prevalidated push; create/update the MR; address review feedback; merge to "
+                    "the target branch; close and normalize the issue; record validation evidence; "
+                    "finalize .build hand-back evidence; then run make finish-worktree-close. "
+                    "Report cleanup residue explicitly, but do not treat worktree or branch "
+                    "deletion as semantic completion."
+                ),
+                (
+                    "Pause only if: repo rules mandate escalation, a security/policy decision is "
+                    "unsafe to infer, required credentials or permissions are missing, or a "
+                    "destructive operation is unavoidable. Otherwise make a reasonable local "
+                    "decision, keep moving, and report blockers with the exact failed command, "
+                    "evidence, and next command needed."
+                ),
+            ]
+        )
     return "\n".join(prompt_lines)
 
 
