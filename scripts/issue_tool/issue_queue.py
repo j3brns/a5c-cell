@@ -42,6 +42,12 @@ def build_task_issue_body(*, seq: int, depends: str, problem: str = "") -> str:
             "",
             "Keep the change narrowly scoped to this issue.",
             "",
+            "## Trade-offs / Deferred work",
+            "",
+            "List any indirection deliberately added or avoided and why. Record any "
+            "accepted tech debt with a linked follow-up issue carrying Seq: / "
+            'Depends on: (or state "None").',
+            "",
             "## Acceptance Criteria",
             "",
             "- [ ] The requested behaviour is implemented.",

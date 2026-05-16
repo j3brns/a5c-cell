@@ -134,6 +134,8 @@ def test_build_task_issue_body_uses_parser_contract():
     body = build_task_issue_body(seq=42, depends="#41", problem="Fix drift")
 
     assert parse_issue_meta(body) == (42, ["#41"])
+    assert "## Trade-offs / Deferred work" in body
+    assert "indirection deliberately added or avoided" in body
 
 
 def test_parse_issue_meta_accepts_gitlab_indented_description_markers():
