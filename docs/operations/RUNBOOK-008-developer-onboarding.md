@@ -17,7 +17,7 @@ cd platform
 cp .env.example .env.local
 # .env.local requires: VITE_ENTRA_CLIENT_ID, VITE_ENTRA_TENANT_ID, VITE_API_BASE_URL
 # Get these values from: docs/development/PLATFORM-SETUP.md
-make bootstrap
+make bootstrap-agent   # minimal agent developer setup: uv only, no Docker/Node/CDK
 ```
 
 ### 2. Start local environment and verify

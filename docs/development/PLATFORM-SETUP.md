@@ -2,15 +2,15 @@
 
 ## Prerequisites
 
-| Tool         | Version    | Install                                          |
-|--------------|------------|--------------------------------------------------|
-| uv           | latest     | curl -Ls https://astral.sh/uv/install.sh | sh    |
-| Docker       | 24+        | https://docs.docker.com/get-docker/              |
-| Git          | 2.30+      | system package manager                           |
-| Node         | 20 LTS     | Handled by `make bootstrap` (or nvm)             |
-| AWS CLI      | v2         | Handled by `make bootstrap` (manifest-based)     |
-| glab         | latest     | Handled by `make bootstrap` (manifest-based)     |
-| cfn-guard    | v3         | Handled by `make bootstrap` (manifest-based)     |
+| Tool         | Version    | Install                                               |
+|--------------|------------|-------------------------------------------------------|
+| uv           | latest     | curl -Ls https://astral.sh/uv/install.sh | sh         |
+| Docker       | 24+        | https://docs.docker.com/get-docker/                   |
+| Git          | 2.30+      | system package manager                                |
+| Node         | 20 LTS     | Handled by `make bootstrap-platform` (or nvm)         |
+| AWS CLI      | v2         | Handled by `make bootstrap-platform` (manifest-based) |
+| glab         | latest     | Handled by `make bootstrap-platform` (manifest-based) |
+| cfn-guard    | v3         | Handled by `make bootstrap-platform` (manifest-based) |
 
 ## .env.local Values
 
