@@ -577,12 +577,13 @@ are implemented and tested end to end.
               Seq: 703
               Done: 2026-04-20
 
-[ ] TASK-058  Implement Modular Pydantic Configuration Models (Issue #92)
+[x] TASK-058  Implement Modular Pydantic Configuration Models (Issue #92)
               Centralize environment variable loading and validation using
               pydantic-settings. Remove direct os.environ reads from scripts while
               preserving fail-closed process-env checks for AWS-mutating commands.
               ADRs: TBD | Tests: validation coverage
               Seq: 704
+              Done: 2026-05-16
 
 [x] TASK-059  Standardize Granular Validation Targets (Issue #43)
               Ensure 100% parity between local validation and CI pipeline.
