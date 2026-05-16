@@ -747,7 +747,7 @@ flowchart LR
 
 ## CDK Stack Dependencies
 
-![CDK stack deployment order: Network → Identity → Platform → Tenant → Observability → AgentCore](images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
+![CDK stack deployment order: Network → Identity → Storage → SPA → EdgeSecurity (us-east-1) → Platform → Tenant → Observability → AgentCore](images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
 
 **Audience-specific views:**
 - [Engineer CDK dependencies](images/tf_acore_aas_cdk_dependencies_engineer.drawio.png) — code-level dependency relationships
@@ -759,12 +759,15 @@ See [ADR-007](decisions/ADR-007-cdk-terraform.md) for the CDK vs Terraform split
 
 | Order | Stack | Region | Resources |
 |-------|-------|--------|-----------|
-| 1 | NetworkStack | eu-west-2 | VPC, subnets, VPC endpoints, security groups |
-| 2 | IdentityStack | eu-west-2 | GitLab OIDC WIF roles, Entra JWKS runtime config |
-| 3 | PlatformStack | eu-west-2 | REST API, WAF, CloudFront, Bridge, BFF, Authoriser, Gateway |
-| 4 | TenantStack | eu-west-2 | Per-tenant Memory store, execution role, usage plan key, SSM |
-| 5 | ObservabilityStack | eu-west-2 | Dashboards, alarms, monitoring-account OAM sink only |
-| 6 | AgentCoreStack | eu-west-2 | Runtime config; VPC mode; no cross-region metric stream |
+| 1 | NetworkStack (`platform-network-{env}`) | eu-west-2 | VPC, subnets, VPC endpoints, security groups |
+| 2 | IdentityStack (`platform-identity-{env}`) | eu-west-2 | GitLab OIDC WIF roles, Entra JWKS runtime config |
+| 3 | PlatformStorageStack (`platform-storage-{env}`) | eu-west-2 | DynamoDB tables, AppConfig application, capability profile, deployment strategy |
+| 4 | PlatformSpaStack (`platform-spa-{env}`) | eu-west-2 | SPA S3 bucket, CloudFront distribution, CSP response headers |
+| 5 | PlatformEdgeSecurityStack (`platform-edge-security-{env}`) | us-east-1 | CloudFront-scope WAF web ACL for SPA; must deploy before PlatformStack |
+| 6 | PlatformStack (`platform-core-{env}`) | eu-west-2 | REST API, WAF, Bridge, BFF, Authoriser, AgentCore Gateway; attaches SPA web ACL via `spaWebAclArn` context |
+| 7 | TenantStack (`platform-tenant-{tenantId}-{env}`) | eu-west-2 | Per-tenant execution role, memory store, usage plan key, SSM |
+| 8 | ObservabilityStack (`platform-observability-{env}`) | eu-west-2 | Dashboards, alarms, monitoring-account OAM sink only |
+| 9 | AgentCoreStack (`platform-agentcore-{env}`) | eu-west-2 | Runtime config; VPC mode; no cross-region metric stream |
 
 TenantStack deploys per-tenant through the tenant provisioning Step Functions
 workflow, which is started by EventBridge `platform.tenant.created` and
@@ -774,13 +777,13 @@ TenantStack start, and provisioning completion all reject a non-home `accountId`
 It is **not** deployed by the platform pipeline.
 Existing tenants are migrated/verified with `make ops-backfill-tenant-role-arn [APPLY=1]`.
 
-Implementation note: `PlatformStack` still deploys as one stack, but the CDK
-code now synthesizes its storage/AppConfig resources and compute/orchestration
-resources through separate helper modules. That keeps deployment semantics
-stable while reducing edit risk inside the stack definition. A planned split into
-`platform-storage-{env}` (DynamoDB + AppConfig) and `platform-spa-{env}` (SPA +
-CloudFront) is designed in [ADR-703](decisions/ADR-703-platformstack-split-plan.md)
-with follow-on implementation issues created upon plan acceptance.
+The storage and SPA split described in [ADR-703](decisions/ADR-703-platformstack-split-plan.md)
+has been implemented. `platform-storage-{env}` owns all DynamoDB tables and AppConfig
+resources; `platform-spa-{env}` owns the SPA CloudFront distribution and backing S3 bucket.
+`platform-core-{env}` retains its name so that Lambda function names (which embed
+`${this.stackName}`) remain stable. Compute, orchestration, the REST API, WAF,
+and AgentCore Gateway continue to deploy from `platform-core-{env}`.
+See `infra/cdk/bin/app.ts` for the authoritative instantiation and dependency order.
 
 ObservabilityStack currently provisions the eu-west-2 monitoring-account OAM sink only.
 No regional OAM member links are deployed yet. Runtime metrics are read in the serving
