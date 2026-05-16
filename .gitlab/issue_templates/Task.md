@@ -16,6 +16,11 @@ Describe the problem to solve and why it matters.
 
 Keep the change narrowly scoped to this issue.
 
+## Trade-offs / Deferred work
+
+List any indirection deliberately added or avoided and why. Record any accepted
+tech debt with a linked follow-up issue carrying Seq: / Depends on: (or state "None").
+
 ## Acceptance Criteria
 
 - [ ] The requested behaviour is implemented.

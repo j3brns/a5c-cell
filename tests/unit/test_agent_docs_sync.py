@@ -26,6 +26,7 @@ def test_gitlab_issue_template_matches_canonical_issue_sections():
     assert "Depends on: none" in template
     assert "## Problem" in template
     assert "## Scope" in template
+    assert "## Trade-offs / Deferred work" in template
     assert "## Acceptance Criteria" in template
     assert "## Test Plan" in template
     assert "## Definition of Done" in template

@@ -80,6 +80,9 @@ Before marking any task complete:
 6. New infrastructure passes cfn-guard
 7. Before any push: run `make preflight-session` and `make pre-validate-session` (fast path, no cdk synth)
 8. State completion with the issue/task identifier (for legacy tasks, `TASK-NNN complete. Tests passing.`)
+9. Any accepted tech debt, or any deliberate choice to add/omit an abstraction, is
+   recorded in the issue/MR with a linked follow-up issue when work is deferred —
+   never left only in code or chat.
 
 When uncertain about a security decision — stop and ask. Do not guess.
 
