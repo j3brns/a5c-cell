@@ -12,6 +12,72 @@ Start here, then follow the links for your role.
 - The docs below describe the product and operating model; use the GitLab issue
   workflow in [CLAUDE.md](../CLAUDE.md) for delivery operations.
 
+## Documentation Currency
+
+Documentation updates must preserve one source of truth per topic. Before declaring
+docs current, compare the changed text against the source below and run the listed
+verification commands. Command examples in docs must match the root `Makefile` or the
+CLI help they delegate to; do not document hand-written variants when a `make` target
+already exists.
+
+| Topic | Source of truth | Currency check |
+|-------|-----------------|----------------|
+| Issues, task status, dependencies, and closeout | GitLab Issues ordered by `Seq:` and gated by `Depends on:`; see [CLAUDE.md](../CLAUDE.md) | `make issue-queue`; for active work, `glab issue view <issue>` |
+| Assistant workflow and stop conditions | [CLAUDE.md](../CLAUDE.md); [AGENTS.md](../AGENTS.md) is a pointer for tools that look there | `make rules-sync-audit` |
+| Delivery commands and validation recipes | Root [Makefile](../Makefile) and `platform-cli validate` implementation | `make help`; `make validate-local`; `make validate-pre-push` |
+| Version and documentation sync stamp | `pyproject.toml`, package manifests/lockfiles, `docs/openapi.yaml`, and [DOCS_SYNC.json](DOCS_SYNC.json) | `make docs-sync-audit`; use `make docs-sync-stamp` only for an intentional release checkpoint |
+| CDK topology, stack order, and region placement | [ARCHITECTURE.md](ARCHITECTURE.md), [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md), and current CDK construct tests | `make validate-cdk-ts-local`; `make generated-state-audit` |
+| Runtime region, AgentCore availability, and other AWS service claims | Accepted ADRs plus dated AWS documentation citations in the changed doc or ADR | Re-check AWS docs on the day of the change and record the access date when the claim can change |
+| Async invocation support | [ADR-024](decisions/ADR-024-defer-async-invocation-for-v0-2.md) and the OpenAPI invoke contract | `make validate-contract` |
+| GitNexus behavior and generated intelligence | [AGENTS.md](../AGENTS.md) GitNexus pointer and `.gitnexus/meta.json` for local embedding state | After commits or merges that stale the index, run `make gitnexus-refresh` |
+| Diagrams and exported image assets | `.drawio` files in [images/](images/) are canonical; SVG/PNG exports are derived | Use the export and count checks in [Updating Diagrams](#updating-diagrams) |
+| Security and tenant isolation requirements | [CLAUDE.md](../CLAUDE.md), [Threat Model](security/THREAT-MODEL.md), and [Compliance Checklist](security/COMPLIANCE-CHECKLIST.md) | `make validate-local`; add targeted tests for any behavior change |
+
+### Currency Checklist
+
+Use this checklist when updating product, architecture, workflow, or operator docs:
+
+- [ ] Confirm the active issue with `make issue-queue` or `glab issue view <issue>`,
+  and record the issue/task identifier in the change notes.
+- [ ] Read [CLAUDE.md](../CLAUDE.md), [ARCHITECTURE.md](ARCHITECTURE.md), and any
+  ADR linked from the issue before editing.
+- [ ] Check whether the touched topic has a canonical source in the map above; revise
+  that source or link to it instead of duplicating divergent instructions.
+- [ ] Verify every documented command exists in the root `Makefile` or in the referenced
+  CLI help, and keep examples byte-for-byte compatible with supported flags.
+- [ ] For region support, AWS service behavior, pricing, quotas, public company/product
+  facts, or any other temporally unstable external claim, include a dated citation in
+  the changed doc or ADR.
+- [ ] If diagrams change, edit `.drawio` first, re-export SVG/PNG, and run the diagram
+  count checks from [Updating Diagrams](#updating-diagrams).
+- [ ] Run `make docs-sync-audit` for docs-only changes, then run `make validate-local`
+  before marking the issue complete.
+- [ ] Before push, run `make preflight-session` and `make pre-validate-session` as
+  required by [CLAUDE.md](../CLAUDE.md).
+- [ ] After a commit or merge that changes code or docs, refresh stale GitNexus context
+  with `make gitnexus-refresh` when the hook or local state reports staleness.
+
+TASK-073 was added after the documentation repairs tracked by TASK-068 through TASK-072:
+
+| Task | Corrected area |
+|------|----------------|
+| TASK-068 / Issue #93 | Assistant instruction runtime and GitNexus currency |
+| TASK-069 / Issue #94 | Bootstrap workflow examples |
+| TASK-070 / Issue #95 | Architecture docs and current CDK stack topology |
+| TASK-071 / Issue #96 | Historical task and review snapshots |
+| TASK-072 / Issue #97 | Issue audit workflow and closeout docs |
+
+TASK-073 acceptance evidence:
+
+- [x] Source-of-truth map added for issues, workflows, CDK topology, AWS region/runtime
+  claims, GitNexus behavior, assistant guidance, diagrams, API/schema, security, and
+  release sync.
+- [x] Future-agent checklist added with verification commands.
+- [x] Corrected predecessor tasks referenced: TASK-068, TASK-069, TASK-070, TASK-071,
+  and TASK-072.
+- [x] Docs-only validation command recorded: `make docs-sync-audit`.
+- [x] Full local validation command recorded: `make validate-local`.
+
 ## Reading Guide (by Role)
 
 | I am a... | Read in this order |
