@@ -1,0 +1,9 @@
+{
+  "issue_number": 94,
+  "branch": "wt/task/94-replace-stale-bootstrap-workflow-examples-in-docs",
+  "worktree_path": "/home/julesb/worktrees/wt94",
+  "check": "validate-pre-push",
+  "result": "pass",
+  "head_sha": "e6605cff3be30423a290a72c787b1e638b62af6a",
+  "generated_at": "2026-05-16T11:50:58.518771+00:00"
+}

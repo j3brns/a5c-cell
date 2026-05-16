@@ -8,6 +8,7 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+from platform_config import settings
 from scripts.issue_tool import git_utils
 from scripts.issue_tool.constants import ANSI_ESCAPE_RE
 from scripts.issue_tool.models import SessionPair
@@ -56,7 +57,7 @@ def launch_tmux_session(
     if tmux_session_exists(name):
         print(f"tmux session '{name}' already exists — attaching.")
         if attach:
-            if os.environ.get("TMUX"):
+            if settings.tmux:
                 # If we're already inside tmux, try to switch to the session
                 os.execvp("tmux", ["tmux", "switch-client", "-t", name])
             else:
@@ -65,7 +66,7 @@ def launch_tmux_session(
 
     # Create session and first window with agent command
     # Use -x and -y only if not inside an existing tmux session
-    if not os.environ.get("TMUX"):
+    if not settings.tmux:
         # Provide a reasonable default for non-interactive sessions, but don't force it
         # if it might cause failure. Actually, best to let tmux default.
         pass
@@ -112,7 +113,7 @@ def launch_tmux_session(
     print("  Right pane: shell ready")
 
     if attach:
-        if os.environ.get("TMUX"):
+        if settings.tmux:
             os.execvp("tmux", ["tmux", "switch-client", "-t", name])
         else:
             os.execvp("tmux", ["tmux", "attach-session", "-t", name])
@@ -201,7 +202,7 @@ def launch_tmux_batch_session(
             print(f"  {window_name}: {path}")
 
     if attach:
-        if os.environ.get("TMUX"):
+        if settings.tmux:
             os.execvp("tmux", ["tmux", "switch-client", "-t", session_name])
         else:
             os.execvp("tmux", ["tmux", "attach-session", "-t", session_name])
@@ -286,7 +287,7 @@ def launch_tmux_batch_viewer(
     git_utils.run(["tmux", "select-window", "-t", f"{session_name}:0"], check=True)
 
     if attach:
-        if os.environ.get("TMUX"):
+        if settings.tmux:
             os.execvp("tmux", ["tmux", "switch-client", "-t", session_name])
         else:
             os.execvp("tmux", ["tmux", "attach-session", "-t", session_name])

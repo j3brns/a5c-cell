@@ -252,6 +252,10 @@ class PlatformSettings(BaseSettings):
     platform_ops_can_get_error_rate: str | None = None
     platform_ops_can_get_service_health: str | None = None
 
+    # Multiplexer detection (standard env vars)
+    tmux: str | None = None
+    zellij: str | None = None
+
     @field_validator("*", mode="before")
     @classmethod
     def normalize_blank_strings(cls, value: Any) -> Any:
