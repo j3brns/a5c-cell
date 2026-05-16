@@ -987,7 +987,7 @@ worktree-create-issue:
 		$(if $(PRINT_ONLY),--print-only,) \
 		$(if $(SCOPE),--scope "$(SCOPE)",) \
 		$(if $(SLUG),--slug "$(SLUG)",) \
-		$(if $(NAME),--name "$(NAME)",) \
+		$(if $(filter command line,$(origin NAME)),--name "$(NAME)",) \
 		$(if $(BASE_REF),--base-ref "$(BASE_REF)",) \
 		$(if $(BASE_DIR),--base-dir "$(BASE_DIR)",)
 
