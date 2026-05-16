@@ -1,9 +1,15 @@
-# Delivery Plan
+# Delivery Plan (Historical Baseline)
 
-> This is the phased delivery baseline for the platform. Implementation in the
-> repository has moved beyond the original documentation-only starting point in
-> several areas, but milestone gates remain open until their acceptance criteria
-> pass cleanly.
+> [!IMPORTANT]
+> **HISTORICAL SNAPSHOT ONLY** (as of 2026-05-16)
+> This document is the original delivery baseline and may no longer reflect the active development plan.
+> **GitLab Issues are the canonical source of truth for current tasks and progress.**
+> To view the live, dependency-aware task queue, run:
+> ```bash
+> make issue-queue
+> ```
+
+> This is the phased delivery baseline for the platform.
 
 ## Vision
 

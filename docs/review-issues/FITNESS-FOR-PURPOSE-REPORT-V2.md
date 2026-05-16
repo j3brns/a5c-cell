@@ -1,13 +1,25 @@
-# a5c-cell — Fitness-for-Purpose Report v2
+# a5c-cell — Fitness-for-Purpose Report v2 (Historical Snapshot)
+
+> [!IMPORTANT]
+> **HISTORICAL SNAPSHOT ONLY** (as of 2026-04-10)
+> This report is a historical artifact and does not represent the current state of the platform.
+> **GitLab Issues are the canonical source of truth.**
+> To view the live, dependency-aware task queue, run:
+> ```bash
+> make issue-queue
+> ```
 
 **Date:** 2026-04-10
 **Supersedes:** FITNESS-FOR-PURPOSE-REPORT.md (v1, 2026-04-09)
 **Review method:** Multi-agent parallel review — code quality specialist, senior engineer, solutions architect — with manual CR issue validation, verified volumetrics, AWS documentation cross-check, and GitNexus utilisation assessment.
-**Verdict:** Fit for purpose as an exploratory platform with production-grade discipline. Narrower gap to production than v1 reported — 9 of 13 original CR issues are resolved. New findings from specialist reviews are more significant than the remaining CRs.
+**Verdict:** Fit for purpose as an exploratory platform with production-grade discipline. Narrower gap to production than v1 reported — 9 of 13 original CR issues are resolved. The historical findings from specialist reviews were more significant than the remaining CRs at the time of the report.
 
 ---
 
-## 1. Verified Code Volumetrics
+## 1. Historical Code Volumetrics (Snapshot 2026-04-10)
+
+> [!NOTE]
+> These metrics are historical and do not reflect the current size or composition of the codebase.
 
 All line counts verified by `wc -l` on 2026-04-10. v1 report contained inflated numbers from byte-count misreads.
 
@@ -88,7 +100,10 @@ All line counts verified by `wc -l` on 2026-04-10. v1 report contained inflated 
 
 ---
 
-## 2. CR Issue Validation (Verified Against Code)
+## 2. Historical CR Issue Validation (Snapshot 2026-04-10)
+
+> [!NOTE]
+> The validation status below is a historical record. **Consult GitLab Issues for current resolution status.**
 
 | ID | Title | v1 Status | v2 Verified Status | Evidence |
 |----|-------|-----------|-------------------|----------|
@@ -110,7 +125,10 @@ All line counts verified by `wc -l` on 2026-04-10. v1 report contained inflated 
 
 ---
 
-## 3. New Findings — Architecture (Solutions Architect Review)
+## 3. Historical Architecture Findings (Snapshot 2026-04-10)
+
+> [!NOTE]
+> These findings represent a point-in-time assessment. **Verify against the current architecture before acting.**
 
 ### ARCH-01: PlatformStack monolith blast radius — HIGH
 
@@ -152,7 +170,10 @@ Each TenantStack creates a dedicated dashboard (10 widgets, $3/month). At 100 te
 
 ---
 
-## 4. New Findings — Senior Engineer Review
+## 4. Historical Senior Engineer Findings (Snapshot 2026-04-10)
+
+> [!NOTE]
+> These findings are historical. **Consult the live GitLab issue queue for active engineering tasks.**
 
 ### ENG-01: Bridge Lambda missing `cloudwatch:PutMetricData` IAM — HIGH
 
@@ -192,7 +213,10 @@ Broad `except Exception` converts all errors to permanent `FAILED` state. Transi
 
 ---
 
-## 5. New Findings — Code Quality Review
+## 5. Historical Code Quality Findings (Snapshot 2026-04-10)
+
+> [!NOTE]
+> These findings are historical records. **Code quality improvements are tracked in GitLab Issues.**
 
 ### CQ-01: `issue_tool/cli.py` is a 3,926-line god module — HIGH
 
@@ -218,7 +242,10 @@ The entire codebase has zero deferred-work markers. Unusually disciplined.
 
 ---
 
-## 6. GitNexus Utilisation Assessment
+## 6. Historical GitNexus Assessment (Snapshot 2026-04-10)
+
+> [!NOTE]
+> This assessment reflects the state of GitNexus integration in April 2026.
 
 **Update note (2026-04-19):** GitNexus has since been initialized for this clone.
 This section records the state observed during the 2026-04-10 review. Current index
@@ -247,7 +274,10 @@ Run `npx gitnexus analyze` to generate the initial index. The codebase is large 
 
 ---
 
-## 7. Harness Reduction Proposals
+## 7. Historical Harness Reduction Proposals (Snapshot 2026-04-10)
+
+> [!NOTE]
+> These proposals are historical. **Consolidation and retirement tasks are tracked in GitLab Issues.**
 
 The tooling layer (14,242 lines) is 1.19x the size of the application code (11,935 lines). The primary contributor is `scripts/issue_tool/` at 5,004 lines — 42% of the entire platform source.
 
@@ -334,7 +364,7 @@ The platform is architecturally sound and operationally mature. The v1 report ov
 - **4-layer tenant isolation** is correctly implemented and tested
 - **CI/CD pipeline** with OIDC, canary deployments, staging rollout windows, and prod approval gates is production-grade
 
-The new findings from specialist reviews are more actionable than the remaining CRs:
+The historical findings from specialist reviews were more actionable than the remaining CRs:
 
 - **5 blocking items** (Tier 1) are all quick fixes — total effort ~2 hours
 - **5 high-value items** (Tier 2) are architectural improvements that reduce cost (~$120/month VPC savings), latency (~12ms zigzag elimination), and blast radius

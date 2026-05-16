@@ -1,4 +1,13 @@
-# Staff Engineer Backlog Review
+# Staff Engineer Backlog Review (Historical Snapshot)
+
+> [!IMPORTANT]
+> **HISTORICAL SNAPSHOT ONLY** (as of 2026-04-18)
+> This review is a historical artifact and does not represent the current state of the platform backlog.
+> **GitLab Issues are the canonical source of truth.**
+> To view the live, dependency-aware task queue, run:
+> ```bash
+> make issue-queue
+> ```
 
 Date: 2026-04-18
 
@@ -40,7 +49,12 @@ The largest independent gaps are:
 - `AdminPage.tsx`, `InvokePage.tsx`, `api/client.ts`, and `api/contracts.ts` are bloated.
 - Legacy workflow/config residue still exists or is documented as retirement work.
 
-## Findings And Backlog Requirements
+## Historical Findings (Snapshot 2026-04-18)
+
+> [!NOTE]
+> The findings below represent a point-in-time review from April 2026.
+> **Many of these items may have been resolved or superseded.**
+> Consult the live GitLab issue queue (`make issue-queue`) for current backlog status.
 
 ### EDGE-01: SPA CloudFront has no WAF
 
