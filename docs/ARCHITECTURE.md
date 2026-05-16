@@ -824,6 +824,11 @@ to `test-unit`; SPA changes run the documented quick Vitest suite through
 | FM-11 | Bedrock runtime throttle pressure | Bridge emits `Invocation.Throttled.Bedrock` | `FM-11-BedrockThrottlePressure` | Investigate noisy tenants, concurrency pressure, and runtime quota headroom |
 | FM-12 | Valkey unavailable | Bridge emits `valkey_unavailable` fail-open metric/log | `FM-12-ValkeyUnavailable` | Bridge continues with fail-open (TPM check skipped, metric emitted) |
 
+Bridge invocation, Bedrock throttle, TPM limit, and TPM window-usage metrics carry
+both `TenantId` and `AppId` dimensions when tenant context exists. Tenant-only
+views are not sufficient for multi-app tenant forensics because CloudWatch custom
+metric dimensions are part of metric identity.
+
 Streaming TTFT uses `gen_ai.ttft_ms` in `Platform/Bridge`. The Bridge publishes
 the operational series with `AgentName`, `InvocationMode=streaming`, and
 `RuntimeRegion`; a matching `AgentName=all` / `RuntimeRegion=all` series feeds the

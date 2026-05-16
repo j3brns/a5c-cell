@@ -151,6 +151,7 @@ def test_record_log_only_tpm_increments_actual_and_estimated_windows(
     assert kwargs["MetricData"][0]["MetricName"] == "gen_ai.tpm_window_usage"
     assert kwargs["MetricData"][0]["Value"] == 20.0
     assert {"Name": "TenantId", "Value": "tenant-123"} in kwargs["MetricData"][0]["Dimensions"]
+    assert {"Name": "AppId", "Value": "app-123"} in kwargs["MetricData"][0]["Dimensions"]
     assert {"Name": "ModelId", "Value": "anthropic.test-model"} in kwargs["MetricData"][0][
         "Dimensions"
     ]

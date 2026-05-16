@@ -8,6 +8,8 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { ObservabilityStack } from '../lib/observability-stack';
 import { PlatformStack } from '../lib/platform-stack';
+import { PlatformStorageStack } from '../lib/platform-storage-stack';
+import { PlatformSpaStack } from '../lib/platform-spa-stack';
 
 describe('ObservabilityStack (TASK-026)', () => {
   const synthStack = () => {
@@ -16,6 +18,8 @@ describe('ObservabilityStack (TASK-026)', () => {
         env: 'dev',
         entraTenantId: '00000000-0000-0000-0000-000000000000',
         entraAudience: 'platform-api',
+        appConfigExtensionLayerArn:
+          'arn:aws:lambda:eu-west-2:111122223333:layer:Custom-AppConfig-Extension-Arm64:7',
       },
     });
     const env = { account: '123456789012', region: 'eu-west-2' };
@@ -38,10 +42,26 @@ describe('ObservabilityStack (TASK-026)', () => {
       description: 'Trusted SG for platform Lambdas',
     });
 
+    const storageStack = new PlatformStorageStack(app, 'StorageStack', {
+      env,
+      envName: 'dev',
+      vpc: mockVpc,
+    });
+
+    const spaStack = new PlatformSpaStack(app, 'SpaStack', {
+      env,
+      envName: 'dev',
+      agUiEndpointOrigins: [],
+    });
+
     const platformStack = new PlatformStack(app, 'PlatformStack', {
       env,
       vpc: mockVpc,
       lambdaSecurityGroup,
+      storage: storageStack.storage,
+      bridgeValkeyClientSecurityGroup: storageStack.bridgeValkeyClientSecurityGroup,
+      spaAllowedOrigin: spaStack.spaAllowedOrigin,
+      spaDistribution: spaStack.spaDistribution,
     });
 
     const observabilityStack = new ObservabilityStack(app, 'ObservabilityStack', {
@@ -79,7 +99,7 @@ describe('ObservabilityStack (TASK-026)', () => {
     });
   });
 
-  test('Tenant Usage Dashboard includes tenant and tier variables', () => {
+  test('Tenant Usage Dashboard includes tenant, app, and tier variables', () => {
     const template = synthStack();
     const dashboards = template.findResources('AWS::CloudWatch::Dashboard') as Record<
       string,
@@ -97,11 +117,15 @@ describe('ObservabilityStack (TASK-026)', () => {
     expect(dashboardBody).toContain('\\"pattern\\":\\"TENANT_ID_PLACEHOLDER\\"');
     expect(dashboardBody).toContain('\\"inputType\\":\\"input\\"');
     expect(dashboardBody).toContain('\\"defaultValue\\":\\"TENANT_ID\\"');
+    expect(dashboardBody).toContain('\\"id\\":\\"appId\\"');
+    expect(dashboardBody).toContain('\\"pattern\\":\\"APP_ID_PLACEHOLDER\\"');
+    expect(dashboardBody).toContain('\\"defaultValue\\":\\"APP_ID\\"');
     expect(dashboardBody).toContain('\\"id\\":\\"tenantTier\\"');
     expect(dashboardBody).toContain('\\"pattern\\":\\"TENANT_TIER_PLACEHOLDER\\"');
     expect(dashboardBody).toContain('\\"inputType\\":\\"select\\"');
     expect(dashboardBody).toContain('\\"defaultValue\\":\\"basic\\"');
     expect(dashboardBody).toContain('TENANT_ID_PLACEHOLDER');
+    expect(dashboardBody).toContain('APP_ID_PLACEHOLDER');
     expect(dashboardBody).toContain('TENANT_TIER_PLACEHOLDER');
     expect(dashboardBody).not.toContain('\\"search\\"');
     expect(dashboardBody).not.toContain('\\"populateFrom\\"');
@@ -126,6 +150,26 @@ describe('ObservabilityStack (TASK-026)', () => {
     expect(dashboardBody).toContain('\\"DailyCost\\"');
     expect(dashboardBody).toContain('\\"InputTokens\\"');
     expect(dashboardBody).toContain('\\"OutputTokens\\"');
+  });
+
+  test('Tenant Usage Dashboard scopes Bridge real-time metrics by tenant and app', () => {
+    const template = synthStack();
+    const dashboards = template.findResources('AWS::CloudWatch::Dashboard') as Record<
+      string,
+      { Properties?: { DashboardBody?: string | Record<string, unknown>; DashboardName?: string } }
+    >;
+    const tenantDashboard = Object.values(dashboards).find((d) =>
+      d.Properties?.DashboardName?.includes('platform-tenant-usage'),
+    );
+    expect(tenantDashboard).toBeDefined();
+
+    const dashboardBody = JSON.stringify(tenantDashboard!.Properties!.DashboardBody);
+    expect(dashboardBody).toContain('\\"Platform/Bridge\\"');
+    expect(dashboardBody).toContain('\\"TenantId\\",\\"TENANT_ID_PLACEHOLDER\\"');
+    expect(dashboardBody).toContain('\\"AppId\\",\\"APP_ID_PLACEHOLDER\\"');
+    expect(dashboardBody).toContain('\\"Invocations\\"');
+    expect(dashboardBody).toContain('\\"Latency\\"');
+    expect(dashboardBody).toContain('\\"Errors\\"');
   });
 
   test('exposes shared tenant usage dashboard name output', () => {

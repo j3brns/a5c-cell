@@ -555,6 +555,7 @@ def _emit_tpm_metric(
                     "Unit": "Count",
                     "Dimensions": [
                         {"Name": "TenantId", "Value": tenant_context.tenant_id},
+                        {"Name": "AppId", "Value": tenant_context.app_id},
                         {"Name": "ModelId", "Value": model_id},
                         {"Name": "AgentName", "Value": agent.agent_name},
                     ],

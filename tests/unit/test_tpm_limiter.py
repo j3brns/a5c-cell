@@ -27,6 +27,9 @@ class TestTokenLimiter:
         assert result.used == 50
         assert result.limit == 100
         mock_client.check_and_increment.assert_called_once()
+        assert mock_client.check_and_increment.call_args.kwargs["key"].startswith(
+            "LIMITER/t1:m1:tpm/"
+        )
 
     def test_check_and_increment_over_limit(self):
         mock_client = MagicMock()
@@ -58,3 +61,4 @@ class TestTokenLimiter:
 
         assert new_val == 45
         mock_client.correct_usage.assert_called_once()
+        assert mock_client.correct_usage.call_args.kwargs["key"].startswith("LIMITER/t1:m1:tpm/")

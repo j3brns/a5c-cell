@@ -1198,20 +1198,22 @@ def test_handler_emits_bridge_metrics(setup_data):
         metric_names = [m["MetricName"] for m in all_metrics]
         assert "Invocations" in metric_names
 
-        # Verify aggregate dimensions
-        aggregate_metrics = [m for m in all_metrics if len(m["Dimensions"]) == 1]
+        # Verify app-level dimensions
+        aggregate_metrics = [m for m in all_metrics if len(m["Dimensions"]) == 2]
         assert len(aggregate_metrics) >= 4
         for m in aggregate_metrics:
             dims = {d["Name"]: d["Value"] for d in m["Dimensions"]}
             assert dims["TenantId"] == "t-001"
+            assert dims["AppId"] == "app-001"
             assert "AgentName" not in dims
 
         # Verify detailed dimensions
-        detailed_metrics = [m for m in all_metrics if len(m["Dimensions"]) == 2]
+        detailed_metrics = [m for m in all_metrics if len(m["Dimensions"]) == 3]
         assert len(detailed_metrics) >= 4
         for m in detailed_metrics:
             dims = {d["Name"]: d["Value"] for d in m["Dimensions"]}
             assert dims["TenantId"] == "t-001"
+            assert dims["AppId"] == "app-001"
             if "AgentName" in dims:
                 assert dims["AgentName"] == "echo-agent"
             else:
@@ -1266,18 +1268,25 @@ def test_runtime_failure_response_emits_bedrock_throttle_metric(
 
     assert response["statusCode"] == 429
     mock_cw.put_metric_data.assert_called()
-    throttle_metric_found = False
+    throttle_metric_dimensions = None
     for call in mock_cw.put_metric_data.call_args_list:
         kwargs = call.kwargs
         if kwargs["Namespace"] != "Platform/Bridge":
             continue
         for metric in kwargs["MetricData"]:
             if metric["MetricName"] == "Invocation.Throttled.Bedrock":
-                throttle_metric_found = True
+                throttle_metric_dimensions = {
+                    dimension["Name"]: dimension["Value"] for dimension in metric["Dimensions"]
+                }
                 break
-        if throttle_metric_found:
+        if throttle_metric_dimensions:
             break
-    assert throttle_metric_found
+    assert throttle_metric_dimensions == {
+        "TenantId": "t-001",
+        "AppId": "app-001",
+        "AgentName": "echo-agent",
+        "RuntimeRegion": "eu-west-2",
+    }
     ddb = boto3.resource("dynamodb", region_name="eu-west-2")
     jobs_table = ddb.Table("platform-jobs")
     jobs_table.put_item(

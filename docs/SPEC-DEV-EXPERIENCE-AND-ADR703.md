@@ -378,7 +378,8 @@ two-phase approach: log-only first to calibrate estimation accuracy, enforce lat
   used in phase 2.
 - **Do not enforce.** Log only: emit `rate_limit.tpm_used` and
   `rate_limit.tpm_estimated` as structured log fields on every invocation.
-  Emit `gen_ai.tpm_window_usage` as a CloudWatch metric per tenant per model.
+  Emit `gen_ai.tpm_window_usage` as a CloudWatch metric per tenant, app, and
+  model.
 - If Valkey is unavailable, skip the counter update, emit
   `event.name=tpm_counter_skipped`, and continue.
 
