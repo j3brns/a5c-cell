@@ -19,7 +19,6 @@ from data_access import ControlPlaneDynamoDB
 from data_access.models import TenantContext, TenantTier
 
 from platform_config import settings
-
 from src.bridge import (
     discovery_service,
     invocation_engine,

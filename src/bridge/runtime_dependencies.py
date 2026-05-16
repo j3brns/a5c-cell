@@ -9,7 +9,6 @@ from data_access import ControlPlaneDynamoDB, TenantCapabilityClient, TenantScop
 from data_access.models import AgentRecord, TenantContext, TenantTier
 
 from platform_config import settings
-
 from src.bridge.config_provider import ConfigProvider, config_defaults, fetch_ssm_config
 from src.bridge.constants import (
     AGENTCORE_RUNTIME_CONNECT_TIMEOUT_SECONDS,
