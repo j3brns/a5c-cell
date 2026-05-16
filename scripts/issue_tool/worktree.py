@@ -9,7 +9,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from platform_config import env_optional
+from platform_config import settings
 from scripts.issue_tool import (
     evidence,
     git_utils,
@@ -462,7 +462,7 @@ def process_running(pid: int) -> bool:
 
 
 def open_shell(path: Path) -> None:
-    shell = env_optional("SHELL", "bash") or "bash"
+    shell = settings.ops.shell or "bash"
     ensure_uv_venv(path)
     print(f"Opening shell in {path} (with .venv activation when available)")
     path_q = shlex.quote(str(path))

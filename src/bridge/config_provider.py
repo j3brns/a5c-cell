@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import os
 import time
 from collections.abc import Callable
 from typing import Any
 
 from aws_lambda_powertools import Logger
 
+from platform_config import settings
 from platform_config.runtime_topology import SERVING_RUNTIME_REGION
 from src.bridge.constants import MOCK_RUNTIME_URL_PARAM, RUNTIME_REGION_PARAM, VALKEY_ENDPOINT_PARAM
 
@@ -49,9 +49,9 @@ class ConfigProvider:
 
 def fetch_appconfig_config(http_session: Any) -> dict[str, Any] | None:
     """Fetch configuration from the local AppConfig Lambda Extension."""
-    app_id = os.environ.get("APPCONFIG_APPLICATION_ID")
-    env_id = os.environ.get("APPCONFIG_ENVIRONMENT_ID")
-    profile_id = os.environ.get("APPCONFIG_PROFILE_ID")
+    app_id = settings.bridge.appconfig_application_id
+    env_id = settings.bridge.appconfig_environment_id
+    profile_id = settings.bridge.appconfig_profile_id
 
     if not all([app_id, env_id, profile_id]):
         return None

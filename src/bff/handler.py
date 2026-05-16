@@ -28,37 +28,31 @@ from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.parameters import get_secret
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
+from platform_config import settings
+
 logger = Logger(service="bff")
 tracer = Tracer()
 
-# Environment variables (passed from CDK in PlatformStack)
-ENTRA_CLIENT_ID = os.environ.get("ENTRA_CLIENT_ID")
-ENTRA_CLIENT_SECRET = os.environ.get("ENTRA_CLIENT_SECRET")
-ENTRA_TENANT_ID = os.environ.get("ENTRA_TENANT_ID")
-ENTRA_TOKEN_ENDPOINT = os.environ.get("ENTRA_TOKEN_ENDPOINT")
-ENTRA_AUDIENCE = os.environ.get("ENTRA_AUDIENCE")
-
-# Secret ARNs (passed from CDK in PlatformStack)
-ENTRA_CLIENT_ID_SECRET_ARN = os.environ.get("ENTRA_CLIENT_ID_SECRET_ARN")
-ENTRA_CLIENT_SECRET_SECRET_ARN = os.environ.get("ENTRA_CLIENT_SECRET_SECRET_ARN")
+# Secret resolution constants
+_SECRET_FETCH_RETRIES = 3
+_SECRET_FETCH_BASE_DELAY_SECONDS = 0.1
+_CACHE_TTL = 300  # 5 minutes
 
 # In-memory cache for secrets resolved from ARNs
 _secrets_cache: dict[str, str] = {}
 _secrets_expiry: dict[str, float] = {}
-_CACHE_TTL = 300  # 5 minutes
-_SECRET_FETCH_RETRIES = 3
-_SECRET_FETCH_BASE_DELAY_SECONDS = 0.1
 
-RUNTIME_PING_URL = os.environ.get("RUNTIME_PING_URL") or os.environ.get("MOCK_RUNTIME_URL")
 RUNTIME_KEEPALIVE_WINDOW_SECONDS = 15 * 60
 RUNTIME_PING_TIMEOUT_SECONDS = 2.0
 _ALLOWED_SCOPE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9._-]{0,127}$")
 
 
-def _resolve_secret(secret_arn: str | None, env_value: str | None, env_name: str) -> str:
-    """Resolve a secret value from ARN (with 5-min cache) or environment variable fallback."""
+def _resolve_secret(secret_arn: str | None, direct_value: str | None, field_name: str) -> str:
+    """Resolve a secret value from ARN (with 5-min cache) or direct configuration fallback."""
     if not secret_arn:
-        return _required_env_value(env_name, env_value)
+        if not direct_value:
+            raise ValueError(f"{field_name} is not configured")
+        return direct_value
 
     now = time.time()
     if secret_arn in _secrets_cache and now < _secrets_expiry.get(secret_arn, 0):
@@ -74,7 +68,7 @@ def _resolve_secret(secret_arn: str | None, env_value: str | None, env_name: str
                 return val
         except Exception:
             logger.exception(
-                f"Failed to fetch {env_name} from Secrets Manager ARN: {secret_arn}",
+                f"Failed to fetch {field_name} from Secrets Manager ARN: {secret_arn}",
                 extra={"attempt": attempt},
             )
             if attempt < _SECRET_FETCH_RETRIES:
@@ -83,8 +77,10 @@ def _resolve_secret(secret_arn: str | None, env_value: str | None, env_name: str
                 delay = get_retry_jitter(_SECRET_FETCH_BASE_DELAY_SECONDS * attempt)
                 time.sleep(delay)
 
-    # Fallback to direct environment variable if secret fetch fails
-    return _required_env_value(env_name, env_value)
+    # Fallback to direct configuration if secret fetch fails
+    if not direct_value:
+        raise ValueError(f"{field_name} is not configured and secret fetch failed")
+    return direct_value
 
 
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
@@ -281,10 +277,14 @@ def _exchange_obo_token(
     endpoint = _entra_token_endpoint()
     params = {
         "client_id": _resolve_secret(
-            ENTRA_CLIENT_ID_SECRET_ARN, ENTRA_CLIENT_ID, "ENTRA_CLIENT_ID"
+            settings.bff.entra_client_id_secret_arn,
+            settings.bff.entra_client_id,
+            "entra_client_id",
         ),
         "client_secret": _resolve_secret(
-            ENTRA_CLIENT_SECRET_SECRET_ARN, ENTRA_CLIENT_SECRET, "ENTRA_CLIENT_SECRET"
+            settings.bff.entra_client_secret_secret_arn,
+            settings.bff.entra_client_secret,
+            "entra_client_secret",
         ),
         "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
         "requested_token_use": "on_behalf_of",
@@ -295,7 +295,10 @@ def _exchange_obo_token(
 
 
 def _validate_refresh_scopes(scopes: list[str]) -> list[str]:
-    approved_audience = _required_env_value("ENTRA_AUDIENCE", ENTRA_AUDIENCE)
+    approved_audience = settings.bff.entra_audience
+    if not approved_audience:
+        raise ValueError("ENTRA_AUDIENCE is not configured")
+
     approved_prefix = f"{approved_audience}/"
     validated: list[str] = []
 
@@ -314,7 +317,10 @@ def _validate_refresh_scopes(scopes: list[str]) -> list[str]:
 
 
 def _ping_runtime_session(*, tenant_id: str, app_id: str, session_id: str, agent_name: str) -> None:
-    base_url = _required_env_value("RUNTIME_PING_URL", RUNTIME_PING_URL)
+    base_url = settings.bff.runtime_ping_url
+    if not base_url:
+        raise ValueError("RUNTIME_PING_URL is not configured")
+
     if base_url.rstrip("/").endswith("/ping"):
         ping_url = base_url
     else:
@@ -510,17 +516,13 @@ def _request_id(event: dict[str, Any], context: LambdaContext | None) -> str:
     return "unknown"
 
 
-def _required_env_value(name: str, value: str | None) -> str:
-    if value is None or not value.strip():
-        raise ValueError(f"{name} is not configured")
-    return value.strip()
-
-
 def _entra_token_endpoint() -> str:
-    if ENTRA_TOKEN_ENDPOINT:
-        return ENTRA_TOKEN_ENDPOINT
+    if settings.bff.entra_token_endpoint:
+        return settings.bff.entra_token_endpoint
 
-    tenant_id = _required_env_value("ENTRA_TENANT_ID", ENTRA_TENANT_ID)
+    tenant_id = settings.bff.entra_tenant_id
+    if not tenant_id:
+        raise ValueError("ENTRA_TENANT_ID is not configured")
     return f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 
 

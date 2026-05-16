@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from platform_config import env_optional
+from platform_config import settings
 from scripts.issue_tool.shared import CliError
 
 
@@ -67,7 +67,7 @@ def _repo_slug_from_url(url: str) -> str | None:
 
 
 def origin_repo_slug(root: Path) -> str:
-    preferred_remote = env_optional("ISSUE_TRACKER_REMOTE", "gitlab") or "gitlab"
+    preferred_remote = settings.ops.issue_tracker_remote or "gitlab"
     remotes = [preferred_remote, "origin"]
     for remote in dict.fromkeys(remotes):
         url = _remote_url(root, remote)

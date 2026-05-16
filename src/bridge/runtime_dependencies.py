@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import boto3
@@ -8,6 +7,8 @@ import requests
 from botocore.config import Config
 from data_access import ControlPlaneDynamoDB, TenantCapabilityClient, TenantScopedDynamoDB
 from data_access.models import AgentRecord, TenantContext, TenantTier
+
+from platform_config import settings
 
 from src.bridge.config_provider import ConfigProvider, config_defaults, fetch_ssm_config
 from src.bridge.constants import (
@@ -84,8 +85,8 @@ def get_runtime_client(region: str, credentials: dict[str, Any] | None = None) -
             retries={"max_attempts": 1, "mode": "standard"},
         ),
     }
-    if os.environ.get("BEDROCK_AGENTCORE_DP_ENDPOINT"):
-        client_kwargs["endpoint_url"] = os.environ.get("BEDROCK_AGENTCORE_DP_ENDPOINT")
+    if settings.bridge.bedrock_agentcore_dp_endpoint:
+        client_kwargs["endpoint_url"] = settings.bridge.bedrock_agentcore_dp_endpoint
     return session.client(**client_kwargs)
 
 

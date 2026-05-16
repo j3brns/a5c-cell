@@ -10,7 +10,6 @@ ADRs: ADR-003, ADR-005, ADR-010, ADR-023
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
 from aws_lambda_powertools import Logger, Tracer
@@ -18,6 +17,8 @@ from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from data_access import ControlPlaneDynamoDB
 from data_access.models import TenantContext, TenantTier
+
+from platform_config import settings
 
 from src.bridge import (
     discovery_service,
@@ -227,9 +228,9 @@ def handler(
 
     invoke_capability_policy = None
     if (
-        os.environ.get("APPCONFIG_APPLICATION_ID")
-        and os.environ.get("APPCONFIG_ENVIRONMENT_ID")
-        and os.environ.get("APPCONFIG_PROFILE_ID")
+        settings.bridge.appconfig_application_id
+        and settings.bridge.appconfig_environment_id
+        and settings.bridge.appconfig_profile_id
     ):
         invoke_capability_policy = discovery_capability_policy
 

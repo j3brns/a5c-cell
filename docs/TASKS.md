@@ -570,33 +570,77 @@ are implemented and tested end to end.
               ADRs: TBD | Tests: CLI coverage
               Seq: 702
 
-[ ] TASK-057  Replace Imperative Tool Setup with Declarative Manifest (Issue #41)
+[x] TASK-057  Replace Imperative Tool Setup with Declarative Manifest (Issue #41)
               Move away from fragile curl|tar logic in install-dev-tools.sh.
               Use version-pinned manifest with checksum verification.
               ADRs: TBD | Tests: setup idempotency
               Seq: 703
+              Done: 2026-04-20
 
-[ ] TASK-058  Implement Modular Pydantic Configuration Models (Issue #42)
+[ ] TASK-058  Implement Modular Pydantic Configuration Models (Issue #92)
               Centralize environment variable loading and validation using
               pydantic-settings. Remove direct os.environ reads from scripts while
               preserving fail-closed process-env checks for AWS-mutating commands.
               ADRs: TBD | Tests: validation coverage
               Seq: 704
 
-[ ] TASK-059  Standardize Granular Validation Targets (Issue #43)
+[x] TASK-059  Standardize Granular Validation Targets (Issue #43)
               Ensure 100% parity between local validation and CI pipeline.
               Enable fast, independent suites for inner-loop productivity.
               ADRs: TBD | Tests: CI parity verify
               Seq: 705
+              Done: 2026-04-20
 
-[ ] TASK-060  Implement Worktree Health Probes and Agent Verification (Issue #44)
+[x] TASK-060  Implement Worktree Health Probes and Agent Verification (Issue #44)
               Modify agent startup prompt to include environment verification.
               Implement `make worktree-probe` to detect missing dependencies.
               ADRs: TBD | Tests: probe accuracy
               Seq: 706
+              Done: 2026-04-24
 
-[ ] TASK-061  Automate Worktree Pre-Provisioning (Issue #45)
+[x] TASK-061  Automate Worktree Pre-Provisioning (Issue #45)
               Enable `make worktree-create` to pre-install node_modules and .venv.
               Implement readiness sentinels to eliminate agent cold-starts.
               ADRs: TBD | Tests: setup speedup
               Seq: 707
+              Done: 2026-04-24
+
+---
+
+## Phase 10 — Platform Hardening (Staff Engineering Audit)
+
+[~] TASK-062  Make branch and merge-request CI fail closed by default (Issue #85)
+              Pipelines only run when explicit opt-in today. Flip repo default to
+              fail-closed for all relevant changes while preserving break-glass path.
+              ADRs: TBD | Tests: CI policy tests
+              Seq: 1108
+
+[~] TASK-063  Plumb ExternalId into bridge tenant-role assumption (Issue #87)
+              Inactive cross-account lane requires sts:ExternalId but Bridge paths
+              do not send it. Fix request shape before activation.
+              ADRs: TBD | Tests: STS request-shape
+              Seq: 1110
+
+[~] TASK-064  Honor tenant-specific tool metadata consistently (Issue #88)
+              Align tools/list and tools/call precedence so tenant-specific
+              records win consistently over global defaults.
+              ADRs: TBD | Tests: precedence parity
+              Seq: 1111
+
+[~] TASK-065  Keep bridge configuration provider warm between calls (Issue #89)
+              Avoid fresh ConfigProvider construction on every call. Use Lambda
+              execution environment to preserve 60s TTL cache across invocations.
+              ADRs: TBD | Tests: TTL reuse
+              Seq: 1112
+
+[~] TASK-066  Include app id on Bridge metric dimensions (Issue #90)
+              Improve multi-app tenant forensics by adding AppId to invocation,
+              throttle, and TPM metric dimensions.
+              ADRs: TBD | Tests: dimension coverage
+              Seq: 1113
+
+[~] TASK-067  Make infrastructure synth and guard validation contract explicit (Issue #91)
+              Align docs and Make targets so engineers know exactly when
+              CDK synth and cfn-guard checks are skipped vs enforced.
+              ADRs: TBD | Tests: validation policy
+              Seq: 1114

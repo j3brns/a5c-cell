@@ -6,7 +6,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from platform_config import env_optional
+from platform_config import settings
 from scripts.issue_tool.constants import (
     WORKTREE_PREPROVISION_DIR,
     WORKTREE_PREPROVISION_FAILED,
@@ -115,7 +115,7 @@ def await_worktree_ready_if_provisioning(path: Path) -> None:
         print("Worktree readiness sentinel missing; continuing with cold environment")
         return
 
-    wait_seconds = int(env_optional("WORKTREE_READY_WAIT_SECONDS", "900") or "900")
+    wait_seconds = int(settings.ops.worktree_ready_wait_seconds or "900")
     deadline = time.monotonic() + max(0, wait_seconds)
     print(f"Waiting for worktree pre-provisioning to finish (timeout={wait_seconds}s)")
     while time.monotonic() <= deadline:

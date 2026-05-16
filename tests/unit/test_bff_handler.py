@@ -52,12 +52,15 @@ def _body(response: dict[str, object]) -> dict[str, object]:
 
 @pytest.fixture(autouse=True)
 def reset_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(bff_handler, "ENTRA_CLIENT_ID", "client-id")
-    monkeypatch.setattr(bff_handler, "ENTRA_CLIENT_SECRET", "client-secret")
-    monkeypatch.setattr(bff_handler, "ENTRA_TENANT_ID", "tenant-guid")
-    monkeypatch.setattr(bff_handler, "ENTRA_TOKEN_ENDPOINT", None)
-    monkeypatch.setattr(bff_handler, "ENTRA_AUDIENCE", "api://platform-dev")
-    monkeypatch.setattr(bff_handler, "RUNTIME_PING_URL", "http://localhost:8765")
+    monkeypatch.setenv("ENTRA_CLIENT_ID", "client-id")
+    monkeypatch.setenv("ENTRA_CLIENT_SECRET", "client-secret")
+    monkeypatch.setenv("ENTRA_TENANT_ID", "tenant-guid")
+    monkeypatch.delenv("ENTRA_TOKEN_ENDPOINT", raising=False)
+    monkeypatch.setenv("ENTRA_AUDIENCE", "api://platform-dev")
+    monkeypatch.setenv("RUNTIME_PING_URL", "http://localhost:8765")
+    # Clear secret ARNs to test direct env path by default
+    monkeypatch.delenv("ENTRA_CLIENT_ID_SECRET_ARN", raising=False)
+    monkeypatch.delenv("ENTRA_CLIENT_SECRET_SECRET_ARN", raising=False)
 
 
 def test_token_refresh_success() -> None:
@@ -132,13 +135,11 @@ def test_exchange_obo_token_uses_only_approved_scopes() -> None:
 def test_exchange_obo_token_resolves_client_credentials_from_secret_arns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        bff_handler,
+    monkeypatch.setenv(
         "ENTRA_CLIENT_ID_SECRET_ARN",
         "arn:aws:secretsmanager:eu-west-2:111:secret:client-id",
     )
-    monkeypatch.setattr(
-        bff_handler,
+    monkeypatch.setenv(
         "ENTRA_CLIENT_SECRET_SECRET_ARN",
         "arn:aws:secretsmanager:eu-west-2:111:secret:client-secret",
     )
@@ -192,8 +193,8 @@ def test_resolve_secret_retries_before_falling_back_to_env(
 def test_entra_token_endpoint_falls_back_to_tenant_specific_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(bff_handler, "ENTRA_TOKEN_ENDPOINT", None)
-    monkeypatch.setattr(bff_handler, "ENTRA_TENANT_ID", "tenant-guid")
+    monkeypatch.delenv("ENTRA_TOKEN_ENDPOINT", raising=False)
+    monkeypatch.setenv("ENTRA_TENANT_ID", "tenant-guid")
 
     assert (
         bff_handler._entra_token_endpoint()

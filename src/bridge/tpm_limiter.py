@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import socket
 import ssl
 import time
@@ -12,6 +11,8 @@ from urllib.parse import urlparse
 
 from aws_lambda_powertools import Logger
 from data_access.models import AgentRecord, InvocationMode, TenantContext
+
+from platform_config import settings
 
 logger = Logger(service="bridge-tpm-limiter")
 
@@ -511,7 +512,7 @@ def _counter_key(tenant_id: str, model_id: str, counter_name: str, window_expiry
 
 
 def _default_counter_client() -> CounterClient | None:
-    endpoint = os.environ.get("VALKEY_ENDPOINT") or os.environ.get("TPM_VALKEY_ENDPOINT")
+    endpoint = settings.bridge.valkey_endpoint
     if not endpoint:
         return None
     parsed = _parse_endpoint(endpoint)

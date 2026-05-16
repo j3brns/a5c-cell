@@ -106,6 +106,41 @@ class OpsSettings(BaseModel):
     can_get_service_health: str | None = None
 
 
+class BffSettings(BaseModel):
+    """BFF authentication and runtime wiring."""
+
+    entra_client_id: str | None = None
+    entra_client_secret: str | None = None
+    entra_tenant_id: str | None = None
+    entra_token_endpoint: str | None = None
+    entra_audience: str | None = None
+    entra_client_id_secret_arn: str | None = None
+    entra_client_secret_secret_arn: str | None = None
+    runtime_ping_url: str | None = None
+
+
+class BridgeSettings(BaseModel):
+    """Bridge runtime and resource settings."""
+
+    appconfig_application_id: str | None = None
+    appconfig_environment_id: str | None = None
+    appconfig_profile_id: str | None = None
+    agents_table_name: str | None = None
+    jobs_table_name: str | None = None
+    sessions_table_name: str | None = None
+    job_results_bucket: str | None = None
+    ag_ui_scope_name: str = "Agent.AgUi.Connect"
+    runtime_region_param: str = "/platform/config/runtime-region"
+    mock_runtime_url_param: str = "/platform/config/mock-runtime-url"
+    valkey_endpoint_param: str = "/platform/config/valkey-endpoint"
+    tenant_execution_role_param_template: str = "/platform/tenants/{tenant_id}/execution-role-arn"
+    job_result_url_expiry_seconds: int = 3600
+    runtime_connect_timeout_seconds: int = 5
+    runtime_read_timeout_seconds: int = 900
+    bedrock_agentcore_dp_endpoint: str | None = None
+    valkey_endpoint: str | None = None
+
+
 class PlatformSettings(BaseSettings):
     """Root settings model.
 
@@ -150,9 +185,52 @@ class PlatformSettings(BaseSettings):
     platform_access_token: str | None = None
     ops_access_token: str | None = None
 
-    tenants_table_name: str | None = None
-    invocations_table_name: str | None = None
+    tenants_table_name: str = Field(
+        default="platform-tenants", validation_alias=AliasChoices("TENANTS_TABLE", "tenants_table_name")
+    )
+    invocations_table_name: str = Field(
+        default="platform-invocations",
+        validation_alias=AliasChoices("INVOCATIONS_TABLE", "invocations_table_name"),
+    )
+    agents_table_name: str = Field(
+        default="platform-agents", validation_alias=AliasChoices("AGENTS_TABLE", "agents_table_name")
+    )
+    jobs_table_name: str = Field(
+        default="platform-jobs", validation_alias=AliasChoices("JOBS_TABLE", "jobs_table_name")
+    )
+    sessions_table_name: str = Field(
+        default="platform-sessions",
+        validation_alias=AliasChoices("SESSIONS_TABLE", "sessions_table_name"),
+    )
     event_bus_name: str | None = None
+
+    entra_client_id: str | None = None
+    entra_client_secret: str | None = None
+    entra_tenant_id: str | None = None
+    entra_token_endpoint: str | None = None
+    entra_audience: str | None = None
+    entra_client_id_secret_arn: str | None = None
+    entra_client_secret_secret_arn: str | None = None
+    runtime_ping_url: str | None = Field(
+        default=None, validation_alias=AliasChoices("RUNTIME_PING_URL", "MOCK_RUNTIME_URL")
+    )
+
+    appconfig_application_id: str | None = None
+    appconfig_environment_id: str | None = None
+    appconfig_profile_id: str | None = None
+    job_results_bucket: str | None = None
+    ag_ui_scope_name: str = "Agent.AgUi.Connect"
+    runtime_region_param: str = "/platform/config/runtime-region"
+    mock_runtime_url_param: str = "/platform/config/mock-runtime-url"
+    valkey_endpoint_param: str = "/platform/config/valkey-endpoint"
+    tenant_execution_role_param_template: str = "/platform/tenants/{tenant_id}/execution-role-arn"
+    job_result_url_expiry_seconds: int = 3600
+    agentcore_runtime_connect_timeout_seconds: int = 5
+    agentcore_runtime_read_timeout_seconds: int = 900
+    bedrock_agentcore_dp_endpoint: str | None = None
+    valkey_endpoint: str | None = Field(
+        default=None, validation_alias=AliasChoices("VALKEY_ENDPOINT", "TPM_VALKEY_ENDPOINT")
+    )
 
     platform_credentials_path: str | None = None
     platform_ops_locks_table: str | None = None
@@ -230,6 +308,41 @@ class PlatformSettings(BaseSettings):
             tenants_table_name=self.tenants_table_name,
             invocations_table_name=self.invocations_table_name,
             event_bus_name=self.event_bus_name,
+        )
+
+    @property
+    def bff(self) -> BffSettings:
+        return BffSettings(
+            entra_client_id=self.entra_client_id,
+            entra_client_secret=self.entra_client_secret,
+            entra_tenant_id=self.entra_tenant_id,
+            entra_token_endpoint=self.entra_token_endpoint,
+            entra_audience=self.entra_audience,
+            entra_client_id_secret_arn=self.entra_client_id_secret_arn,
+            entra_client_secret_secret_arn=self.entra_client_secret_secret_arn,
+            runtime_ping_url=self.runtime_ping_url,
+        )
+
+    @property
+    def bridge(self) -> BridgeSettings:
+        return BridgeSettings(
+            appconfig_application_id=self.appconfig_application_id,
+            appconfig_environment_id=self.appconfig_environment_id,
+            appconfig_profile_id=self.appconfig_profile_id,
+            agents_table_name=self.agents_table_name,
+            jobs_table_name=self.jobs_table_name,
+            sessions_table_name=self.sessions_table_name,
+            job_results_bucket=self.job_results_bucket,
+            ag_ui_scope_name=self.ag_ui_scope_name,
+            runtime_region_param=self.runtime_region_param,
+            mock_runtime_url_param=self.mock_runtime_url_param,
+            valkey_endpoint_param=self.valkey_endpoint_param,
+            tenant_execution_role_param_template=self.tenant_execution_role_param_template,
+            job_result_url_expiry_seconds=self.job_result_url_expiry_seconds,
+            runtime_connect_timeout_seconds=self.agentcore_runtime_connect_timeout_seconds,
+            runtime_read_timeout_seconds=self.agentcore_runtime_read_timeout_seconds,
+            bedrock_agentcore_dp_endpoint=self.bedrock_agentcore_dp_endpoint,
+            valkey_endpoint=self.valkey_endpoint,
         )
 
     @property

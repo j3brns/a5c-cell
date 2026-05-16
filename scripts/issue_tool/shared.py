@@ -4,7 +4,7 @@ import json
 import shlex
 from pathlib import Path
 
-from platform_config import env_optional
+from platform_config import settings
 
 
 class CliError(RuntimeError):
@@ -12,7 +12,7 @@ class CliError(RuntimeError):
 
 
 def parse_bool_env(name: str, default: bool) -> bool:
-    raw = env_optional(name)
+    raw = settings.optional(name)
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "y", "on"}

@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from platform_config import env_optional
+from platform_config import settings
 from scripts.issue_tool.git_utils import eprint, run
 from scripts.issue_tool.shared import parse_bool_env
 from scripts.issue_tool.tracker_client import shutil_which
@@ -64,7 +64,8 @@ def gitnexus_analyze_supports(option: str) -> bool:
 
 
 def gitnexus_cli_path() -> Path | None:
-    override = env_optional("WORKTREE_GITNEXUS_CLI")
+    override = settings.ops.credentials_path  # Wait, I should use worktree_gitnexus_cli
+    override = settings.ops.worktree_gitnexus_cli
     if override:
         candidate = Path(override).expanduser()
         if candidate.exists():
@@ -78,7 +79,7 @@ def gitnexus_cli_path() -> Path | None:
 
 
 def gitnexus_timeout_seconds() -> float:
-    raw = env_optional("WORKTREE_GITNEXUS_TIMEOUT_SECONDS", "300") or "300"
+    raw = settings.ops.worktree_gitnexus_timeout_seconds or "300"
     try:
         value = float(raw)
     except ValueError:
