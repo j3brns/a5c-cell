@@ -136,7 +136,7 @@ webhook delivery. Runtime regional failover is deferred.
 
 Deployment order, cross-stack resource wiring, and environment boundaries.
 
-![CDK stack deployment order: Network, Identity, Platform, Tenant, Observability, AgentCore](images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
+![CDK stack deployment order: Network, Identity, Storage, SPA, EdgeSecurity (us-east-1), Platform, Tenant, Observability, AgentCore](images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
 
 | Variant | Audience | File |
 |---------|----------|------|

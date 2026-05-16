@@ -183,7 +183,7 @@ The old Dublin zigzag was intentional optionality: at the time of ADR-009, Agent
 
 ![CDK stack deployment order and cross-stack resource wiring](docs/images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
 
-`NetworkStack` → `IdentityStack` → `PlatformStack` → `TenantStack` per tenant, event-driven → `ObservabilityStack` → `AgentCoreStack`
+`NetworkStack` → `IdentityStack` → `PlatformStorageStack` → `PlatformSpaStack` → `PlatformEdgeSecurityStack` (us-east-1) → `PlatformStack` → `TenantStack` per tenant, event-driven → `ObservabilityStack` → `AgentCoreStack`
 
 ## Drinking our own champagne
 
