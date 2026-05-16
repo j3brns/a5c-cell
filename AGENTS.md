@@ -26,9 +26,9 @@ If running manually and the index previously included embeddings, preserve them 
 npx gitnexus analyze --embeddings
 ```
 
-To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.embeddings` field shows the count (0 means no embeddings). **Running analyze without `--embeddings` will delete any previously generated embeddings.**
+To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.embeddings` field shows the count (0 means no embeddings). **Running analyze without `--embeddings` preserves existing embeddings but will not generate new ones for changed files. Pass `--drop-embeddings` if you explicitly want to clear them.**
 
-> Claude Code users: A PostToolUse hook handles this automatically after `git commit` and `git merge`.
+> Claude Code users: A PostToolUse hook detects staleness after `git commit` and `git merge` and notifies the agent to run `analyze` — the hook does not run analyze itself, to avoid blocking the agent for up to 120s and risking KuzuDB corruption on timeout.
 
 ## CLI
 

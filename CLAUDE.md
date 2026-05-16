@@ -360,7 +360,7 @@ If running manually, inspect `.gitnexus/meta.json`. When `stats.embeddings > 0`,
 npx gitnexus analyze --embeddings
 ```
 
-Running analyze without `--embeddings` deletes previously generated embeddings.
+Running analyze without `--embeddings` preserves existing embeddings but will not generate new ones for changed files. Pass `--drop-embeddings` if you explicitly want to clear them.
 
 ## CLI
 
