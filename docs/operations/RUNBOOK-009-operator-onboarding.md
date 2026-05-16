@@ -41,7 +41,7 @@ and [search expression limits](https://docs.aws.amazon.com/AmazonCloudWatch/late
 ```bash
 git clone {repo-url}
 cd platform
-make bootstrap
+make bootstrap-agent
 # Only needs: uv and AWS CLI — not Docker or Node
 ```
 

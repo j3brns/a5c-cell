@@ -220,10 +220,12 @@ Recent platform work has tightened the contract around the system rather than ju
 ```bash
 git clone <repo> && cd tf-acore-aas
 cp .env.example .env.local    # Set ENTRA_CLIENT_ID, ENTRA_TENANT_ID, API_BASE_URL
-make bootstrap                # Check prerequisites and install Python and Node dependencies
+make bootstrap-platform       # Check prerequisites and install Python and Node dependencies
 make dev                      # Start LocalStack, mock Runtime, and mock JWKS
 make dev-invoke               # Confirm echo-agent works end-to-end locally
 ```
+
+> **Agent developers** working only in `agents/<name>/` should run `make bootstrap-agent` instead (uv only — no Docker, Node, or CDK). Bare `make bootstrap` is intentionally ambiguous and exits non-zero.
 
 | Next step | Guide |
 |-----------|-------|
@@ -279,7 +281,7 @@ tf-acore-aas/
 ### Getting started
 
 ```bash
-make bootstrap                # One-time: check prerequisites and install dependencies
+make bootstrap-platform       # One-time: check prerequisites and install dependencies
 make install-git-hooks        # One-time: install pre-push hook
 make dev                      # Start LocalStack and mock services
 make test-unit                # Run all unit tests
