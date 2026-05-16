@@ -186,14 +186,16 @@ class PlatformSettings(BaseSettings):
     ops_access_token: str | None = None
 
     tenants_table_name: str = Field(
-        default="platform-tenants", validation_alias=AliasChoices("TENANTS_TABLE", "tenants_table_name")
+        default="platform-tenants",
+        validation_alias=AliasChoices("TENANTS_TABLE", "tenants_table_name"),
     )
     invocations_table_name: str = Field(
         default="platform-invocations",
         validation_alias=AliasChoices("INVOCATIONS_TABLE", "invocations_table_name"),
     )
     agents_table_name: str = Field(
-        default="platform-agents", validation_alias=AliasChoices("AGENTS_TABLE", "agents_table_name")
+        default="platform-agents",
+        validation_alias=AliasChoices("AGENTS_TABLE", "agents_table_name"),
     )
     jobs_table_name: str = Field(
         default="platform-jobs", validation_alias=AliasChoices("JOBS_TABLE", "jobs_table_name")
