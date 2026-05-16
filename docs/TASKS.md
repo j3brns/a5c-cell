@@ -1,4 +1,13 @@
-# TASKS.md — Atomic Task List for Claude Code Sessions
+# TASKS.md — Historical Task Snapshot
+
+> [!IMPORTANT]
+> **HISTORICAL SNAPSHOT ONLY** (as of 2026-05-16)
+> This file is a historical record and may lag behind the live state of the project.
+> **GitLab Issues are the canonical source of truth.**
+> To view the live, dependency-aware task queue, run:
+> ```bash
+> make issue-queue
+> ```
 
 ## Source of Truth Notice (Issue Novation)
 
@@ -8,13 +17,10 @@ status, sequencing (`Seq:`), and dependencies (`Depends on:`).
 
 GitLab Issues: use `glab issue list -R julian.burns50/tf-acore-aas` or `make issue-queue`.
 
-This file remains useful as a historical snapshot/report/export and may lag behind
-live issue state.
+## Historical Blockers (Snapshot 2026-03-24)
 
-## Active Blockers (as of 2026-03-24)
-
-These open issue snapshots represent historical constraint violations or deployment blockers.
-Address before considering the platform production-ready.
+These snapshots represent historical constraint violations or deployment blockers observed in March 2026.
+**Do not treat these as live blockers unless they are reproduced and logged as active GitLab Issues.**
 
 | Issue | Severity | Constraint | Summary |
 |-------|----------|-----------|---------|

@@ -1,4 +1,13 @@
-# Roadmap
+# Roadmap (Historical Baseline)
+
+> [!IMPORTANT]
+> **HISTORICAL SNAPSHOT ONLY** (as of 2026-05-16)
+> This document is a historical roadmap baseline and may not reflect current project priorities or progress.
+> **GitLab Issues are the canonical source of truth for current status and milestones.**
+> To view the live, dependency-aware task queue, run:
+> ```bash
+> make issue-queue
+> ```
 
 ## North Star
 A fully managed, self-service Agent as a Service platform. B2E users and E2B integrations invoke
