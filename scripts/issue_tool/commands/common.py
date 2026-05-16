@@ -441,6 +441,7 @@ def resolve_cli_launch_request(
     tmux: bool | None = None,
     zellij: bool | None = None,
     no_mux: bool = False,
+    mux: bool = False,
     default_agent: str = "codex",
 ) -> tuple[str, str, str, str]:
     # Pass individual fields to resolve_launch_request
@@ -472,6 +473,7 @@ def resolve_mux_flag(
     no_mux: bool = False,
     tmux: bool | None = None,
     zellij: bool | None = None,
+    mux: bool = False,
 ) -> str | None:
     if no_mux:
         return "none"
@@ -877,6 +879,7 @@ def wants_agent_launch(
     tmux: bool | None = None,
     zellij: bool | None = None,
     no_mux: bool = False,
+    mux: bool = False,
 ) -> bool:
     return bool(
         agent
@@ -888,6 +891,7 @@ def wants_agent_launch(
         or tmux
         or zellij
         or no_mux
+        or mux
     )
 
 

@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "issue_id": 93,
+      "message": "closeout started",
+      "pid": 41202,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-05-16T11:29:50.716037+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt93"
+    },
+    {
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "issue_id": 93,
+      "message": "merged MR lookup found",
+      "pid": 41202,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-05-16T11:29:51.201957+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt93"
+    },
+    {
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "issue_id": 93,
+      "message": "issue already closed; labels normalized",
+      "pid": 41202,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-05-16T11:29:53.235688+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt93"
+    },
+    {
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "issue_id": 93,
+      "message": "cleanup started",
+      "pid": 41202,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-05-16T11:29:53.236357+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt93"
+    },
+    {
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "issue_id": 93,
+      "message": "cleanup verified",
+      "pid": 41202,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-05-16T11:29:54.139285+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt93"
+    }
+  ],
+  "generated_at": "2026-05-16T11:29:54.139442+00:00",
+  "issue_closed": true,
+  "issue_id": 93,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt93"
+}

@@ -2,147 +2,83 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from ._support import commands_common as common
-from ._support import (
-    git_utils,
-    multiplexer,
-    worktree,
-    worktree_issues,
-)
+from ._support import git_utils, multiplexer, worktree, worktree_issues
 
 
-def test_launch_tmux_batch_session_starts_grid(monkeypatch, capsys):
-    launches = [
-        ("wt33", Path("/tmp/worktrees/wt33"), "codex --yolo"),
-        ("wt35", Path("/tmp/worktrees/wt35"), "gemini --normal"),
-    ]
-    calls: list[list[str]] = []
-    attached: dict[str, object] = {}
-
-    monkeypatch.setattr(multiplexer, "tmux_session_exists", lambda _name: False)
-
-    def _run(cmd, **kwargs):
-        calls.append(list(cmd))
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    def _execvp(bin_path, args):
-        attached["bin_path"] = bin_path
-        attached["args"] = args
-        raise SystemExit(0)
-
-    monkeypatch.setattr(git_utils, "run", _run)
-    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
-
-    with pytest.raises(SystemExit):
-        multiplexer.launch_tmux_batch_session(
-            session_name="worktrees",
-            launches=launches,
-            attach=True,
-            announce_windows=False,
-        )
-
-    out = capsys.readouterr().out
-    assert "tmux session 'worktrees' launching with 2 worktree window(s)" in out
-    assert calls[0][:4] == ["tmux", "new-session", "-d", "-s"]
-    assert calls[0][4] == "worktrees"
-    assert calls[1][:3] == ["tmux", "split-window", "-h"]
-    assert any(cmd[:3] == ["tmux", "new-window", "-t"] for cmd in calls)
-    assert any(cmd[:3] == ["tmux", "select-window", "-t"] for cmd in calls)
-    assert attached["bin_path"] == "tmux"
-    assert attached["args"] == ["tmux", "attach-session", "-t", "worktrees"]
+def test_worktree_session_pair_generates_stamped_label():
+    pair = multiplexer.worktree_session_pair("test")
+    assert pair.label == "test"
+    assert pair.session_name.startswith("test-")
+    assert len(pair.session_name.split("-")) >= 3
 
 
-def test_launch_tmux_batch_session_replaces_existing_session(monkeypatch, capsys):
-    launches = [("wt33", Path("/tmp/worktrees/wt33"), "codex --yolo")]
-    calls: list[list[str]] = []
-    attached: dict[str, object] = {}
-
-    monkeypatch.setattr(multiplexer, "tmux_session_exists", lambda _name: True)
-
-    def _run(cmd, **kwargs):
-        calls.append(list(cmd))
-        return subprocess.CompletedProcess(cmd, 0, "", "")
-
-    def _execvp(bin_path, args):
-        attached["bin_path"] = bin_path
-        attached["args"] = args
-        raise SystemExit(0)
-
-    monkeypatch.setattr(git_utils, "run", _run)
-    monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
-
-    with pytest.raises(SystemExit):
-        multiplexer.launch_tmux_batch_session(
-            session_name="worktrees",
-            launches=launches,
-            attach=True,
-            announce_windows=True,
-        )
-
-    out = capsys.readouterr().out
-    assert "already exists — replacing." in out
-    assert calls[0] == ["tmux", "kill-session", "-t", "worktrees"]
-    assert attached["args"] == ["tmux", "attach-session", "-t", "worktrees"]
-
-
-def test_launch_tmux_session_uses_reported_initial_window_index(monkeypatch, capsys):
+def test_launch_tmux_session_initialization_sequence(monkeypatch, capsys):
     path = Path("/tmp/worktrees/wt318")
-    calls: list[list[str]] = []
-    attached: dict[str, object] = {}
-
-    monkeypatch.setattr(multiplexer, "tmux_session_exists", lambda _name: False)
-
-    def _run(cmd, **kwargs):
-        calls.append(list(cmd))
-        if cmd[:3] == ["tmux", "list-panes", "-t"]:
-            return subprocess.CompletedProcess(cmd, 0, "wt318:1.0\n", "")
-        return subprocess.CompletedProcess(cmd, 0, "", "")
+    attached = {}
 
     def _execvp(bin_path, args):
         attached["bin_path"] = bin_path
         attached["args"] = args
         raise SystemExit(0)
 
-    monkeypatch.setattr(git_utils, "run", _run)
     monkeypatch.setattr(multiplexer.os, "execvp", _execvp)
 
-    with pytest.raises(SystemExit):
-        multiplexer.launch_tmux_session(
-            path=path,
-            agent_command="claude --dangerously-skip-permissions prompt",
-            attach=True,
-        )
+    with (
+        patch.object(multiplexer, "tmux_session_exists", return_value=False),
+        patch.object(
+            multiplexer.git_utils,
+            "run",
+            return_value=subprocess.CompletedProcess([], 0, "", ""),
+        ) as mock_run,
+    ):
+        try:
+            multiplexer.launch_tmux_session(
+                path=path,
+                agent_command="claude --dangerously-skip-permissions prompt",
+                attach=True,
+            )
+        except SystemExit:
+            pass
+
+        calls = [args[0] for args, _ in mock_run.call_args_list]
 
     out = capsys.readouterr().out
     assert "tmux session 'wt318' launching in /tmp/worktrees/wt318" in out
-    assert calls[0][:4] == ["tmux", "new-session", "-d", "-s"]
-    assert [
+
+    # Verify new-session call
+    assert any(cmd[:6] == ["tmux", "new-session", "-d", "-s", "wt318", "-n"] for cmd in calls)
+    new_session_cmd = next(cmd for cmd in calls if cmd[1] == "new-session")
+    assert new_session_cmd[6] == "wt318"
+    assert "claude --dangerously-skip-permissions prompt" in new_session_cmd[-1]
+
+    # Verify split-window call
+    split_cmd = calls[1]
+    assert split_cmd == [
         "tmux",
-        "list-panes",
+        "split-window",
+        "-h",
         "-t",
-        "wt318",
-        "-F",
-        "#{session_name}:#{window_index}.#{pane_index}",
-    ] in calls
-    assert ["tmux", "rename-window", "-t", "wt318:1", "wt318"] in calls
-    assert ["tmux", "split-window", "-h", "-t", "wt318:1", "-c", "/tmp/worktrees/wt318"] in calls
-    assert any(cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.1"] for cmd in calls)
-    assert any(cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.0"] for cmd in calls)
-    shell_init = next(
-        cmd[4] for cmd in calls if cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.1"]
-    )
-    agent_launch = next(
-        cmd[4] for cmd in calls if cmd[:4] == ["tmux", "send-keys", "-t", "wt318:1.0"]
-    )
-    assert 'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"' in shell_init
-    assert (
-        'case "$CODEX_HOME" in /*) ;; *) export CODEX_HOME="$PWD/$CODEX_HOME" ;; esac' in shell_init
-    )
-    assert 'mkdir -p "$CODEX_HOME"' in shell_init
-    assert 'export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"' in agent_launch
+        "wt318:wt318",
+        "-c",
+        "/tmp/worktrees/wt318",
+    ]
+
+    # Verify send-keys and focus
+    assert calls[2] == [
+        "tmux",
+        "send-keys",
+        "-t",
+        "wt318:wt318.1",
+        multiplexer.worktree_env_preamble(),
+        "Enter",
+    ]
+    assert calls[3] == ["tmux", "select-pane", "-t", "wt318:wt318.0"]
+
     assert attached["args"] == ["tmux", "attach-session", "-t", "wt318"]
 
 

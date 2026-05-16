@@ -206,6 +206,7 @@ def worktree_next(
     tmux: bool | None = typer.Option(None),
     zellij: bool | None = typer.Option(None),
     no_mux: bool = typer.Option(False),
+    mux: bool = typer.Option(False),
     choose: bool = typer.Option(False),
 ):
     """Create worktree for next runnable queued issue"""
@@ -236,6 +237,7 @@ def worktree_next(
             tmux=tmux,
             zellij=zellij,
             no_mux=no_mux,
+            mux=mux,
             choose=choose,
         )
     )
@@ -269,6 +271,7 @@ def worktree_create(
     tmux: bool | None = typer.Option(None),
     zellij: bool | None = typer.Option(None),
     no_mux: bool = typer.Option(False),
+    mux: bool = typer.Option(False),
 ):
     """Create worktree for a specific issue number"""
     raise typer.Exit(
@@ -299,6 +302,7 @@ def worktree_create(
             tmux=tmux,
             zellij=zellij,
             no_mux=no_mux,
+            mux=mux,
         )
     )
 
@@ -317,6 +321,7 @@ def worktree_resume(
     print_only: bool = typer.Option(False),
     tmux: bool | None = typer.Option(None),
     zellij: bool | None = typer.Option(None),
+    mux: bool = typer.Option(False),
 ):
     """Resume a linked worktree"""
     raise typer.Exit(
@@ -333,6 +338,7 @@ def worktree_resume(
             print_only=print_only,
             tmux=tmux,
             zellij=zellij,
+            mux=mux,
         )
     )
 
@@ -377,6 +383,7 @@ def agent_handoff(
     tmux: bool | None = typer.Option(None),
     zellij: bool | None = typer.Option(None),
     no_mux: bool = typer.Option(False),
+    mux: bool = typer.Option(False),
 ):
     """Agent selection/yolo handoff for current worktree"""
     raise typer.Exit(
@@ -392,6 +399,7 @@ def agent_handoff(
             tmux=tmux,
             zellij=zellij,
             no_mux=no_mux,
+            mux=mux,
         )
     )
 

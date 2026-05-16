@@ -1,0 +1,96 @@
+{
+  "issue_number": 93,
+  "issue_title": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+  "repo": "julianburns/tf-acore-aas",
+  "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+  "worktree_path": "/home/julesb/worktrees/wt93",
+  "state": "done",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-05-16T11:29:56.015262+00:00",
+  "events": [
+    {
+      "ts": "2026-05-16T11:15:13.768223+00:00",
+      "event_type": "worktree-created",
+      "state": "worktree-ready",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 93,
+      "issue_title": "TASK-068: Correct assistant instruction runtime and GitNexus currency",
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "worktree_path": "/home/julesb/worktrees/wt93",
+      "details": {
+        "base_ref": "origin/main",
+        "scope": "task",
+        "slug": "correct-assistant-instruction-runtime-and-gitnexus-currency",
+        "auto_claim": true,
+        "preflight": true,
+        "pre_provision": false
+      },
+      "idempotency_key": "create:93:wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency:/home/julesb/worktrees/wt93"
+    },
+    {
+      "ts": "2026-05-16T11:29:50.716302+00:00",
+      "event_type": "closeout-started",
+      "state": "closeout-started",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 93,
+      "issue_title": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "worktree_path": "/home/julesb/worktrees/wt93",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-93-wt_task_93-correct-assistant-instruction-runtime-and-gitnexus-currency.json"
+      },
+      "idempotency_key": "closeout-started:93:wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency:/home/julesb/worktrees/wt93"
+    },
+    {
+      "ts": "2026-05-16T11:29:54.139986+00:00",
+      "event_type": "closeout-complete",
+      "state": "closed",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 93,
+      "issue_title": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "worktree_path": "/home/julesb/worktrees/wt93",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-93-wt_task_93-correct-assistant-instruction-runtime-and-gitnexus-currency.json",
+        "issue_closed": true,
+        "cleanup_verified": true
+      },
+      "idempotency_key": "closeout-complete:93:wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency:/home/julesb/worktrees/wt93"
+    },
+    {
+      "ts": "2026-05-16T11:29:54.140578+00:00",
+      "event_type": "handback-audited",
+      "state": "evidence-audited",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 93,
+      "issue_title": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "worktree_path": "/home/julesb/worktrees/wt93",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-93-wt_task_93-correct-assistant-instruction-runtime-and-gitnexus-currency.json",
+        "evidence_hash": "2bc6221ef6e21637d40f918a45f13800548aae22bbb0eddc20288ab9976eed46"
+      },
+      "idempotency_key": "handback-audited:93:2bc6221ef6e21637d40f918a45f13800548aae22bbb0eddc20288ab9976eed46"
+    },
+    {
+      "ts": "2026-05-16T11:29:56.015262+00:00",
+      "event_type": "handback-complete",
+      "state": "done",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 93,
+      "issue_title": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+      "worktree_path": "/home/julesb/worktrees/wt93",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-93-wt_task_93-correct-assistant-instruction-runtime-and-gitnexus-currency.json",
+        "evidence_hash": "2bc6221ef6e21637d40f918a45f13800548aae22bbb0eddc20288ab9976eed46"
+      },
+      "idempotency_key": "handback-complete:93:2bc6221ef6e21637d40f918a45f13800548aae22bbb0eddc20288ab9976eed46"
+    }
+  ],
+  "details": {
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-93-wt_task_93-correct-assistant-instruction-runtime-and-gitnexus-currency.json",
+    "evidence_hash": "2bc6221ef6e21637d40f918a45f13800548aae22bbb0eddc20288ab9976eed46"
+  }
+}

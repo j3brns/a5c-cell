@@ -1,0 +1,39 @@
+{
+  "issue_number": 94,
+  "issue_title": "TASK-069: Replace stale bootstrap workflow examples in docs",
+  "repo": "julianburns/tf-acore-aas",
+  "branch": "wt/task/94-replace-stale-bootstrap-workflow-examples-in-docs",
+  "worktree_path": "/home/julesb/worktrees/wt94",
+  "state": "worktree-ready",
+  "last_event_type": "worktree-created",
+  "last_updated_at": "2026-05-16T11:44:06.121513+00:00",
+  "events": [
+    {
+      "ts": "2026-05-16T11:44:06.121513+00:00",
+      "event_type": "worktree-created",
+      "state": "worktree-ready",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 94,
+      "issue_title": "TASK-069: Replace stale bootstrap workflow examples in docs",
+      "branch": "wt/task/94-replace-stale-bootstrap-workflow-examples-in-docs",
+      "worktree_path": "/home/julesb/worktrees/wt94",
+      "details": {
+        "base_ref": "origin/main",
+        "scope": "task",
+        "slug": "replace-stale-bootstrap-workflow-examples-in-docs",
+        "auto_claim": true,
+        "preflight": true,
+        "pre_provision": false
+      },
+      "idempotency_key": "create:94:wt/task/94-replace-stale-bootstrap-workflow-examples-in-docs:/home/julesb/worktrees/wt94"
+    }
+  ],
+  "details": {
+    "base_ref": "origin/main",
+    "scope": "task",
+    "slug": "replace-stale-bootstrap-workflow-examples-in-docs",
+    "auto_claim": true,
+    "preflight": true,
+    "pre_provision": false
+  }
+}

@@ -19,6 +19,7 @@ def cmd_agent_handoff(
     tmux: bool | None = None,
     zellij: bool | None = None,
     no_mux: bool = False,
+    mux: bool = False,
 ) -> int:
     root = git_utils.repo_root()
     try:
@@ -38,9 +39,10 @@ def cmd_agent_handoff(
         tmux=tmux,
         zellij=zellij,
         no_mux=no_mux,
+        mux=mux,
         default_agent="codex",
     )
-    mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij)
+    mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij, mux=mux)
     worktree.record_issue_handoff_event(
         root=root,
         repo=repo_slug,

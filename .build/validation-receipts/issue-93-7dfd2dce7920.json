@@ -1,0 +1,9 @@
+{
+  "issue_number": 93,
+  "branch": "wt/task/93-correct-assistant-instruction-runtime-and-gitnexus-currency",
+  "worktree_path": "/home/julesb/worktrees/wt93",
+  "check": "validate-pre-push",
+  "result": "pass",
+  "head_sha": "7dfd2dce79203deabec8bb4cc408e2568aa18768",
+  "generated_at": "2026-05-16T11:28:38.380018+00:00"
+}

@@ -907,12 +907,12 @@ worktree:
 		$(if $(FROM_ISSUE),--from-issue $(FROM_ISSUE),) \
 		$(if $(FROM_SEQ),--from-seq $(FROM_SEQ),)
 
-## wt-go: Start the next runnable issue worktree and launch an explicit or random agent in tmux
+## wt-go: Start the next runnable issue worktree and launch an explicit or random agent (mux auto-detected)
 ## Usage: make wt-go [QUEUE_MODE=auto|ready|open-task] [FROM_ISSUE=310] [FROM_SEQ=901] [PRE_PROVISION=1] [AGENT=random|codex|gemini|claude] [AGENT_MODE=yolo] [REVIEW_AGENT=codex|gemini|claude] [REVIEW_AGENT_MODE=normal|yolo]
 wt-go:
 	$(MAKE) --no-print-directory worktree-next-issue \
 		HANDOFF=execute-now \
-		TMUX=1 \
+		$(if $(ZELLIJ),ZELLIJ=$(ZELLIJ),$(if $(TMUX),TMUX=$(TMUX),MUX=1)) \
 		$(if $(QUEUE_MODE),QUEUE_MODE=$(QUEUE_MODE),) \
 		$(if $(STREAM),STREAM=$(STREAM),) \
 		$(if $(FROM_ISSUE),FROM_ISSUE=$(FROM_ISSUE),) \
@@ -945,6 +945,7 @@ worktree-next-issue:
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
+		$(if $(MUX),--mux,) \
 		$(if $(PRINT_ONLY),--print-only,)
 
 ## wt-batch: Create multiple runnable issue worktrees and start detached agent runs
@@ -1007,6 +1008,7 @@ worktree-resume-issue:
 		$(if $(HANDOFF),--handoff "$(HANDOFF)",) \
 		$(if $(ZELLIJ),--zellij,) \
 		$(if $(TMUX),--tmux,) \
+		$(if $(MUX),--mux,) \
 		$(if $(PRINT_ONLY),--print-only,)
 
 ## preflight-session: Run issue-worktree preflight checks for current worktree

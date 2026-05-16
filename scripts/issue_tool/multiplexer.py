@@ -56,65 +56,66 @@ def launch_tmux_session(
     if tmux_session_exists(name):
         print(f"tmux session '{name}' already exists — attaching.")
         if attach:
-            os.execvp("tmux", ["tmux", "attach-session", "-t", name])
+            if os.environ.get("TMUX"):
+                # If we're already inside tmux, try to switch to the session
+                os.execvp("tmux", ["tmux", "switch-client", "-t", name])
+            else:
+                os.execvp("tmux", ["tmux", "attach-session", "-t", name])
         return
 
-    git_utils.run(
-        [
-            "tmux",
-            "new-session",
-            "-d",
-            "-s",
-            name,
-            "-c",
-            path_str,
-            "-x",
-            "220",
-            "-y",
-            "55",
-        ],
-        check=True,
-    )
-    pane_listing = git_utils.run(
-        ["tmux", "list-panes", "-t", name, "-F", "#{session_name}:#{window_index}.#{pane_index}"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    first_pane = pane_listing.splitlines()[0] if pane_listing else f"{name}:0.0"
-    initial_window = first_pane.rsplit(".", 1)[0]
-    git_utils.run(["tmux", "rename-window", "-t", initial_window, name], check=True)
-    git_utils.run(
-        ["tmux", "split-window", "-h", "-t", initial_window, "-c", path_str],
-        check=True,
-    )
-    git_utils.run(
-        ["tmux", "send-keys", "-t", f"{initial_window}.1", venv_preamble, "Enter"],
-        check=True,
-    )
-    git_utils.run(
-        [
-            "tmux",
-            "send-keys",
-            "-t",
-            f"{initial_window}.0",
-            f"{venv_preamble} && {agent_command}",
-            "Enter",
-        ],
-        check=True,
-    )
-    git_utils.run(["tmux", "select-pane", "-t", f"{initial_window}.0"], check=True)
+    # Create session and first window with agent command
+    # Use -x and -y only if not inside an existing tmux session
+    if not os.environ.get("TMUX"):
+        # Provide a reasonable default for non-interactive sessions, but don't force it
+        # if it might cause failure. Actually, best to let tmux default.
+        pass
+
+    try:
+        # Create session, rename window, and start agent command in first pane
+        git_utils.run(
+            [
+                "tmux",
+                "new-session",
+                "-d",
+                "-s",
+                name,
+                "-n",
+                name,
+                "-c",
+                path_str,
+                f"{venv_preamble} && {agent_command}",
+            ],
+            check=True,
+        )
+
+        # Split window to provide a second pane for the interactive shell
+        git_utils.run(
+            ["tmux", "split-window", "-h", "-t", f"{name}:{name}", "-c", path_str],
+            check=True,
+        )
+
+        # In the second pane, just run the preamble so it's ready for the user
+        git_utils.run(
+            ["tmux", "send-keys", "-t", f"{name}:{name}.1", venv_preamble, "Enter"],
+            check=True,
+        )
+
+        # Ensure focus is on the agent pane
+        git_utils.run(["tmux", "select-pane", "-t", f"{name}:{name}.0"], check=True)
+
+    except subprocess.CalledProcessError as exc:
+        raise CliError(f"Failed to initialize tmux session '{name}': {exc}")
 
     print(f"tmux session '{name}' launching in {path}")
-    print(f"  Session label: {name}")
     print(f"  Session name:  {name}")
     print("  Left pane:  agent running")
     print("  Right pane: shell ready")
-    print(f"  Attach:    tmux a -t {name}")
-    print("  List:      tmux ls")
 
     if attach:
-        os.execvp("tmux", ["tmux", "attach-session", "-t", name])
+        if os.environ.get("TMUX"):
+            os.execvp("tmux", ["tmux", "switch-client", "-t", name])
+        else:
+            os.execvp("tmux", ["tmux", "attach-session", "-t", name])
 
 
 def _launch_tmux_worktree_window(
@@ -141,10 +142,6 @@ def _launch_tmux_worktree_window(
                 window_name,
                 "-c",
                 path_str,
-                "-x",
-                "220",
-                "-y",
-                "55",
             ],
             check=True,
         )
@@ -202,11 +199,12 @@ def launch_tmux_batch_session(
     if announce_windows:
         for window_name, path, _ in launches:
             print(f"  {window_name}: {path}")
-    print(f"  Reattach:   tmux a -t {session_name}")
-    print("  List all:   tmux ls")
 
     if attach:
-        os.execvp("tmux", ["tmux", "attach-session", "-t", session_name])
+        if os.environ.get("TMUX"):
+            os.execvp("tmux", ["tmux", "switch-client", "-t", session_name])
+        else:
+            os.execvp("tmux", ["tmux", "attach-session", "-t", session_name])
 
 
 def _launch_tmux_viewer_window(
@@ -237,10 +235,6 @@ def _launch_tmux_viewer_window(
                 window_name,
                 "-c",
                 path_str,
-                "-x",
-                "220",
-                "-y",
-                "55",
             ],
             check=True,
         )
@@ -290,12 +284,12 @@ def launch_tmux_batch_viewer(
         )
 
     git_utils.run(["tmux", "select-window", "-t", f"{session_name}:0"], check=True)
-    print(f"  Reattach:   tmux a -t {session_name}")
-    print("  Left pane:  agent stdout log tail")
-    print("  Right pane: interactive shell")
 
     if attach:
-        os.execvp("tmux", ["tmux", "attach-session", "-t", session_name])
+        if os.environ.get("TMUX"):
+            os.execvp("tmux", ["tmux", "switch-client", "-t", session_name])
+        else:
+            os.execvp("tmux", ["tmux", "attach-session", "-t", session_name])
 
 
 def zellij_bin() -> str:

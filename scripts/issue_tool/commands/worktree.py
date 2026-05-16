@@ -34,6 +34,7 @@ def cmd_worktree_next(
     tmux: bool | None = None,
     zellij: bool | None = None,
     no_mux: bool = False,
+    mux: bool = False,
     choose: bool = False,
 ) -> int:
     root = git_utils.repo_root()
@@ -96,6 +97,7 @@ def cmd_worktree_next(
                 tmux=tmux,
                 zellij=zellij,
                 no_mux=no_mux,
+                mux=mux,
             )
             if launch_wants and not dry_run:
                 agent_resolved, mode_resolved, handoff_resolved, _ = (
@@ -109,9 +111,12 @@ def cmd_worktree_next(
                         tmux=tmux,
                         zellij=zellij,
                         no_mux=no_mux,
+                        mux=mux,
                     )
                 )
-                mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij)
+                mux_resolved = common.resolve_mux_flag(
+                    no_mux=no_mux, tmux=tmux, zellij=zellij, mux=mux
+                )
                 common.handoff_to_agent_or_shell(
                     path=existing_wt.path,
                     root=root,
@@ -241,6 +246,7 @@ def cmd_worktree_create(
     tmux: bool | None = None,
     zellij: bool | None = None,
     no_mux: bool = False,
+    mux: bool = False,
 ) -> int:
     root = git_utils.repo_root()
     repo = repo or git_utils.origin_repo_slug(root)
@@ -288,6 +294,7 @@ def cmd_worktree_create(
             tmux=tmux,
             zellij=zellij,
             no_mux=no_mux,
+            mux=mux,
         )
         if launch_wants and not dry_run:
             agent_resolved, mode_resolved, handoff_resolved, _ = common.resolve_cli_launch_request(
@@ -300,8 +307,9 @@ def cmd_worktree_create(
                 tmux=tmux,
                 zellij=zellij,
                 no_mux=no_mux,
+                mux=mux,
             )
-            mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij)
+            mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij, mux=mux)
             common.handoff_to_agent_or_shell(
                 path=existing_wt.path,
                 root=root,
@@ -376,6 +384,7 @@ def cmd_worktree_create(
         tmux=tmux,
         zellij=zellij,
         no_mux=no_mux,
+        mux=mux,
     )
     if launch_wants and not dry_run:
         branch = (
@@ -392,8 +401,9 @@ def cmd_worktree_create(
             tmux=tmux,
             zellij=zellij,
             no_mux=no_mux,
+            mux=mux,
         )
-        mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij)
+        mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij, mux=mux)
         common.handoff_to_agent_or_shell(
             path=wt_path,
             root=root,
@@ -423,6 +433,7 @@ def cmd_worktree_resume(
     tmux: bool | None = None,
     zellij: bool | None = None,
     no_mux: bool = False,
+    mux: bool = False,
 ) -> int:
     root = git_utils.repo_root()
     worktrees = worktree.list_resume_candidates(root)
@@ -487,6 +498,7 @@ def cmd_worktree_resume(
             tmux=tmux,
             zellij=zellij,
             no_mux=no_mux,
+            mux=mux,
         )
         if launch_wants:
             agent_resolved, mode_resolved, handoff_resolved, _ = common.resolve_cli_launch_request(
@@ -499,8 +511,9 @@ def cmd_worktree_resume(
                 tmux=tmux,
                 zellij=zellij,
                 no_mux=no_mux,
+                mux=mux,
             )
-            mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij)
+            mux_resolved = common.resolve_mux_flag(no_mux=no_mux, tmux=tmux, zellij=zellij, mux=mux)
             common.handoff_to_agent_or_shell(
                 path=target.path,
                 root=root,
