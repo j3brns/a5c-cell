@@ -567,6 +567,7 @@ export class ObservabilityStack extends cdk.Stack {
     // --- 4. Parameterized Tenant Usage Dashboard (TASK-027) ---
 
     const tenantIdPlaceholder = 'TENANT_ID_PLACEHOLDER';
+    const appIdPlaceholder = 'APP_ID_PLACEHOLDER';
     const tenantTierPlaceholder = 'TENANT_TIER_PLACEHOLDER';
     const tenantIdVariable = new cloudwatch.DashboardVariable({
       id: 'tenantId',
@@ -575,6 +576,14 @@ export class ObservabilityStack extends cdk.Stack {
       inputType: cloudwatch.VariableInputType.INPUT,
       value: tenantIdPlaceholder,
       defaultValue: cloudwatch.DefaultValue.value('TENANT_ID'),
+    });
+    const appIdVariable = new cloudwatch.DashboardVariable({
+      id: 'appId',
+      type: cloudwatch.VariableType.PATTERN,
+      label: 'AppId',
+      inputType: cloudwatch.VariableInputType.INPUT,
+      value: appIdPlaceholder,
+      defaultValue: cloudwatch.DefaultValue.value('APP_ID'),
     });
     const tenantTierVariable = new cloudwatch.DashboardVariable({
       id: 'tenantTier',
@@ -593,10 +602,14 @@ export class ObservabilityStack extends cdk.Stack {
     const tenantUsageDashboardName = `platform-tenant-usage-${this.stackName}`;
     const tenantUsageDashboard = new cloudwatch.Dashboard(this, 'TenantUsageDashboard', {
       dashboardName: tenantUsageDashboardName,
-      variables: [tenantIdVariable, tenantTierVariable],
+      variables: [tenantIdVariable, appIdVariable, tenantTierVariable],
     });
 
     const varTenantDimensions = { TenantId: tenantIdPlaceholder };
+    const varTenantAppDimensions = {
+      TenantId: tenantIdPlaceholder,
+      AppId: appIdPlaceholder,
+    };
     const varTenantBillingDimensions = {
       TenantId: tenantIdPlaceholder,
       Tier: tenantTierPlaceholder,
@@ -651,7 +664,7 @@ export class ObservabilityStack extends cdk.Stack {
 
     tenantUsageDashboard.addWidgets(
       new cloudwatch.TextWidget({
-        markdown: '# Agent Performance (Bridge Real-time)',
+        markdown: `# Agent Performance (Bridge Real-time): ${appIdPlaceholder}`,
         width: 24,
         height: 1,
       }),
@@ -661,7 +674,7 @@ export class ObservabilityStack extends cdk.Stack {
           new cloudwatch.Metric({
             namespace: 'Platform/Bridge',
             metricName: 'Invocations',
-            dimensionsMap: varTenantDimensions,
+            dimensionsMap: varTenantAppDimensions,
             statistic: 'Sum',
             period: cdk.Duration.minutes(5),
           }),
@@ -674,7 +687,7 @@ export class ObservabilityStack extends cdk.Stack {
           new cloudwatch.Metric({
             namespace: 'Platform/Bridge',
             metricName: 'Latency',
-            dimensionsMap: varTenantDimensions,
+            dimensionsMap: varTenantAppDimensions,
             statistic: 'Average',
             period: cdk.Duration.minutes(5),
           }),
@@ -687,7 +700,7 @@ export class ObservabilityStack extends cdk.Stack {
           new cloudwatch.Metric({
             namespace: 'Platform/Bridge',
             metricName: 'Errors',
-            dimensionsMap: varTenantDimensions,
+            dimensionsMap: varTenantAppDimensions,
             statistic: 'Sum',
             period: cdk.Duration.minutes(5),
           }),
@@ -730,7 +743,7 @@ export class ObservabilityStack extends cdk.Stack {
           new cloudwatch.Metric({
             namespace: 'Platform/Bridge',
             metricName: 'InputTokens',
-            dimensionsMap: varTenantDimensions,
+            dimensionsMap: varTenantAppDimensions,
             statistic: 'Sum',
             period: cdk.Duration.minutes(5),
             label: 'Input (5m Sum)',
@@ -738,7 +751,7 @@ export class ObservabilityStack extends cdk.Stack {
           new cloudwatch.Metric({
             namespace: 'Platform/Bridge',
             metricName: 'OutputTokens',
-            dimensionsMap: varTenantDimensions,
+            dimensionsMap: varTenantAppDimensions,
             statistic: 'Sum',
             period: cdk.Duration.minutes(5),
             label: 'Output (5m Sum)',

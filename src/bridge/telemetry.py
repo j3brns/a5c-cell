@@ -26,30 +26,37 @@ def record_invocation_metric(
     cloudwatch: Any,
     *,
     tenant_id: str,
+    app_id: str | None = None,
     agent_name: str,
     status: InvocationStatus,
     latency_ms: float,
 ) -> None:
+    count_dimensions = [{"Name": "TenantId", "Value": tenant_id}]
+    latency_dimensions = [{"Name": "TenantId", "Value": tenant_id}]
+    if app_id:
+        count_dimensions.append({"Name": "AppId", "Value": app_id})
+        latency_dimensions.append({"Name": "AppId", "Value": app_id})
+    count_dimensions.extend(
+        [
+            {"Name": "AgentName", "Value": agent_name},
+            {"Name": "Status", "Value": status.value},
+        ]
+    )
+    latency_dimensions.append({"Name": "AgentName", "Value": agent_name})
+
     try:
         cloudwatch.put_metric_data(
             Namespace="Platform/Bridge",
             MetricData=[
                 {
                     "MetricName": "InvocationCount",
-                    "Dimensions": [
-                        {"Name": "TenantId", "Value": tenant_id},
-                        {"Name": "AgentName", "Value": agent_name},
-                        {"Name": "Status", "Value": status.value},
-                    ],
+                    "Dimensions": count_dimensions,
                     "Value": 1,
                     "Unit": "Count",
                 },
                 {
                     "MetricName": "InvocationLatency",
-                    "Dimensions": [
-                        {"Name": "TenantId", "Value": tenant_id},
-                        {"Name": "AgentName", "Value": agent_name},
-                    ],
+                    "Dimensions": latency_dimensions,
                     "Value": latency_ms,
                     "Unit": "Milliseconds",
                 },
@@ -73,10 +80,12 @@ def emit_invocation_metrics(
         dimensions_sets = [
             [
                 {"Name": "TenantId", "Value": tenant_context.tenant_id},
+                {"Name": "AppId", "Value": tenant_context.app_id},
                 {"Name": "AgentName", "Value": agent.agent_name},
             ],
             [
                 {"Name": "TenantId", "Value": tenant_context.tenant_id},
+                {"Name": "AppId", "Value": tenant_context.app_id},
             ],
         ]
 
@@ -137,6 +146,7 @@ def emit_bedrock_throttle_metric(
                     "Unit": "Count",
                     "Dimensions": [
                         {"Name": "TenantId", "Value": tenant_context.tenant_id},
+                        {"Name": "AppId", "Value": tenant_context.app_id},
                         {"Name": "AgentName", "Value": agent.agent_name},
                         {"Name": "RuntimeRegion", "Value": runtime_region},
                     ],
@@ -163,6 +173,7 @@ def emit_tpm_limit_exceeded_metric(
                     "Unit": "Count",
                     "Dimensions": [
                         {"Name": "TenantId", "Value": tenant_context.tenant_id},
+                        {"Name": "AppId", "Value": tenant_context.app_id},
                         {"Name": "AgentName", "Value": agent_name},
                     ],
                 }
