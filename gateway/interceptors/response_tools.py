@@ -27,28 +27,34 @@ def resolve_tool_minimum_tier(
     db: TenantScopedDynamoDB | None,
     tools_table: str,
     logger: Any,
-) -> TenantTier:
+) -> TenantTier | None:
+    tool_name = tool.get("name")
+
+    # If we can check the registry, do it first as it is the control-plane authority.
+    if tool_name and db is not None:
+        try:
+            tool_record = None
+            for sort_key in (f"TENANT#{context.tenant_id}", "GLOBAL"):
+                item = db.get_item(tools_table, {"PK": f"TOOL#{tool_name}", "SK": sort_key})
+                if item:
+                    tool_record = item
+                    break
+
+            if tool_record:
+                if not bool(tool_record.get("enabled", False)):
+                    return None
+                return parse_tier(tool_record.get("tier_minimum"))
+        except Exception:
+            logger.exception("Unable to resolve tool tier from registry", tool_name=tool_name)
+            # Fall through to payload/default
+
+    # Fallback to payload tier if provided.
     payload_tier = tool.get("tierMinimum") or tool.get("tier_minimum")
     if payload_tier is not None:
         return parse_tier(payload_tier)
 
-    tool_name = tool.get("name")
-    if not tool_name or db is None:
-        return TenantTier.BASIC
-
-    try:
-        tool_record = db.get_item(tools_table, {"PK": f"TOOL#{tool_name}", "SK": "GLOBAL"})
-        if not tool_record:
-            tool_record = db.get_item(
-                tools_table, {"PK": f"TOOL#{tool_name}", "SK": f"TENANT#{context.tenant_id}"}
-            )
-    except Exception:
-        logger.exception("Unable to resolve tool tier from registry", tool_name=tool_name)
-        return TenantTier.BASIC
-
-    if not tool_record:
-        return TenantTier.BASIC
-    return parse_tier(tool_record.get("tier_minimum"))
+    # Default to BASIC if not in registry and no payload tier.
+    return TenantTier.BASIC
 
 
 def filter_tools(
@@ -83,7 +89,7 @@ def filter_tools(
             tools_table=tools_table,
             logger=logger,
         )
-        if is_tier_sufficient(context.tier, required_tier):
+        if required_tier is not None and is_tier_sufficient(context.tier, required_tier):
             filtered_tools.append(tool)
 
     return {**body, "tools": filtered_tools}

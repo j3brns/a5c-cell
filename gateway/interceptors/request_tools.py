@@ -25,8 +25,10 @@ def get_tool_record(
     primary_key = {"PK": f"TOOL#{tool_name}"}
     for sort_key in (f"TENANT#{tenant_id}", "GLOBAL"):
         item = db.get_item(tools_table, {**primary_key, "SK": sort_key}, ConsistentRead=True)
-        if item and bool(item.get("enabled", False)):
-            return dict(item)
+        if item:
+            # If a record exists (tenant or global), it is the authority.
+            # Only return it if it is enabled.
+            return dict(item) if bool(item.get("enabled", False)) else None
     return None
 
 

@@ -19,7 +19,6 @@ from typing import Any
 import boto3
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.typing import LambdaContext
-from data_access import TenantScopedDynamoDB
 from data_access.models import TenantContext, TenantTier
 
 from gateway.interceptors import response_redaction, response_tools
@@ -85,21 +84,6 @@ def is_tier_sufficient(current_tier: TenantTier, required_tier: TenantTier) -> b
 
 def _parse_tier(value: Any) -> TenantTier:
     return response_tools.parse_tier(value)
-
-
-def _resolve_tool_minimum_tier(
-    *,
-    tool: dict[str, Any],
-    context: TenantContext,
-    db: TenantScopedDynamoDB | None,
-) -> TenantTier:
-    return response_tools.resolve_tool_minimum_tier(
-        tool=tool,
-        context=context,
-        db=db,
-        tools_table=TOOLS_TABLE,
-        logger=logger,
-    )
 
 
 def filter_tools(body: dict[str, Any], context: TenantContext) -> dict[str, Any]:
