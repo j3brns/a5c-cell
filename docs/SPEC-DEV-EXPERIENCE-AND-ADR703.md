@@ -1,7 +1,7 @@
 # Specification: Developer Experience Separation and ADR-703 Implementation
 
 **Date:** 2026-04-23
-**Source:** Architectural review of sample-bedrock-proxy-gateway vs tf-acore-aas,
+**Source:** Architectural review of sample-bedrock-proxy-gateway vs this platform,
 developer inner loop analysis, ADR-703 decisions.
 **ADRs:** ADR-703 (gateway efficiency patterns)
 **Related existing tasks:** TASK-705 (granular validation targets — do not duplicate)

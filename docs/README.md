@@ -1,6 +1,6 @@
 # Documentation Suite
 
-Canonical documentation for the **tf-acore-aas** platform.
+Canonical documentation for this platform repository.
 Start here, then follow the links for your role.
 
 > Back to [project README](../README.md)

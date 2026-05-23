@@ -218,7 +218,7 @@ Recent platform work has tightened the contract around the system rather than ju
 **Prerequisites**: [uv](https://docs.astral.sh/uv/) 0.4+, Docker 24+, AWS CLI v2, Node 20 LTS, npm, `glab`, GitLab access for issues, merge requests, CI/CD, and protected deploys, and the required Entra group membership.
 
 ```bash
-git clone <repo> && cd tf-acore-aas
+git clone <repo> && cd <repo-directory>
 cp .env.example .env.local    # Set ENTRA_CLIENT_ID, ENTRA_TENANT_ID, API_BASE_URL
 make bootstrap-platform       # Check prerequisites and install Python and Node dependencies
 make dev                      # Start LocalStack, mock Runtime, and mock JWKS
@@ -236,7 +236,7 @@ make dev-invoke               # Confirm echo-agent works end-to-end locally
 ## Project structure
 
 ```text
-tf-acore-aas/
+<repo-directory>/
 ├── CLAUDE.md                 AI coding assistant rules
 ├── Makefile                   Dev, test, ops, and deploy commands
 ├── .env.example               Required environment variables

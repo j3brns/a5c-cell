@@ -45,7 +45,7 @@ gateway, not as a replacement for the public AgentCore invoke path.
 The integration model is:
 
 1. **Keep the current public invoke path**
-   - `tf-acore-aas` remains the only tenant-facing and operator-facing public API
+   - the platform remains the only tenant-facing and operator-facing public API
      for agent invocation
    - the `Bridge Lambda -> AgentCore Runtime` path remains the canonical path
      for published agent execution
@@ -125,7 +125,7 @@ Minimum downstream contract:
   - `metering_source`
 
 ## Configuration Ownership
-- `tf-acore-aas` owns:
+- the platform owns:
   - public API contracts
   - tenant identity and authorization
   - agent registry and invocation policy

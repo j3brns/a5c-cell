@@ -2,11 +2,13 @@ import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { IdentityStack } from '../lib/identity-stack';
 
+const PROJECT_PATH = 'example-group/example-repo';
+
 function synthTemplate(): Template {
   const app = new cdk.App({
     context: {
       env: 'dev',
-      gitlabProjectPath: 'j3brns/tf-acore-aas',
+      gitlabProjectPath: PROJECT_PATH,
       entraTenantId: '00000000-0000-0000-0000-000000000000',
     },
   });
@@ -49,7 +51,7 @@ describe('IdentityStack', () => {
                 'gitlab.com:aud': 'sts.amazonaws.com',
               }),
               StringLike: Match.objectLike({
-                'gitlab.com:sub': ['project_path:j3brns/tf-acore-aas:*'],
+                'gitlab.com:sub': [`project_path:${PROJECT_PATH}:*`],
               }),
             }),
           }),
@@ -70,7 +72,7 @@ describe('IdentityStack', () => {
               Condition: Match.objectLike({
                 StringLike: Match.objectLike({
                   'gitlab.com:sub': [
-                    'project_path:j3brns/tf-acore-aas:ref_type:branch:ref:main',
+                    `project_path:${PROJECT_PATH}:ref_type:branch:ref:main`,
                   ],
                 }),
               }),
@@ -103,6 +105,19 @@ describe('IdentityStack', () => {
   test('does not create platform-managed KMS keys', () => {
     template.resourceCountIs('AWS::KMS::Key', 0);
     template.resourceCountIs('AWS::KMS::Alias', 0);
+  });
+
+  test('requires an explicit GitLab project path for pipeline trust', () => {
+    const app = new cdk.App({
+      context: {
+        env: 'dev',
+        entraTenantId: '00000000-0000-0000-0000-000000000000',
+      },
+    });
+
+    expect(() => new IdentityStack(app, 'platform-identity-missing-project-path')).toThrow(
+      'CDK context "gitlabProjectPath" is required',
+    );
   });
 
   test('limits wildcard-resource IAM actions to the OIDC provider custom resource', () => {

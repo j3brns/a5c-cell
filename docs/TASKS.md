@@ -15,7 +15,7 @@ As of **2026-04-18** (local time), task tracking is novated to GitLab Issues
 for this repository. GitLab Issues are now the canonical source of truth for task
 status, sequencing (`Seq:`), and dependencies (`Depends on:`).
 
-GitLab Issues: use `glab issue list -R julian.burns50/tf-acore-aas` or `make issue-queue`.
+GitLab Issues: use `glab issue list -R <namespace>/<repo>` or `make issue-queue`.
 
 ## Historical Blockers (Snapshot 2026-03-24)
 
