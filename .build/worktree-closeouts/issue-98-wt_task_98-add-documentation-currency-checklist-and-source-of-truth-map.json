@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "issue_id": 98,
+      "message": "closeout started",
+      "pid": 121135,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-05-16T23:22:57.139274+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt98"
+    },
+    {
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "issue_id": 98,
+      "message": "merged MR lookup found",
+      "pid": 121135,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-05-16T23:22:57.632848+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt98"
+    },
+    {
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "issue_id": 98,
+      "message": "issue closed via glab",
+      "pid": 121135,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-05-16T23:23:00.752958+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt98"
+    },
+    {
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "issue_id": 98,
+      "message": "cleanup started",
+      "pid": 121135,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-05-16T23:23:00.753444+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt98"
+    },
+    {
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "issue_id": 98,
+      "message": "cleanup verified",
+      "pid": 121135,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-05-16T23:23:04.935974+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt98"
+    }
+  ],
+  "generated_at": "2026-05-16T23:23:04.936137+00:00",
+  "issue_closed": true,
+  "issue_id": 98,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt98"
+}

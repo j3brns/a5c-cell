@@ -1,0 +1,96 @@
+{
+  "issue_number": 99,
+  "issue_title": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+  "repo": "julianburns/tf-acore-aas",
+  "branch": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+  "worktree_path": "/home/julesb/worktrees/wt99",
+  "state": "done",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-05-16T23:22:00.569199+00:00",
+  "events": [
+    {
+      "ts": "2026-05-16T23:14:21.081132+00:00",
+      "event_type": "worktree-created",
+      "state": "worktree-ready",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 99,
+      "issue_title": "TASK-074: Surface tech-debt and indirection rationale in issue/MR workflow",
+      "branch": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "worktree_path": "/home/julesb/worktrees/wt99",
+      "details": {
+        "base_ref": "origin/main",
+        "scope": "task",
+        "slug": "surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+        "auto_claim": true,
+        "preflight": true,
+        "pre_provision": false
+      },
+      "idempotency_key": "create:99:wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work:/home/julesb/worktrees/wt99"
+    },
+    {
+      "ts": "2026-05-16T23:21:55.754848+00:00",
+      "event_type": "closeout-started",
+      "state": "closeout-started",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 99,
+      "issue_title": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "branch": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "worktree_path": "/home/julesb/worktrees/wt99",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-99-wt_task_99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work.json"
+      },
+      "idempotency_key": "closeout-started:99:wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work:/home/julesb/worktrees/wt99"
+    },
+    {
+      "ts": "2026-05-16T23:21:58.757453+00:00",
+      "event_type": "closeout-complete",
+      "state": "closed",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 99,
+      "issue_title": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "branch": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "worktree_path": "/home/julesb/worktrees/wt99",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-99-wt_task_99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work.json",
+        "issue_closed": true,
+        "cleanup_verified": true
+      },
+      "idempotency_key": "closeout-complete:99:wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work:/home/julesb/worktrees/wt99"
+    },
+    {
+      "ts": "2026-05-16T23:21:58.758222+00:00",
+      "event_type": "handback-audited",
+      "state": "evidence-audited",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 99,
+      "issue_title": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "branch": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "worktree_path": "/home/julesb/worktrees/wt99",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-99-wt_task_99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work.json",
+        "evidence_hash": "b4c5de67b7a56ed323001b8a6ef9320f227fae144abe8e85d7927160842dd585"
+      },
+      "idempotency_key": "handback-audited:99:b4c5de67b7a56ed323001b8a6ef9320f227fae144abe8e85d7927160842dd585"
+    },
+    {
+      "ts": "2026-05-16T23:22:00.569199+00:00",
+      "event_type": "handback-complete",
+      "state": "done",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 99,
+      "issue_title": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "branch": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+      "worktree_path": "/home/julesb/worktrees/wt99",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-99-wt_task_99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work.json",
+        "evidence_hash": "b4c5de67b7a56ed323001b8a6ef9320f227fae144abe8e85d7927160842dd585"
+      },
+      "idempotency_key": "handback-complete:99:b4c5de67b7a56ed323001b8a6ef9320f227fae144abe8e85d7927160842dd585"
+    }
+  ],
+  "details": {
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-99-wt_task_99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work.json",
+    "evidence_hash": "b4c5de67b7a56ed323001b8a6ef9320f227fae144abe8e85d7927160842dd585"
+  }
+}

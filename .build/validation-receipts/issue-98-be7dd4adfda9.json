@@ -1,0 +1,9 @@
+{
+  "issue_number": 98,
+  "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+  "worktree_path": "/home/julesb/worktrees/wt98",
+  "check": "validate-pre-push",
+  "result": "pass",
+  "head_sha": "be7dd4adfda9666aa68214acd7578e7dd6aa5e49",
+  "generated_at": "2026-05-16T23:19:15.379078+00:00"
+}

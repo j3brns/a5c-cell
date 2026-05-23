@@ -1,0 +1,9 @@
+{
+  "issue_number": 96,
+  "branch": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+  "worktree_path": "/home/julesb/worktrees/wt96",
+  "check": "validate-local",
+  "result": "pass",
+  "head_sha": "f35eeac2d4906734c22a6c420c4b0c809cf8b693",
+  "generated_at": "2026-05-16T22:59:26.832273+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "branch": "wt/task/88-honor-tenant-specific-tool-metadata-consistently",
+  "check": "validate-pre-push",
+  "generated_at": "2026-05-17T10:04:50.426841+00:00",
+  "head_sha": "3908115d491fc70ee2762cb5f65bd5b4bfc1c10f",
+  "issue_number": 88,
+  "result": "pass",
+  "worktree_path": "/home/julesb/worktrees/wt88"
+}

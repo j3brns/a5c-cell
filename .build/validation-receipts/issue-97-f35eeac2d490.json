@@ -1,0 +1,9 @@
+{
+  "issue_number": 97,
+  "branch": "wt/task/97-repair-issue-audit-workflow-or-update-closeout-docs",
+  "worktree_path": "/home/julesb/worktrees/wt97",
+  "check": "validate-pre-push",
+  "result": "pass",
+  "head_sha": "f35eeac2d4906734c22a6c420c4b0c809cf8b693",
+  "generated_at": "2026-05-16T23:10:24.229846+00:00"
+}

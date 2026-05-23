@@ -1,0 +1,96 @@
+{
+  "issue_number": 98,
+  "issue_title": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+  "repo": "julianburns/tf-acore-aas",
+  "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+  "worktree_path": "/home/julesb/worktrees/wt98",
+  "state": "done",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-05-16T23:23:07.115817+00:00",
+  "events": [
+    {
+      "ts": "2026-05-16T23:14:39.649672+00:00",
+      "event_type": "worktree-created",
+      "state": "worktree-ready",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 98,
+      "issue_title": "TASK-073: Add documentation currency checklist and source-of-truth map",
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "worktree_path": "/home/julesb/worktrees/wt98",
+      "details": {
+        "base_ref": "origin/main",
+        "scope": "task",
+        "slug": "add-documentation-currency-checklist-and-source-of-truth-map",
+        "auto_claim": true,
+        "preflight": true,
+        "pre_provision": false
+      },
+      "idempotency_key": "create:98:wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map:/home/julesb/worktrees/wt98"
+    },
+    {
+      "ts": "2026-05-16T23:22:57.139687+00:00",
+      "event_type": "closeout-started",
+      "state": "closeout-started",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 98,
+      "issue_title": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "worktree_path": "/home/julesb/worktrees/wt98",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-98-wt_task_98-add-documentation-currency-checklist-and-source-of-truth-map.json"
+      },
+      "idempotency_key": "closeout-started:98:wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map:/home/julesb/worktrees/wt98"
+    },
+    {
+      "ts": "2026-05-16T23:23:04.936676+00:00",
+      "event_type": "closeout-complete",
+      "state": "closed",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 98,
+      "issue_title": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "worktree_path": "/home/julesb/worktrees/wt98",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-98-wt_task_98-add-documentation-currency-checklist-and-source-of-truth-map.json",
+        "issue_closed": true,
+        "cleanup_verified": true
+      },
+      "idempotency_key": "closeout-complete:98:wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map:/home/julesb/worktrees/wt98"
+    },
+    {
+      "ts": "2026-05-16T23:23:04.937414+00:00",
+      "event_type": "handback-audited",
+      "state": "evidence-audited",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 98,
+      "issue_title": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "worktree_path": "/home/julesb/worktrees/wt98",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-98-wt_task_98-add-documentation-currency-checklist-and-source-of-truth-map.json",
+        "evidence_hash": "2a461f19b4ce6bebb02d72bec259845646c03ca869d322b9b5f7e41cf7147786"
+      },
+      "idempotency_key": "handback-audited:98:2a461f19b4ce6bebb02d72bec259845646c03ca869d322b9b5f7e41cf7147786"
+    },
+    {
+      "ts": "2026-05-16T23:23:07.115817+00:00",
+      "event_type": "handback-complete",
+      "state": "done",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 98,
+      "issue_title": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "branch": "wt/task/98-add-documentation-currency-checklist-and-source-of-truth-map",
+      "worktree_path": "/home/julesb/worktrees/wt98",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-98-wt_task_98-add-documentation-currency-checklist-and-source-of-truth-map.json",
+        "evidence_hash": "2a461f19b4ce6bebb02d72bec259845646c03ca869d322b9b5f7e41cf7147786"
+      },
+      "idempotency_key": "handback-complete:98:2a461f19b4ce6bebb02d72bec259845646c03ca869d322b9b5f7e41cf7147786"
+    }
+  ],
+  "details": {
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-98-wt_task_98-add-documentation-currency-checklist-and-source-of-truth-map.json",
+    "evidence_hash": "2a461f19b4ce6bebb02d72bec259845646c03ca869d322b9b5f7e41cf7147786"
+  }
+}

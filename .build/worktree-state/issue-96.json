@@ -1,0 +1,96 @@
+{
+  "issue_number": 96,
+  "issue_title": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+  "repo": "julianburns/tf-acore-aas",
+  "branch": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+  "worktree_path": "/home/julesb/worktrees/wt96",
+  "state": "done",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-05-16T23:00:44.892826+00:00",
+  "events": [
+    {
+      "ts": "2026-05-16T22:55:58.261813+00:00",
+      "event_type": "worktree-created",
+      "state": "worktree-ready",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 96,
+      "issue_title": "TASK-071: Reclassify historical task and review snapshots",
+      "branch": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "worktree_path": "/home/julesb/worktrees/wt96",
+      "details": {
+        "base_ref": "origin/main",
+        "scope": "task",
+        "slug": "reclassify-historical-task-and-review-snapshots",
+        "auto_claim": true,
+        "preflight": true,
+        "pre_provision": false
+      },
+      "idempotency_key": "create:96:wt/task/96-reclassify-historical-task-and-review-snapshots:/home/julesb/worktrees/wt96"
+    },
+    {
+      "ts": "2026-05-16T23:00:37.342607+00:00",
+      "event_type": "closeout-started",
+      "state": "closeout-started",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 96,
+      "issue_title": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "branch": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "worktree_path": "/home/julesb/worktrees/wt96",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-96-wt_task_96-reclassify-historical-task-and-review-snapshots.json"
+      },
+      "idempotency_key": "closeout-started:96:wt/task/96-reclassify-historical-task-and-review-snapshots:/home/julesb/worktrees/wt96"
+    },
+    {
+      "ts": "2026-05-16T23:00:43.103472+00:00",
+      "event_type": "closeout-complete",
+      "state": "closed",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 96,
+      "issue_title": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "branch": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "worktree_path": "/home/julesb/worktrees/wt96",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-96-wt_task_96-reclassify-historical-task-and-review-snapshots.json",
+        "issue_closed": true,
+        "cleanup_verified": true
+      },
+      "idempotency_key": "closeout-complete:96:wt/task/96-reclassify-historical-task-and-review-snapshots:/home/julesb/worktrees/wt96"
+    },
+    {
+      "ts": "2026-05-16T23:00:43.104302+00:00",
+      "event_type": "handback-audited",
+      "state": "evidence-audited",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 96,
+      "issue_title": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "branch": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "worktree_path": "/home/julesb/worktrees/wt96",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-96-wt_task_96-reclassify-historical-task-and-review-snapshots.json",
+        "evidence_hash": "8da5a8cce0e3b98bdfb20babe04dd24703436c43a831c93d239fdea66d17bd01"
+      },
+      "idempotency_key": "handback-audited:96:8da5a8cce0e3b98bdfb20babe04dd24703436c43a831c93d239fdea66d17bd01"
+    },
+    {
+      "ts": "2026-05-16T23:00:44.892826+00:00",
+      "event_type": "handback-complete",
+      "state": "done",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 96,
+      "issue_title": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "branch": "wt/task/96-reclassify-historical-task-and-review-snapshots",
+      "worktree_path": "/home/julesb/worktrees/wt96",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-96-wt_task_96-reclassify-historical-task-and-review-snapshots.json",
+        "evidence_hash": "8da5a8cce0e3b98bdfb20babe04dd24703436c43a831c93d239fdea66d17bd01"
+      },
+      "idempotency_key": "handback-complete:96:8da5a8cce0e3b98bdfb20babe04dd24703436c43a831c93d239fdea66d17bd01"
+    }
+  ],
+  "details": {
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-96-wt_task_96-reclassify-historical-task-and-review-snapshots.json",
+    "evidence_hash": "8da5a8cce0e3b98bdfb20babe04dd24703436c43a831c93d239fdea66d17bd01"
+  }
+}

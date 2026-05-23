@@ -1,0 +1,96 @@
+{
+  "issue_number": 95,
+  "issue_title": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+  "repo": "julianburns/tf-acore-aas",
+  "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+  "worktree_path": "/home/julesb/worktrees/wt95",
+  "state": "done",
+  "last_event_type": "handback-complete",
+  "last_updated_at": "2026-05-16T23:04:43.172711+00:00",
+  "events": [
+    {
+      "ts": "2026-05-16T22:55:13.522008+00:00",
+      "event_type": "worktree-created",
+      "state": "worktree-ready",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 95,
+      "issue_title": "TASK-070: Align architecture docs with current CDK stack topology",
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "worktree_path": "/home/julesb/worktrees/wt95",
+      "details": {
+        "base_ref": "origin/main",
+        "scope": "infra",
+        "slug": "align-architecture-docs-with-current-cdk-stack-topology",
+        "auto_claim": true,
+        "preflight": true,
+        "pre_provision": false
+      },
+      "idempotency_key": "create:95:wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology:/home/julesb/worktrees/wt95"
+    },
+    {
+      "ts": "2026-05-16T23:04:38.218404+00:00",
+      "event_type": "closeout-started",
+      "state": "closeout-started",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 95,
+      "issue_title": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "worktree_path": "/home/julesb/worktrees/wt95",
+      "details": {
+        "force": false,
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-95-wt_infra_95-align-architecture-docs-with-current-cdk-stack-topology.json"
+      },
+      "idempotency_key": "closeout-started:95:wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology:/home/julesb/worktrees/wt95"
+    },
+    {
+      "ts": "2026-05-16T23:04:41.149877+00:00",
+      "event_type": "closeout-complete",
+      "state": "closed",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 95,
+      "issue_title": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "worktree_path": "/home/julesb/worktrees/wt95",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-95-wt_infra_95-align-architecture-docs-with-current-cdk-stack-topology.json",
+        "issue_closed": true,
+        "cleanup_verified": true
+      },
+      "idempotency_key": "closeout-complete:95:wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology:/home/julesb/worktrees/wt95"
+    },
+    {
+      "ts": "2026-05-16T23:04:41.150579+00:00",
+      "event_type": "handback-audited",
+      "state": "evidence-audited",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 95,
+      "issue_title": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "worktree_path": "/home/julesb/worktrees/wt95",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-95-wt_infra_95-align-architecture-docs-with-current-cdk-stack-topology.json",
+        "evidence_hash": "db7761121d355eaa30d53286d26d617cb1b622f2133fe7a9253b0cf03efd271b"
+      },
+      "idempotency_key": "handback-audited:95:db7761121d355eaa30d53286d26d617cb1b622f2133fe7a9253b0cf03efd271b"
+    },
+    {
+      "ts": "2026-05-16T23:04:43.172711+00:00",
+      "event_type": "handback-complete",
+      "state": "done",
+      "repo": "julianburns/tf-acore-aas",
+      "issue_number": 95,
+      "issue_title": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "worktree_path": "/home/julesb/worktrees/wt95",
+      "details": {
+        "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-95-wt_infra_95-align-architecture-docs-with-current-cdk-stack-topology.json",
+        "evidence_hash": "db7761121d355eaa30d53286d26d617cb1b622f2133fe7a9253b0cf03efd271b"
+      },
+      "idempotency_key": "handback-complete:95:db7761121d355eaa30d53286d26d617cb1b622f2133fe7a9253b0cf03efd271b"
+    }
+  ],
+  "details": {
+    "report_path": "/home/julesb/tf-acore-aas/.build/worktree-closeouts/issue-95-wt_infra_95-align-architecture-docs-with-current-cdk-stack-topology.json",
+    "evidence_hash": "db7761121d355eaa30d53286d26d617cb1b622f2133fe7a9253b0cf03efd271b"
+  }
+}

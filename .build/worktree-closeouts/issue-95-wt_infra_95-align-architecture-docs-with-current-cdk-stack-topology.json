@@ -1,0 +1,68 @@
+{
+  "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "issue_id": 95,
+      "message": "closeout started",
+      "pid": 100302,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-05-16T23:04:38.218115+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt95"
+    },
+    {
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "issue_id": 95,
+      "message": "merged MR lookup found",
+      "pid": 100302,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-05-16T23:04:38.681330+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt95"
+    },
+    {
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "issue_id": 95,
+      "message": "issue already closed; labels normalized",
+      "pid": 100302,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-05-16T23:04:40.269610+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt95"
+    },
+    {
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "issue_id": 95,
+      "message": "cleanup started",
+      "pid": 100302,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-05-16T23:04:40.270326+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt95"
+    },
+    {
+      "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+      "issue_id": 95,
+      "message": "cleanup verified",
+      "pid": 100302,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-05-16T23:04:41.149207+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt95"
+    }
+  ],
+  "generated_at": "2026-05-16T23:04:41.149370+00:00",
+  "issue_closed": true,
+  "issue_id": 95,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt95"
+}

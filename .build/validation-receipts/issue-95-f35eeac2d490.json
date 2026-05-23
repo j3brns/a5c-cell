@@ -1,0 +1,9 @@
+{
+  "issue_number": 95,
+  "branch": "wt/infra/95-align-architecture-docs-with-current-cdk-stack-topology",
+  "worktree_path": "/home/julesb/worktrees/wt95",
+  "check": "validate-pre-push",
+  "result": "pass",
+  "head_sha": "f35eeac2d4906734c22a6c420c4b0c809cf8b693",
+  "generated_at": "2026-05-16T23:01:56.913353+00:00"
+}

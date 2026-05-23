@@ -1,0 +1,9 @@
+{
+  "issue_number": 99,
+  "branch": "wt/task/99-surface-tech-debt-and-indirection-rationale-in-issue-mr-work",
+  "worktree_path": "/home/julesb/worktrees/wt99",
+  "check": "validate-pre-push",
+  "result": "pass",
+  "head_sha": "0346256943aab5a5f7d1043179d258d1f39be670",
+  "generated_at": "2026-05-16T23:21:32.785485+00:00"
+}
