@@ -1849,25 +1849,28 @@ components:
       required: [invite]
       properties:
         invite:
-          type: object
-          required: [inviteId, tenantId, email, role, status, expiresAt]
-          properties:
-            inviteId:
-              type: string
-            tenantId:
-              type: string
-            email:
-              type: string
-              format: email
-            role:
-              type: string
-            displayName:
-              type: [string, "null"]
-            status:
-              type: string
-              enum: [pending]
-            expiresAt:
-              $ref: "#/components/schemas/UtcTimestamp"
+          $ref: "#/components/schemas/TenantUserInviteDto"
+
+    TenantUserInviteDto:
+      type: object
+      required: [inviteId, tenantId, email, role, status, expiresAt]
+      properties:
+        inviteId:
+          type: string
+        tenantId:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        displayName:
+          type: [string, "null"]
+        status:
+          type: string
+          enum: [pending]
+        expiresAt:
+          $ref: "#/components/schemas/UtcTimestamp"
 
     JobStatusResponse:
       type: object
