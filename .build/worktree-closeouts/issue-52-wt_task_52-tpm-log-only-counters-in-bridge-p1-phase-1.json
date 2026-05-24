@@ -1,0 +1,68 @@
+{
+  "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+  "cleanup": {
+    "branch_deleted": true,
+    "worktree_pruned": true,
+    "worktree_removed": true
+  },
+  "cleanup_verified": true,
+  "events": [
+    {
+      "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+      "issue_id": 52,
+      "message": "closeout started",
+      "pid": 583630,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "starting",
+      "ts": "2026-05-24T14:48:24.014994+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt52-closeout"
+    },
+    {
+      "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+      "issue_id": 52,
+      "message": "merged MR lookup found",
+      "pid": 583630,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "merge-check",
+      "ts": "2026-05-24T14:48:24.455563+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt52-closeout"
+    },
+    {
+      "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+      "issue_id": 52,
+      "message": "issue already closed; labels normalized",
+      "pid": 583630,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "issue-close",
+      "ts": "2026-05-24T14:48:24.869381+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt52-closeout"
+    },
+    {
+      "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+      "issue_id": 52,
+      "message": "cleanup started",
+      "pid": 583630,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup",
+      "ts": "2026-05-24T14:48:24.869767+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt52-closeout"
+    },
+    {
+      "branch": "wt/task/52-tpm-log-only-counters-in-bridge-p1-phase-1",
+      "issue_id": 52,
+      "message": "cleanup verified",
+      "pid": 583630,
+      "repo": "julianburns/tf-acore-aas",
+      "stage": "cleanup-verified",
+      "ts": "2026-05-24T14:48:25.158297+00:00",
+      "worktree_path": "/home/julesb/worktrees/wt52-closeout"
+    }
+  ],
+  "generated_at": "2026-05-24T14:48:25.158456+00:00",
+  "issue_closed": true,
+  "issue_id": 52,
+  "merged_mr_required": true,
+  "repo": "julianburns/tf-acore-aas",
+  "stage": "complete",
+  "worktree_path": "/home/julesb/worktrees/wt52-closeout"
+}
