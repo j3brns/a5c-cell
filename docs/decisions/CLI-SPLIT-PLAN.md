@@ -1,6 +1,6 @@
 # Dry YAGNI Plan: CLI Monolith Split & Tech Debt Removal
 
-**Goal:** Execute ADR-022 and SPEC-DEV-EXPERIENCE-AND-ADR703 by decoupling `agent-cli` from `platform-cli` and refactoring the 4,600-line `scripts/issue_tool/cli.py` monolith.
+**Goal:** Execute ADR-022 and SPEC-DEV-EXPERIENCE-AND-ADR704 by decoupling `agent-cli` from `platform-cli` and refactoring the 4,600-line `scripts/issue_tool/cli.py` monolith.
 
 ## Phase 1: Issue Tool Modularization (TASK-701)
 Extract independent domain boundaries from `scripts/issue_tool/cli.py` into `scripts/issue_tool/`:

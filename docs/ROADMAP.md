@@ -17,8 +17,8 @@ compliance, and billing. Operable by a small team without developers on-call.
 ## Current Status
 Implementation has moved beyond the documentation-only foundation. The repository
 now contains core Lambda handlers, CDK stacks, guard rules, gateway interceptors,
-async bridge flows, and SPA code. Milestones below remain gated by their stated
-acceptance criteria rather than by file presence alone.
+deferred async design records, and SPA code. Milestones below are historical
+acceptance criteria rather than the active v0.2 support contract.
 
 ---
 
@@ -39,8 +39,9 @@ console access required for routine operations.
 
 ### M4: Agent Developer Self-Service
 Packaging scripts, registration flow, and gateway interceptors are present.
-Acceptance remains: agent push meets the warm-path target, all three invocation
-modes work end-to-end, and interceptors enforce tier-based tool access.
+Historical acceptance was: agent push meets the warm-path target, sync/streaming/async
+modes work end-to-end, and interceptors enforce tier-based tool access. ADR-024
+narrows the active v0.2 support contract to sync and streaming.
 
 ---
 

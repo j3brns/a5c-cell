@@ -1,4 +1,4 @@
-# ADR-703: Gateway Efficiency Patterns
+# ADR-704: Gateway Efficiency Patterns
 
 ## Status: Proposed
 ## Date: 2026-04-23

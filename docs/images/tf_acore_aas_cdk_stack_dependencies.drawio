@@ -39,7 +39,7 @@
           <mxGeometry x="800" y="110" width="92" height="92" as="geometry"/>
         </mxCell>
         <mxCell id="runtime" value="Runtime env
-eu-west-1" style="sketch=0;outlineConnect=0;fontColor=#1f2937;gradientColor=#F3A847;gradientDirection=north;fillColor=#E96900;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="ext">
+eu-west-2" style="sketch=0;outlineConnect=0;fontColor=#1f2937;gradientColor=#F3A847;gradientDirection=north;fillColor=#E96900;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="ext">
           <mxGeometry x="800" y="290" width="92" height="92" as="geometry"/>
         </mxCell>
         <mxCell id="legend" value="Legend: Solid = explicit code coupling; Dashed = order/ops relation (not constructor coupling)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="1">

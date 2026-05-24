@@ -132,6 +132,7 @@ Every significant design choice is documented with context, decision, and reject
 | [ADR-701](decisions/ADR-701-tenant-agent-inference-chargeback-and-tagging.md) | Tenant inference chargeback and tagging model |
 | [ADR-702](decisions/ADR-702-bedrock-proxy-gateway-as-additive-internal-model-gateway.md) | Bedrock proxy gateway as additive internal model gateway |
 | [ADR-703](decisions/ADR-703-platformstack-split-plan.md) | PlatformStack split plan — storage, compute, and SPA extraction into separate CDK stacks (phased, no big-bang) |
+| [ADR-704](decisions/ADR-704-gateway-efficiency-patterns.md) | Gateway efficiency patterns for TPM limiting, TTFT, logical ID mapping, and rate-limit headers |
 
 ## Operator Runbooks
 
@@ -189,8 +190,8 @@ plus the [v0.2 Secure Deployment Contract](contracts/v0-2-secure-deployment-cont
 ### Request Lifecycle
 
 Current v0.2 end-to-end request flow: authentication, authorisation, runtime
-execution in `eu-west-2`, tool invocation via gateway interceptors, and async
-webhook delivery. Runtime regional failover is deferred.
+execution in `eu-west-2`, and tool invocation via gateway interceptors. Async
+invocation and runtime regional failover are deferred.
 
 ![Request lifecycle: client through auth, bridge, runtime, gateway interceptors, tool lambdas, and response](images/tf_acore_aas_request_lifecycle_engineer.drawio.png)
 
@@ -202,7 +203,7 @@ webhook delivery. Runtime regional failover is deferred.
 
 Deployment order, cross-stack resource wiring, and environment boundaries.
 
-![CDK stack deployment order: Network, Identity, Storage, SPA, EdgeSecurity (us-east-1), Platform, Tenant, Observability, AgentCore](images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
+![CDK stack deployment order: Network, Identity, Storage, SPA, Platform, EdgeSecurity (us-east-1), Tenant, Observability, AgentCore](images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
 
 | Variant | Audience | File |
 |---------|----------|------|
@@ -252,7 +253,7 @@ Fixture-based SVG previews of the main SPA views. These are documentation assets
 | Admin overview | Engineers / operators | [tf_acore_aas_portal_admin_overview.svg](images/tf_acore_aas_portal_admin_overview.svg) | Platform health, quota, and tenant portfolio preview. |
 | Members & invites | Engineers / QA | [tf_acore_aas_portal_members.svg](images/tf_acore_aas_portal_members.svg) | Invitation workflow and pending invite table. |
 | Webhooks | Engineers / QA | [tf_acore_aas_portal_webhooks.svg](images/tf_acore_aas_portal_webhooks.svg) | Registered webhooks plus create form preview. |
-| Invoke flow | Engineers / agent developers | [tf_acore_aas_portal_invoke.svg](images/tf_acore_aas_portal_invoke.svg) | Prompt form with async job status panel. |
+| Invoke flow | Engineers / agent developers | [tf_acore_aas_portal_invoke.svg](images/tf_acore_aas_portal_invoke.svg) | Prompt form with sync and streaming response states. |
 
 ## Diagram Semantics
 

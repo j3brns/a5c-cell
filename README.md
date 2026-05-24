@@ -30,7 +30,7 @@ Every **a5c-cell** maps 1:1 to an AWS account, a service boundary, an operations
 
 - **Multi-tenant REST API** — per-request tenant isolation enforced across four independent control layers
 - **Entra ID OIDC and SigV4** — human and machine authentication, with no Cognito dependency
-- **Three invocation modes** — synchronous up to 15 minutes, streaming SSE up to 15 minutes, and asynchronous execution with webhooks up to 8 hours
+- **Two v0.2 invocation modes** — synchronous and streaming SSE execution, both up to 15 minutes; async is deferred until the platform owns a complete native completion path
 - **Self-service agent pipeline** — `make agent-push` supports a fast path when dependencies are unchanged
 - **SPA frontend** — React application with OIDC login, streaming responses, and session keepalive
 - **EU-only data residency** — approved topology keeps data and serving runtime in London, with evaluation capability outside the serving path when required
@@ -120,7 +120,7 @@ sequenceDiagram
 
 ### Invocation modes
 
-The same control model applies to all three invocation modes — sync, streaming, and async. The differences are in execution dispatch and response delivery, not in admission or policy.
+The same control model applies to both v0.2 invocation modes: sync and streaming. The difference is response delivery, not admission or policy. Async invocation is explicitly deferred by ADR-024 until the platform owns native completion, result persistence, and status delivery end to end.
 
 ```mermaid
 stateDiagram-v2
@@ -129,18 +129,12 @@ stateDiagram-v2
     Authorised --> Routed: Policy and runtime selected
     Routed --> RunningSync: Sync
     Routed --> Streaming: Stream
-    Routed --> QueuedAsync: Async
     RunningSync --> Completed
     Streaming --> Completed
-    QueuedAsync --> RunningAsync: AgentCore task executing
-    RunningAsync --> WebhookDelivered: Webhook sent
-    RunningAsync --> Polled: Job status fetched
-    WebhookDelivered --> Completed
-    Polled --> Completed
     Completed --> [*]
 ```
 
-*All three modes share the admission, authorisation, and routing path. They diverge at execution. Async mode adds webhook delivery, retries, and job status lookup.*
+*Both supported modes share the admission, authorisation, and routing path. Async records are rejected for v0.2 instead of creating dead pending jobs.*
 
 ### Tenant isolation
 
@@ -183,7 +177,7 @@ The old Dublin zigzag was intentional optionality: at the time of ADR-009, Agent
 
 ![CDK stack deployment order and cross-stack resource wiring](docs/images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
 
-`NetworkStack` → `IdentityStack` → `PlatformStorageStack` → `PlatformSpaStack` → `PlatformEdgeSecurityStack` (us-east-1) → `PlatformStack` → `TenantStack` per tenant, event-driven → `ObservabilityStack` → `AgentCoreStack`
+`NetworkStack` → `IdentityStack` → `PlatformStorageStack` → `PlatformSpaStack` → `PlatformStack` → `PlatformEdgeSecurityStack` (us-east-1) → `TenantStack` per tenant, event-driven → `ObservabilityStack` → `AgentCoreStack`
 
 ## Drinking our own champagne
 
@@ -246,7 +240,7 @@ make dev-invoke               # Confirm echo-agent works end-to-end locally
 │   ├── ARCHITECTURE.md        System design, data model, failure modes
 │   ├── PLAN.md                Phased delivery plan with gates
 │   ├── ROADMAP.md             Vision, milestones M1–M7, V1.x backlog
-│   ├── decisions/             ADR-001..018
+│   ├── decisions/             ADR-001..024 plus ADR-701..704
 │   ├── operations/            RUNBOOK-000..010
 │   ├── security/              Threat model, compliance checklist
 │   ├── development/           Local setup, agent developer guide
@@ -286,7 +280,7 @@ make install-git-hooks        # One-time: install pre-push hook
 make dev                      # Start LocalStack and mock services
 make test-unit                # Run all unit tests
 export APPCONFIG_EXTENSION_LAYER_ARN=<aws-managed-arm64-layer-arn-for-region>
-make validate-local           # ruff + pyright + tsc + cdk synth + detect-secrets
+make validate-local           # fast local validation: lint, typecheck, contracts, CDK TS checks, docs/rules sync, secrets diff
 ```
 
 ### Working on issues
@@ -362,7 +356,7 @@ Platform Lambda source directories use `snake_case`. The shared `src/data-access
 | Python testing | pytest and LocalStack |
 | Secrets | AWS Secrets Manager |
 | Configuration | AWS AppConfig for dynamic capability policy; AWS SSM Parameter Store for runtime/platform parameters |
-| Async agents | AgentCore add_async_task and complete_async_task SDK |
+| Async agents | Deferred for v0.2 by ADR-024; future native AgentCore async requires an owned completion path |
 | Observability | AgentCore Observability and Amazon CloudWatch |
 
 ## Key documents

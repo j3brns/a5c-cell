@@ -37,7 +37,8 @@ alternative. Never silently work around them.
 7. Every Lambda: X-Ray tracing, DLQ, structured JSON logging with appid+tenantid.
 8. Every DynamoDB table: PITR, KMS encryption, deletion protection in staging/prod.
 9. AgentCore Runtime is arm64 only. Dependencies cross-compiled aarch64-manylinux2014.
-   Sync limit 15 minutes. Async uses app.add_async_task / app.complete_async_task.
+   Sync and streaming limits are 15 minutes. Async invocation is deferred for v0.2
+   until the platform owns native completion, result persistence, and status delivery.
 10. No impersonation — act-on-behalf only. Original JWT never reaches tool Lambdas.
 11. appid and tenantid on every log line, metric dimension, and trace annotation.
 12. data-access-lib is the only permitted way to access DynamoDB from Lambda handlers.
@@ -267,7 +268,7 @@ Never leave a task in a merge-conflicted state.
 
 | Concern            | Technology                      |
 |--------------------|---------------------------------|
-| Agent runtime      | AgentCore Runtime eu-west-1     |
+| Agent runtime      | AgentCore Runtime eu-west-2     |
 | Human auth         | Microsoft Entra ID OIDC         |
 | Machine auth       | AWS SigV4                       |
 | IaC platform       | CDK TypeScript strict           |
@@ -278,7 +279,7 @@ Never leave a task in a merge-conflicted state.
 | Testing Python     | pytest + LocalStack             |
 | Secrets            | AWS Secrets Manager             |
 | Config             | SSM Parameter Store             |
-| Async agents       | AgentCore add_async_task SDK    |
+| Async agents       | Deferred for v0.2 by ADR-024    |
 | Observability      | AgentCore Observability + CW    |
 
 <!-- gitnexus:start -->

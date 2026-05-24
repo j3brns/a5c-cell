@@ -2,7 +2,7 @@
 
 Status: accepted convention
 
-This contract formalises the ADR-703 P3 pattern for resource identifiers whose
+This contract formalises the ADR-704 P3 pattern for resource identifiers whose
 AWS names vary by account, environment, or region.
 
 ## Terms

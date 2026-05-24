@@ -1,9 +1,11 @@
-# Specification: Developer Experience Separation and ADR-703 Implementation
+# Specification: Developer Experience Separation and ADR-704 Implementation
 
 **Date:** 2026-04-23
+**Status:** Historical implementation specification. Several 8xx tasks have since
+landed; use the Makefile and current guide docs as source of truth for live commands.
 **Source:** Architectural review of sample-bedrock-proxy-gateway vs this platform,
-developer inner loop analysis, ADR-703 decisions.
-**ADRs:** ADR-703 (gateway efficiency patterns)
+developer inner loop analysis, ADR-704 decisions.
+**ADRs:** ADR-704 (gateway efficiency patterns)
 **Related existing tasks:** TASK-705 (granular validation targets — do not duplicate)
 
 ---
@@ -15,7 +17,7 @@ Three work streams, independently deliverable:
 | Stream | Tasks | Summary |
 |--------|-------|---------|
 | 8xx — Developer experience | TASK-801 to 805 | Separate platform engineer and agent developer inner loops |
-| 9xx — ADR-703 capabilities | TASK-901 to 906 | TTFT metric, TPM rate limiting, rate-limit headers, ID mapping |
+| 9xx — ADR-704 capabilities | TASK-901 to 906 | TTFT metric, TPM rate limiting, rate-limit headers, ID mapping |
 | 10xx — Architecture diagrams | TASK-1001 to 1006 | Six missing diagrams identified in architectural review |
 
 ---
@@ -33,10 +35,10 @@ different prerequisites, different tools, and different concerns:
   Inner loop is pure Python: edit `handler.py`, run `make test-agent`. No Docker,
   no CDK, no Node, no LocalStack required.
 
-The current Makefile, `make bootstrap`, and `PLATFORM-SETUP.md` do not make this
-separation explicit. Agent developers are told to run `make dev` (Docker +
-LocalStack) as an optional step — this is misleading and unnecessary for
-handler logic iteration.
+At the time of this spec, the Makefile, `make bootstrap`, and `PLATFORM-SETUP.md`
+did not make this separation explicit. Agent developers were told to run
+`make dev` (Docker + LocalStack) as an optional step, which was misleading and
+unnecessary for handler logic iteration.
 
 Note: TASK-705 covers granular validation targets for the platform engineer path.
 The 8xx tasks do not duplicate that work; they focus on agent developer
@@ -141,7 +143,7 @@ The current guide includes:
   need this for logic iteration and should not be directed toward it.
 - No explicit statement of prerequisites (only `uv`).
 - No mention of the per-agent Makefile.
-- References to `make validate-local` which runs CDK synth — irrelevant to
+- References to platform-wide `make validate-local` — irrelevant to
   agent developers.
 
 **Scope**
@@ -171,35 +173,32 @@ Walkthrough review with someone unfamiliar with the platform.
 
 ---
 
-### TASK-804: Rename PLATFORM-SETUP.md to PLATFORM-SETUP.md and fix references
+### TASK-804: Clarify PLATFORM-SETUP.md as the platform engineer setup guide
 
 **Seq:** 804
 **Depends on:** TASK-803
 
 **Problem**
-`PLATFORM-SETUP.md` reads as the general developer setup guide. It lists Docker,
+`PLATFORM-SETUP.md` can read as the general developer setup guide. It lists Docker,
 Node, CDK, and npm as prerequisites — all of which are platform engineer
 concerns. An agent developer following it would install unnecessary tools.
 After TASK-803 rewrites the agent guide, the link between the two documents
 must be explicit.
 
 **Scope**
-- Rename `docs/development/PLATFORM-SETUP.md` to `docs/development/PLATFORM-SETUP.md`.
 - Add a header callout: "This guide is for platform engineers working on `src/`,
   `infra/`, `spa/`, and `gateway/`. If you are building an agent, see
   `AGENT-DEVELOPER-GUIDE.md` instead."
 - Update all inbound links in `README.md`, `ARCHITECTURE.md`, and any other
   docs that reference `PLATFORM-SETUP.md`.
-- Update `make help` and `make help-platform` to reference `PLATFORM-SETUP.md`.
+- Update `make help` and `make help-all` to reference `PLATFORM-SETUP.md`.
 
 **Acceptance Criteria**
-- [ ] `PLATFORM-SETUP.md` no longer exists; `PLATFORM-SETUP.md` exists in its place.
-- [ ] `grep -r LOCAL-SETUP docs/ README.md` returns no results.
 - [ ] `PLATFORM-SETUP.md` has the agent developer redirect callout at the top.
 
 **Test Plan**
 ```bash
-grep -r "LOCAL-SETUP" docs/ README.md   # must return empty
+rg "LOCAL-SETUP" docs README.md   # must return empty
 ```
 
 ---
@@ -210,9 +209,9 @@ grep -r "LOCAL-SETUP" docs/ README.md   # must return empty
 **Depends on:** TASK-705 (granular validation targets)
 
 **Problem**
-`make validate-local` includes CDK synth, making it ~60-90 seconds. For a
-mid-session edit-verify loop on Python-only changes (Lambda handler edits,
-data-access-lib changes, new tests), the CDK synth is unnecessary friction.
+`make validate-local` is a broad fast validation gate. For a mid-session
+edit-verify loop on Python-only changes (Lambda handler edits,
+data-access-lib changes, new tests), the full gate is unnecessary friction.
 TASK-705 defines granular targets; this task wires the fast subset into a
 named `make lint` shorthand.
 
@@ -222,12 +221,12 @@ named `make lint` shorthand.
 - Add `make lint-watch` using `watchmedo` (from `watchdog`, already a dev dep
   via uv) to re-run `make lint` on changes to `src/**/*.py`, `gateway/**/*.py`,
   `tests/**/*.py`. Exit on first failure.
-- Document both targets in `make help-platform`.
+- Document both targets in the platform-oriented help output.
 
 **Acceptance Criteria**
 - [ ] `make lint` completes in under 15 seconds on a warmed Python environment.
 - [ ] `make lint-watch` re-runs on `.py` file save and exits clearly on failure.
-- [ ] `make validate-local` is unchanged and still includes CDK synth.
+- [ ] `make validate-local` remains the broad fast local validation gate.
 
 **Test Plan**
 ```bash
@@ -237,17 +236,17 @@ make lint-watch &       # touch src/bridge/handler.py; verify re-run fires
 
 ---
 
-## Stream 9xx: ADR-703 Capabilities
+## Stream 9xx: ADR-704 Capabilities
 
 ### Context
 
-ADR-703 records four patterns adopted from the proxy architecture review:
+ADR-704 records four patterns adopted from the proxy architecture review:
 - P1: Token-Per-Minute (TPM) rate limiting — phased, requires Redis
 - P2: Time-to-First-Token (TTFT) metric — immediate, no new infrastructure
 - P3: Logical-to-physical ID mapping — adopt as pattern, defer guardrails
 - P4: Rate-limit consumption headers — contingent on P1 counters
 
-Implementation order from ADR-703:
+Implementation order from ADR-704:
 1. TTFT (P2) — no dependencies
 2. Redis/Valkey infrastructure
 3. TPM log-only counters (P1 phase 1)
@@ -307,7 +306,7 @@ make test-unit                      # must pass
 **Depends on:** none
 
 **Problem**
-ADR-703 P1 (TPM limiting) requires a shared in-memory counter store accessible
+ADR-704 P1 (TPM limiting) requires a shared in-memory counter store accessible
 from all Bridge Lambda instances. The platform has no Redis/Valkey today.
 
 **Scope**
@@ -363,7 +362,7 @@ aws elasticache describe-serverless-caches  # verify cluster state
 **Problem**
 API Gateway usage plans enforce RPM only. Token consumption varies by orders of
 magnitude between requests. A tenant making 10 RPM but with 50K-token prompts
-can exhaust Bedrock quota while staying within RPM limits. ADR-703 requires a
+can exhaust Bedrock quota while staying within RPM limits. ADR-704 requires a
 two-phase approach: log-only first to calibrate estimation accuracy, enforce later.
 
 **Scope**
@@ -372,7 +371,7 @@ two-phase approach: log-only first to calibrate estimation accuracy, enforce lat
   invocation record per ADR-701).
 - Increment a Valkey counter keyed
   `LIMITER/{tenantId}:{modelId}:tpm/{windowExpiry}` using the same fixed-window
-  (60-second bucket) pattern as specified in ADR-703. EXPIRE set to 90 seconds.
+  (60-second bucket) pattern as specified in ADR-704. EXPIRE set to 90 seconds.
 - Also maintain an estimated pre-request counter using character-count
   heuristics (≈4 chars per token) for the pre-request check path that will be
   used in phase 2.
@@ -432,7 +431,7 @@ reject pre-request invocations that would exceed a tenant's TPM limit.
   `inputTokens + outputTokens`). Correction uses a second atomic Lua script:
   subtract the estimate, add actual.
 - Streaming invocations: use the pre-request estimate only (no post-response
-  correction, consistent with ADR-703 accepted limitation). Document this
+  correction, consistent with ADR-704 accepted limitation). Document this
   explicitly in the code.
 - Fail-open on Valkey unavailability (same as TASK-903).
 
@@ -508,7 +507,7 @@ curl -I https://api.dev.platform/v1/invoke/... -H "Authorization: Bearer $JWT"
 As guardrails, inference profiles, and model aliases are introduced in a
 multi-account topology (Option B/C), their AWS physical IDs will vary per
 account and per environment. Without a declared pattern, implementations will
-hardcode physical IDs or invent ad-hoc resolution. ADR-703 P3 requires this
+hardcode physical IDs or invent ad-hoc resolution. ADR-704 P3 requires this
 pattern to be established before any new resource type is added.
 
 **Scope**
@@ -534,7 +533,7 @@ This task is documentation and convention only — no new Lambda code.
   # REQUIRED: resolve via registry
   guardrail_id = registry.resolve("baseline-security", account_id)
   ```
-- Add a one-paragraph note to ADR-703 P3 section linking to the new contract
+- Add a one-paragraph note to ADR-704 P3 section linking to the new contract
   document.
 
 **Acceptance Criteria**
@@ -720,7 +719,7 @@ for security correctness but are not obvious from the table alone.
 **Problem**
 ADR-701 defines the authoritative metering fields. There is no diagram showing
 how token counts flow from the invocation through to tenant billing summaries.
-This is a gap for compliance reviews and for implementing the ADR-703 TPM work
+This is a gap for compliance reviews and for implementing the ADR-704 TPM work
 (TASK-903 needs to understand where actual token counts come from).
 
 **Scope**
@@ -774,7 +773,7 @@ This is a gap for compliance reviews and for implementing the ADR-703 TPM work
 make issue-create TITLE='TASK-801: Add bootstrap-agent and help-agent Makefile targets' SEQ=801
 make issue-create TITLE='TASK-802: Add per-agent Makefile scaffold' SEQ=802
 make issue-create TITLE='TASK-803: Rewrite AGENT-DEVELOPER-GUIDE for clean persona separation' SEQ=803
-make issue-create TITLE='TASK-804: Rename PLATFORM-SETUP.md to PLATFORM-SETUP.md' SEQ=804
+make issue-create TITLE='TASK-804: Clarify PLATFORM-SETUP.md as the platform engineer setup guide' SEQ=804
 make issue-create TITLE='TASK-805: Add make lint fast-path for platform engineers' SEQ=805
 
 # Stream 9xx

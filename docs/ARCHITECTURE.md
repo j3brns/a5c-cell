@@ -268,7 +268,8 @@ The platform exposes two public endpoints to tenants and end users:
 
 ## Invocation Modes
 
-Two modes, declared in agent `pyproject.toml` under `[tool.agentcore.invocation_mode]`.
+Two modes, declared in agent `pyproject.toml` under `[tool.agentcore]` as
+`invocation_mode`.
 Never inferred. Bridge Lambda routes based on declared mode.
 See [ADR-005](decisions/ADR-005-declared-invocation-mode.md).
 
@@ -582,7 +583,7 @@ Operational consumers:
 - TTL: 90 days. Capacity: on-demand (unpredictable volume)
 - Hot partition protection: SK includes random jitter suffix for high-volume tenants
 
-**platform-jobs** — async job tracking
+**platform-jobs** — terminal job record tracking for deferred async surfaces
 - PK: `TENANT#{tenantId}`, SK: `JOB#{jobId}`
 - Attributes: jobId, tenantId, agentName, status, createdAt, startedAt,
   completedAt, resultS3Key, errorMessage, webhookUrl, webhookDelivered
@@ -747,7 +748,7 @@ flowchart LR
 
 ## CDK Stack Dependencies
 
-![CDK stack deployment order: Network → Identity → Storage → SPA → EdgeSecurity (us-east-1) → Platform → Tenant → Observability → AgentCore](images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
+![CDK stack deployment order: Network → Identity → Storage → SPA → Platform → EdgeSecurity (us-east-1) → Tenant → Observability → AgentCore](images/tf_acore_aas_cdk_stack_dependencies.drawio.png)
 
 **Audience-specific views:**
 - [Engineer CDK dependencies](images/tf_acore_aas_cdk_dependencies_engineer.drawio.png) — code-level dependency relationships
@@ -763,8 +764,8 @@ See [ADR-007](decisions/ADR-007-cdk-terraform.md) for the CDK vs Terraform split
 | 2 | IdentityStack (`platform-identity-{env}`) | eu-west-2 | GitLab OIDC WIF roles, Entra JWKS runtime config |
 | 3 | PlatformStorageStack (`platform-storage-{env}`) | eu-west-2 | DynamoDB tables, AppConfig application, capability profile, deployment strategy |
 | 4 | PlatformSpaStack (`platform-spa-{env}`) | eu-west-2 | SPA S3 bucket, CloudFront distribution, CSP response headers |
-| 5 | PlatformEdgeSecurityStack (`platform-edge-security-{env}`) | us-east-1 | CloudFront-scope WAF web ACL for SPA; must deploy before PlatformStack |
-| 6 | PlatformStack (`platform-core-{env}`) | eu-west-2 | REST API, WAF, Bridge, BFF, Authoriser, AgentCore Gateway; attaches SPA web ACL via `spaWebAclArn` context |
+| 5 | PlatformStack (`platform-core-{env}`) | eu-west-2 | REST API, WAF, Bridge, BFF, Authoriser, AgentCore Gateway; exports SPA CloudFront distribution metadata |
+| 6 | PlatformEdgeSecurityStack (`platform-edge-security-{env}`) | us-east-1 | CloudFront-scope WAF web ACL for SPA; consumes SPA distribution metadata from PlatformStack |
 | 7 | TenantStack (`platform-tenant-{tenantId}-{env}`) | eu-west-2 | Per-tenant execution role, memory store, usage plan key, SSM |
 | 8 | ObservabilityStack (`platform-observability-{env}`) | eu-west-2 | Dashboards, alarms, monitoring-account OAM sink only |
 | 9 | AgentCoreStack (`platform-agentcore-{env}`) | eu-west-2 | Runtime config; VPC mode; no cross-region metric stream |
