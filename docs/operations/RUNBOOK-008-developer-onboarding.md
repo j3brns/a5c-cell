@@ -48,7 +48,7 @@ make agent-invoke AGENT=my-first-agent TENANT=t-test-001 ENV=dev PROMPT="hello w
 Developer is considered onboarded when:
 - make dev works on their machine
 - They can push a modified echo agent to dev in <30 seconds
-- They can explain the three invocation modes (sync/streaming/async)
+- They can explain the two supported v0.2 invocation modes (sync/streaming) and why async is deferred by ADR-024
 - They know to read the relevant ADR before reversing an architectural decision
 
 ## Common Issues

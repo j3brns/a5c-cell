@@ -1,5 +1,9 @@
 # Local Development Setup
 
+This guide is for platform engineers working on `src/`, `infra/`, `spa/`, and
+`gateway/`. If you are building only an agent under `agents/<name>/`, start with
+[AGENT-DEVELOPER-GUIDE.md](AGENT-DEVELOPER-GUIDE.md) instead.
+
 ## Prerequisites
 
 | Tool         | Version    | Install                                               |
@@ -8,9 +12,9 @@
 | Docker       | 24+        | https://docs.docker.com/get-docker/                   |
 | Git          | 2.30+      | system package manager                                |
 | Node         | 20 LTS     | Handled by `make bootstrap-platform` (or nvm)         |
-| AWS CLI      | v2         | Handled by `make bootstrap-platform` (manifest-based) |
-| glab         | latest     | Handled by `make bootstrap-platform` (manifest-based) |
-| cfn-guard    | v3         | Handled by `make bootstrap-platform` (manifest-based) |
+| AWS CLI      | v2         | Required locally; verify with `make ensure-tools`      |
+| glab         | latest     | Required for issue/MR workflows; verify with `make ensure-tools` |
+| cfn-guard    | v3         | Required for guard validation; verify with `make ensure-tools` |
 
 ## .env.local Values
 
@@ -67,18 +71,20 @@ Use `make test-int` for a stronger end-to-end check once the local stack is runn
 
 After `make dev`, two test tenants are available. Their tenant IDs and JWTs are in `.env.test`:
 
-| Variable              | Value      | Purpose  |
-|-----------------------|------------|----------|
-| BASIC_TENANT_JWT      | t-test-001 | basic    |
-| PREMIUM_TENANT_JWT    | t-test-002 | premium  |
-| ADMIN_JWT             | t-test-001 | Platform.Admin |
+| Variable              | Value format | Purpose  |
+|-----------------------|--------------|----------|
+| BASIC_TENANT_ID       | `t-test-001` | basic tenant ID |
+| BASIC_TENANT_JWT      | JWT string   | basic tenant token |
+| PREMIUM_TENANT_ID     | `t-test-002` | premium tenant ID |
+| PREMIUM_TENANT_JWT    | JWT string   | premium tenant token |
+| ADMIN_JWT             | JWT string   | Platform.Admin token |
 
 Use these with `make dev-invoke` for the local bridge path, or in your tests via `conftest.py`.
 
 ## Running Tests
 
 ```bash
-make test-unit      # All Lambda unit tests against LocalStack
+make test-unit      # Unit tests for Lambda and shared Python code
 make test-int       # Integration tests (requires make dev running)
 make agent-test AGENT=echo-agent    # Tests for a specific agent
 ```

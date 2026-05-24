@@ -14,7 +14,8 @@ AgentCore Runtime natively supports:
 - Asynchronous via app.add_async_task / app.complete_async_task (max 8 hours)
 
 ## Decision
-Agent declares its invocation mode in pyproject.toml [tool.agentcore.invocation_mode].
+Agent declares its invocation mode in `pyproject.toml` under `[tool.agentcore]` as
+`invocation_mode`.
 The original accepted values were sync, streaming, and async. ADR-024 narrows the
 v0.2 supported set to sync and streaming. Bridge Lambda reads from agent registry
 (DynamoDB) and routes accordingly. No runtime detection.

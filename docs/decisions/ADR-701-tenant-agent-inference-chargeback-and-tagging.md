@@ -21,7 +21,7 @@ strategy spanning:
 - future downstream gateway or proxy-based model invocation
 
 The architecture also has an important near-term default:
-- inference is expected to run in the `a5c-cell` / `tf-acore-aas` account path
+- inference is expected to run in the platform account path
   by default
 - downstream inference through a dedicated model gateway may be introduced later
   as a phased evolution
@@ -67,7 +67,7 @@ The platform adopts a two-layer chargeback model:
    - It must carry tenant, app, agent, and model attribution dimensions
 
 3. **Current default**
-   - While inference remains in the `a5c-cell` / `tf-acore-aas` account path,
+   - While inference remains in the platform account path,
      `a5c-cell` is both:
      - the attribution owner
      - the authoritative inference meter

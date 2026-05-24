@@ -8,7 +8,7 @@ The platform currently provides a unified `platform-cli` (implemented via `scrip
 1.  **Platform Engineers/Operators:** Responsible for infrastructure (CDK, Terraform), platform-wide operations, and tenant management.
 2.  **Agent Developers:** Responsible for building, testing, and deploying AI agents within their respective tenant contexts.
 
-As identified in the Developer Experience specification (`docs/SPEC-DEV-EXPERIENCE-AND-ADR703.md`), this unified approach has several drawbacks:
+As identified in the Developer Experience specification (`docs/SPEC-DEV-EXPERIENCE-AND-ADR704.md`), this unified approach has several drawbacks:
 -   **Dependency Bloat:** Agent developers are forced to install platform-level dependencies (CDK, Docker, Node.js) that are unnecessary for agent logic iteration.
 -   **Persona Conflation:** The CLI help and command structure expose administrative operations to developers and developer tools to operators, creating confusion and increasing the surface area for accidental misconfiguration.
 -   **Security Boundaries:** Platform operations require high-privilege credentials (`Platform.Admin`), whereas agent development should operate within more restrictive, tenant-scoped boundaries.
@@ -40,12 +40,12 @@ We will split the unified `platform-cli` into two independent, purpose-built CLI
     platform-cli = "scripts.platform_cli:app"
     agent-cli = "scripts.agent_cli:app"
     ```
--   **Makefile Integration:** The root `Makefile` will provide disambiguated targets (e.g., `make help-platform` vs. `make help-agent`) as specified in the DevEx stream (TASK-801).
+-   **Makefile Integration:** The root `Makefile` will provide disambiguated targets (e.g., `make help` / `make help-all` vs. `make help-agent`) as specified in the DevEx stream (TASK-801).
 
 ### Implementation Backlog
 The following tasks are identified to fulfill the CLI split, ordered by dependency:
 
-1.  **DevEx Stream 8xx**: Implement `make bootstrap-agent`, per-agent Makefiles, and doc updates as defined in `docs/SPEC-DEV-EXPERIENCE-AND-ADR703.md` (TASK-801 to 804).
+1.  **DevEx Stream 8xx**: Implement `make bootstrap-agent`, per-agent Makefiles, and doc updates as defined in `docs/SPEC-DEV-EXPERIENCE-AND-ADR704.md` (TASK-801 to 804).
 2.  **Issue Tool Modularization (TASK-701)**: Complete the extraction of the 4,500-line `scripts/issue_tool/cli.py` monolith into purpose-built modules:
     -   **Phase 1: specialized integrations**: Extract GitNexus and Pre-provisioning logic.
     -   **Phase 2: Core Worktree Ops**: Extract worktree management and terminal multiplexer (tmux/zellij) logic.

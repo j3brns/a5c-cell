@@ -96,7 +96,7 @@
 (no guard)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;dashPattern=7 4;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#D97706;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="td" target="ta" parent="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e6" value="create async job" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2563EB;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="jp" target="jr" parent="1">
+        <mxCell id="e6" value="terminal job transition" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2563EB;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="jp" target="jr" parent="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="e7" value="ping=Healthy" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#059669;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="jr" target="jc" parent="1">

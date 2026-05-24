@@ -1,6 +1,6 @@
 # AgentCore Multitenant Compliance Context
 Generated: 2026-03-03
-Repository: tf-acore-aas
+Repository: current checkout
 
 ## External References
 - https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-sessions.html

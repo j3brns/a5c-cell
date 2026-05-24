@@ -25,7 +25,7 @@ export class IdentityStack extends cdk.Stack {
     super(scope, id, props);
 
     const envName = this.requiredContext('env');
-    const gitlabProjectPath = this.optionalContext('gitlabProjectPath') ?? 'j3brns/tf-acore-aas';
+    const gitlabProjectPath = this.requiredContext('gitlabProjectPath');
     const gitlabOidcAudience = this.optionalContext('gitlabOidcAudience') ?? 'sts.amazonaws.com';
     const cdkBootstrapQualifier = this.optionalContext('cdkBootstrapQualifier') ?? 'hnb659fds';
     const deployBranch = this.optionalContext('gitlabDeployBranch') ?? 'main';
