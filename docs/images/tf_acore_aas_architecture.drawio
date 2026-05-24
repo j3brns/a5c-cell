@@ -29,7 +29,7 @@
         <mxCell id="home" value="Home Region: eu-west-2 (London)" style="swimlane;startSize=30;rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#2563EB;strokeWidth=2;fontStyle=1;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="awsroot">
           <mxGeometry x="24" y="56" width="1790" height="1480" as="geometry"/>
         </mxCell>
-        <mxCell id="runtime_region" value="Runtime Region: eu-west-1 (Dublin)" style="swimlane;startSize=30;rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#059669;strokeWidth=2;fontStyle=1;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="awsroot">
+        <mxCell id="runtime_region" value="Runtime Region: eu-west-2 (London)" style="swimlane;startSize=30;rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#059669;strokeWidth=2;fontStyle=1;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="awsroot">
           <mxGeometry x="1840" y="56" width="500" height="620" as="geometry"/>
         </mxCell>
         <mxCell id="eval_region" value="Evaluation Region: eu-central-1 (Frankfurt)" style="swimlane;startSize=30;rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#7C3AED;strokeWidth=2;fontStyle=1;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="awsroot">
@@ -109,8 +109,8 @@ Memory" style="sketch=0;outlineConnect=0;fontColor=#1f2937;gradientColor=#7F8DFF
 Identity" style="sketch=0;outlineConnect=0;fontColor=#1f2937;gradientColor=#FF5757;gradientDirection=north;fillColor=#DD344C;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.identity_and_access_management;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="control">
           <mxGeometry x="1180" y="300" width="92" height="92" as="geometry"/>
         </mxCell>
-        <mxCell id="failover" value="Failover config
-SSM + lock protocol" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;strokeWidth=2;fontStyle=1;align=center;verticalAlign=middle;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="control">
+        <mxCell id="failover" value="Runtime degradation
+RUNBOOK-001" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;strokeWidth=2;fontStyle=1;align=center;verticalAlign=middle;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="control">
           <mxGeometry x="1330" y="284" width="360" height="130" as="geometry"/>
         </mxCell>
         <mxCell id="runtime" value="AgentCore Runtime" style="sketch=0;outlineConnect=0;fontColor=#1f2937;gradientColor=#F3A847;gradientDirection=north;fillColor=#E96900;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="runtime_region">
@@ -131,7 +131,7 @@ SSM + lock protocol" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;s
         <mxCell id="policy" value="Policy / Guardrails" style="sketch=0;outlineConnect=0;fontColor=#1f2937;gradientColor=#7BC043;gradientDirection=north;fillColor=#1D8102;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.step_functions;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="eval_region">
           <mxGeometry x="280" y="160" width="92" height="92" as="geometry"/>
         </mxCell>
-        <mxCell id="legend" value="Legend: Blue=request flow | Green=runtime flow | Purple=async/events | Amber dashed=operational failover" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="home">
+        <mxCell id="legend" value="Legend: Blue=request flow | Green=runtime flow | Purple=terminal job/webhook events | Amber dashed=degradation signal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="home">
           <mxGeometry x="30" y="1370" width="1730" height="72" as="geometry"/>
         </mxCell>
         <mxCell id="e1" value="web" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#2563EB;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="user" target="cf" parent="1">
@@ -158,7 +158,7 @@ SSM + lock protocol" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;s
         <mxCell id="e8" value="temp creds" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#334155;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="sts" target="tenant_role" parent="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e9" value="sync/stream/async" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#059669;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="bridge" target="runtime" parent="1">
+        <mxCell id="e9" value="sync/stream" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#059669;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="bridge" target="runtime" parent="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="e10" value="tool calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#059669;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="runtime" target="gateway" parent="1">
@@ -238,7 +238,7 @@ SSM + lock protocol" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;s
         <mxCell id="e24" value="policy eval" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#7C3AED;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="eval" target="policy" parent="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e25" value="failover toggle" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;dashPattern=7 4;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#D97706;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="failover" target="runtime" parent="1">
+        <mxCell id="e25" value="degradation response" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;dashPattern=7 4;html=1;jettySize=auto;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#D97706;fontSize=11;fontFamily=Inter;fontColor=#0F172A;" edge="1" source="failover" target="runtime" parent="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2310" y="820"/>

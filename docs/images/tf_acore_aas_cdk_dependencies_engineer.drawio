@@ -101,7 +101,7 @@
           <mxGeometry x="300" y="130" width="92" height="92" as="geometry"/>
         </mxCell>
         <mxCell id="a3" value="Region guard
-eu-west-1" style="sketch=0;outlineConnect=0;fontColor=#1f2937;gradientColor=#7BC043;gradientDirection=north;fillColor=#1D8102;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.step_functions;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="astack">
+eu-west-2" style="sketch=0;outlineConnect=0;fontColor=#1f2937;gradientColor=#7BC043;gradientDirection=north;fillColor=#1D8102;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.step_functions;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="astack">
           <mxGeometry x="235" y="300" width="92" height="92" as="geometry"/>
         </mxCell>
         <mxCell id="legend" value="Legend: Solid gray = explicit code dependency. Dashed amber = operational/deployment/event relationship." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;strokeWidth=2;align=center;verticalAlign=middle;fontFamily=Inter;fontColor=#0F172A;" vertex="1" parent="1">

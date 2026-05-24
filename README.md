@@ -255,7 +255,7 @@ make dev-invoke               # Confirm echo-agent works end-to-end locally
 │   ├── bff/                   Token refresh and session keepalive
 │   ├── tenant_api/            Tenant CRUD API
 │   ├── billing/               Billing and metering handlers
-│   ├── webhook_delivery/      Async result delivery
+│   ├── webhook_delivery/      Terminal job webhook delivery
 │   └── data-access-lib/       Tenant-scoped DynamoDB and S3 access library
 ├── spa/                       React SPA frontend
 ├── infra/
