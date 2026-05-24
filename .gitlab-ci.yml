@@ -15,20 +15,21 @@ stages:
 
 workflow:
   rules:
-    # GitLab CI is paused by default while repository development uses local
-    # validation through MR creation. Set GITLAB_PIPELINES_ENABLED=1 to re-enable
-    # branch/MR pipelines without changing this file.
-    - if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_PIPELINE_SOURCE == "merge_request_event"
-    # Avoid paying for both a branch pipeline and an MR pipeline for the same commit
-    # when CI is explicitly re-enabled.
-    - if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+    # Branch and MR validation run by default. Setting GITLAB_PIPELINES_ENABLED=0
+    # is the explicit break-glass path for temporarily pausing GitLab CI.
+    - if: $GITLAB_PIPELINES_ENABLED == "0"
       when: never
-    - if: $GITLAB_PIPELINES_ENABLED == "1" && $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Avoid paying for both a branch pipeline and an MR pipeline for the same commit
+    # while keeping merge-request validation active.
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
     - when: never
 
 variables:
   AWS_REGION: "eu-west-2"
-  GITLAB_PIPELINES_ENABLED: "0"
+  GITLAB_PIPELINES_ENABLED: "1"
   UV_LINK_MODE: "copy"
   CANARY_POLICY_DEV: "all-at-once"
   CANARY_POLICY_STAGING: "canary-10%-30m"
@@ -223,6 +224,11 @@ default:
     - if: $CI_COMMIT_BRANCH == "main"
       changes: *deployable_changes
 
+.main_push_deployable_change_rules:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+      changes: *deployable_changes
+
 .main_agent_pipeline_change_rules:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -246,11 +252,16 @@ validate:
   stage: validate
   extends: .tools_base
   script:
-    - make generated-state-audit
-    - make docs-sync-audit
-    - make validate-python
-    - make validate-cdk
-    - make validate-secrets-full
+    - |
+      if [ "${CI_COMMIT_BRANCH:-}" = "main" ]; then
+        make generated-state-audit
+        make docs-sync-audit
+        make validate-python
+        make validate-cdk
+        make validate-secrets-full
+      else
+        make validate-pre-push
+      fi
   interruptible: true
   rules:
     - !reference [.platform_change_rules, rules]
@@ -288,7 +299,8 @@ test-integration:
   script:
     - make test-int
   rules:
-    - !reference [.python_change_rules, rules]
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+      changes: *python_changes
 
 test-cdk:
   extends: .test_job_base
@@ -342,7 +354,7 @@ plan-infra:
       - staging-diff.txt
       - prod-diff.txt
   rules:
-    - !reference [.deployable_change_rules, rules]
+    - !reference [.main_push_deployable_change_rules, rules]
 
 # --- DEPLOY DEV ---
 
