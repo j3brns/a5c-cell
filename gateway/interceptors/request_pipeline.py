@@ -38,6 +38,12 @@ def _effective_tenant_id(*, tenant_id: str, tool_name: str | None, roles: set[st
     return tenant_id
 
 
+def _safe_header_value(name: str, value: str) -> str:
+    if "\r" in value or "\n" in value:
+        raise ValueError(f"Invalid newline in injected header {name}")
+    return value
+
+
 def process_request(
     event: dict[str, Any],
     *,
@@ -142,14 +148,27 @@ def process_request(
         mcp_session_id=get_header(request_headers, "Mcp-Session-Id"),
         mcp_request_id=jsonrpc_id,
     )
+    try:
+        injected_headers = {
+            "Authorization": f"Bearer {_safe_header_value('Authorization', scoped_token)}",
+            "x-tenant-id": _safe_header_value("x-tenant-id", tenant_id),
+            "x-app-id": _safe_header_value("x-app-id", app_id),
+            "x-tier": _safe_header_value("x-tier", tier),
+            "x-acting-sub": _safe_header_value("x-acting-sub", acting_sub),
+        }
+    except ValueError:
+        logger.warning("Rejected unsafe injected gateway header value")
+        return error_response(
+            gateway_request=gateway_request,
+            request_id=jsonrpc_id,
+            status_code=401,
+            code=-32001,
+            message="Invalid tenant context in token",
+        )
     transformed_headers = {
         key: value for key, value in request_headers.items() if key.lower() != "authorization"
     }
-    transformed_headers["Authorization"] = f"Bearer {scoped_token}"
-    transformed_headers["x-tenant-id"] = tenant_id
-    transformed_headers["x-app-id"] = app_id
-    transformed_headers["x-tier"] = tier
-    transformed_headers["x-acting-sub"] = acting_sub
+    transformed_headers.update(injected_headers)
     transformed_request = dict(gateway_request)
     transformed_request["headers"] = transformed_headers
     transformed_request["body"] = request_body

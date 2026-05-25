@@ -463,6 +463,35 @@ def test_request_interceptor_missing_tenant_context_returns_401(
     assert "tenant context" in response["body"]["error"]["message"].lower()
 
 
+@patch("gateway.interceptors.request_interceptor.get_jwk_client")
+@patch("gateway.interceptors.request_interceptor.get_tool_record")
+def test_request_interceptor_rejects_newlines_in_injected_headers(
+    mock_get_tool_record, mock_get_jwk_client, mock_env, lambda_context
+):
+    event = _base_event()
+    payload = {
+        **_valid_payload(),
+        "sub": "user-123\r\nx-extra: injected",
+    }
+    mock_get_tool_record.return_value = {
+        "tool_name": "echo",
+        "tier_minimum": "basic",
+        "enabled": True,
+    }
+    mock_get_jwk_client.return_value = MagicMock(
+        get_signing_key_from_jwt=MagicMock(return_value=MagicMock(key="pub-key"))
+    )
+
+    with patch("jwt.decode", return_value=payload):
+        result = request_interceptor.handler(event, lambda_context)
+
+    response = result["mcp"]["transformedGatewayResponse"]
+    assert response["statusCode"] == 401
+    assert response["body"]["error"]["message"] == "Invalid tenant context in token"
+    headers = result["mcp"]["transformedGatewayRequest"]["headers"]
+    assert "x-acting-sub" not in headers
+
+
 # ---------------------------------------------------------------------------
 # Missing or malformed Authorization header
 # ---------------------------------------------------------------------------
