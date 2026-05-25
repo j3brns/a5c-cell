@@ -555,6 +555,12 @@ def test_cmd_finish_close_json_prints_closeout_report(monkeypatch, capsys, tmp_p
         branch="wt/task/153-sample",
         is_primary=False,
     )
+    primary = models.WorktreeInfo(
+        path=root,
+        head="def456",
+        branch="main",
+        is_primary=True,
+    )
     report_path = root / ".build" / "worktree-closeouts" / "issue-153-wt_task_153-sample.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_payload = {
@@ -574,22 +580,36 @@ def test_cmd_finish_close_json_prints_closeout_report(monkeypatch, capsys, tmp_p
         "stage": "complete",
         "worktree_path": str(target.path),
     }
+    removed = False
 
     monkeypatch.setattr(git_utils, "repo_root", lambda: root)
-    monkeypatch.setattr(worktree, "list_worktrees", lambda _root: [target])
-    monkeypatch.setattr(worktree, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(git_utils, "current_path", lambda: target.path)
+    monkeypatch.setattr(
+        worktree, "list_worktrees", lambda _root: [primary] if removed else [target]
+    )
+
+    def _resolve_current_worktree(path, worktrees):
+        for candidate in worktrees:
+            if candidate.path == path:
+                return candidate
+        raise AssertionError("target worktree was resolved after cleanup")
+
+    monkeypatch.setattr(worktree, "resolve_current_worktree", _resolve_current_worktree)
     monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
     monkeypatch.setattr(
         closeout, "closeout_report_path", lambda _root, _target, **_kwargs: report_path
     )
     from scripts.issue_tool.commands import finish
 
+    def _close_issue_done(*_args, **_kwargs):
+        nonlocal removed
+        report_path.write_text(json.dumps(report_payload, indent=2) + "\n", encoding="utf-8")
+        removed = True
+
     monkeypatch.setattr(
         finish.common,
         "close_issue_done",
-        lambda *_args, **_kwargs: report_path.write_text(
-            json.dumps(report_payload, indent=2) + "\n", encoding="utf-8"
-        ),
+        _close_issue_done,
     )
 
     rc = worktree_issues.cmd_finish_close(argparse.Namespace(path=None, force=False, json=True))
