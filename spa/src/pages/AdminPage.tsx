@@ -112,7 +112,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ initialSection = "overview
     try {
       const client = getApiClient(getAccessToken);
       const response = await client.request<AuditExportResponseDto>(`/v1/tenants/${tenantId}/audit-export`);
-      window.open(response.downloadUrl, "_blank");
+      window.open(response.downloadUrl, "_blank", "noopener,noreferrer");
       notify({
         title: "Export Started",
         message: "Your audit export is downloading in a new tab.",
