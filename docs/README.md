@@ -25,6 +25,7 @@ already exists.
 | Issues, task status, dependencies, and closeout | GitLab Issues ordered by `Seq:` and gated by `Depends on:`; see [CLAUDE.md](../CLAUDE.md) | `make issue-queue`; for active work, `glab issue view <issue>` |
 | Assistant workflow and stop conditions | [CLAUDE.md](../CLAUDE.md); [AGENTS.md](../AGENTS.md) is a pointer for tools that look there | `make rules-sync-audit` |
 | Delivery commands and validation recipes | Root [Makefile](../Makefile) and `platform-cli validate` implementation | `make help`; `make validate-local`; `make validate-pre-push` |
+| Advisory static bug scanning | [UBS Static Analysis Pre-Check](development/UBS-STATIC-ANALYSIS.md) and the pinned runner in `scripts/ensure_ubs.py` | `make ensure-ubs`; `make validate-ubs` |
 | Version and documentation sync stamp | `pyproject.toml`, package manifests/lockfiles, `docs/openapi.yaml`, and [DOCS_SYNC.json](DOCS_SYNC.json) | `make docs-sync-audit`; use `make docs-sync-stamp` only for an intentional release checkpoint |
 | CDK topology, stack order, and region placement | [ARCHITECTURE.md](ARCHITECTURE.md), [ADR-023](decisions/ADR-023-v0-2-secure-deployment-contract.md), and current CDK construct tests | `make validate-cdk-ts-local`; `make generated-state-audit` |
 | Runtime region, AgentCore availability, and other AWS service claims | Accepted ADRs plus dated AWS documentation citations in the changed doc or ADR | Re-check AWS docs on the day of the change and record the access date when the claim can change |

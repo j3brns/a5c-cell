@@ -281,6 +281,7 @@ make dev                      # Start LocalStack and mock services
 make test-unit                # Run all unit tests
 export APPCONFIG_EXTENSION_LAYER_ARN=<aws-managed-arm64-layer-arn-for-region>
 make validate-local           # fast local validation: lint, typecheck, contracts, CDK TS checks, docs/rules sync, secrets diff
+make validate-ubs             # optional pinned UBS diff scan for likely bug patterns
 ```
 
 ### Working on issues
@@ -296,6 +297,7 @@ make worktree                 # Interactive worktree menu
 make wt-go                    # Create next runnable worktree and launch zellij session
 make preflight-session        # Branch and issue policy checks
 make pre-validate-session     # Fast pre-push validation without cdk synth
+make validate-ubs             # Optional agent/local bug-pattern pre-check
 make worktree-push-issue      # Push with preflight and validation enforced
 ```
 
