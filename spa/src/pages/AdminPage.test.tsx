@@ -219,6 +219,76 @@ describe("AdminPage", () => {
     });
   });
 
+  it("reports audit export failures without opening a tab", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(healthOk)
+      .mockResolvedValueOnce(richTenantRows)
+      .mockResolvedValueOnce(quotaRows)
+      .mockResolvedValueOnce({ tenants: [] })
+      .mockResolvedValueOnce({ events: [] })
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(new Error("audit failed"));
+
+    await renderAdminPageWithData(request);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "View" })[0]);
+    expect(await screen.findByText("Tenant Details")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /export invocation audit/i }));
+
+    await waitFor(() => {
+      expect(notifyMock).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Export Failed",
+        message: "audit failed",
+        severity: "error",
+      }));
+    });
+    expect(openMock).not.toHaveBeenCalled();
+  });
+
+  it("suspends the selected active tenant from the drawer", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(healthOk)
+      .mockResolvedValueOnce(richTenantRows)
+      .mockResolvedValueOnce(quotaRows)
+      .mockResolvedValueOnce({ tenants: [] })
+      .mockResolvedValueOnce({ events: [] })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ tenantId: "t-001", status: "suspended" })
+      .mockResolvedValueOnce(healthOk)
+      .mockResolvedValueOnce({
+        items: [
+          { ...richTenantRows.items[0], status: "suspended" },
+          richTenantRows.items[1],
+        ],
+      })
+      .mockResolvedValueOnce(quotaRows)
+      .mockResolvedValueOnce({ tenants: [] })
+      .mockResolvedValueOnce({ events: [] })
+      .mockResolvedValueOnce(null);
+
+    await renderAdminPageWithData(request);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "View" })[0]);
+    expect(await screen.findByText("Tenant Details")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /suspend tenant access/i }));
+
+    await waitFor(() => {
+      expect(request).toHaveBeenCalledWith("/v1/tenants/t-001", expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ status: "suspended" }),
+      }));
+    });
+    expect(notifyMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Tenant Updated",
+      message: "Tenant t-001 is now suspended.",
+      severity: "success",
+    }));
+  });
+
   it("renders populated operations panels and closes the drawer from the backdrop", async () => {
     const request = vi
       .fn()
