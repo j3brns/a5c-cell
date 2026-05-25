@@ -92,7 +92,32 @@ def _run_json(args: list[str], *, root: Path) -> object:
             f"glab command failed ({exc.returncode}): {' '.join(cmd)}\n"
             f"{(exc.stderr or exc.stdout or '').strip()}"
         ) from exc
-    return json.loads(proc.stdout) if proc.stdout.strip() else {}
+    return _parse_glab_json(proc.stdout) if proc.stdout.strip() else {}
+
+
+def _parse_glab_json(stdout: str) -> object:
+    """Parse glab JSON, including --paginate output with concatenated page arrays."""
+    text = stdout.strip()
+    decoder = json.JSONDecoder()
+    values: list[object] = []
+    index = 0
+
+    while index < len(text):
+        value, end = decoder.raw_decode(text, index)
+        values.append(value)
+        index = end
+        while index < len(text) and text[index].isspace():
+            index += 1
+
+    if len(values) == 1:
+        return values[0]
+    if all(isinstance(value, list) for value in values):
+        merged: list[object] = []
+        for value in values:
+            if isinstance(value, list):
+                merged.extend(value)
+        return merged
+    return values
 
 
 def _run_text(cmd: list[str], *, root: Path) -> str:

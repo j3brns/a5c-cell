@@ -57,3 +57,17 @@ def test_merge_request_for_branch_normalises_merged_result(monkeypatch, tmp_path
     assert result["number"] == 42
     assert result["url"] == "https://example.com/mr/42"
     assert result["mergedAt"] == "2026-01-01T00:00:00Z"
+
+
+def test_run_json_flattens_glab_paginated_concatenated_arrays(monkeypatch, tmp_path) -> None:
+    payload = (
+        '[{"iid": 1, "title": "first"}]'
+        '[{"iid": 2, "title": "second"}, {"iid": 3, "title": "third"}]'
+    )
+    monkeypatch.setattr(tracker_client, "run", lambda *_a, **_kw: _Completed(stdout=payload))
+    monkeypatch.setattr(tracker_client, "tracker_available", lambda: True)
+
+    result = tracker_client._run_json(["api", "projects/owner%2Frepo/issues"], root=tmp_path)
+
+    assert isinstance(result, list)
+    assert [item["iid"] for item in result] == [1, 2, 3]
