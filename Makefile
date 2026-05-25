@@ -3,11 +3,11 @@
 # Run `make help` for a grouped summary, or `make help-all` for the full dump
 # =============================================================================
 
-.PHONY: help help-agent help-all bootstrap bootstrap-platform bootstrap-agent ensure-tools worktree-probe validate-local validate-local-full
+.PHONY: help help-agent help-all bootstrap bootstrap-platform bootstrap-agent bootstrap-runtime container-runtime-audit ensure-tools worktree-probe validate-local validate-local-full
 .PHONY: validate-local-prereqs validate-lint validate-typecheck validate-unit validate-contract validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
 .PHONY: validate-pre-push validate-secrets-diff validate-secrets-push validate-secrets-full
 .PHONY: docs-sync-audit docs-sync-stamp generated-state-audit rules-sync-audit
-.PHONY: dev dev-stop dev-logs dev-invoke
+.PHONY: dev dev-compose dev-native dev-prereqs dev-stop dev-logs dev-mocks-start dev-mocks-stop dev-api dev-api-start dev-api-stop dev-invoke
 .PHONY: test-unit test-int test-agent test-all
 .PHONY: worktree-create worktree-list worktree-clean
 .PHONY: infra-synth infra-diff infra-deploy infra-deploy-prod-ci infra-destroy
@@ -32,6 +32,10 @@
 
 ENV ?= dev
 WT_PATH_ARG = $(if $(filter command line,$(origin WT_PATH)),--path "$(WT_PATH)",)
+LOCAL_AWS_ENDPOINT ?= http://localhost:4566
+LOCAL_AWS_REGION ?= eu-west-2
+LOCAL_AWS_ACCESS_KEY_ID ?= 000000000000
+LOCAL_AWS_SECRET_ACCESS_KEY ?= test
 
 # Default target
 all: help
@@ -48,6 +52,7 @@ help:
 		echo "  Setup"; \
 		ex "bootstrap-platform" "full setup for platform engineers (Docker, Node, CDK)"; \
 		ex "bootstrap-agent" "minimal setup for agent developers (uv only)"; \
+		ex "bootstrap-runtime" "audit Docker/Podman/Rancher runtime options"; \
 		ex "ensure-tools" "install missing dev tools"; \
 		ex "worktree-probe" "check worktree dev dependencies"; \
 		echo ""; \
@@ -56,7 +61,9 @@ help:
 		ex "validate-pre-push" "pre-push checks without cdk synth"; \
 		echo ""; \
 		echo "  Development"; \
-		ex "dev" "start local development environment"; \
+		ex "dev" "start local development environment (Compose when available, native fallback otherwise)"; \
+		ex "dev-native" "start local mocks without Docker"; \
+		ex "dev-api" "serve local bridge API on localhost:8080"; \
 		ex "dev-logs" "stream local service logs"; \
 		ex "dev-invoke" "invoke the echo agent locally"; \
 		echo ""; \
@@ -141,6 +148,7 @@ bootstrap:
 	@echo ""
 	@echo "  make bootstrap-platform  - Full setup for platform engineers (Docker, Node, CDK)"
 	@echo "  make bootstrap-agent     - Minimal setup for agent developers (uv only)"
+	@echo "  make bootstrap-runtime   - Audit Docker/Podman/Rancher runtime options"
 	@echo ""
 	@exit 1
 
@@ -166,6 +174,13 @@ bootstrap-agent:
 	@echo "    Next steps:"
 	@echo "    1. cd agents/echo-agent"
 	@echo "    2. make test"
+
+## bootstrap-runtime: Audit local container runtime choices for the local AWS emulator
+bootstrap-runtime: container-runtime-audit
+
+## container-runtime-audit: Detect Docker Engine, Podman, Rancher Desktop, and next bootstrap steps
+container-runtime-audit:
+	uv run python scripts/container_runtime_audit.py
 
 ## bootstrap-cdk: CDK bootstrap all three regions (requires bootstrap IAM user)
 bootstrap-cdk:
@@ -422,24 +437,134 @@ validate-secrets-full:
 			--baseline .secrets.baseline
 	@echo "==> detect-secrets full scan passed"
 
-## dev: Start local development environment
+## dev-prereqs: Verify Docker runtime is available for local services
+dev-prereqs:
+	@command -v docker >/dev/null 2>&1 || ( \
+		echo "ERROR: docker CLI not found."; \
+		echo "In WSL2, install Docker Desktop on Windows and enable WSL integration for this distro, or install Docker Engine inside WSL."; \
+		exit 1; \
+	)
+	@docker info >/dev/null 2>&1 || ( \
+		echo "ERROR: docker CLI is installed but cannot reach a running Docker daemon."; \
+		echo "Start Docker Desktop and enable WSL integration for this distro, or start the in-WSL Docker service."; \
+		exit 1; \
+	)
+
+## dev: Start local development environment; use Compose only when Docker is reachable
 dev:
-	@echo "==> Starting local development environment"
+	@if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
+		$(MAKE) dev-compose; \
+	else \
+		echo "==> Docker is unavailable; using native local service path"; \
+		$(MAKE) dev-native; \
+	fi
+
+## dev-compose: Start local development environment with Docker Compose
+dev-compose: dev-prereqs
+	@echo "==> Starting local development environment with Docker Compose"
 	docker compose up -d
 	uv run agent-cli dev wait-for-services
 	uv run agent-cli dev bootstrap
 	uv run agent-cli dev wait-for-services --check-seeded-state
+	$(MAKE) dev-api-start
+	@echo ""
+	@echo "==> Local environment ready"
+	@echo "    Try: make dev-invoke"
+
+## dev-native: Start local mocks and API without Docker; requires AWS_ENDPOINT_URL to be running
+dev-native:
+	@echo "==> Starting local development environment with native mock services"
+	@echo "==> Requires local AWS emulator at $(LOCAL_AWS_ENDPOINT)"
+	$(MAKE) dev-mocks-start
+	uv run agent-cli dev wait-for-services
+	uv run agent-cli dev bootstrap
+	uv run agent-cli dev wait-for-services --check-seeded-state
+	$(MAKE) dev-api-start
 	@echo ""
 	@echo "==> Local environment ready"
 	@echo "    Try: make dev-invoke"
 
 ## dev-stop: Stop local development environment
 dev-stop:
-	docker compose down
+	-$(MAKE) dev-api-stop
+	-$(MAKE) dev-mocks-stop
+	@if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
+		docker compose down; \
+	fi
 
 ## dev-logs: Stream logs from all local services
 dev-logs:
-	docker compose logs -f
+	@if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
+		docker compose logs -f; \
+	else \
+		mkdir -p .omx/logs; \
+		tail -f .omx/logs/mock-runtime.log .omx/logs/mock-jwks.log .omx/logs/local-api.log; \
+	fi
+
+dev-mocks-start:
+	@mkdir -p .omx/logs .omx/state
+	@if [ -f .omx/state/mock-runtime.pid ] && kill -0 "$$(cat .omx/state/mock-runtime.pid)" >/dev/null 2>&1; then \
+		echo "==> Mock AgentCore Runtime already running on localhost:8765"; \
+	else \
+		echo "==> Starting mock AgentCore Runtime on localhost:8765"; \
+		(cd tests/mocks/mock_runtime && nohup setsid uv run --with fastapi==0.115.6 --with 'uvicorn[standard]==0.34.0' uvicorn main:app --host 127.0.0.1 --port 8765 > "$(CURDIR)/.omx/logs/mock-runtime.log" 2>&1 & echo $$! > "$(CURDIR)/.omx/state/mock-runtime.pid"); \
+	fi
+	@if [ -f .omx/state/mock-jwks.pid ] && kill -0 "$$(cat .omx/state/mock-jwks.pid)" >/dev/null 2>&1; then \
+		echo "==> Mock JWKS already running on localhost:8766"; \
+	else \
+		echo "==> Starting mock JWKS on localhost:8766"; \
+		(cd tests/mocks/mock_jwks && nohup setsid uv run --with fastapi==0.115.6 --with 'uvicorn[standard]==0.34.0' --with pyjwt==2.11.0 --with cryptography==46.0.5 uvicorn main:app --host 127.0.0.1 --port 8766 > "$(CURDIR)/.omx/logs/mock-jwks.log" 2>&1 & echo $$! > "$(CURDIR)/.omx/state/mock-jwks.pid"); \
+	fi
+
+dev-mocks-stop:
+	@if [ -f .omx/state/mock-runtime.pid ]; then \
+		PID="$$(cat .omx/state/mock-runtime.pid)"; \
+		if kill -0 "$$PID" >/dev/null 2>&1; then echo "==> Stopping mock AgentCore Runtime"; kill "$$PID"; fi; \
+		rm -f .omx/state/mock-runtime.pid; \
+	fi
+	@command -v fuser >/dev/null 2>&1 && fuser -k 8765/tcp >/dev/null 2>&1 || true
+	@if [ -f .omx/state/mock-jwks.pid ]; then \
+		PID="$$(cat .omx/state/mock-jwks.pid)"; \
+		if kill -0 "$$PID" >/dev/null 2>&1; then echo "==> Stopping mock JWKS"; kill "$$PID"; fi; \
+		rm -f .omx/state/mock-jwks.pid; \
+	fi
+	@command -v fuser >/dev/null 2>&1 && fuser -k 8766/tcp >/dev/null 2>&1 || true
+
+## dev-api: Serve the local bridge API on localhost:8080
+dev-api:
+	AWS_ENDPOINT_URL="$(LOCAL_AWS_ENDPOINT)" \
+	AWS_DEFAULT_REGION="$(LOCAL_AWS_REGION)" \
+	AWS_REGION="$(LOCAL_AWS_REGION)" \
+	AWS_ACCESS_KEY_ID="$(LOCAL_AWS_ACCESS_KEY_ID)" \
+	AWS_SECRET_ACCESS_KEY="$(LOCAL_AWS_SECRET_ACCESS_KEY)" \
+	PYTHONPATH=.:src/data-access-lib/src uv run python scripts/local_api.py
+
+dev-api-start:
+	@mkdir -p .omx/logs .omx/state
+	@if [ -f .omx/state/local-api.pid ] && kill -0 "$$(cat .omx/state/local-api.pid)" >/dev/null 2>&1; then \
+		echo "==> Local bridge API already running on localhost:8080"; \
+	else \
+		echo "==> Starting local bridge API on localhost:8080"; \
+		PYTHON_BIN=".venv/bin/python"; \
+		if [ ! -x "$$PYTHON_BIN" ]; then PYTHON_BIN="$$(command -v python3)"; fi; \
+		AWS_ENDPOINT_URL="$(LOCAL_AWS_ENDPOINT)" \
+		AWS_DEFAULT_REGION="$(LOCAL_AWS_REGION)" \
+		AWS_REGION="$(LOCAL_AWS_REGION)" \
+		AWS_ACCESS_KEY_ID="$(LOCAL_AWS_ACCESS_KEY_ID)" \
+		AWS_SECRET_ACCESS_KEY="$(LOCAL_AWS_SECRET_ACCESS_KEY)" \
+		PYTHONPATH=.:src/data-access-lib/src nohup setsid "$$PYTHON_BIN" scripts/local_api.py > .omx/logs/local-api.log 2>&1 & \
+		echo $$! > .omx/state/local-api.pid; \
+	fi
+
+dev-api-stop:
+	@if [ -f .omx/state/local-api.pid ]; then \
+		PID="$$(cat .omx/state/local-api.pid)"; \
+		if kill -0 "$$PID" >/dev/null 2>&1; then \
+			echo "==> Stopping local bridge API"; \
+			kill "$$PID"; \
+		fi; \
+		rm -f .omx/state/local-api.pid; \
+	fi
 
 ## dev-invoke: Invoke echo agent locally with test tenant
 dev-invoke:
@@ -454,7 +579,7 @@ dev-invoke:
 # TESTING
 # =============================================================================
 
-## test-unit: Run all unit tests against LocalStack
+## test-unit: Run all unit tests against local AWS emulator fixtures
 test-unit:
 	PYTHONPATH=. uv run pytest tests/unit/ src/ -v --tb=short $(PYTEST_ARGS)
 

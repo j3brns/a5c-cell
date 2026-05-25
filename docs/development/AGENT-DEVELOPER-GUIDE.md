@@ -9,9 +9,9 @@ tool access, and observability. You write business logic — not infrastructure.
 
 ## Prerequisites
 
-Agent logic and runtime iteration require `uv` only. Docker, Node, CDK, LocalStack,
-and platform validation are platform engineer tools, not prerequisites for editing
-an agent handler.
+Agent logic and runtime iteration require `uv` only. Docker, Node, CDK, a local
+AWS emulator, and platform validation are platform engineer tools, not
+prerequisites for editing an agent handler.
 
 ## Quick Start
 

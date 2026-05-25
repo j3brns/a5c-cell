@@ -76,7 +76,7 @@ Written confirmation required before Phase 2 begins.
 end-to-end in a local environment within 30 minutes of first checkout.
 
 **Deliverables**:
-- docker-compose.yml (LocalStack, mock AgentCore Runtime, mock JWKS)
+- docker-compose.yml (local AWS emulator, mock AgentCore Runtime, mock JWKS)
 - dev-bootstrap.py (idempotent seed script)
 - All three core Lambdas: authoriser, bridge, tenant-api
 - Full Makefile implementation

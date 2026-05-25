@@ -9,7 +9,7 @@ This guide is for platform engineers working on `src/`, `infra/`, `spa/`, and
 | Tool         | Version    | Install                                               |
 |--------------|------------|-------------------------------------------------------|
 | uv           | latest     | curl -Ls https://astral.sh/uv/install.sh | sh         |
-| Docker       | 24+        | https://docs.docker.com/get-docker/                   |
+| Docker       | 24+        | Optional Compose convenience; native mocks also work    |
 | Git          | 2.30+      | system package manager                                |
 | Node         | 20 LTS     | Handled by `make bootstrap-platform` (or nvm)         |
 | AWS CLI      | v2         | Required locally; verify with `make ensure-tools`      |
@@ -42,18 +42,64 @@ MOCK_RUNTIME=true
 
 ## Starting the Local Environment
 
+If you do not have a container runtime, run:
+
+```bash
+make bootstrap-runtime
+```
+
+This audits Docker Engine, Podman, and Rancher Desktop/nerdctl and prints the
+lowest-friction bootstrap path for the current machine. See
+[Container Runtime Choices](CONTAINER-RUNTIME-CHOICES.md) for the tradeoffs.
+For minimal WSL, install Podman in the Ubuntu distro, run the local AWS emulator
+with Podman, then use `make dev-native`.
+
+`make dev` uses Docker Compose only when Docker is reachable from the current
+shell. If Docker is unavailable, it starts the mock Runtime, mock JWKS, and local
+bridge API as native Python processes. In both modes, the local AWS emulator is
+accessed through `AWS_ENDPOINT_URL` and must provide the required AWS APIs.
+
 ```bash
 make dev
 ```
 
 This starts:
-- **LocalStack** on :4566 — mocks S3, DynamoDB, SSM, Secrets Manager, SQS
-- **Mock AgentCore Runtime** on :8765 — returns canned streaming responses
+- **Local AWS emulator** on :4566 — Floci by default in Compose, serving S3, DynamoDB, SSM, Secrets Manager, SQS, and EventBridge
+- **Mock AgentCore Runtime** on :8765 — returns canned streaming responses from `/invocations`
 - **Mock JWKS endpoint** on :8766 — issues test JWTs
+- **Local bridge API** on :8080 — forwards the contracted REST route to the bridge handler
 
-Then seeds LocalStack with two test tenants and all SSM parameters.
+Then seeds the local AWS emulator with two test tenants and all SSM parameters.
 Startup is not considered ready until the post-bootstrap seeded state exists:
-required LocalStack tables, required SSM parameters, and a populated `.env.test`.
+required DynamoDB tables, required SSM parameters, and a populated `.env.test`.
+
+To force the native path, run a compatible local AWS emulator on `:4566` and use:
+
+```bash
+AWS_ENDPOINT_URL=http://localhost:4566 make dev-native
+```
+
+## Replacing the Local AWS Emulator
+
+The repository contract is provider-neutral:
+
+- AWS API compatibility for DynamoDB, SSM, S3, SQS, Secrets Manager, EventBridge,
+  and STS on `AWS_ENDPOINT_URL` (default `http://localhost:4566`).
+- A health endpoint exposed through `LOCAL_AWS_HEALTH_URL` for readiness checks.
+- No real AWS account or AWS network endpoint for `make dev`, `make dev-invoke`,
+  or `make test-int`.
+
+Floci is the default Compose image, not a code dependency. To try another
+emulator image without editing repository files:
+
+```bash
+LOCAL_AWS_EMULATOR_IMAGE=example/local-aws:latest \
+LOCAL_AWS_HEALTH_URL=http://localhost:4566/health \
+make dev
+```
+
+If the replacement keeps the LocalStack-compatible health route, only
+`LOCAL_AWS_EMULATOR_IMAGE` needs to change.
 
 ## Verifying the Setup
 
@@ -66,6 +112,34 @@ fails when endpoint health is green but the seeded local state is incomplete.
 Use `make test-int` for a stronger end-to-end check once the local stack is running.
 
 **Note**: The **Mock AgentCore Runtime** returns canned responses (defined in `tests/mocks/mock_runtime/main.py`). It does **not** execute your actual agent code. To test your agent's logic locally, use `make agent-test`.
+
+## Identity and Local Mocks
+
+Local identity uses the mock JWKS service on `:8766`. `dev-bootstrap.py` asks
+that service for signed RS256 tenant JWTs and writes them to `.env.test`.
+`make dev-invoke` sends one of those JWTs to the local bridge API on `:8080`.
+
+The local bridge API is a developer-only adapter. It decodes the local JWT only
+to build the same authorizer context API Gateway would pass after the real
+authorizer succeeds. It does not replace the production authorizer tests.
+
+Production identity remains:
+- API Gateway authorizer validates Entra JWTs or SigV4 machine callers.
+- Downstream handlers trust `requestContext.authorizer`, not caller-supplied
+  tenant headers.
+- AgentCore Gateway REQUEST interceptor replaces the original client JWT with a
+  short-lived scoped tool token and injects `x-tenant-id`, `x-app-id`, `x-tier`,
+  and `x-acting-sub`.
+- Tool Lambdas must validate the scoped token for their own tool audience; they
+  must not accept the original client JWT.
+
+Mock Lambda/runtime boundaries:
+- Mock JWKS on `:8766` replaces Entra only for local JWT issuance.
+- Mock AgentCore Runtime on `:8765` replaces the managed runtime endpoint only
+  for bridge invocation tests.
+- Gateway request/response interceptors, authorizer logic, CloudFront, and API
+  Gateway are validated by unit/integration/CDK tests rather than replaced by
+  long-running local Lambda containers.
 
 ## Test Tenants (seeded by dev-bootstrap.py)
 
@@ -109,10 +183,14 @@ These are stable fixture-based renders derived from the current SPA page structu
 
 ## Common Issues
 
-**LocalStack not starting**: ensure Docker is running (`docker ps` should work).
+**Local AWS emulator not starting through Compose**: use `make dev-native` with a
+native local AWS emulator already listening on `AWS_ENDPOINT_URL`, or ensure
+Docker is running (`docker ps` should work). On WSL2, confirm Docker Desktop WSL
+integration is enabled for this distro, or that the in-WSL Docker service is
+running.
 
 **make dev-invoke fails with 401**: local startup did not complete cleanly.
-Check `docker compose logs localstack mock-runtime mock-jwks` and rerun `make dev`.
+Check `make dev-logs` and rerun `make dev`.
 
 **uv: command not found**: run `source ~/.bashrc` or open a new terminal after install.
 

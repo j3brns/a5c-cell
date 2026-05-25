@@ -102,10 +102,54 @@ def test_verify_seeded_state_rejects_missing_env_test_file(
 
     with pytest.raises(RuntimeError, match="missing env file"):
         wait_for_local_services.verify_seeded_state(
-            localstack_endpoint="http://localhost:4566",
+            aws_endpoint_url="http://localhost:4566",
             aws_region="eu-west-2",
             env_test_path=tmp_path / ".env.test",
         )
+
+
+def test_resolve_aws_endpoint_url_prefers_new_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AWS_ENDPOINT_URL", "http://new-endpoint:4566")
+    monkeypatch.setenv("LOCAL_AWS_ENDPOINT", "http://local-aws-endpoint:4566")
+    monkeypatch.setenv("LOCALSTACK_ENDPOINT", "http://legacy-endpoint:4566")
+
+    assert wait_for_local_services.resolve_aws_endpoint_url() == "http://new-endpoint:4566"
+
+
+def test_local_dev_services_uses_local_aws_health_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("LOCAL_AWS_HEALTH_URL", "http://localhost:4566/health")
+
+    checks = wait_for_local_services.local_dev_services()
+
+    assert checks[0].name == "local AWS emulator"
+    assert checks[0].url == "http://localhost:4566/health"
+
+
+def test_main_accepts_temporary_compatibility_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, str] = {}
+    monkeypatch.setattr(
+        wait_for_local_services,
+        "wait_for_all_services",
+        lambda **_kwargs: None,
+    )
+
+    def _verify_seeded_state(**kwargs: str) -> None:
+        seen["aws_endpoint_url"] = kwargs["aws_endpoint_url"]
+
+    monkeypatch.setattr(wait_for_local_services, "verify_seeded_state", _verify_seeded_state)
+
+    rc = wait_for_local_services.main(
+        [
+            "--check-seeded-state",
+            "--localstack-endpoint",
+            "http://legacy-endpoint:4566",
+        ]
+    )
+
+    assert rc == 0
+    assert seen["aws_endpoint_url"] == "http://legacy-endpoint:4566"
 
 
 def test_main_returns_non_zero_when_seeded_state_is_incomplete(monkeypatch, capsys) -> None:

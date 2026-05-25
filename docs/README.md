@@ -164,7 +164,8 @@ failure-investigation steps still require external consoles or service UIs.
 
 | Document | Audience | Purpose |
 |----------|----------|---------|
-| [Local Setup](development/PLATFORM-SETUP.md) | Platform engineers | Full local dev environment (uv, Docker, LocalStack) |
+| [Local Setup](development/PLATFORM-SETUP.md) | Platform engineers | Full local dev environment (uv, Docker, local AWS emulator) |
+| [Container Runtime Choices](development/CONTAINER-RUNTIME-CHOICES.md) | Platform engineers | Docker Engine, Podman, and Rancher Desktop tradeoffs |
 | [Agent Developer Guide](development/AGENT-DEVELOPER-GUIDE.md) | Agent developers | Build, test, package, and push agents to the platform |
 
 ## Diagram Catalog

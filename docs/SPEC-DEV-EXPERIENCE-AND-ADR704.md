@@ -30,14 +30,15 @@ The current inner loop conflates two distinct developer personas that have
 different prerequisites, different tools, and different concerns:
 
 - **Platform engineer** — works on `src/`, `infra/cdk/`, `spa/`, `gateway/`.
-  Needs Docker, Node, CDK, LocalStack. Validates with `make validate-local`.
+  Needs Docker, Node, CDK, and a local AWS emulator. Validates with
+  `make validate-local`.
 - **Agent developer** — works only in `agents/<name>/`. Needs `uv` only.
   Inner loop is pure Python: edit `handler.py`, run `make test-agent`. No Docker,
-  no CDK, no Node, no LocalStack required.
+  no CDK, no Node, no local AWS emulator required.
 
 At the time of this spec, the Makefile, `make bootstrap`, and `PLATFORM-SETUP.md`
 did not make this separation explicit. Agent developers were told to run
-`make dev` (Docker + LocalStack) as an optional step, which was misleading and
+`make dev` (Docker + local AWS emulator) as an optional step, which was misleading and
 unnecessary for handler logic iteration.
 
 Note: TASK-705 covers granular validation targets for the platform engineer path.
@@ -152,9 +153,9 @@ The current guide includes:
   - Phase 1 (local, no AWS): `uv sync` → `make test` (in agent dir) → iterate.
   - Phase 2 (runtime, no platform): `make dev` / `make invoke` (agentcore dev server).
   - Phase 3 (deploy): `make push ENV=dev`.
-- Remove the optional `make dev` (LocalStack) step entirely. If an agent
+- Remove the optional `make dev` (local AWS emulator) step entirely. If an agent
   developer needs to verify platform routing behavior, add a note directing them
-  to the platform engineer on their team — not to run LocalStack themselves.
+  to the platform engineer on their team — not to run the local AWS emulator themselves.
 - Add a "What the platform handles for you" section listing: auth, routing,
   memory, tool access, observability, billing — things the agent developer
   explicitly does not need to build or configure.
@@ -162,7 +163,7 @@ The current guide includes:
 
 **Acceptance Criteria**
 - [ ] Guide contains no reference to `make validate-local`, CDK synth, or
-      LocalStack as agent developer actions.
+      local AWS emulator setup as agent developer actions.
 - [ ] Prerequisites section lists only `uv`.
 - [ ] Quick start works end-to-end from a fresh clone using only the guide.
 - [ ] A new team member with no platform context can run `make test` in

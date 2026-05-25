@@ -3,9 +3,11 @@ import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { PlatformStack } from '../lib/platform-stack';
+import { PlatformStorageStack } from '../lib/platform-storage-stack';
+import { PlatformSpaStack } from '../lib/platform-spa-stack';
 
 describe('PlatformStack (TASK-023)', () => {
-  const synthTemplate = (
+  const synthStacks = (
     environment: 'dev' | 'staging' | 'prod' = 'dev',
     extraContext: Record<string, string> = {},
   ) => {
@@ -13,6 +15,8 @@ describe('PlatformStack (TASK-023)', () => {
       context: {
         env: environment,
         entraTenantId: '00000000-0000-0000-0000-000000000000',
+        appConfigExtensionLayerArn:
+          'arn:aws:lambda:eu-west-2:111122223333:layer:Custom-AppConfig-Extension-Arm64:7',
         ...extraContext,
       },
     });
@@ -36,14 +40,52 @@ describe('PlatformStack (TASK-023)', () => {
       description: 'Trusted SG for platform Lambdas',
     });
 
+    const storageStack = new PlatformStorageStack(app, `platform-storage-${environment}`, {
+      env,
+      envName: environment,
+      vpc: mockVpc,
+    });
+
+    const spaStack = new PlatformSpaStack(app, `platform-spa-${environment}`, {
+      env,
+      envName: environment,
+      apiDomainName: extraContext.apiDomainName,
+      agUiEndpointOrigins:
+        typeof extraContext.agUiEndpointOrigins === 'string'
+          ? extraContext.agUiEndpointOrigins.split(/[,\s]+/).filter(Boolean)
+          : [],
+    });
+
     const stack = new PlatformStack(app, `platform-core-${environment}`, {
       env,
       vpc: mockVpc,
       lambdaSecurityGroup,
+      storage: storageStack.storage,
+      bridgeValkeyClientSecurityGroup: storageStack.bridgeValkeyClientSecurityGroup,
+      spaAllowedOrigin: spaStack.spaAllowedOrigin,
+      spaDistribution: spaStack.spaDistribution,
     });
-    return Template.fromStack(stack);
+    return {
+      core: Template.fromStack(stack),
+      storage: Template.fromStack(storageStack),
+      spa: Template.fromStack(spaStack),
+    };
   };
+  const synthTemplate = (
+    environment: 'dev' | 'staging' | 'prod' = 'dev',
+    extraContext: Record<string, string> = {},
+  ) => synthStacks(environment, extraContext).core;
+  const synthStorageTemplate = (
+    environment: 'dev' | 'staging' | 'prod' = 'dev',
+    extraContext: Record<string, string> = {},
+  ) => synthStacks(environment, extraContext).storage;
+  const synthSpaTemplate = (
+    environment: 'dev' | 'staging' | 'prod' = 'dev',
+    extraContext: Record<string, string> = {},
+  ) => synthStacks(environment, extraContext).spa;
   const template = synthTemplate('dev');
+  const storageTemplate = synthStorageTemplate('dev');
+  const spaTemplate = synthSpaTemplate('dev');
 
   const getSpaContentSecurityPolicy = (stackTemplate: Template) => {
     const policies = stackTemplate.findResources('AWS::CloudFront::ResponseHeadersPolicy') as Record<
@@ -138,7 +180,7 @@ describe('PlatformStack (TASK-023)', () => {
   };
 
   test('creates all required DynamoDB tables with on-demand billing, PITR, and encryption', () => {
-    template.resourceCountIs('AWS::DynamoDB::Table', 8);
+    storageTemplate.resourceCountIs('AWS::DynamoDB::Table', 8);
 
     const tableNames = [
       'platform-tenants',
@@ -152,7 +194,7 @@ describe('PlatformStack (TASK-023)', () => {
     ];
 
     for (const tableName of tableNames) {
-      template.hasResourceProperties('AWS::DynamoDB::Table', {
+      storageTemplate.hasResourceProperties('AWS::DynamoDB::Table', {
         TableName: tableName,
         BillingMode: 'PAY_PER_REQUEST',
         PointInTimeRecoverySpecification: {
@@ -161,7 +203,7 @@ describe('PlatformStack (TASK-023)', () => {
       });
     }
 
-    template.hasResourceProperties('AWS::DynamoDB::Table', {
+    storageTemplate.hasResourceProperties('AWS::DynamoDB::Table', {
       TableName: 'platform-invocations',
       BillingMode: 'PAY_PER_REQUEST',
       TimeToLiveSpecification: {
@@ -170,14 +212,14 @@ describe('PlatformStack (TASK-023)', () => {
       },
     });
 
-    template.hasResourceProperties('AWS::DynamoDB::Table', {
+    storageTemplate.hasResourceProperties('AWS::DynamoDB::Table', {
       TableName: 'platform-jobs',
       StreamSpecification: {
         StreamViewType: 'NEW_AND_OLD_IMAGES',
       },
     });
 
-    const tables = template.findResources('AWS::DynamoDB::Table') as Record<
+    const tables = storageTemplate.findResources('AWS::DynamoDB::Table') as Record<
       string,
       { Properties?: { SSESpecification?: Record<string, unknown>; ProvisionedThroughput?: unknown } }
     >;
@@ -206,7 +248,7 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('attaches the SPA CloudFront web ACL when spaWebAclArn context is provided', () => {
-    const template = synthTemplate('dev', {
+    const template = synthSpaTemplate('dev', {
       spaWebAclArn:
         'arn:aws:wafv2:us-east-1:123456789012:global/webacl/platform-edge-security-dev-spa-edge-waf/11111111-1111-1111-1111-111111111111',
     });
@@ -366,8 +408,8 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('creates AppConfig validator, bounded deployment strategy, and initial deployment', () => {
-    const devTemplate = synthTemplate('dev');
-    const prodTemplate = synthTemplate('prod');
+    const devTemplate = synthStorageTemplate('dev');
+    const prodTemplate = synthStorageTemplate('prod');
 
     devTemplate.hasResourceProperties('AWS::AppConfig::ConfigurationProfile', {
       Name: 'tenant-capabilities',
@@ -497,7 +539,7 @@ describe('PlatformStack (TASK-023)', () => {
   test('keeps CloudFront WebACL wiring optional when no spaWebAclArn context is provided', () => {
     template.resourceCountIs('AWS::WAFv2::WebACL', 1);
 
-    const distributions = template.findResources('AWS::CloudFront::Distribution');
+    const distributions = spaTemplate.findResources('AWS::CloudFront::Distribution');
     expect(Object.keys(distributions)).toHaveLength(1);
 
     const [distribution] = Object.values(distributions) as Array<{
@@ -508,9 +550,9 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('creates CloudFront distribution with OAC and CSP response headers policy', () => {
-    template.resourceCountIs('AWS::CloudFront::OriginAccessControl', 1);
+    spaTemplate.resourceCountIs('AWS::CloudFront::OriginAccessControl', 1);
 
-    template.hasResourceProperties('AWS::CloudFront::ResponseHeadersPolicy', {
+    spaTemplate.hasResourceProperties('AWS::CloudFront::ResponseHeadersPolicy', {
       ResponseHeadersPolicyConfig: Match.objectLike({
         SecurityHeadersConfig: Match.objectLike({
           ContentSecurityPolicy: Match.objectLike({
@@ -530,7 +572,7 @@ describe('PlatformStack (TASK-023)', () => {
       }),
     });
 
-    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+    spaTemplate.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         Origins: Match.arrayWith([
           Match.objectLike({
@@ -545,20 +587,20 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('builds CloudFront connect-src from explicit non-production origins for the default stack', () => {
-    const contentSecurityPolicy = JSON.stringify(getSpaContentSecurityPolicy(template));
+    const contentSecurityPolicy = JSON.stringify(getSpaContentSecurityPolicy(spaTemplate));
 
     expect(contentSecurityPolicy).toContain('login.microsoftonline.com');
     expect(contentSecurityPolicy).toContain('localhost:3000');
     expect(contentSecurityPolicy).toContain('localhost:4566');
     expect(contentSecurityPolicy).toContain('localhost:8080');
     expect(contentSecurityPolicy).not.toMatch(/connect-src\s+'self'\s+https:\s*;/);
-    expect(String(getSpaContentSecurityPolicy(template)).length).toBeLessThan(1784);
+    expect(String(getSpaContentSecurityPolicy(spaTemplate)).length).toBeLessThan(1784);
   });
 
   test('configures CloudFront route fallback without masking missing asset failures', () => {
-    template.resourceCountIs('AWS::CloudFront::Function', 1);
+    spaTemplate.resourceCountIs('AWS::CloudFront::Function', 1);
 
-    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+    spaTemplate.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         DefaultCacheBehavior: Match.objectLike({
           FunctionAssociations: Match.arrayWith([
@@ -571,7 +613,7 @@ describe('PlatformStack (TASK-023)', () => {
       }),
     });
 
-    const distributions = template.findResources('AWS::CloudFront::Distribution');
+    const distributions = spaTemplate.findResources('AWS::CloudFront::Distribution');
     const [distribution] = Object.values(distributions) as Array<{
       Properties?: { DistributionConfig?: Record<string, unknown> };
     }>;
@@ -579,7 +621,7 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('distinguishes SPA shell caching from immutable asset caching', () => {
-    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+    spaTemplate.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         DefaultCacheBehavior: Match.objectLike({
           CachePolicyId: cloudfront.CachePolicy.CACHING_DISABLED.cachePolicyId,
@@ -1093,7 +1135,7 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('provisions SPA resources: S3 bucket, CloudFront distribution, and identifiers', () => {
-    template.hasResourceProperties('AWS::S3::Bucket', {
+    spaTemplate.hasResourceProperties('AWS::S3::Bucket', {
       BucketEncryption: {
         ServerSideEncryptionConfiguration: [
           {
@@ -1111,7 +1153,7 @@ describe('PlatformStack (TASK-023)', () => {
       },
     });
 
-    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+    spaTemplate.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         Enabled: true,
         DefaultCacheBehavior: Match.objectLike({
@@ -1120,27 +1162,27 @@ describe('PlatformStack (TASK-023)', () => {
       }),
     });
 
-    template.hasResourceProperties('AWS::SSM::Parameter', {
+    spaTemplate.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/platform/spa/dev/bucket-name',
       Type: 'String',
     });
 
-    template.hasResourceProperties('AWS::SSM::Parameter', {
+    spaTemplate.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/platform/spa/dev/distribution-id',
       Type: 'String',
     });
 
-    template.hasOutput('SpaBucketName', {
+    spaTemplate.hasOutput('SpaBucketName', {
       Description: 'S3 bucket name for the platform SPA',
     });
 
-    template.hasOutput('SpaDistributionId', {
+    spaTemplate.hasOutput('SpaDistributionId', {
       Description: 'CloudFront distribution ID for the platform SPA',
     });
   });
 
   test('configures CloudFront access logging for the SPA distribution with 30-day retention in dev', () => {
-    template.hasResourceProperties('AWS::S3::Bucket', {
+    spaTemplate.hasResourceProperties('AWS::S3::Bucket', {
       BucketName: 'platform-spa-logs-dev',
       AccessControl: 'LogDeliveryWrite',
       LifecycleConfiguration: {
@@ -1161,7 +1203,7 @@ describe('PlatformStack (TASK-023)', () => {
       },
     });
 
-    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+    spaTemplate.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         Logging: Match.objectLike({
           Bucket: Match.anyValue(),
@@ -1173,7 +1215,7 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('configures CloudFront access logging for the SPA distribution with 365-day retention in prod', () => {
-    const prodTemplate = synthTemplate('prod');
+    const prodTemplate = synthSpaTemplate('prod');
     prodTemplate.hasResourceProperties('AWS::S3::Bucket', {
       BucketName: 'platform-spa-logs-prod',
       LifecycleConfiguration: {
@@ -1330,7 +1372,7 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('sets explicit TLS minimum protocol version on CloudFront even without custom domain', () => {
-    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+    spaTemplate.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         ViewerCertificate: Match.objectLike({
           CloudFrontDefaultCertificate: true,
@@ -1341,7 +1383,7 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('configures CloudFront with custom domain, ACM certificate, and TLS policy when context provided', () => {
-    const customDomainTemplate = synthTemplate('prod', {
+    const customDomainTemplate = synthSpaTemplate('prod', {
       spaDomainName: 'app.example.com',
       spaCertificateArn: 'arn:aws:acm:us-east-1:123456789012:certificate/abcd-1234',
     });
@@ -1385,7 +1427,7 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('uses explicit custom-domain origins in prod connect-src and excludes localhost allowances', () => {
-    const customDomainTemplate = synthTemplate('prod', {
+    const customDomainTemplate = synthSpaTemplate('prod', {
       spaDomainName: 'app.example.com',
       spaCertificateArn: 'arn:aws:acm:us-east-1:123456789012:certificate/abcd-1234',
       apiDomainName: 'api.example.com',
@@ -1407,7 +1449,7 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('uses CloudFront generated domain for CORS when no custom domain is set', () => {
-    const distributions = template.findResources('AWS::CloudFront::Distribution');
+    const distributions = spaTemplate.findResources('AWS::CloudFront::Distribution');
     expect(Object.keys(distributions)).toHaveLength(1);
 
     const optionsMethods = template.findResources('AWS::ApiGateway::Method', {
@@ -1476,22 +1518,22 @@ describe('PlatformStack (TASK-023)', () => {
   });
 
   test('provisions Valkey cluster (ElastiCache Serverless) for TPM rate limiting', () => {
-    template.hasResourceProperties('AWS::ElastiCache::ServerlessCache', {
+    storageTemplate.hasResourceProperties('AWS::ElastiCache::ServerlessCache', {
       Engine: 'valkey',
       ServerlessCacheName: 'platform-valkey-dev',
       SubnetIds: Match.anyValue(),
       SecurityGroupIds: Match.anyValue(),
     });
 
-    template.hasResourceProperties('AWS::EC2::SecurityGroup', {
+    storageTemplate.hasResourceProperties('AWS::EC2::SecurityGroup', {
       GroupDescription: 'Security group for platform Valkey cluster (ElastiCache Serverless)',
     });
 
-    template.hasResourceProperties('AWS::EC2::SecurityGroup', {
+    storageTemplate.hasResourceProperties('AWS::EC2::SecurityGroup', {
       GroupDescription: 'Bridge Lambda client access to platform Valkey',
     });
 
-    template.hasResourceProperties('AWS::EC2::SecurityGroupIngress', {
+    storageTemplate.hasResourceProperties('AWS::EC2::SecurityGroupIngress', {
       FromPort: 6379,
       ToPort: 6379,
       IpProtocol: 'tcp',
@@ -1503,7 +1545,7 @@ describe('PlatformStack (TASK-023)', () => {
       },
     });
 
-    template.hasResourceProperties('AWS::EC2::SecurityGroupEgress', {
+    storageTemplate.hasResourceProperties('AWS::EC2::SecurityGroupEgress', {
       FromPort: 6379,
       ToPort: 6379,
       IpProtocol: 'tcp',
@@ -1515,12 +1557,12 @@ describe('PlatformStack (TASK-023)', () => {
       },
     });
 
-    template.hasResourceProperties('AWS::SSM::Parameter', {
+    storageTemplate.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/platform/dev/config/valkey-endpoint',
       Type: 'String',
     });
 
-    const stagingTemplate = synthTemplate('staging');
+    const stagingTemplate = synthStorageTemplate('staging');
     stagingTemplate.hasResourceProperties('AWS::SSM::Parameter', {
       Name: '/platform/staging/config/valkey-endpoint',
       Type: 'String',

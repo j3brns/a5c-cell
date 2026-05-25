@@ -223,7 +223,7 @@ def test_seed_ssm_runtime_region() -> None:
     bootstrap.seed_ssm_parameters(  # type: ignore[attr-defined]
         ssm_client,
         mock_jwks_url="http://localhost:8766",
-        localstack_endpoint="http://localhost:4566",
+        aws_endpoint_url="http://localhost:4566",
     )
     resp = ssm_client.get_parameter(Name="/platform/config/runtime-region")  # type: ignore[union-attr]
     assert resp["Parameter"]["Value"] == "eu-west-2"
@@ -235,7 +235,7 @@ def test_seed_ssm_jwks_url() -> None:
     bootstrap.seed_ssm_parameters(  # type: ignore[attr-defined]
         ssm_client,
         mock_jwks_url="http://localhost:8766",
-        localstack_endpoint="http://localhost:4566",
+        aws_endpoint_url="http://localhost:4566",
     )
     resp = ssm_client.get_parameter(Name="/platform/config/jwks-url")  # type: ignore[union-attr]
     assert resp["Parameter"]["Value"] == "http://localhost:8766/.well-known/jwks.json"
@@ -247,7 +247,7 @@ def test_seed_ssm_api_audience() -> None:
     bootstrap.seed_ssm_parameters(  # type: ignore[attr-defined]
         ssm_client,
         mock_jwks_url="http://localhost:8766",
-        localstack_endpoint="http://localhost:4566",
+        aws_endpoint_url="http://localhost:4566",
     )
     resp = ssm_client.get_parameter(Name="/platform/config/api-audience")  # type: ignore[union-attr]
     assert resp["Parameter"]["Value"] == "api://platform-local"
@@ -259,7 +259,7 @@ def test_seed_ssm_pii_patterns_is_valid_json() -> None:
     bootstrap.seed_ssm_parameters(  # type: ignore[attr-defined]
         ssm_client,
         mock_jwks_url="http://localhost:8766",
-        localstack_endpoint="http://localhost:4566",
+        aws_endpoint_url="http://localhost:4566",
     )
     resp = ssm_client.get_parameter(Name="/platform/gateway/pii-patterns/default")  # type: ignore[union-attr]
     patterns = json.loads(resp["Parameter"]["Value"])
@@ -275,7 +275,7 @@ def test_seed_ssm_idempotent() -> None:
         bootstrap.seed_ssm_parameters(  # type: ignore[attr-defined]
             ssm_client,
             mock_jwks_url="http://localhost:8766",
-            localstack_endpoint="http://localhost:4566",
+            aws_endpoint_url="http://localhost:4566",
         )
     resp = ssm_client.get_parameter(Name="/platform/config/env")  # type: ignore[union-attr]
     assert resp["Parameter"]["Value"] == "local"
@@ -333,10 +333,26 @@ def test_write_env_test_with_tokens(tmp_path: Path) -> None:
     assert "PREMIUM_TENANT_JWT=jwt-premium" in content
     assert "ADMIN_JWT=jwt-admin" in content
     assert "AWS_REGION=eu-west-2" in content
-    assert "LOCALSTACK_ENDPOINT=http://localhost:4566" in content
+    assert "AWS_ENDPOINT_URL=http://localhost:4566" in content
     assert (
         "SCOPED_TOKEN_SIGNING_KEY=local-dev-scoped-token-signing-key-32-bytes-minimum" in content
     )  # pragma: allowlist secret
+
+
+def test_resolve_aws_endpoint_url_prefers_new_env(monkeypatch) -> None:
+    monkeypatch.setenv("AWS_ENDPOINT_URL", "http://new-endpoint:4566")
+    monkeypatch.setenv("LOCAL_AWS_ENDPOINT", "http://local-aws-endpoint:4566")
+    monkeypatch.setenv("LOCALSTACK_ENDPOINT", "http://legacy-endpoint:4566")
+
+    assert bootstrap.resolve_aws_endpoint_url() == "http://new-endpoint:4566"  # type: ignore[attr-defined]
+
+
+def test_resolve_aws_endpoint_url_keeps_temporary_compatibility_alias(monkeypatch) -> None:
+    monkeypatch.delenv("AWS_ENDPOINT_URL", raising=False)
+    monkeypatch.delenv("LOCAL_AWS_ENDPOINT", raising=False)
+    monkeypatch.setenv("LOCALSTACK_ENDPOINT", "http://legacy-endpoint:4566")
+
+    assert bootstrap.resolve_aws_endpoint_url() == "http://legacy-endpoint:4566"  # type: ignore[attr-defined]
 
 
 def test_write_env_test_without_tokens_writes_empty_values(tmp_path: Path) -> None:

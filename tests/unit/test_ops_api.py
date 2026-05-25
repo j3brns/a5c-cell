@@ -104,10 +104,10 @@ def test_de_scoped_ops_routes_do_not_expose_placeholder_success(
 
 
 @pytest.mark.parametrize(("path", "method"), DE_SCOPED_OPS_SUMMARY_ROUTES)
-def test_de_scoped_ops_summary_runtime_and_openapi_contract_agree(
+def test_ops_summary_runtime_remains_disabled_while_spa_contract_is_documented(
     fake_state: dict[str, Any], path: str, method: str
 ) -> None:
-    assert path not in _load_openapi_paths()
+    assert path in _load_openapi_paths()
 
     response = invoke_handler(_ops_event(method, path), dependencies=fake_state["deps"])
 

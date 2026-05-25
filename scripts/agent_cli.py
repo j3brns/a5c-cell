@@ -116,9 +116,9 @@ def agent_rollback_cmd(
 
 @dev_app.command("bootstrap")
 def dev_bootstrap_cmd():
-    """Seed LocalStack with test data and parameters."""
+    """Seed the local AWS emulator with test data and parameters."""
     try:
-        dev_bootstrap.run_bootstrap()
+        dev_bootstrap.run_bootstrap(aws_endpoint_url=dev_bootstrap.resolve_aws_endpoint_url())
     except Exception as e:
         typer.echo(f"ERROR: dev-bootstrap failed: {e}", err=True)
         raise typer.Exit(code=1)

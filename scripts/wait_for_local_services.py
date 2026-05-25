@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 import boto3
 
-from platform_config import get_settings
+from platform_config import env_optional, get_settings
 
 
 @dataclass(frozen=True)
@@ -21,13 +21,8 @@ class ServiceCheck:
     url: str
 
 
-LOCAL_DEV_SERVICES = (
-    ServiceCheck("LocalStack", "http://localhost:4566/_localstack/health"),
-    ServiceCheck("mock runtime", "http://localhost:8765/ping"),
-    ServiceCheck("mock JWKS", "http://localhost:8766/health"),
-)
-
-DEFAULT_LOCALSTACK_ENDPOINT = "http://localhost:4566"
+DEFAULT_AWS_ENDPOINT_URL = "http://localhost:4566"
+DEFAULT_LOCAL_AWS_HEALTH_URL = "http://localhost:4566/_localstack/health"
 DEFAULT_AWS_REGION = "eu-west-2"
 DEFAULT_ENV_TEST_PATH = Path(__file__).resolve().parents[1] / ".env.test"
 
@@ -55,6 +50,32 @@ REQUIRED_ENV_TEST_KEYS = (
     "PREMIUM_TENANT_JWT",
     "ADMIN_JWT",
 )
+
+
+def resolve_aws_endpoint_url() -> str:
+    """Resolve local emulator endpoint, keeping one migration-cycle compatibility alias."""
+    return (
+        env_value("AWS_ENDPOINT_URL")
+        or env_value("LOCAL_AWS_ENDPOINT")
+        or env_value("LOCALSTACK_ENDPOINT")  # Temporary compatibility alias.
+        or DEFAULT_AWS_ENDPOINT_URL
+    )
+
+
+def resolve_local_aws_health_url() -> str:
+    return env_value("LOCAL_AWS_HEALTH_URL") or DEFAULT_LOCAL_AWS_HEALTH_URL
+
+
+def local_dev_services() -> tuple[ServiceCheck, ...]:
+    return (
+        ServiceCheck("local AWS emulator", resolve_local_aws_health_url()),
+        ServiceCheck("mock runtime", "http://localhost:8765/ping"),
+        ServiceCheck("mock JWKS", "http://localhost:8766/health"),
+    )
+
+
+def env_value(name: str) -> str:
+    return env_optional(name) or ""
 
 
 def wait_for_service(
@@ -91,9 +112,9 @@ def wait_for_all_services(
     *,
     timeout_seconds: int,
     interval_seconds: float,
-    checks: tuple[ServiceCheck, ...] = LOCAL_DEV_SERVICES,
+    checks: tuple[ServiceCheck, ...] | None = None,
 ) -> None:
-    for check in checks:
+    for check in checks or local_dev_services():
         print(f"==> Waiting for {check.name} ({check.url})...")
         wait_for_service(
             check,
@@ -104,7 +125,7 @@ def wait_for_all_services(
 
 def verify_seeded_state(
     *,
-    localstack_endpoint: str,
+    aws_endpoint_url: str,
     aws_region: str,
     env_test_path: Path,
 ) -> None:
@@ -112,14 +133,14 @@ def verify_seeded_state(
     ddb = boto3.client(
         "dynamodb",
         region_name=aws_region,
-        endpoint_url=localstack_endpoint,
+        endpoint_url=aws_endpoint_url,
         aws_access_key_id=get_settings().aws.access_key_id or "testing",
         aws_secret_access_key=get_settings().aws.secret_access_key or "testing",
     )
     ssm = boto3.client(
         "ssm",
         region_name=aws_region,
-        endpoint_url=localstack_endpoint,
+        endpoint_url=aws_endpoint_url,
         aws_access_key_id=get_settings().aws.access_key_id or "testing",
         aws_secret_access_key=get_settings().aws.secret_access_key or "testing",
     )
@@ -173,17 +194,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--check-seeded-state",
         action="store_true",
-        help="Validate LocalStack tables, SSM parameters, and .env.test after dev-bootstrap",
+        help=(
+            "Validate local AWS emulator tables, SSM parameters, and .env.test after dev-bootstrap"
+        ),
+    )
+    parser.add_argument(
+        "--aws-endpoint-url",
+        default=None,
+        help="Local AWS emulator endpoint used for seeded-state verification",
     )
     parser.add_argument(
         "--localstack-endpoint",
-        default=DEFAULT_LOCALSTACK_ENDPOINT,
-        help="LocalStack endpoint used for seeded-state verification",
+        default=None,
+        help="Temporary compatibility alias for --aws-endpoint-url",
     )
     parser.add_argument(
         "--aws-region",
         default=DEFAULT_AWS_REGION,
-        help="AWS region used for LocalStack seeded-state verification",
+        help="AWS region used for local AWS emulator seeded-state verification",
     )
     parser.add_argument(
         "--env-test-path",
@@ -197,7 +225,7 @@ def run_wait(
     timeout_seconds: int = 60,
     interval_seconds: float = 2.0,
     check_seeded_state: bool = False,
-    localstack_endpoint: str = DEFAULT_LOCALSTACK_ENDPOINT,
+    aws_endpoint_url: str | None = None,
     aws_region: str = DEFAULT_AWS_REGION,
     env_test_path: str | Path = DEFAULT_ENV_TEST_PATH,
 ) -> int:
@@ -208,7 +236,7 @@ def run_wait(
         )
         if check_seeded_state:
             verify_seeded_state(
-                localstack_endpoint=localstack_endpoint,
+                aws_endpoint_url=aws_endpoint_url or resolve_aws_endpoint_url(),
                 aws_region=aws_region,
                 env_test_path=Path(env_test_path),
             )
@@ -227,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
         timeout_seconds=args.timeout_seconds,
         interval_seconds=args.interval_seconds,
         check_seeded_state=args.check_seeded_state,
-        localstack_endpoint=args.localstack_endpoint,
+        aws_endpoint_url=args.localstack_endpoint or args.aws_endpoint_url,
         aws_region=args.aws_region,
         env_test_path=args.env_test_path,
     )

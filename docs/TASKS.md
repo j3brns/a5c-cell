@@ -166,7 +166,7 @@ Nothing in Phase 2 starts until written confirmation.
 ## Phase 2 — Local Development Loop
 
 [x] TASK-014  Write docker-compose.yml
-              Services: LocalStack, mock AgentCore Runtime, mock JWKS endpoint
+              Services: local AWS emulator, mock AgentCore Runtime, mock JWKS endpoint
               Mock Runtime: FastAPI on :8765, POST /invocations, GET /ping
               Returns canned streaming response. Logs tenant context headers.
               Mock JWKS: FastAPI on :8766, issues test JWTs, serves /.well-known/jwks.json
@@ -175,7 +175,7 @@ Nothing in Phase 2 starts until written confirmation.
 
 [x] TASK-015  Write scripts/dev-bootstrap.py
               Seeds two test tenants (basic-tier, premium-tier)
-              Seeds all SSM parameters pointing to LocalStack
+              Seeds all SSM parameters pointing to local endpoints
               Seeds DynamoDB tables with fixtures
               Writes test JWTs to .env.test
               Idempotent — safe to run multiple times

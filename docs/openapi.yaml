@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Platform AaaS Northbound API
-  version: 0.1.3
+  version: 0.1.4
   summary: Multi-tenant Agent as a Service REST API
   description: >
     OpenAPI 3.1 contract for tenant-facing and operator-facing northbound routes.
@@ -882,6 +882,80 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /v1/platform/ops/top-tenants:
+    get:
+      tags: [Platform]
+      operationId: getPlatformOpsTopTenants
+      summary: Get top tenants by token usage
+      description: >
+        Returns a read-only operator summary of tenants with the highest token
+        usage for the admin console.
+      x-required-roles:
+        - Platform.Admin
+        - Platform.Operator
+      responses:
+        "200":
+          description: Top tenant usage summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopTenantsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/platform/ops/security-events:
+    get:
+      tags: [Platform]
+      operationId: getPlatformOpsSecurityEvents
+      summary: Get recent security events
+      description: >
+        Returns a read-only operator summary of recent tenant-scoped security
+        events for the admin console.
+      x-required-roles:
+        - Platform.Admin
+        - Platform.Operator
+      responses:
+        "200":
+          description: Recent security events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityEventsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /v1/platform/ops/error-rate:
+    get:
+      tags: [Platform]
+      operationId: getPlatformOpsErrorRate
+      summary: Get platform error-rate summary
+      description: >
+        Returns a read-only operator error-rate summary for the admin console.
+      x-required-roles:
+        - Platform.Admin
+        - Platform.Operator
+      responses:
+        "200":
+          description: Error-rate summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorRateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /v1/platform/billing/status:
     get:
       tags: [Platform]
@@ -1370,6 +1444,61 @@ components:
         transport:
           type: string
           enum: [sse, websocket]
+
+    TopTenant:
+      type: object
+      required: [tenantId, tokens]
+      properties:
+        tenantId:
+          type: string
+        tokens:
+          type: integer
+          minimum: 0
+
+    TopTenantsResponse:
+      type: object
+      required: [tenants]
+      properties:
+        tenants:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopTenant"
+
+    SecurityEvent:
+      type: object
+      required: [timestamp, type, tenantId, details]
+      properties:
+        timestamp:
+          $ref: "#/components/schemas/UtcTimestamp"
+        type:
+          type: string
+        tenantId:
+          type: string
+        details:
+          type: string
+
+    SecurityEventsResponse:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityEvent"
+
+    ErrorRateResponse:
+      type: object
+      required: [errorRate, periodMinutes, threshold]
+      properties:
+        errorRate:
+          type: number
+          minimum: 0
+        periodMinutes:
+          type: integer
+          minimum: 1
+        threshold:
+          type: number
+          minimum: 0
 
     AgentRecord:
       type: object
