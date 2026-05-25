@@ -77,14 +77,12 @@ default:
 # Stage: validate
 # ---------------------------------------------------------------------------
 validate:
-  extends: .agent-aws-auth-base
+  extends: .agent-base
   stage: validate
-  variables:
-    ROLE_ARN: $PLATFORM_PIPELINE_VALIDATE_ROLE_ARN
   script:
     - uv run ruff check $AGENT_PATH
     - make validate-agent-manifest AGENT=$AGENT_NAME
-    - uv run detect-secrets --baseline .secrets.baseline
+    - uv run detect-secrets scan --baseline .secrets.baseline
   rules:
     - if: $AGENT_PIPELINE_MODE == "validate"
     - if: $AGENT_PIPELINE_MODE == "deploy-dev"
