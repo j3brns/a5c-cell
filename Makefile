@@ -5,7 +5,7 @@
 
 .PHONY: help help-agent help-all bootstrap bootstrap-platform bootstrap-agent bootstrap-runtime container-runtime-audit ensure-tools worktree-probe validate-local validate-local-full
 .PHONY: validate-local-prereqs validate-lint validate-typecheck validate-unit validate-contract validate-python validate-openapi validate-guardrails validate-cdk validate-cdk-ts validate-cdk-ts-prereqs validate-cdk-ts-local validate-cdk-ts-push validate-cdk-synth validate-cdk-synth-prereqs
-.PHONY: validate-pre-push validate-secrets-diff validate-secrets-push validate-secrets-full
+.PHONY: validate-pre-push validate-secrets-diff validate-secrets-push validate-secrets-full ensure-ubs validate-ubs validate-ubs-full
 .PHONY: docs-sync-audit docs-sync-stamp generated-state-audit rules-sync-audit
 .PHONY: dev dev-compose dev-native dev-prereqs dev-stop dev-logs dev-mocks-start dev-mocks-stop dev-api dev-api-start dev-api-stop dev-invoke
 .PHONY: test-unit test-int test-agent test-all
@@ -59,6 +59,7 @@ help:
 		echo "  Validation"; \
 		ex "validate-local" "fast local validation"; \
 		ex "validate-pre-push" "pre-push checks without cdk synth"; \
+		ex "validate-ubs" "pinned UBS diff scan for likely bug patterns"; \
 		echo ""; \
 		echo "  Development"; \
 		ex "dev" "start local development environment (Compose when available, native fallback otherwise)"; \
@@ -237,6 +238,24 @@ validate-local: validate-local-prereqs
 ## validate-local-full: Full local validation including full-repo secret scan
 validate-local-full: validate-local-prereqs
 	uv run platform-cli validate local full
+
+## ensure-ubs: Install pinned UBS runner into .build/tools without mutating global hooks or shell config
+ensure-ubs:
+	uv run python scripts/ensure_ubs.py
+
+## validate-ubs: Run pinned UBS against the current diff (agent/local pre-check)
+validate-ubs: ensure-ubs
+	@UBS_BIN="$$(uv run python scripts/ensure_ubs.py --print-path)"; \
+	echo "==> Running UBS diff scan ($$UBS_BIN)"; \
+	UBS_NO_AUTO_UPDATE=1 XDG_DATA_HOME="$(CURDIR)/.build/ubs-data" \
+		"$$UBS_BIN" --diff --format=json --no-auto-update
+
+## validate-ubs-full: Run pinned UBS against the full codebase (advisory until baselined)
+validate-ubs-full: ensure-ubs
+	@UBS_BIN="$$(uv run python scripts/ensure_ubs.py --print-path)"; \
+	echo "==> Running UBS full scan ($$UBS_BIN)"; \
+	UBS_NO_AUTO_UPDATE=1 XDG_DATA_HOME="$(CURDIR)/.build/ubs-data" \
+		"$$UBS_BIN" . --format=json --no-auto-update
 
 ## docs-sync-audit: Check docs/code semver sync and drift heuristics
 ## Usage: make docs-sync-audit [JSON=1]
