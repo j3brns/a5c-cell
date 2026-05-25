@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Symphonic Infra And Day 2 Example</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #162129;
+      --muted: #3f4b54;
+      --line: #b8c4cc;
+      --paper: #fbfcfd;
+      --band: #eef4f2;
+      --blue: #1b6f9c;
+      --green: #1f7658;
+      --amber: #9a671e;
+      --red: #a33d3d;
+      --violet: #6857a5;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+
+    header, section, footer {
+      padding: 42px clamp(18px, 5vw, 72px);
+    }
+
+    header {
+      min-height: 82vh;
+      display: grid;
+      align-content: center;
+      gap: 26px;
+      background: #f2f7f8;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 1040px;
+      margin-bottom: 14px;
+      font-size: clamp(40px, 6vw, 82px);
+      line-height: .98;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 18px;
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .lede {
+      max-width: 840px;
+      color: #32424c;
+      font-size: 22px;
+    }
+
+    .band {
+      background: var(--band);
+      border-block: 1px solid var(--line);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .panel {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 1px 2px rgba(17, 31, 44, .05);
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .pill {
+      display: inline-block;
+      margin: 3px 6px 3px 0;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 13px;
+      color: #32424c;
+    }
+
+    code {
+      padding: 2px 5px;
+      border: 1px solid #d7dee3;
+      border-radius: 4px;
+      background: #f3f6f8;
+      font-size: .92em;
+    }
+
+    pre {
+      overflow-x: auto;
+      margin: 0;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f7fafb;
+      color: #162129;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    ul, ol {
+      margin: 0;
+      padding-left: 22px;
+    }
+
+    li + li { margin-top: 8px; }
+
+    .svg-wrap {
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    svg {
+      width: max(100%, 1040px);
+      height: auto;
+      display: block;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    a { color: var(--blue); }
+
+    @media (max-width: 860px) {
+      .span-3, .span-4, .span-6, .span-8 { grid-column: span 12; }
+      header { min-height: auto; padding-top: 56px; }
+      svg { width: 1040px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <span class="eyebrow">Worked example</span>
+      <h1>Use Symphonic to run infrastructure work from an issue bank.</h1>
+      <p class="lede">
+        A new platform repo can use Terraform for cloud resources, Helm charts for Kubernetes
+        packaging, and Argo CD for GitOps deployment. Symphonic sits above those tools: it turns
+        planned infrastructure work into isolated agent runs, gates the change, and preserves Day 2
+        evidence.
+      </p>
+      <p>
+        <span class="pill">Terraform</span>
+        <span class="pill">Helm</span>
+        <span class="pill">Argo CD</span>
+        <span class="pill">GitLab issues</span>
+        <span class="pill">Git worktrees</span>
+      </p>
+    </div>
+    <div class="svg-wrap" aria-label="Infra control loop diagram">
+      <svg viewBox="0 0 1180 430" role="img">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="#365463"></path>
+          </marker>
+          <style>
+            .box{fill:#fff;stroke:#b8c5cc;stroke-width:2}
+            .tf{fill:#e8f0fb;stroke:#1b6f9c;stroke-width:2}
+            .helm{fill:#e7f6ee;stroke:#1f7658;stroke-width:2}
+            .argo{fill:#fbf1df;stroke:#9a671e;stroke-width:2}
+            .sym{fill:#f4edf9;stroke:#6857a5;stroke-width:2}
+            .label{font:700 24px system-ui;fill:#162129}
+            .small{font:18px system-ui;fill:#33434d}
+            .arrow{stroke:#365463;stroke-width:3;fill:none;marker-end:url(#arrow)}
+          </style>
+        </defs>
+        <rect class="box" x="38" y="142" width="178" height="132" rx="8"></rect>
+        <text class="label" x="68" y="184">GitLab issues</text>
+        <text class="small" x="68" y="216">Seq, risk, DoS</text>
+        <text class="small" x="68" y="241">docs and tests</text>
+
+        <path class="arrow" d="M226 208 H304"></path>
+        <rect class="sym" x="314" y="92" width="220" height="232" rx="8"></rect>
+        <text class="label" x="348" y="136">Symphonic</text>
+        <text class="small" x="348" y="168">selects task</text>
+        <text class="small" x="348" y="194">creates worktree</text>
+        <text class="small" x="348" y="220">prompts agent</text>
+        <text class="small" x="348" y="246">runs gates</text>
+        <text class="small" x="348" y="272">records evidence</text>
+
+        <path class="arrow" d="M544 208 H622"></path>
+        <rect class="tf" x="632" y="56" width="178" height="116" rx="8"></rect>
+        <text class="label" x="666" y="98">Terraform</text>
+        <text class="small" x="666" y="130">fmt, validate</text>
+        <text class="small" x="666" y="151">plan artifact</text>
+
+        <rect class="helm" x="632" y="200" width="178" height="116" rx="8"></rect>
+        <text class="label" x="678" y="242">Helm</text>
+        <text class="small" x="666" y="274">lint, template</text>
+        <text class="small" x="666" y="295">kubeconform</text>
+
+        <rect class="argo" x="632" y="344" width="178" height="64" rx="8"></rect>
+        <text class="label" x="674" y="383">Argo CD</text>
+
+        <path class="arrow" d="M820 114 H904"></path>
+        <path class="arrow" d="M820 258 H904"></path>
+        <path class="arrow" d="M820 376 H904"></path>
+        <rect class="box" x="914" y="138" width="220" height="140" rx="8"></rect>
+        <text class="label" x="948" y="182">Merge request</text>
+        <text class="small" x="948" y="214">plan output</text>
+        <text class="small" x="948" y="239">rendered manifests</text>
+        <text class="small" x="948" y="264">gate receipts</text>
+
+        <path class="arrow" d="M1024 288 C1024 388 128 388 128 286"></path>
+        <text class="small" x="430" y="392">Day 2 feedback becomes the next issue, not an untracked chat request</text>
+      </svg>
+    </div>
+  </header>
+
+  <section>
+    <span class="eyebrow">New codebase bootstrap</span>
+    <h2>Start by making the repo runnable by an agent and boring to validate.</h2>
+    <div class="grid">
+      <div class="panel span-4">
+        <h3>1. Add repo contract</h3>
+        <p>
+          Add <code>WORKFLOW.md</code>, <code>AGENTS.md</code>, issue template, schema, and a
+          Makefile. The workflow points at the GitLab issue bank and sets
+          <code>workspace.mode: git-worktree</code>.
+        </p>
+      </div>
+      <div class="panel span-4">
+        <h3>2. Add infra gates</h3>
+        <p>
+          Make Terraform, Helm, YAML, and shell checks deterministic. Do not let an agent decide
+          which checks count after the work has already changed.
+        </p>
+      </div>
+      <div class="panel span-4">
+        <h3>3. Generate tasks</h3>
+        <p>
+          Use the plan generator to create schema-shaped issue bodies, review them, then create
+          GitLab issues. Symphonic only launches issues that meet Definition of Start.
+        </p>
+      </div>
+      <div class="span-12">
+        <pre><code>PYTHONPATH=src python3 -m symphonic.cli generate-tasks platform-plan.yaml --start-seq 2000
+glab issue create -R group/platform-live --title "TASK-2000: Bootstrap remote state" --description-file task-2000.md
+make validate-issues
+make pilot
+make run-once</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <span class="eyebrow">Reference repo shape</span>
+    <h2>A platform repo should make every layer independently provable.</h2>
+    <div class="grid">
+      <div class="panel span-6">
+        <h3>Example tree</h3>
+        <pre><code>platform-live/
+  WORKFLOW.md
+  AGENTS.md
+  Makefile
+  envs/
+    dev/
+      main.tf
+      backend.tf
+      providers.tf
+      terraform.tfvars.example
+    prod/
+      main.tf
+      backend.tf
+      providers.tf
+  modules/
+    eks-cluster/
+    irsa-role/
+    rds-postgres/
+  charts/
+    web-api/
+      Chart.yaml
+      values.yaml
+      templates/
+  argocd/
+    projects/platform.yaml
+    applications/web-api-dev.yaml
+    applications/web-api-prod.yaml
+  policy/
+    conftest/
+    kubeconform/
+  scripts/
+    tf-plan.sh
+    argocd-health.sh</code></pre>
+      </div>
+      <div class="panel span-6">
+        <h3>Make targets</h3>
+        <pre><code>validate-local:
+	terraform fmt -check -recursive
+	terraform -chdir=envs/dev init -backend=false
+	terraform -chdir=envs/dev validate
+	tflint --recursive
+	helm lint charts/web-api
+	helm template web-api charts/web-api -f charts/web-api/values.yaml \
+	  | kubeconform -strict -summary
+	yamllint argocd charts
+	bash -n scripts/*.sh
+
+plan-dev:
+	./scripts/tf-plan.sh envs/dev
+
+gitops-diff:
+	argocd app diff web-api-dev --local argocd</code></pre>
+      </div>
+      <div class="panel span-12">
+        <h3>Symphonic workflow excerpt</h3>
+        <pre><code>tracker:
+  kind: gitlab
+  project_slug: group/platform-live
+  active_labels: ["status:not-started", "status:in-progress"]
+workspace:
+  root: ~/.cache/symphonic/workspaces
+  mode: git-worktree
+  base_ref: main
+agent:
+  profile: codex
+  max_concurrent_agents: 2
+quality_gates:
+  default_mode: infra-fast
+  modes:
+    infra-fast:
+      - label: Terraform and Helm validation
+        target: validate-local
+        command: "make validate-local"
+      - label: GitOps diff
+        target: gitops-diff
+        command: "make gitops-diff"</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Worked issue flow</span>
+    <h2>Example: add a new service through Terraform, Helm, and Argo CD.</h2>
+    <div class="svg-wrap" aria-label="Worked issue flow diagram">
+      <svg viewBox="0 0 1180 520" role="img">
+        <defs>
+          <marker id="arrow2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 Z" fill="#365463"></path>
+          </marker>
+          <style>
+            .stage{fill:#fff;stroke:#b8c5cc;stroke-width:2}
+            .title{font:700 22px system-ui;fill:#162129}
+            .body{font:17px system-ui;fill:#33434d}
+            .line{stroke:#365463;stroke-width:2.5;fill:none;marker-end:url(#arrow2)}
+          </style>
+        </defs>
+        <rect class="stage" x="38" y="62" width="204" height="138" rx="8"></rect>
+        <text class="title" x="66" y="102">TASK-2100</text>
+        <text class="body" x="66" y="132">Add service account</text>
+        <text class="body" x="66" y="156">Terraform module call</text>
+        <text class="body" x="66" y="180">IRSA policy tests</text>
+
+        <path class="line" d="M252 131 H322"></path>
+        <rect class="stage" x="332" y="62" width="204" height="138" rx="8"></rect>
+        <text class="title" x="360" y="102">TASK-2101</text>
+        <text class="body" x="360" y="132">Add Helm values</text>
+        <text class="body" x="360" y="156">Render manifests</text>
+        <text class="body" x="360" y="180">Schema validate</text>
+
+        <path class="line" d="M546 131 H616"></path>
+        <rect class="stage" x="626" y="62" width="204" height="138" rx="8"></rect>
+        <text class="title" x="654" y="102">TASK-2102</text>
+        <text class="body" x="654" y="132">Add Argo CD app</text>
+        <text class="body" x="654" y="156">Project sync policy</text>
+        <text class="body" x="654" y="180">Diff evidence</text>
+
+        <path class="line" d="M840 131 H910"></path>
+        <rect class="stage" x="920" y="62" width="204" height="138" rx="8"></rect>
+        <text class="title" x="948" y="102">MR evidence</text>
+        <text class="body" x="948" y="132">terraform plan</text>
+        <text class="body" x="948" y="156">helm template</text>
+        <text class="body" x="948" y="180">quality receipts</text>
+
+        <rect class="stage" x="184" y="296" width="214" height="138" rx="8"></rect>
+        <text class="title" x="212" y="336">Day 2 signal</text>
+        <text class="body" x="212" y="366">Argo health degraded</text>
+        <text class="body" x="212" y="390">drift detected</text>
+        <text class="body" x="212" y="414">new CVE advisory</text>
+
+        <path class="line" d="M408 365 H478"></path>
+        <rect class="stage" x="488" y="296" width="214" height="138" rx="8"></rect>
+        <text class="title" x="516" y="336">Issue generated</text>
+        <text class="body" x="516" y="366">risk score</text>
+        <text class="body" x="516" y="390">rollback plan</text>
+        <text class="body" x="516" y="414">approval notes</text>
+
+        <path class="line" d="M712 365 H782"></path>
+        <rect class="stage" x="792" y="296" width="214" height="138" rx="8"></rect>
+        <text class="title" x="820" y="336">Symphonic run</text>
+        <text class="body" x="820" y="366">isolated worktree</text>
+        <text class="body" x="820" y="390">targeted gates</text>
+        <text class="body" x="820" y="414">handoff receipt</text>
+
+        <path class="line" d="M900 286 C900 238 104 238 104 210"></path>
+      </svg>
+    </div>
+    <div class="grid">
+      <div class="panel span-4">
+        <h3>Terraform task</h3>
+        <p>
+          Acceptance criteria include a reviewed plan artifact, no unplanned replacement, provider
+          version pinning, and rollback notes. The agent can edit modules but cannot apply changes.
+        </p>
+      </div>
+      <div class="panel span-4">
+        <h3>Helm task</h3>
+        <p>
+          The gate renders manifests and validates Kubernetes schemas before review. UI/service
+          changes add smoke tests or Playwright checks when relevant.
+        </p>
+      </div>
+      <div class="panel span-4">
+        <h3>Argo CD task</h3>
+        <p>
+          The MR includes app diff output, sync-wave rationale, health expectations, and rollback
+          route. Sync remains an operator or pipeline action, not an agent side effect.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <span class="eyebrow">Day 2 operations</span>
+    <h2>Symphonic turns operational signals into controlled repair loops.</h2>
+    <div class="grid">
+      <div class="panel span-3">
+        <h3>Drift</h3>
+        <p>
+          A scheduled drift check opens an issue with the plan output, suspected cause, and required
+          validation. Symphonic runs the repair in a worktree and leaves a receipt.
+        </p>
+      </div>
+      <div class="panel span-3">
+        <h3>Upgrade</h3>
+        <p>
+          Kubernetes, provider, chart, and module upgrades become sequenced issues with explicit
+          dependency edges and rollback gates.
+        </p>
+      </div>
+      <div class="panel span-3">
+        <h3>Incident follow-up</h3>
+        <p>
+          Post-incident actions become tasks with impact, evidence, tests, and docs. The issue bank
+          prevents fixes from staying in chat or a meeting note.
+        </p>
+      </div>
+      <div class="panel span-3">
+        <h3>Compliance</h3>
+        <p>
+          Policy changes, IAM tightening, and audit evidence are gated like code. The agent can
+          draft changes, but the gate records proof before handoff.
+        </p>
+      </div>
+      <div class="panel span-12">
+        <h3>Day 2 operating rhythm</h3>
+        <ol>
+          <li>Signals arrive from Argo CD health, cloud audit findings, drift detection, vulnerability feeds, or service SLOs.</li>
+          <li>The platform operator converts the signal into a GitLab issue with `Seq:`, `Risk:`, dependencies, acceptance criteria, test plan, docs plan, and review plan.</li>
+          <li>Symphonic selects the next runnable issue, creates a worktree, prompts the chosen agent, and runs the infra gate.</li>
+          <li>The merge request carries Terraform plan output, rendered manifests, Argo CD diff, quality-gate receipts, and rollback notes.</li>
+          <li>After merge and sync, the issue gets handoff evidence. Any new signal becomes the next issue.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span class="eyebrow">Practical boundary</span>
+    <p class="note">
+      Symphonic does not replace Terraform, Helm, Argo CD, CI, or human production approval. It
+      coordinates agent work around them: issue selection, isolated runtime, deterministic gates,
+      evidence, and Day 2 continuity.
+    </p>
+    <p>
+      <a href="symphonic-overview.html">Symphonic overview</a>
+      <span class="pill">Issue bank to quality gate</span>
+    </p>
+  </footer>
+</body>
+</html>

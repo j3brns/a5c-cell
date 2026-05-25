@@ -98,6 +98,7 @@ TASK-073 acceptance evidence:
 | [ROADMAP.md](ROADMAP.md) | North-star vision, milestones M1–M7, V1.x backlog, deliberate exclusions |
 | [bootstrap-guide.md](bootstrap-guide.md) | Day-zero platform deployment to a fresh AWS account |
 | [entra-setup.md](entra-setup.md) | Microsoft Entra app registration and RBAC group setup |
+| [infra-day2-example.html](infra-day2-example.html) | Worked Symphonic infrastructure and Day 2 operations example |
 
 ## Architecture Decision Records
 
