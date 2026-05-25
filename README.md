@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/a5c-cell-readme-intro.png" alt="a5c-cell - Agentic Infrastructure Framework" width="100%" max-width="900px">
+  <img src="docs/images/a5c-cell-readme-intro.jpg" alt="a5c-cell - Agentic Infrastructure Framework" width="100%" max-width="900px">
 </p>
 
 # Agentic Infrastructure Framework: **a5c-cell**
