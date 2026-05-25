@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -125,6 +126,53 @@ def test_run_passes_when_fetcher_returns_real_protected_environment() -> None:
             "CI_PROJECT_ID": "1234",
             "GITLAB_PROTECTED_ENV_API_TOKEN": "secret-token",
         },
+        fetcher=_fetcher,
+    )
+
+    assert result.required_approval_count == 2
+    assert calls == [
+        (
+            "https://gitlab.example.com/api/v4",
+            "1234",
+            "prod",
+            "secret-token",
+            7.5,
+        )
+    ]
+
+
+def test_run_uses_settings_values_without_assert_narrowing(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str, str, str, float]] = []
+
+    def _fetcher(
+        api_url: str,
+        project_id: str,
+        environment_name: str,
+        api_token: str,
+        timeout_seconds: float,
+    ) -> dict[str, Any]:
+        calls.append((api_url, project_id, environment_name, api_token, timeout_seconds))
+        return {
+            "name": "prod",
+            "required_approval_count": 2,
+        }
+
+    monkeypatch.setattr(
+        check_script,
+        "get_settings",
+        lambda: SimpleNamespace(
+            gitlab=SimpleNamespace(
+                ci_api_v4_url="https://gitlab.example.com/api/v4",
+                ci_project_id="1234",
+                protected_env_api_token="secret-token",
+            )
+        ),
+    )
+
+    result = check_script.run(
+        environment_name="prod",
+        min_approvals=2,
+        timeout_seconds=7.5,
         fetcher=_fetcher,
     )
 

@@ -82,6 +82,12 @@ def require_env(env: Mapping[str, str], name: str) -> str:
     return value
 
 
+def require_config_value(name: str, value: str | None) -> str:
+    if not value:
+        raise ProtectionCheckError(f"Missing required environment variable: {name}")
+    return value
+
+
 def build_api_url(api_url: str, project_id: str, environment_name: str) -> str:
     project_ref = quote(project_id, safe="")
     env_ref = quote(environment_name, safe="")
@@ -222,19 +228,14 @@ def run(
 
     if env is None:
         gitlab = get_settings().gitlab
-        resolved_api_url = api_url or gitlab.ci_api_v4_url
-        resolved_project_id = project_id or gitlab.ci_project_id
-        api_token = gitlab.protected_env_api_token
-        for name, value in (
-            ("CI_API_V4_URL", resolved_api_url),
-            ("CI_PROJECT_ID", resolved_project_id),
-            ("GITLAB_PROTECTED_ENV_API_TOKEN", api_token),
-        ):
-            if not value:
-                raise ProtectionCheckError(f"Missing required environment variable: {name}")
-        assert resolved_api_url is not None
-        assert resolved_project_id is not None
-        assert api_token is not None
+        resolved_api_url = require_config_value("CI_API_V4_URL", api_url or gitlab.ci_api_v4_url)
+        resolved_project_id = require_config_value(
+            "CI_PROJECT_ID", project_id or gitlab.ci_project_id
+        )
+        api_token = require_config_value(
+            "GITLAB_PROTECTED_ENV_API_TOKEN",
+            gitlab.protected_env_api_token,
+        )
     else:
         resolved_api_url = api_url or require_env(env, "CI_API_V4_URL")
         resolved_project_id = project_id or require_env(env, "CI_PROJECT_ID")
