@@ -1,7 +1,19 @@
+import sys
+import types
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from handler import handler
+
+_AGENT_ROOT = Path(__file__).parent.parent
+if str(_AGENT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_AGENT_ROOT))
+
+strands_module = types.ModuleType("strands")
+strands_module.Agent = MagicMock()
+sys.modules.setdefault("strands", strands_module)
+
+from handler import handler  # noqa: E402
 
 
 @pytest.fixture

@@ -232,7 +232,7 @@ def test_agent_pipeline_uses_valid_oidc_token_syntax() -> None:
     assert "aud: sts.amazonaws.com" in default
 
 
-def test_agent_aws_jobs_fail_closed_before_deploy_or_validation() -> None:
+def test_agent_aws_jobs_fail_closed_before_deploy_while_validate_stays_local() -> None:
     content = AGENT_CI_FILE.read_text(encoding="utf-8")
 
     auth_base = _job_block(".agent-aws-auth-base", content)
@@ -240,14 +240,18 @@ def test_agent_aws_jobs_fail_closed_before_deploy_or_validation() -> None:
     assert "ERROR: GITLAB_OIDC_TOKEN not issued for this agent job." in auth_base
     assert "assume-role-with-web-identity" in auth_base
 
-    for job in ("validate", "push-dev", "promote-staging", "promote-prod"):
+    for job in ("push-dev", "promote-staging", "promote-prod"):
         block = _job_block(job, content)
         assert "extends: .agent-aws-auth-base" in block
+
+    validate = _job_block("validate", content)
+    assert "extends: .agent-base" in validate
+    assert "PLATFORM_PIPELINE_VALIDATE_ROLE_ARN" not in validate
+    assert "uv run detect-secrets scan --baseline .secrets.baseline" in validate
 
     test = _job_block("test", content)
     assert "extends: .agent-base" in test
 
-    validate = _job_block("validate", content)
     assert '$AGENT_PIPELINE_MODE == "validate"' in validate
     assert '$AGENT_PIPELINE_MODE == "deploy-dev"' in validate
     assert '$AGENT_PIPELINE_MODE == "promote-staging"' in validate

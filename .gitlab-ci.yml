@@ -305,7 +305,7 @@ test-integration:
 test-cdk:
   extends: .test_job_base
   script:
-    - cd infra/cdk && npm test -- --runInBand
+    - cd infra/cdk && npm test
   rules:
     - !reference [.cdk_change_rules, rules]
 
