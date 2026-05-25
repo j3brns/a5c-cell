@@ -5,8 +5,10 @@ Reads scripts/tools.json and ensures all tools are installed and version-verifie
 """
 
 import argparse
+import glob
 import hashlib
 import json
+import os
 import platform
 import re
 import shutil
@@ -25,6 +27,7 @@ from platform_config import env_optional
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLS_JSON = REPO_ROOT / "scripts" / "tools.json"
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+INSTALL_ACTIONS = {"chmod", "copy", "copy_glob", "run"}
 
 
 def info(msg: str) -> None:
@@ -134,6 +137,80 @@ def extract_archive(archive_path: Path, extract_dir: Path) -> None:
         shutil.copy(archive_path, extract_dir)
 
 
+def _format_template(value: object, context: dict[str, str]) -> str:
+    if not isinstance(value, str):
+        raise ValueError("install step values must be strings")
+    return value.format(**context)
+
+
+def _parse_mode(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        return int(value, 8)
+    raise ValueError("install step mode must be an int or octal string")
+
+
+def _resolve_step_path(raw_path: object, *, cwd: Path, context: dict[str, str]) -> Path:
+    path = Path(_format_template(raw_path, context))
+    return path if path.is_absolute() else cwd / path
+
+
+def _copy_install_artifact(src: Path, dest: Path, *, mode: int | None) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dest)
+    if mode is not None:
+        dest.chmod(mode)
+
+
+def run_install_steps(
+    steps: object,
+    *,
+    context: dict[str, str],
+    cwd: Path,
+    sudo_available: bool,
+) -> None:
+    if not isinstance(steps, list):
+        raise ValueError("tool install_steps must be a list")
+
+    for step in steps:
+        if not isinstance(step, dict):
+            raise ValueError("tool install_steps entries must be objects")
+        action = step.get("action")
+        if action not in INSTALL_ACTIONS:
+            raise ValueError(f"Unsupported install action: {action!r}")
+
+        mode = _parse_mode(step.get("mode"))
+        if action == "chmod":
+            target = _resolve_step_path(step["path"], cwd=cwd, context=context)
+            if mode is None:
+                raise ValueError("chmod install step requires mode")
+            target.chmod(mode)
+        elif action == "copy":
+            src = _resolve_step_path(step["src"], cwd=cwd, context=context)
+            dest = Path(_format_template(step["dest"], context))
+            _copy_install_artifact(src, dest, mode=mode)
+        elif action == "copy_glob":
+            pattern = _format_template(step["src"], context)
+            matches = [Path(match) for match in glob.glob(os.fspath(cwd / pattern))]
+            if len(matches) != 1:
+                raise ValueError(
+                    f"Expected one match for install glob {pattern!r}, found {len(matches)}"
+                )
+            dest = Path(_format_template(step["dest"], context))
+            _copy_install_artifact(matches[0], dest, mode=mode)
+        elif action == "run":
+            raw_argv = step.get("argv")
+            if not isinstance(raw_argv, list) or not raw_argv:
+                raise ValueError("run install step requires non-empty argv")
+            argv = [_format_template(part, context) for part in raw_argv]
+            if step.get("sudo") and sudo_available:
+                argv = ["sudo", *argv]
+            subprocess.run(argv, check=True, cwd=cwd)
+
+
 def install_tool(tool: dict[str, Any], arch: str, force: bool = False) -> bool:
     name = tool["name"]
     binary = tool.get("binary", name)
@@ -205,25 +282,26 @@ def install_tool(tool: dict[str, Any], arch: str, force: bool = False) -> bool:
 
         extract_archive(archive_path, tmpdir_path)
 
-        raw_command = tool["install_command"]
         install_prefix = Path.home() / ".local"
         install_dir = f"{install_prefix}/{name}" if not sudo_available else f"/usr/local/{name}"
-
-        # If no sudo but command uses sudo, strip sudo
-        if not sudo_available:
-            raw_command = raw_command.replace("sudo ", "")
-
-        install_command = raw_command.format(
-            archive=archive_path, tmpdir=tmpdir_path, bin_dir=bin_dir, install_dir=install_dir
-        )
+        context = {
+            "archive": os.fspath(archive_path),
+            "tmpdir": os.fspath(tmpdir_path),
+            "bin_dir": bin_dir,
+            "install_dir": install_dir,
+        }
 
         info(f"Running install command for {name}...")
         try:
-            # We run from tmpdir where the archive was extracted
-            subprocess.run(install_command, shell=True, check=True, cwd=tmpdir_path)
+            run_install_steps(
+                tool.get("install_steps"),
+                context=context,
+                cwd=tmpdir_path,
+                sudo_available=sudo_available,
+            )
             ok(f"{name} installed successfully")
             return True
-        except subprocess.CalledProcessError as e:
+        except (OSError, ValueError, subprocess.CalledProcessError) as e:
             fail(f"Install command failed for {name}: {e}")
             return False
 

@@ -102,13 +102,13 @@ def test_extract_archive_keeps_zip_executable_mode(tmp_path: Path) -> None:
 def test_install_tool_verifies_exact_resolved_sha256(tmp_path, monkeypatch) -> None:
     payload = b"tool-archive"
     expected_checksum = install_tools.hashlib.sha256(payload).hexdigest()
-    installed: list[str] = []
+    installed: list[tuple[list[str], dict[str, object]]] = []
 
     def fake_download_file(_url, dest) -> None:
         dest.write_bytes(payload)
 
     def fake_run(cmd, **_kwargs) -> None:
-        installed.append(cmd)
+        installed.append((cmd, _kwargs))
 
     monkeypatch.setattr(install_tools, "can_sudo", lambda: False)
     monkeypatch.setattr(install_tools, "is_tool_installed", lambda _binary: False)
@@ -136,11 +136,93 @@ def test_install_tool_verifies_exact_resolved_sha256(tmp_path, monkeypatch) -> N
                     ],
                 }
             },
-            "install_command": "install-demo",
+            "install_steps": [
+                {
+                    "action": "run",
+                    "argv": ["install-demo", "--bin-dir", "{bin_dir}"],
+                }
+            ],
         },
         "x86_64",
     )
-    assert installed == ["install-demo"]
+    assert installed[0][0] == ["install-demo", "--bin-dir", f"{tmp_path}/.local/bin"]
+    assert installed[0][1]["check"] is True
+    assert isinstance(installed[0][1]["cwd"], Path)
+    assert "shell" not in installed[0][1]
+
+
+def test_install_tool_copies_glob_without_shell(tmp_path, monkeypatch) -> None:
+    payload = b"tool-archive"
+    expected_checksum = install_tools.hashlib.sha256(payload).hexdigest()
+
+    def fake_download_file(_url, dest) -> None:
+        dest.write_bytes(payload)
+
+    def fake_extract_archive(_archive: Path, dest: Path) -> None:
+        source_dir = dest / "package"
+        source_dir.mkdir()
+        (source_dir / "demo").write_text("demo", encoding="utf-8")
+
+    monkeypatch.setattr(install_tools, "can_sudo", lambda: False)
+    monkeypatch.setattr(install_tools, "is_tool_installed", lambda _binary: False)
+    monkeypatch.setattr(install_tools, "download_file", fake_download_file)
+    monkeypatch.setattr(install_tools, "extract_archive", fake_extract_archive)
+    monkeypatch.setattr(install_tools.subprocess, "run", pytest.fail)
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    assert install_tools.install_tool(
+        {
+            "name": "demo",
+            "binary": "demo",
+            "platforms": {
+                "x86_64": {
+                    "url": "https://example.invalid/demo.tar.gz",
+                    "sha256": expected_checksum,
+                }
+            },
+            "install_steps": [
+                {
+                    "action": "copy_glob",
+                    "src": "*/demo",
+                    "dest": "{bin_dir}/demo",
+                    "mode": "755",
+                }
+            ],
+        },
+        "x86_64",
+    )
+    installed = tmp_path / ".local" / "bin" / "demo"
+    assert installed.read_text(encoding="utf-8") == "demo"
+    assert installed.stat().st_mode & 0o111
+
+
+def test_run_install_steps_prefixes_sudo_when_available(tmp_path: Path, monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(cmd: list[str], **_kwargs: object) -> None:
+        calls.append(cmd)
+
+    monkeypatch.setattr(install_tools.subprocess, "run", fake_run)
+
+    install_tools.run_install_steps(
+        [
+            {
+                "action": "run",
+                "argv": ["tool/install", "--prefix", "{install_dir}"],
+                "sudo": True,
+            }
+        ],
+        context={
+            "archive": "/tmp/tool.tar.gz",
+            "tmpdir": str(tmp_path),
+            "bin_dir": "/usr/local/bin",
+            "install_dir": "/usr/local/tool",
+        },
+        cwd=tmp_path,
+        sudo_available=True,
+    )
+
+    assert calls == [["sudo", "tool/install", "--prefix", "/usr/local/tool"]]
 
 
 def test_install_tool_rejects_checksum_mismatch_before_install(tmp_path, monkeypatch) -> None:
@@ -177,7 +259,12 @@ def test_install_tool_rejects_checksum_mismatch_before_install(tmp_path, monkeyp
                     ],
                 }
             },
-            "install_command": "install-demo",
+            "install_steps": [
+                {
+                    "action": "run",
+                    "argv": ["install-demo"],
+                }
+            ],
         },
         "x86_64",
     )

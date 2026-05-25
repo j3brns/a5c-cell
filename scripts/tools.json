@@ -19,7 +19,25 @@
           ]
         }
       },
-      "install_command": "chmod +x ./aws/install && sudo ./aws/install --install-dir {install_dir} --bin-dir {bin_dir} --update",
+      "install_steps": [
+        {
+          "action": "chmod",
+          "path": "aws/install",
+          "mode": "755"
+        },
+        {
+          "action": "run",
+          "argv": [
+            "aws/install",
+            "--install-dir",
+            "{install_dir}",
+            "--bin-dir",
+            "{bin_dir}",
+            "--update"
+          ],
+          "sudo": true
+        }
+      ],
       "binary": "aws"
     },
     {
@@ -41,7 +59,14 @@
           ]
         }
       },
-      "install_command": "cp bin/glab {bin_dir}/glab && chmod +x {bin_dir}/glab",
+      "install_steps": [
+        {
+          "action": "copy",
+          "src": "bin/glab",
+          "dest": "{bin_dir}/glab",
+          "mode": "755"
+        }
+      ],
       "binary": "glab"
     },
     {
@@ -63,7 +88,14 @@
           ]
         }
       },
-      "install_command": "cp */cfn-guard {bin_dir}/cfn-guard && chmod +x {bin_dir}/cfn-guard",
+      "install_steps": [
+        {
+          "action": "copy_glob",
+          "src": "*/cfn-guard",
+          "dest": "{bin_dir}/cfn-guard",
+          "mode": "755"
+        }
+      ],
       "binary": "cfn-guard"
     },
     {
