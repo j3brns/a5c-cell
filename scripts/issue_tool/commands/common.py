@@ -1028,6 +1028,7 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
         "stage": "starting",
         "events": [],
     }
+    ensure_closeout_start_evidence(root, repo, issue_id, target)
     events = report_base["events"]
     if isinstance(events, list):
         events.append(
@@ -1076,10 +1077,12 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
         info = issue_state_info(root, repo, issue_id)
         issue_closed = False
         if info and str(info.get("state", "")).upper() == "CLOSED":
-            normalized = logic.normalize_closed_issue_labels(root, repo, issue_id, info)
+            normalized = logic.normalize_closed_issue(root, repo, issue_id, info)
             print(f"Issue #{issue_id} already closed.")
-            if normalized:
+            if normalized["labels"]:
                 print("Normalized closed-issue lifecycle labels.")
+            if normalized["checklists"]:
+                print("Normalized closed-issue checklist boxes.")
             issue_closed = True
             if isinstance(events, list):
                 events.append(
@@ -1097,9 +1100,11 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
             refreshed_info = issue_state_info(root, repo, issue_id)
             if not refreshed_info and info:
                 refreshed_info = {**info, "state": "closed"}
-            normalized = logic.normalize_closed_issue_labels(root, repo, issue_id, refreshed_info)
-            if normalized:
+            normalized = logic.normalize_closed_issue(root, repo, issue_id, refreshed_info)
+            if normalized["labels"]:
                 print("Normalized closed-issue lifecycle labels.")
+            if normalized["checklists"]:
+                print("Normalized closed-issue checklist boxes.")
             issue_closed = True
             if isinstance(events, list):
                 events.append(
@@ -1297,6 +1302,38 @@ def close_issue_done(root: Path, *, path: Path | None = None, force: bool = Fals
         )
         print(f"Closeout report: {report_path}")
         raise
+
+
+def ensure_closeout_start_evidence(
+    root: Path, repo: str, issue_id: int, target: WorktreeInfo
+) -> None:
+    state = shared.read_json_file(evidence.issue_state_path(root, issue_id)) or {}
+    events = state.get("events") if isinstance(state, dict) else None
+    if not isinstance(events, list):
+        events = []
+    event_types = {
+        str(event.get("event_type"))
+        for event in events
+        if isinstance(event, dict) and event.get("event_type")
+    }
+    if event_types & {"worktree-created", "worktree-reused", "worktree-resumed"}:
+        return
+
+    worktree.record_issue_handoff_event(
+        root=root,
+        repo=repo,
+        issue_number=issue_id,
+        issue_title=target.branch,
+        branch=target.branch,
+        worktree_path=target.path,
+        event_type="worktree-reused",
+        state="worktree-ready",
+        details={
+            "source": "finish-worktree-close",
+            "reason": "missing worktree start/resume evidence before closeout",
+        },
+        idempotency_key=f"closeout-start-backfill:{issue_id}:{target.branch}:{target.path}",
+    )
 
 
 def finish_stage(root: Path, wt: WorktreeInfo, repo: str | None) -> str:
