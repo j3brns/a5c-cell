@@ -205,7 +205,7 @@ describe("AdminPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /export invocation audit/i }));
 
     await waitFor(() => {
-      expect(openMock).toHaveBeenCalledWith("https://example.test/audit.csv", "_blank");
+      expect(openMock).toHaveBeenCalledWith("https://example.test/audit.csv", "_blank", "noopener,noreferrer");
     });
     expect(notifyMock).toHaveBeenCalledWith(expect.objectContaining({
       title: "Export Started",
