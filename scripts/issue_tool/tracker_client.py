@@ -219,6 +219,26 @@ def update_issue_labels(
     _run_text(cmd, root=root)
 
 
+def update_issue_description(
+    root: Path,
+    repo: str,
+    issue_id: int | str,
+    *,
+    description: str,
+) -> None:
+    _run_json(
+        [
+            "api",
+            "--method",
+            "PUT",
+            f"projects/{_project_path(repo)}/issues/{issue_id}",
+            "-f",
+            f"description={description}",
+        ],
+        root=root,
+    )
+
+
 def close_issue(root: Path, repo: str, issue_id: int | str) -> None:
     _run_text(["glab", "issue", "close", str(issue_id), "-R", repo], root=root)
 

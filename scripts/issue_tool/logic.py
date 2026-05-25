@@ -11,6 +11,8 @@ from scripts.issue_tool.constants import (
 )
 from scripts.issue_tool.models import Issue
 
+MARKDOWN_TASK_RE = re.compile(r"(?m)^([ \t]*[-*][ \t]+\[) (?=\])")
+
 
 def parse_task_id_from_issue(issue: dict) -> str | None:
     body = str(issue.get("body") or "")
@@ -133,6 +135,33 @@ def normalize_closed_issue_labels(root: Path, repo: str, issue_id: int, info: di
         return False
     edit_issue_labels(root, repo, issue.number, label_ops)
     return True
+
+
+def normalize_closed_issue_checklists(
+    root: Path, repo: str, issue_id: int, info: dict | None
+) -> bool:
+    """Mark GitLab task-list checkboxes complete during terminal issue closeout."""
+    if not info:
+        return False
+    body = str(info.get("body") or "")
+    normalized = MARKDOWN_TASK_RE.sub(r"\1x", body)
+    if normalized == body:
+        return False
+
+    from scripts.issue_tool.tracker_client import update_issue_description
+
+    update_issue_description(root, repo, issue_id, description=normalized)
+    info["body"] = normalized
+    return True
+
+
+def normalize_closed_issue(
+    root: Path, repo: str, issue_id: int, info: dict | None
+) -> dict[str, bool]:
+    return {
+        "labels": normalize_closed_issue_labels(root, repo, issue_id, info),
+        "checklists": normalize_closed_issue_checklists(root, repo, issue_id, info),
+    }
 
 
 def assert_issue_startable(issue: Issue, *, allow_blocked: bool) -> None:

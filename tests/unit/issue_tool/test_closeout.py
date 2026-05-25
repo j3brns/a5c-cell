@@ -119,6 +119,7 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
         is_primary=True,
     )
     edits: list[list[str]] = []
+    descriptions: list[list[str]] = []
     comments: list[list[str]] = []
     cleanup_calls: list[tuple[list[str], Path | None]] = []
     branch_deleted = False
@@ -140,6 +141,11 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
         lambda _root, _repo, _issue_id: {
             "state": "CLOSED",
             "title": "TASK-153: sample",
+            "body": (
+                "## Acceptance Criteria\n\n"
+                "- [ ] The behaviour is implemented.\n"
+                "- [x] Already done.\n"
+            ),
             "url": "https://example.test/issues/153",
             "labels": [
                 {"name": "type:task"},
@@ -152,11 +158,15 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
     def _update_issue_labels(_root, _repo, issue_id, *, add=None, remove=None):
         edits.append([str(issue_id), sorted(add or []), sorted(remove or [])])
 
+    def _update_issue_description(_root, _repo, issue_id, *, description):
+        descriptions.append([str(issue_id), description])
+
     def _comment_issue(_root, _repo, issue_id, body):
         comments.append([str(issue_id), body])
         return ""
 
     monkeypatch.setattr(tracker_client, "update_issue_labels", _update_issue_labels)
+    monkeypatch.setattr(tracker_client, "update_issue_description", _update_issue_description)
     monkeypatch.setattr(tracker_client, "comment_issue", _comment_issue)
     monkeypatch.setattr(worktree, "issue_has_handback_comment", lambda **_kwargs: False)
     monkeypatch.setattr(tracker_client, "ensure_label_exists", lambda *_args, **_kwargs: None)
@@ -197,6 +207,12 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
     out = capsys.readouterr().out
 
     assert edits == [["153", ["status:done"], ["ready", "status:in-progress"]]]
+    assert descriptions == [
+        [
+            "153",
+            "## Acceptance Criteria\n\n- [x] The behaviour is implemented.\n- [x] Already done.\n",
+        ]
+    ]
     assert len(comments) == 1
     assert comments[0][0] == "153"
     assert "Execution evidence: PASS" in comments[0][1]
@@ -212,6 +228,7 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
 
     assert "Issue #153 already closed." in out
     assert "Normalized closed-issue lifecycle labels." in out
+    assert "Normalized closed-issue checklist boxes." in out
     assert "Cleaning up worktree..." in out
     assert f"Removed worktree {target.path}" in out
     assert "Deleted branch wt/task/153-sample" in out
@@ -249,6 +266,86 @@ def test_close_issue_done_normalizes_labels_for_already_closed_issue(monkeypatch
         "handback-audited",
         "handback-complete",
     ]
+
+
+def test_close_issue_done_backfills_missing_start_evidence_before_audit(
+    monkeypatch, capsys, tmp_path
+):
+    root = tmp_path / "repo"
+    root.mkdir(parents=True, exist_ok=True)
+    target = models.WorktreeInfo(
+        path=tmp_path / "worktrees" / "wt153",
+        head="abc123",
+        branch="wt/task/153-sample",
+        is_primary=False,
+    )
+    primary = models.WorktreeInfo(
+        path=root,
+        head="def456",
+        branch="main",
+        is_primary=True,
+    )
+    comments: list[list[str]] = []
+    branch_deleted = False
+
+    target.path.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(worktree, "list_worktrees", lambda _root: [primary, target])
+    monkeypatch.setattr(worktree, "resolve_current_worktree", lambda _path, _wts: target)
+    monkeypatch.setattr(worktree_issues, "current_path", lambda: target.path)
+    monkeypatch.setattr(commands_common, "tracker_repo_ready", lambda _root: (True, "owner/repo"))
+    monkeypatch.setattr(
+        commands_common,
+        "merge_request_for_source_branch",
+        lambda _root, _repo, _branch, _state: {"number": 157},
+    )
+    monkeypatch.setattr(
+        commands_common,
+        "issue_state_info",
+        lambda _root, _repo, _issue_id: {
+            "state": "CLOSED",
+            "title": "TASK-153: sample",
+            "body": "",
+            "url": "https://example.test/issues/153",
+            "labels": [{"name": "type:task"}, {"name": "status:done"}],
+        },
+    )
+    monkeypatch.setattr(worktree, "issue_has_handback_comment", lambda **_kwargs: False)
+    monkeypatch.setattr(tracker_client, "ensure_label_exists", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        tracker_client,
+        "comment_issue",
+        lambda _root, _repo, issue_id, body: comments.append([str(issue_id), body]) or "",
+    )
+
+    def _run(cmd, *, cwd=None, **_kwargs):
+        nonlocal branch_deleted
+        if cmd[:3] == ["git", "worktree", "remove"] and target.path.exists():
+            target.path.rmdir()
+        if cmd[:3] == ["git", "branch", "-d"]:
+            branch_deleted = True
+        if cmd[:2] == ["git", "show-ref"] and branch_deleted:
+            return subprocess.CompletedProcess(cmd, 1, "", "")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(git_utils, "run", _run)
+
+    commands_common.close_issue_done(root, path=target.path, force=False)
+    out = capsys.readouterr().out
+
+    assert "Issue #153 already closed." in out
+    assert comments and comments[0][0] == "153"
+    state_path = root / ".build" / "worktree-state" / "issue-153.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["state"] == "done"
+    assert [event["event_type"] for event in state["events"]] == [
+        "worktree-reused",
+        "closeout-started",
+        "closeout-complete",
+        "handback-audited",
+        "handback-complete",
+    ]
+    assert state["events"][0]["details"]["source"] == "finish-worktree-close"
 
 
 def test_close_issue_done_normalizes_open_issue_after_close(monkeypatch, capsys, tmp_path):
