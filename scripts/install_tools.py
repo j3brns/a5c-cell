@@ -18,6 +18,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Any
+from zipfile import ZipInfo
 
 from platform_config import env_optional
 
@@ -81,11 +82,41 @@ def download_file(url: str, dest: Path) -> None:
     urllib.request.urlretrieve(url, dest)
 
 
+def _safe_archive_member_path(destination: Path, member_name: str) -> Path:
+    member_path = Path(member_name)
+    if member_path.is_absolute() or ".." in member_path.parts:
+        raise ValueError(f"Unsafe archive member path: {member_name}")
+    target = (destination / member_path).resolve()
+    root = destination.resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Unsafe archive member path: {member_name}") from exc
+    return target
+
+
+def _is_zip_symlink(member: ZipInfo) -> bool:
+    unix_mode = member.external_attr >> 16
+    return (unix_mode & 0o170000) == 0o120000
+
+
+def _extract_tar_members(tar_ref: tarfile.TarFile, extract_dir: Path) -> None:
+    for member in tar_ref.getmembers():
+        if member.issym() or member.islnk():
+            raise ValueError(f"Refusing to extract archive link: {member.name}")
+        _safe_archive_member_path(extract_dir, member.name)
+    for member in tar_ref.getmembers():
+        tar_ref.extract(member, extract_dir, filter="data")
+
+
 def extract_archive(archive_path: Path, extract_dir: Path) -> None:
     info(f"Extracting {archive_path.name}...")
     if archive_path.suffix == ".zip":
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
             for info_item in zip_ref.infolist():
+                if _is_zip_symlink(info_item):
+                    raise ValueError(f"Refusing to extract archive symlink: {info_item.filename}")
+                _safe_archive_member_path(extract_dir, info_item.filename)
                 zip_ref.extract(info_item, extract_dir)
                 out_path = extract_dir / info_item.filename
                 if out_path.is_file():
@@ -94,10 +125,10 @@ def extract_archive(archive_path: Path, extract_dir: Path) -> None:
                         out_path.chmod(mode)
     elif archive_path.suffix in (".gz", ".tgz"):
         with tarfile.open(archive_path, "r:gz") as tar_ref:
-            tar_ref.extractall(extract_dir)
+            _extract_tar_members(tar_ref, extract_dir)
     elif archive_path.suffix == ".tar":
         with tarfile.open(archive_path, "r:") as tar_ref:
-            tar_ref.extractall(extract_dir)
+            _extract_tar_members(tar_ref, extract_dir)
     else:
         # Fallback to just copying if it's not a known archive
         shutil.copy(archive_path, extract_dir)
